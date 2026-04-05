@@ -634,49 +634,6 @@ export function DentalCanvas({
               zonesWithFindings={new Set(findings.map(f => f.zoneId))}
               disabled={currentToothDiagnoses.has('Missing')}
             />
-            {selectedZone && (
-              (() => {
-                const entries = currentToothEntries.filter(e => e.surfaces.includes(selectedZone))
-                const findingEntries = entries.filter(e => e.kind === 'finding')
-                const procedureEntries = entries.filter(e => e.kind === 'procedure')
-                return (
-                  <div
-                    className="pointer-events-none absolute right-0 -top-[12px] -translate-y-full min-w-[180px] max-w-[240px] rounded-[8px] bg-tp-slate-900 px-[10px] py-[8px] shadow-[0_4px_14px_-4px_rgba(15,23,42,0.4)]"
-                  >
-                    <div className="font-sans text-[11px] font-bold text-white whitespace-nowrap">
-                      {ZONE_INFO[selectedZone]?.label ?? selectedZone}
-                    </div>
-                    {findingEntries.length > 0 && (
-                      <div className="mt-[6px]">
-                        <div className="font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-white/55">Findings</div>
-                        <div className="mt-[3px] flex flex-wrap gap-[3px]">
-                          {findingEntries.map(e => (
-                            <span key={e.id} className="inline-flex items-center rounded-[4px] bg-tp-amber-500/25 px-[6px] py-[1px] font-sans text-[10px] font-medium text-tp-amber-100">
-                              {e.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {procedureEntries.length > 0 && (
-                      <div className="mt-[6px]">
-                        <div className="font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-white/55">Procedures</div>
-                        <div className="mt-[3px] flex flex-wrap gap-[3px]">
-                          {procedureEntries.map(e => (
-                            <span key={e.id} className="inline-flex items-center rounded-[4px] bg-tp-blue-500/25 px-[6px] py-[1px] font-sans text-[10px] font-medium text-tp-blue-100">
-                              {e.name}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {entries.length === 0 && (
-                      <div className="mt-[4px] font-sans text-[10px] text-white/50">No findings yet</div>
-                    )}
-                  </div>
-                )
-              })()
-            )}
           </div>
         )}
 
