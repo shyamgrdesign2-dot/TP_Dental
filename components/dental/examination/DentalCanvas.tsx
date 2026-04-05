@@ -10,7 +10,7 @@ import { ToothSelector } from './ToothSelector'
 import { QuickSurfaceSelector } from './QuickSurfaceSelector'
 import { ExaminationPanel } from './ExaminationPanel'
 import type { ZoneId, Finding, ToothDef, ViewMode, ToothEntry } from './types'
-import { TEETH, QUADRANT_LABELS, ARCH_POSITIONS } from './types'
+import { TEETH, QUADRANT_LABELS, ARCH_POSITIONS, ZONE_INFO } from './types'
 import { applyDiagnosisSelection } from './DiagnosisMatrix'
 import './dental-canvas.css'
 import { LottieIcon } from '../LottieIcon'
@@ -73,6 +73,62 @@ const EMPTY_FINDINGS: readonly Finding[] = []
 
 const DENTITION_CAMERA = { position: new THREE.Vector3(0, 2.5, 16.5), target: new THREE.Vector3(0, -0.9, -0.3), fov: 35 }
 const SINGLE_TOOTH_CAMERA = { position: new THREE.Vector3(0.5, -0.15, 7.5), target: new THREE.Vector3(0, -0.35, 0), fov: 32 }
+
+// Zone → spherical camera angle (azimuth, polar). Rotates the single-tooth
+// camera around the tooth to show the selected surface head-on.
+const ZONE_ANGLES: Record<string, { az: number; pol: number }> = {
+  buccal:   { az: 0,             pol: Math.PI / 2 },
+  lingual:  { az: Math.PI,       pol: Math.PI / 2 },
+  mesial:   { az: -Math.PI / 2,  pol: Math.PI / 2 },
+  distal:   { az:  Math.PI / 2,  pol: Math.PI / 2 },
+  occlusal: { az: 0,             pol: 0.25 },
+  cervical: { az: 0,             pol: Math.PI / 2.4 },
+  root:     { az: 0,             pol: Math.PI - 0.35 },
+}
+
+function ZoneCameraRotator({ zone, controlsRef, radius = 7.5 }: { zone: ZoneId | null; controlsRef: React.RefObject<any>; radius?: number }) {
+  const { camera } = useThree()
+  const target = useRef<THREE.Spherical | null>(null)
+  useEffect(() => {
+    if (!zone || !ZONE_ANGLES[zone]) return
+    const a = ZONE_ANGLES[zone]
+    target.current = new THREE.Spherical(radius, a.pol, a.az)
+  }, [zone, radius])
+  useFrame(() => {
+    if (!target.current || !controlsRef.current) return
+    const controls = controlsRef.current
+    const center = controls.target
+    // Current spherical around target
+    const offset = new THREE.Vector3().subVectors(camera.position, center)
+    const cur = new THREE.Spherical().setFromVector3(offset)
+    const goal = target.current
+    // Lerp spherical angles
+    const lerp = 0.12
+    cur.theta += shortestAngleDelta(cur.theta, goal.theta) * lerp
+    cur.phi += (goal.phi - cur.phi) * lerp
+    // Keep radius roughly constant
+    cur.radius += (goal.radius - cur.radius) * lerp
+    const next = new THREE.Vector3().setFromSpherical(cur)
+    camera.position.copy(next.add(center))
+    controls.update()
+    // Stop when close enough
+    if (
+      Math.abs(shortestAngleDelta(cur.theta, goal.theta)) < 0.005 &&
+      Math.abs(cur.phi - goal.phi) < 0.005 &&
+      Math.abs(cur.radius - goal.radius) < 0.01
+    ) {
+      target.current = null
+    }
+  })
+  return null
+}
+
+function shortestAngleDelta(from: number, to: number): number {
+  let d = to - from
+  while (d > Math.PI) d -= Math.PI * 2
+  while (d < -Math.PI) d += Math.PI * 2
+  return d
+}
 
 function CameraController({ viewMode, controlsRef }: { viewMode: ViewMode; controlsRef: React.RefObject<any> }) {
   const { camera, size } = useThree()
@@ -308,13 +364,21 @@ export function DentalCanvas({
   }, [currentToothDiagnoses, selectedTooth.fdi])
 
   const handleToggleZoneMultiSelect = useCallback((zone: ZoneId) => {
+    // Multi-select mode is gated by multiSelectActive (enabled only when a
+    // surface cell in the Findings/Procedures table is active).
+    // When inactive, clicking a zone is a single-select: set selectedZone,
+    // which triggers the camera to rotate to that surface (see ZoneCamera).
+    if (!multiSelectActive) {
+      setSelectedZone((prev) => (prev === zone ? null : zone))
+      return
+    }
     setMultiSelectZones((prev) => {
       const next = new Set(prev)
       if (next.has(zone)) next.delete(zone)
       else next.add(zone)
       return next
     })
-  }, [])
+  }, [multiSelectActive])
 
   const handleClearMultiSelect = useCallback(() => {
     setMultiSelectZones(new Set())
@@ -442,7 +506,7 @@ export function DentalCanvas({
       <div className="viewer">
         <div className="viewer-header">
           {isDentitionView ? (
-            <div className="tooth-name">Full Dentition View</div>
+            <div className="tooth-name">Full dentition view</div>
           ) : (
             <div className="tooth-name">
               {QUADRANT_LABELS[selectedTooth.quadrant]} {selectedTooth.name}
@@ -565,13 +629,21 @@ export function DentalCanvas({
         {!isDentitionView && (
           <div className="viewer-bottom-controls">
             <QuickSurfaceSelector
-              selectedZones={multiSelectZones}
+              selectedZones={multiSelectActive ? multiSelectZones : (selectedZone ? new Set([selectedZone]) : new Set())}
               onToggleZone={handleToggleZoneMultiSelect}
               arch={selectedTooth.arch}
               toothPosition={selectedTooth.position}
               zonesWithFindings={new Set(findings.map(f => f.zoneId))}
               disabled={currentToothDiagnoses.has('Missing')}
             />
+            {selectedZone && !multiSelectActive && (
+              <div
+                className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-[28px] whitespace-nowrap rounded-[6px] bg-tp-slate-900 px-[8px] py-[3px] font-sans text-[11px] font-semibold text-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.35)]"
+                style={{ left: 'auto', right: 0 }}
+              >
+                {ZONE_INFO[selectedZone]?.label ?? selectedZone}
+              </div>
+            )}
           </div>
         )}
 
@@ -587,6 +659,9 @@ export function DentalCanvas({
           <directionalLight position={[0, -2, 1]} intensity={0.3} />
 
           <CameraController viewMode={viewMode} controlsRef={controlsRef} />
+          {!isDentitionView && (
+            <ZoneCameraRotator zone={selectedZone} controlsRef={controlsRef} />
+          )}
 
           <Suspense fallback={null}>
             {isDentitionView ? (

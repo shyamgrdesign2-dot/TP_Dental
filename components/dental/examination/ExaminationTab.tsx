@@ -11,7 +11,7 @@
  * Typography: 14px / 12px baseline; 10px only for tiny meta.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import dynamic from "next/dynamic"
 import { InfoCircle, TickCircle, ArrowLeft2, Eye, Trash, ArrowRight2, Grid5, Ram, Eraser, More, Add, Edit2, Calendar, SearchNormal1 } from "iconsax-reactjs"
@@ -157,7 +157,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
 
   return (
     <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100">
-      {/* Left: 3D canvas — plain white with single perspective dot pattern */}
+      {/* Left: 3D canvas — plain white with subtle grid + minimal dots */}
       <div
         className="relative min-w-0 my-[12px] ml-[12px] rounded-[20px] overflow-hidden bg-white"
         style={{
@@ -165,40 +165,29 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           transition: dragging ? "none" : "width 200ms ease",
         }}
       >
-        {/* Perspective floor grid — converges to horizon ~40%, creating real 3D depth */}
-        <svg
-          className="pointer-events-none absolute inset-0 h-full w-full"
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
-        >
-          <defs>
-            <linearGradient id="persp-fade" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%"   stopColor="rgba(15,23,42,0)" />
-              <stop offset="38%"  stopColor="rgba(15,23,42,0)" />
-              <stop offset="55%"  stopColor="rgba(15,23,42,0.35)" />
-              <stop offset="100%" stopColor="rgba(15,23,42,0.85)" />
-            </linearGradient>
-            <mask id="persp-mask">
-              <rect width="100" height="100" fill="url(#persp-fade)" />
-            </mask>
-          </defs>
-          <g stroke="rgb(99, 110, 134)" strokeWidth="0.18" mask="url(#persp-mask)" vectorEffect="non-scaling-stroke">
-            {/* Vanishing lines from horizon (50%, 40%) diverging to bottom edge */}
-            {Array.from({ length: 21 }, (_, i) => {
-              const x = (i / 20) * 100
-              return <line key={`v${i}`} x1="50" y1="40" x2={x} y2="100" />
-            })}
-            {/* Horizontal bands with perspective foreshortening (denser near horizon) */}
-            {[0.05, 0.14, 0.26, 0.42, 0.62, 0.85, 1.1].map((t, i) => (
-              <line key={`h${i}`} x1="0" y1={40 + t * 60} x2="100" y2={40 + t * 60} />
-            ))}
-          </g>
-        </svg>
-        {/* Horizon soft-light overlay — brightens upper half where 3D model sits */}
+        {/* Subtle graph-paper grid — medium squares, very light */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
-            background: "linear-gradient(to bottom, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.9) 30%, rgba(255,255,255,0.4) 45%, transparent 55%)",
+            backgroundImage:
+              "linear-gradient(to right, rgba(15,23,42,0.025) 1px, transparent 1px)," +
+              "linear-gradient(to bottom, rgba(15,23,42,0.025) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+        {/* Smaller, lighter dot texture */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: "radial-gradient(circle, rgba(15,23,42,0.04) 0.6px, transparent 0.9px)",
+            backgroundSize: "16px 16px",
+          }}
+        />
+        {/* Soft focal spotlight on 3D subject */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: "radial-gradient(ellipse 55% 42% at 50% 38%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.3) 55%, transparent 78%)",
           }}
         />
         <div className="relative z-10 h-full w-full">
@@ -503,34 +492,37 @@ function ScoreCard({
   const fgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${sweepTotal * progress > 180 ? 1 : 0} 1 ${pProg.x} ${pProg.y}`
   const gid = `gauge-ring-${zoneIdx}`
   const did = `gauge-disc-${zoneIdx}`
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
+  const infoIconRef = useRef<HTMLButtonElement>(null)
+  const [iconAnchor, setIconAnchor] = useState<{ x: number; y: number } | null>(null)
+
+  const openTooltip = () => {
+    const r = infoIconRef.current?.getBoundingClientRect()
+    if (!r) return
+    setIconAnchor({ x: r.left + r.width / 2, y: r.bottom })
+    setShowFormula(true)
+  }
+  const closeTooltip = () => { setShowFormula(false); setIconAnchor(null) }
 
   return (
     <div
       ref={infoBtnRef}
-      className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[12px] pb-[14px] backdrop-blur-sm"
+      className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[12px] pb-[14px]"
       style={{
-        background: `linear-gradient(140deg, ${colour.tint} 0%, rgba(255,255,255,0.65) 55%, ${colour.tint} 100%)`,
+        background: `linear-gradient(140deg, #ffffff 0%, ${colour.tint}80 100%)`,
       }}
-      onMouseEnter={(e) => { setShowFormula(true); setCursorPos({ x: e.clientX, y: e.clientY }) }}
-      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
-      onMouseLeave={() => setShowFormula(false)}
     >
-      {/* Heading — glass pill chip with zone-tinted bg */}
-      <div className="relative z-10 mb-[2px]">
-        <span
-          className="inline-flex items-center gap-[5px] rounded-full px-[9px] py-[3px] font-sans text-[10px] font-semibold backdrop-blur-sm"
-          style={{
-            background: "rgba(255,255,255,0.7)",
-            color: colour.accentDark,
-            border: `1px solid ${colour.accent}30`,
-          }}
-        >
-          <span className="h-[5px] w-[5px] rounded-full" style={{ background: colour.accent }} />
-          Dental score
-        </span>
-      </div>
-      {showFormula && cursorPos && <ScoreTooltip cursorPos={cursorPos} data={data} />}
+      {/* Heading — tab stuck to top-left corner, only bottom-right rounded */}
+      <span
+        className="absolute top-0 left-0 z-20 inline-flex items-center px-[10px] py-[4px] font-sans text-[10px] font-semibold tracking-[0.2px]"
+        style={{
+          background: colour.tint,
+          color: colour.accentDark,
+          borderBottomRightRadius: "10px",
+        }}
+      >
+        Dental score
+      </span>
+      {showFormula && iconAnchor && <ScoreTooltip anchor={iconAnchor} data={data} />}
 
       {/* Gauge */}
       <div className="relative z-10 flex items-center justify-center">
@@ -571,108 +563,129 @@ function ScoreCard({
             out of 100
           </text>
         </svg>
-        {/* Rating pill — HTML overlay with flex width + info icon */}
-        <span
-          className="pointer-events-none absolute inline-flex items-center gap-[4px] rounded-full px-[10px] py-[3px] font-sans text-[9px] font-bold whitespace-nowrap"
+        {/* Rating tag — pill with glass gradient, accent border + accent text */}
+        <div
+          className="absolute inline-flex items-center gap-[4px]"
           style={{
             top: `${((cy + 34) / size) * 100}%`,
             left: "50%",
             transform: "translate(-50%, -50%)",
-            background: `${colour.accent}24`,
-            color: colour.accentDark,
-            border: `1px solid ${colour.accent}40`,
-            letterSpacing: "0.5px",
           }}
         >
-          {rating.toUpperCase()}
-          <InfoCircle size={10} color="currentColor" variant="Linear" />
-        </span>
+          <span
+            className="inline-flex items-center rounded-full px-[10px] py-[3px] font-sans text-[9px] font-bold whitespace-nowrap backdrop-blur-[6px]"
+            style={{
+              background: `linear-gradient(135deg, ${colour.accent}12 0%, #ffffff 60%, ${colour.accent}1a 100%)`,
+              color: colour.accentDark,
+              border: `1px solid ${colour.accent}33`,
+              letterSpacing: "0.6px",
+            }}
+          >
+            {rating.toUpperCase()}
+          </span>
+          <button
+            ref={infoIconRef}
+            type="button"
+            onMouseEnter={openTooltip}
+            onMouseLeave={closeTooltip}
+            onClick={openTooltip}
+            className="inline-flex h-[16px] w-[16px] items-center justify-center rounded-full transition-colors hover:bg-white/60"
+            aria-label="How this score is calculated"
+            style={{ color: colour.accentDark }}
+          >
+            <InfoCircle size={12} color="currentColor" variant="Linear" />
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
-function ScoreTooltip({ cursorPos, data }: {
-  cursorPos: { x: number; y: number }
+function ScoreTooltip({ anchor, data }: {
+  anchor: { x: number; y: number }
   data: ReturnType<typeof computeDentalScore>
 }) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
   if (!mounted) return null
 
-  // Smart positioning: tooltip sits to the right of cursor, flipping if it would overflow.
-  const TOOLTIP_W = 280
-  const TOOLTIP_H_ESTIMATE = 280
-  const pad = 16
-  let left = cursorPos.x + 18
-  let top = cursorPos.y + 12
+  // Compact black tooltip, anchored below the info icon, arrow points up to icon.
+  const TOOLTIP_W = 220
+  const TOOLTIP_H_ESTIMATE = 110
+  const pad = 12
+  const ARROW = 6
+  let placeBelow = true
+  let left = anchor.x - TOOLTIP_W / 2
+  let top = anchor.y + ARROW + 4
   if (typeof window !== "undefined") {
-    if (left + TOOLTIP_W + pad > window.innerWidth) left = cursorPos.x - TOOLTIP_W - 18
-    if (top + TOOLTIP_H_ESTIMATE + pad > window.innerHeight) top = cursorPos.y - TOOLTIP_H_ESTIMATE - 12
+    if (top + TOOLTIP_H_ESTIMATE + pad > window.innerHeight) {
+      placeBelow = false
+      top = anchor.y - TOOLTIP_H_ESTIMATE - ARROW - 4
+    }
+    if (left + TOOLTIP_W + pad > window.innerWidth) left = window.innerWidth - TOOLTIP_W - pad
     if (left < pad) left = pad
-    if (top < pad) top = pad
   }
+  const arrowX = Math.max(12, Math.min(TOOLTIP_W - 12, anchor.x - left)) - ARROW
 
   return createPortal(
-    <div
-      className="fixed z-[9999] pointer-events-none"
-      style={{ top, left }}
-    >
-      <div className="relative w-[280px] overflow-hidden rounded-[12px] bg-white shadow-[0_8px_24px_-4px_rgba(15,23,42,0.18)] border border-tp-slate-200">
-        {/* Header */}
-        <div className="px-[14px] pt-[12px] pb-[8px]">
-          <div className="flex items-center gap-[6px]">
-            <InfoCircle size={14} color="var(--tp-blue-500)" variant="Bold" />
-            <p className="font-sans text-[13px] font-bold text-tp-slate-900">How this is calculated</p>
-          </div>
-          <p className="mt-[3px] font-sans text-[11px] leading-[15px] text-tp-slate-500">
-            Score starts at <strong className="text-tp-slate-800">100</strong> and decreases as diagnoses and surface findings are added.
-          </p>
+    <div className="fixed z-[9999] pointer-events-none" style={{ top, left }}>
+      {/* Arrow on top (when tooltip is below cursor) */}
+      {placeBelow && (
+        <div
+          className="absolute"
+          style={{
+            top: -ARROW,
+            left: arrowX,
+            width: 0,
+            height: 0,
+            borderLeft: `${ARROW}px solid transparent`,
+            borderRight: `${ARROW}px solid transparent`,
+            borderBottom: `${ARROW}px solid #0f172a`,
+          }}
+        />
+      )}
+      <div
+        className="w-[220px] rounded-[8px] px-[12px] py-[10px] shadow-[0_6px_18px_-4px_rgba(15,23,42,0.35)]"
+        style={{ background: "#0f172a", color: "#ffffff" }}
+      >
+        <p className="font-sans text-[11px] font-semibold text-white/95">How this is calculated</p>
+        <p className="mt-[2px] font-sans text-[10px] leading-[14px] text-white/55">
+          Starts at 100, decreases with diagnoses &amp; findings.
+        </p>
+        <div className="mt-[8px] flex flex-col gap-[4px]">
+          <TooltipRow label="Diagnoses" value={data.breakdown.diag} />
+          <TooltipRow label="Findings" value={data.breakdown.findings} />
         </div>
-        {/* Rows */}
-        <div className="bg-tp-slate-50 px-[14px] py-[10px]">
-          <TooltipRow color="var(--tp-violet-500)" label="Tooth-level diagnoses" value={data.breakdown.diag} />
-          <TooltipRow color="var(--tp-amber-500)" label="Surface findings" value={data.breakdown.findings} />
-        </div>
-        <div className="flex items-center justify-between border-t border-tp-slate-100 px-[14px] py-[9px]">
-          <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.4px] text-tp-slate-500">Total deduction</span>
-          <span className="font-sans text-[14px] font-bold tabular-nums text-tp-error-600">−{data.totalDeduction}</span>
-        </div>
-        {/* Legend */}
-        <div className="border-t border-tp-slate-100 px-[14px] py-[9px]">
-          <p className="mb-[4px] font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400">Weight legend</p>
-          <div className="grid grid-cols-2 gap-x-[10px] gap-y-[3px]">
-            <LegendRow label="Missing" v="−8" />
-            <LegendRow label="Fracture / RCT" v="−4" />
-            <LegendRow label="Bridge / Denture / Caries" v="−3" />
-            <LegendRow label="Crown / Erosion" v="−2" />
-            <LegendRow label="Recession / Abrasion" v="−1" />
-            <LegendRow label="Stain / Plaque" v="−0.5" />
-          </div>
+        <div className="mt-[7px] flex items-center justify-between border-t border-white/15 pt-[6px]">
+          <span className="font-sans text-[10px] font-medium text-white/60">Total deducted</span>
+          <span className="font-sans text-[12px] font-bold tabular-nums text-white">−{data.totalDeduction}</span>
         </div>
       </div>
+      {/* Arrow at bottom (when tooltip is above cursor) */}
+      {!placeBelow && (
+        <div
+          className="absolute"
+          style={{
+            bottom: -ARROW,
+            left: arrowX,
+            width: 0,
+            height: 0,
+            borderLeft: `${ARROW}px solid transparent`,
+            borderRight: `${ARROW}px solid transparent`,
+            borderTop: `${ARROW}px solid #0f172a`,
+          }}
+        />
+      )}
     </div>,
     document.body
   )
 }
 
-function TooltipRow({ color, label, value }: { color: string; label: string; value: number }) {
-  return (
-    <div className="flex items-center justify-between py-[3px]">
-      <div className="flex items-center gap-[6px]">
-        <span className="h-[6px] w-[6px] rounded-full flex-shrink-0" style={{ background: color }} />
-        <span className="font-sans text-[11px] font-medium text-tp-slate-700">{label}</span>
-      </div>
-      <span className="font-sans text-[11px] font-bold tabular-nums text-tp-slate-800">−{value}</span>
-    </div>
-  )
-}
-
-function LegendRow({ label, v }: { label: string; v: string }) {
+function TooltipRow({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="font-sans text-[10px] text-tp-slate-500 truncate">{label}</span>
-      <span className="font-sans text-[10px] font-semibold tabular-nums text-tp-slate-700">{v}</span>
+      <span className="font-sans text-[11px] font-medium text-white/80">{label}</span>
+      <span className="font-sans text-[11px] font-semibold tabular-nums text-white">−{value}</span>
     </div>
   )
 }
@@ -717,7 +730,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
   return (
     <div className="flex h-full flex-col">
       {/* Tooth identity header */}
-      <header className="shrink-0 bg-white border-b border-tp-slate-100">
+      <header className="shrink-0 bg-white">
         <div className="flex items-center gap-[10px] px-[14px] py-[10px]">
           <div className="flex h-[36px] w-[36px] flex-shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-tp-slate-50">
             <MiniToothCanvas
@@ -777,11 +790,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         </nav>
       </header>
 
-      {/* SCROLLABLE BODY — very subtle warm-white so inner cards stack without noise */}
-      <div
-        className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
-        style={{ background: "#FCFCFD" }}
-      >
+      {/* SCROLLABLE BODY — darker neutral slate-100 so white section cards stack visibly without borders */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px] bg-tp-slate-100">
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
             header={<SectionHeader title="Primary Diagnosis" medicalIcon="diagnosis"
@@ -1023,7 +1033,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
     <div data-rx-module-root className="p-[12px]">
       {/* RxPad-style editable table */}
       {entries.length > 0 && (
-        <div className="relative overflow-x-auto rounded-[12px]">
+        <div className="relative overflow-x-auto rounded-[12px] border border-tp-slate-200">
           <table className="w-full table-fixed font-['Inter',sans-serif] text-[13px]">
             <colgroup>
               <col style={{ width: 36, minWidth: 36 }} />
@@ -1054,10 +1064,10 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                     onClick={() => setActiveRowId(isActive ? null : e.id)}
                     onMouseEnter={() => { if (!isActive) state.onSetHighlightZones(e.surfaces) }}
                     onMouseLeave={() => { if (!isActive) state.onSetHighlightZones([]) }}
-                    className="border-t border-tp-slate-100 transition-colors cursor-pointer hover:bg-tp-slate-100/40"
+                    className="border-t border-tp-slate-100 cursor-pointer"
                   >
                     {/* Drag handle cell (display-only for now) */}
-                    <td className="border-r border-tp-slate-100 p-0 text-center align-middle">
+                    <td className="border-r border-tp-slate-100 p-0 text-center align-middle transition-colors hover:bg-tp-slate-100/60">
                       <span className="inline-flex h-[36px] w-full items-center justify-center text-tp-slate-300">
                         <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
                           <circle cx="2" cy="3" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="13" r="1.2" />
@@ -1066,7 +1076,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                       </span>
                     </td>
                     {/* Primary name — whole cell is the input */}
-                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
                       <EditableNameCell
                         value={e.name}
                         catalog={catalog}
@@ -1075,7 +1085,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                       />
                     </td>
                     {/* Surfaces dropdown — whole cell is the trigger */}
-                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
                       <SurfaceCellDropdown
                         entry={e}
                         arch={state.selectedTooth.arch}
@@ -1089,7 +1099,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                       />
                     </td>
                     {/* Since / Date — whole cell */}
-                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
                       {kind === "finding" ? (
                         <SinceDropdown value={e.since ?? ""} onChange={(v) => state.onUpdateEntry(e.id, { since: v || undefined })} />
                       ) : (
@@ -1103,7 +1113,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                     </td>
                     {/* Status (procedures only) */}
                     {hasStatus && (
-                      <td className="border-r border-tp-slate-100 px-2 py-1.5 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                      <td className="border-r border-tp-slate-100 px-2 py-1.5 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
                         <select
                           value={e.status ?? "planned"}
                           onChange={(ev) => state.onUpdateEntry(e.id, { status: ev.target.value as ToothEntry["status"] })}
@@ -1116,7 +1126,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                       </td>
                     )}
                     {/* Note — whole cell */}
-                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
                       <input
                         type="text"
                         value={e.notes ?? ""}
@@ -1127,7 +1137,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                     </td>
                     {/* Sticky delete */}
                     <td
-                      className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]"
+                      className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)] transition-colors hover:bg-tp-slate-100/60"
                       onClick={(ev) => ev.stopPropagation()}
                     >
                       <button
@@ -1222,38 +1232,94 @@ function DiagnosisNameCell({
 
   // Available diagnoses to swap to (exclude currently-active ones except self).
   const options = TOOTH_DIAGNOSES.filter((d) => d === name || !activeRows.includes(d))
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(name)
+  const [highlightIdx, setHighlightIdx] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { if (!editing) setDraft(name) }, [name, editing])
+  useEffect(() => { setHighlightIdx(0) }, [draft])
+  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
+
+  const filtered = useMemo(() => {
+    const q = draft.toLowerCase().trim()
+    if (!q) return options
+    return options.filter((c) => c.toLowerCase().includes(q))
+  }, [draft, options])
+
+  const commit = (next: string) => {
+    setEditing(false)
+    setOpen(false)
+    const trimmed = next.trim()
+    if (trimmed && trimmed !== name) onSwap(trimmed)
+    else setDraft(name)
+  }
+
+  // Suppress unused variable warning (color no longer rendered)
+  void color
 
   return (
     <div ref={wrapRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex h-[40px] w-full items-center gap-[6px] px-[10px] font-sans text-[12px] transition-colors ${
-          open ? "bg-tp-slate-100" : "hover:bg-tp-slate-50/60"
-        }`}
-      >
-        <span className="h-[10px] w-[10px] rounded-full flex-shrink-0" style={{ background: color }} />
-        <span className="font-semibold text-tp-slate-800 truncate">{name}</span>
-      </button>
+      {!editing ? (
+        <button
+          type="button"
+          onClick={() => { setEditing(true); setOpen(true); setDraft("") }}
+          className={`flex h-[40px] w-full items-center px-[10px] font-sans text-[12px] transition-colors ${
+            open ? "bg-tp-slate-100" : "hover:bg-tp-slate-50/60"
+          }`}
+        >
+          <span className="font-semibold text-tp-slate-800 truncate text-left">{name}</span>
+        </button>
+      ) : (
+        <input
+          ref={inputRef}
+          type="text"
+          value={draft}
+          onChange={(e) => { setDraft(e.target.value); setOpen(true) }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              const pick = filtered[highlightIdx]
+              commit(pick ?? draft)
+            } else if (e.key === "Escape") {
+              setEditing(false); setOpen(false); setDraft(name)
+            } else if (e.key === "ArrowDown") {
+              e.preventDefault()
+              setHighlightIdx((i) => Math.min(filtered.length - 1, i + 1))
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault()
+              setHighlightIdx((i) => Math.max(0, i - 1))
+            }
+          }}
+          onBlur={() => { /* close handled by outside click */ }}
+          placeholder={name}
+          className="h-[40px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[12px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-semibold focus:outline-none"
+        />
+      )}
       {open && (
         <ul className="absolute left-0 top-[calc(100%+2px)] z-[9999] w-full min-w-[160px] max-h-[220px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-          {options.map((d) => {
+          {filtered.map((d, i) => {
             const isCurrent = d === name
-            const dColor = PRIMARY_DIAG_COLOR[d] ?? "#4b4ad5"
+            const highlighted = i === highlightIdx
             return (
               <li key={d}>
                 <button
                   type="button"
-                  onMouseDown={(e) => { e.preventDefault(); onSwap(d); setOpen(false) }}
-                  className={`flex w-full items-center gap-[6px] px-[10px] py-[6px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-50 ${isCurrent ? "bg-tp-slate-50 font-semibold" : ""}`}
+                  onMouseEnter={() => setHighlightIdx(i)}
+                  onMouseDown={(e) => { e.preventDefault(); commit(d) }}
+                  className={`flex w-full items-center px-[10px] py-[6px] font-sans text-[12px] text-tp-slate-700 transition-colors ${highlighted ? "bg-tp-slate-100" : "hover:bg-tp-slate-50"} ${isCurrent ? "font-semibold" : ""}`}
                 >
-                  <span className="h-[8px] w-[8px] rounded-full flex-shrink-0" style={{ background: dColor }} />
                   <span className="flex-1 text-left">{d}</span>
                   {isCurrent && <span className="text-tp-slate-400 text-[10px]">current</span>}
                 </button>
               </li>
             )
           })}
+          {filtered.length === 0 && (
+            <li>
+              <div className="px-[10px] py-[8px] font-sans text-[11px] text-tp-slate-400">No match</div>
+            </li>
+          )}
         </ul>
       )}
     </div>
@@ -1773,7 +1839,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
     <div data-rx-module-root className="p-[12px]">
       {/* Table */}
       {activeRows.length > 0 && (
-        <div className="relative overflow-x-auto rounded-[12px]">
+        <div className="relative overflow-x-auto rounded-[12px] border border-tp-slate-200">
           <table className="w-full table-fixed font-['Inter',sans-serif] text-[13px]">
             <colgroup>
               <col style={{ width: 36, minWidth: 36 }} />
@@ -1796,8 +1862,8 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                 const color = PRIMARY_DIAG_COLOR[name] ?? "#4b4ad5"
                 const d = details[name] ?? { since: "", note: "" }
                 return (
-                  <tr key={name} className="border-t border-tp-slate-100 transition-colors hover:bg-tp-slate-100/60">
-                    <td className="border-r border-tp-slate-100 p-0 text-center align-middle">
+                  <tr key={name} className="border-t border-tp-slate-100">
+                    <td className="border-r border-tp-slate-100 p-0 text-center align-middle transition-colors hover:bg-tp-slate-100/60">
                       <span className="inline-flex h-[36px] w-full items-center justify-center text-tp-slate-300">
                         <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
                           <circle cx="2" cy="3" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="13" r="1.2" />
@@ -1805,7 +1871,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         </svg>
                       </span>
                     </td>
-                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60">
                       <DiagnosisNameCell
                         name={name}
                         color={color}
@@ -1820,14 +1886,14 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         }}
                       />
                     </td>
-                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60">
                       <SinceDropdown
                         value={d.since}
                         onChange={(v) => updateDetail(name, { since: v })}
                         autoOpen={lastAddedName === name}
                       />
                     </td>
-                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60">
                       <input
                         type="text"
                         value={d.note}
@@ -1836,7 +1902,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         className="h-[40px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:bg-tp-blue-50/30"
                       />
                     </td>
-                    <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
+                    <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)] transition-colors hover:bg-tp-slate-100/60">
                       <button
                         type="button"
                         onClick={() => removeDiagnosis(name)}

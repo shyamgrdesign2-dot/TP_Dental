@@ -737,12 +737,12 @@ export function DrAgentPage() {
                                     <div className="transition-all hover:scale-105 duration-200">
                                       <TPSplitButton
                                         primaryAction={{
-                                          label: "VoiceRx",
+                                          label: "TypeRx",
                                           onClick: () => router.push(`/rxpad?patientId=${row.id}`),
                                         }}
                                         secondaryActions={[
+                                          { id: "voice-rx", label: "VoiceRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                                           { id: "tab-rx", label: "TabRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
-                                          { id: "type-rx", label: "TypeRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                                           { id: "snap-rx", label: "SnapRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                                           { id: "smart-sync", label: "SmartSync", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                                         ]}

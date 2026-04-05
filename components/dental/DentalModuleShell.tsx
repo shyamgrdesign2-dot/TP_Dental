@@ -33,7 +33,7 @@ export function DentalModuleShell() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "PAT-001"
-  const patientName = PATIENT_NAMES[patientId] ?? "Unknown Patient"
+  void PATIENT_NAMES
   const [activeTab, setActiveTab] = useState<DentalTabId>("examination")
 
   const handleBack = () => {
@@ -43,7 +43,7 @@ export function DentalModuleShell() {
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-tp-slate-50">
       {/* Top nav */}
-      <header className="relative flex h-[62px] w-full shrink-0 items-center gap-[16px] border-b border-tp-slate-200 bg-white px-[20px]">
+      <header className="relative flex h-[62px] w-full shrink-0 items-center gap-[16px] bg-white px-[20px]">
         <button
           type="button"
           onClick={handleBack}
@@ -65,12 +65,6 @@ export function DentalModuleShell() {
           </p>
         </div>
 
-        <div className="ml-auto inline-flex items-center gap-[8px] rounded-[8px] border border-tp-slate-200 bg-tp-slate-50 px-[12px] py-[6px]">
-          <div className="flex h-[24px] w-[24px] items-center justify-center rounded-full bg-tp-blue-100 text-[10px] font-sans font-semibold text-tp-blue-700">
-            {patientName.charAt(0)}
-          </div>
-          <span className="font-sans text-[12px] font-medium text-tp-slate-700">{patientName}</span>
-        </div>
       </header>
 
       {/* Body: 2-tab sidebar + tab content */}

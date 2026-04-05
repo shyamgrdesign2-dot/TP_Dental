@@ -29,8 +29,22 @@
 .dental-canvas-root .viewer canvas { touch-action: none; }
 
 /* ── Viewer Header ── */
-.dental-canvas-root .viewer-header { position: absolute; top: 12px; left: 16px; right: 16px; z-index: 10; }
-.dental-canvas-root .tooth-name { font-size: 14px; font-weight: 700; color: #333; }
+.dental-canvas-root .viewer-header { position: absolute; top: 12px; left: 16px; z-index: 10; }
+.dental-canvas-root .tooth-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+.dental-canvas-root .tooth-fdi { font-size: 10px; color: #717179; font-weight: 500; }
 .dental-canvas-root .tooth-fdi { font-weight: 500; color: #aaa; margin-left: 6px; font-size: 13px; }
 
 /* ── Zone Navigator with Arrows ── */
