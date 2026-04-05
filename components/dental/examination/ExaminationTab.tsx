@@ -1,0 +1,1891 @@
+"use client"
+
+/**
+ * ExaminationTab — side-by-side layout:
+ *   Left: 3D dental canvas (SSR-safe dynamic import)
+ *   Right: Context-aware panel —
+ *     • Dentition view → Dental Score card + per-tooth examination summary
+ *     • Single-tooth view → Tooth header (with Back arrow) + primary diagnosis
+ *       section + surface examination section + general chip sections + Save footer
+ *
+ * Typography: 14px / 12px baseline; 10px only for tiny meta.
+ */
+
+import React, { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import dynamic from "next/dynamic"
+import { InfoCircle, TickCircle, ArrowLeft2, Eye, Trash, ArrowRight2, Grid5, Ram, Eraser, More, Add, Edit2, Calendar, SearchNormal1 } from "iconsax-reactjs"
+import { ExpandIcon, MinimizeIcon } from "./ui-icons"
+import type { DentalCanvasState } from "./DentalCanvas"
+import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PROCEDURE_CATALOG } from "./types"
+import type { ZoneId, ToothEntry } from "./types"
+import { MiniToothCanvas } from "./MiniToothCanvas"
+import { TPMedicalIcon } from "@/components/tp-ui/medical-icons"
+
+const DentalCanvas = dynamic(() => import("./DentalCanvas").then((m) => m.DentalCanvas), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center bg-tp-slate-100">
+      <div className="flex flex-col items-center gap-[12px]">
+        <div className="h-[32px] w-[32px] animate-spin rounded-full border-[3px] border-tp-slate-200 border-t-tp-blue-500" />
+        <p className="font-sans text-[12px] text-tp-slate-500">Loading 3D dental canvas…</p>
+      </div>
+    </div>
+  ),
+})
+
+interface ExaminationTabProps {
+  patientId: string
+}
+
+// Score weights per diagnosis/finding severity (out of 100).
+const DIAG_WEIGHT: Record<string, number> = {
+  Missing: 8, Implant: 2, RCT: 4, Crown: 2, Bridge: 3, Denture: 3,
+}
+
+/** Accent colors per tooth-level diagnosis — makes each chip visually distinct */
+const PRIMARY_DIAG_COLOR: Record<string, string> = {
+  Implant: "#0891b2",   // cyan
+  Missing: "#dc2626",   // red
+  RCT:     "#ea580c",   // orange
+  Crown:   "#d4af37",   // gold
+  Bridge:  "#a16207",   // amber-brown
+  Denture: "#ec4899",   // pink
+}
+const FINDING_WEIGHT: Record<string, number> = {
+  "Cavity/Caries": 3, "Crack": 2, "Fracture": 4, "Erosion": 2, "Abrasion": 1,
+  "Attrition": 1, "Staining": 0.5, "Plaque": 0.5, "Calculus": 1, "Restoration Defect": 2,
+  "NCCL": 1, "Sensitivity": 1, "Resorption": 3, "Recession": 2, "Normal": 0,
+}
+
+function computeDentalScore(state: DentalCanvasState | null): {
+  score: number
+  rating: "Excellent" | "Good" | "Fair" | "Needs attention" | "Poor"
+  totalDeduction: number
+  affectedTeeth: number
+  breakdown: { diag: number; findings: number }
+} {
+  if (!state) return { score: 100, rating: "Excellent", totalDeduction: 0, affectedTeeth: 0, breakdown: { diag: 0, findings: 0 } }
+  let diag = 0, findings = 0
+  const affected = new Set<string>()
+  for (const [fdi, diagSet] of Object.entries(state.toothDiagnoses)) {
+    diagSet.forEach((d) => { diag += DIAG_WEIGHT[d] ?? 0; affected.add(fdi) })
+  }
+  state.implantTeeth.forEach((fdi) => { diag += DIAG_WEIGHT.Implant; affected.add(fdi) })
+  for (const [fdi, findingsList] of Object.entries(state.findingsByTooth)) {
+    findingsList.forEach((f) => { findings += FINDING_WEIGHT[f.type] ?? 0; affected.add(fdi) })
+  }
+  const totalDeduction = Math.min(100, Math.round(diag + findings))
+  const score = Math.max(0, 100 - totalDeduction)
+  const rating =
+    score >= 90 ? "Excellent" as const :
+    score >= 75 ? "Good" as const :
+    score >= 60 ? "Fair" as const :
+    score >= 40 ? "Needs attention" as const : "Poor" as const
+  return { score, rating, totalDeduction, affectedTeeth: affected.size, breakdown: { diag: Math.round(diag), findings: Math.round(findings) } }
+}
+
+export function ExaminationTab({ patientId }: ExaminationTabProps) {
+  const [canvasState, setCanvasState] = useState<DentalCanvasState | null>(null)
+  const isSingle = canvasState?.viewMode === "single-tooth"
+  const containerRef = useRef<HTMLDivElement>(null)
+  // Separate persisted widths for dentition vs single-tooth. Both draggable 40-60.
+  // Defer localStorage read to useEffect so SSR + first client render match.
+  // Default: dentition 30% (canvas takes 70%); single-tooth 60% desktop / 65% iPad.
+  const [dentitionAsidePct, setDentitionAsidePct] = useState<number>(30)
+  const [singleAsidePct, setSingleAsidePct] = useState<number>(60)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const vw = window.innerWidth
+    const defaultSingle = vw < 1200 ? 65 : 60
+    setSingleAsidePct(defaultSingle)
+    const d = parseFloat(window.localStorage.getItem("dental.aside.pct.dentition") ?? "")
+    if (Number.isFinite(d) && d >= 30 && d <= 40) setDentitionAsidePct(d)
+    const s = parseFloat(window.localStorage.getItem("dental.aside.pct.single") ?? "")
+    if (Number.isFinite(s) && s >= 50 && s <= 70) setSingleAsidePct(s)
+  }, [])
+  const [dragging, setDragging] = useState(false)
+
+  useEffect(() => {
+    if (!dragging) return
+    const getClientX = (e: MouseEvent | TouchEvent): number | null => {
+      if ("touches" in e) return e.touches[0]?.clientX ?? null
+      return (e as MouseEvent).clientX
+    }
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      const el = containerRef.current
+      if (!el) return
+      const x = getClientX(e)
+      if (x == null) return
+      const r = el.getBoundingClientRect()
+      const [min, max] = isSingle ? [50, 70] : [30, 40]
+      // Panel is on the RIGHT now → measure from right edge.
+      const pct = Math.min(max, Math.max(min, ((r.right - x) / r.width) * 100))
+      if (isSingle) setSingleAsidePct(pct)
+      else setDentitionAsidePct(pct)
+    }
+    const onUp = () => setDragging(false)
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+    document.addEventListener("touchmove", onMove, { passive: false })
+    document.addEventListener("touchend", onUp)
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    return () => {
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+      document.removeEventListener("touchmove", onMove)
+      document.removeEventListener("touchend", onUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+  }, [dragging, isSingle])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("dental.aside.pct.dentition", String(dentitionAsidePct))
+    }
+  }, [dentitionAsidePct])
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("dental.aside.pct.single", String(singleAsidePct))
+    }
+  }, [singleAsidePct])
+
+  const asidePct = isSingle ? singleAsidePct : dentitionAsidePct
+  const canvasPct = 100 - asidePct
+
+  return (
+    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100">
+      {/* Left: 3D canvas — plain white with single perspective dot pattern */}
+      <div
+        className="relative min-w-0 my-[12px] ml-[12px] rounded-[20px] overflow-hidden bg-white"
+        style={{
+          width: `calc(${canvasPct}% - 12px)`,
+          transition: dragging ? "none" : "width 200ms ease",
+        }}
+      >
+        {/* Perspective floor grid — converges to horizon ~40%, creating real 3D depth */}
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 100"
+        >
+          <defs>
+            <linearGradient id="persp-fade" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%"   stopColor="rgba(15,23,42,0)" />
+              <stop offset="38%"  stopColor="rgba(15,23,42,0)" />
+              <stop offset="55%"  stopColor="rgba(15,23,42,0.35)" />
+              <stop offset="100%" stopColor="rgba(15,23,42,0.85)" />
+            </linearGradient>
+            <mask id="persp-mask">
+              <rect width="100" height="100" fill="url(#persp-fade)" />
+            </mask>
+          </defs>
+          <g stroke="rgb(99, 110, 134)" strokeWidth="0.18" mask="url(#persp-mask)" vectorEffect="non-scaling-stroke">
+            {/* Vanishing lines from horizon (50%, 40%) diverging to bottom edge */}
+            {Array.from({ length: 21 }, (_, i) => {
+              const x = (i / 20) * 100
+              return <line key={`v${i}`} x1="50" y1="40" x2={x} y2="100" />
+            })}
+            {/* Horizontal bands with perspective foreshortening (denser near horizon) */}
+            {[0.05, 0.14, 0.26, 0.42, 0.62, 0.85, 1.1].map((t, i) => (
+              <line key={`h${i}`} x1="0" y1={40 + t * 60} x2="100" y2={40 + t * 60} />
+            ))}
+          </g>
+        </svg>
+        {/* Horizon soft-light overlay — brightens upper half where 3D model sits */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: "linear-gradient(to bottom, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.9) 30%, rgba(255,255,255,0.4) 45%, transparent 55%)",
+          }}
+        />
+        <div className="relative z-10 h-full w-full">
+          <DentalCanvas patientId={patientId} compact onStateChange={setCanvasState} />
+        </div>
+      </div>
+
+      {/* Invisible drag handle (no visible divider) */}
+      <div
+        role="separator"
+        aria-label="Resize panel"
+        aria-orientation="vertical"
+        onMouseDown={(e) => { e.preventDefault(); setDragging(true) }}
+        onTouchStart={(e) => { e.preventDefault(); setDragging(true) }}
+        className="relative w-0 shrink-0 cursor-col-resize touch-none z-40"
+      >
+        <span className="absolute inset-y-0 -left-[20px] -right-[20px] touch-none" />
+        <img
+          src="/icons/ui/drag-handle.svg"
+          alt=""
+          draggable={false}
+          className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
+          style={{ display: "block", width: "22px", height: "32px", maxWidth: "none" }}
+        />
+      </div>
+
+      {/* Right: Context-aware panel */}
+      <aside
+        className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100"
+        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 200ms ease" }}
+      >
+        <div
+          key={isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"}
+          className="flex h-full w-full flex-col"
+          style={{
+            animation: isSingle
+              ? "dentalCardExpand 380ms cubic-bezier(0.34, 1.2, 0.64, 1)"
+              : "dentalCardCollapse 320ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+            transformOrigin: "center top",
+          }}
+        >
+          {isSingle && canvasState ? (
+            <div className="flex h-full w-full flex-col p-[12px]">
+              {/* Expanding card wrapping the whole single-tooth view */}
+              <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border border-tp-slate-200">
+                <SingleToothPanel state={canvasState} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-[16px]">
+              <DentitionPanel state={canvasState} />
+            </div>
+          )}
+        </div>
+        <style jsx global>{`
+          @keyframes dentalCardExpand {
+            0%   { opacity: 0; transform: scale(0.72) translateY(40px); }
+            60%  { opacity: 1; }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+          }
+          @keyframes dentalCardCollapse {
+            from { opacity: 0; transform: scale(1.04) translateY(-6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+          }
+        `}</style>
+      </aside>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Dentition panel: Patient Dental Score + per-tooth summary
+// Clicking any summary row → opens that tooth's single view.
+// ──────────────────────────────────────────────────────────────
+function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
+  const scoreData = useMemo(() => computeDentalScore(state), [state])
+  const [showFormula, setShowFormula] = useState(false)
+  const infoBtnRef = useRef<HTMLButtonElement>(null)
+
+  const summary = useMemo(() => {
+    if (!state) return []
+    type SummaryEntry = {
+      fdi: string; diagnoses: string[]; findings: string[]
+      findingCount: number; procedureCount: number
+    }
+    const map = new Map<string, SummaryEntry>()
+    const seed = (fdi: string): SummaryEntry => {
+      const ex = map.get(fdi)
+      if (ex) return ex
+      const next: SummaryEntry = { fdi, diagnoses: [], findings: [], findingCount: 0, procedureCount: 0 }
+      map.set(fdi, next)
+      return next
+    }
+    for (const [fdi, diagSet] of Object.entries(state.toothDiagnoses)) {
+      if (diagSet.size > 0) seed(fdi).diagnoses = [...diagSet]
+    }
+    state.implantTeeth.forEach((fdi) => {
+      const e = seed(fdi)
+      if (!e.diagnoses.includes("Implant")) e.diagnoses.push("Implant")
+    })
+    for (const [fdi, findings] of Object.entries(state.findingsByTooth)) {
+      if (findings.length > 0) seed(fdi).findings = Array.from(new Set(findings.map((f) => f.type)))
+    }
+    for (const e of state.allEntries) {
+      if (e.kind === "finding") seed(e.toothFdi).findingCount += 1
+      else seed(e.toothFdi).procedureCount += 1
+    }
+    return Array.from(map.values())
+      .filter((e) => e.diagnoses.length || e.findings.length || e.findingCount || e.procedureCount)
+      .sort((a, b) => a.fdi.localeCompare(b.fdi))
+  }, [state])
+
+  const openTooth = (fdi: string) => {
+    if (!state) return
+    const tooth = TEETH.find((t) => t.fdi === fdi)
+    if (tooth) state.onSelectTooth(tooth)
+  }
+
+  return (
+    <>
+      <ScoreCard data={scoreData} infoBtnRef={infoBtnRef} showFormula={showFormula} setShowFormula={setShowFormula} />
+
+      {/* Tooth records */}
+      <div className="mt-[20px] mb-[10px] flex items-center gap-[8px] px-[2px]">
+        <h3 className="font-sans text-[13px] font-semibold text-tp-slate-800">
+          Tooth records
+        </h3>
+        {summary.length > 0 && (
+          <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-tp-slate-200 font-sans text-[10px] font-bold text-tp-slate-600 tabular-nums">
+            {summary.length}
+          </span>
+        )}
+      </div>
+
+      {summary.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-[10px] rounded-[16px] border border-dashed border-tp-slate-200 bg-white py-[40px] px-[20px]">
+          <Eye size={32} color="#cbd5e1" variant="Linear" />
+          <p className="font-sans text-[14px] font-semibold text-tp-slate-600">No findings yet</p>
+          <p className="max-w-[260px] text-center font-sans text-[12px] text-tp-slate-400">
+            Click any tooth on the 3D view to add diagnoses or zone findings.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-[8px]">
+          {summary.map((entry) => {
+            const tooth = TEETH.find((t) => t.fdi === entry.fdi)
+            const toothName = tooth?.name ?? ""
+            const isMax = tooth?.arch === "maxillary"
+            // Determine thumbnail color by most-severe diagnosis
+            let crownColor = "#E8DDD5", rootColor = "#C4AD97"
+            if (entry.diagnoses.includes("Missing")) { crownColor = "#d1d5db"; rootColor = "#d1d5db" }
+            else if (entry.diagnoses.includes("Crown") || entry.diagnoses.includes("Bridge")) { crownColor = "#D4AF37"; rootColor = "#C4AD97" }
+            else if (entry.diagnoses.includes("RCT")) { crownColor = "#f87171"; rootColor = "#C4AD97" }
+            else if (entry.diagnoses.includes("Implant")) { crownColor = "#9ca3af"; rootColor = "#6B7280" }
+            return (
+              <button
+                key={entry.fdi}
+                type="button"
+                onClick={() => openTooth(entry.fdi)}
+                onMouseEnter={() => state?.onSetHoveredTooth(entry.fdi)}
+                onMouseLeave={() => state?.onSetHoveredTooth(null)}
+                className={`group flex items-center gap-[12px] rounded-[14px] p-[12px] text-left transition-all ring-1 ${
+                  state?.hoveredToothFdi === entry.fdi
+                    ? "bg-tp-blue-50/50 ring-tp-blue-400 shadow-[0_2px_12px_-4px_rgba(75,74,213,0.18)] -translate-y-[1px]"
+                    : "bg-white ring-transparent hover:bg-tp-blue-50/30 hover:ring-tp-blue-300 hover:shadow-[0_2px_10px_-4px_rgba(75,74,213,0.12)] hover:-translate-y-[1px]"
+                }`}
+              >
+                {/* Tooth thumbnail — real 3D GLB model rendered in mini canvas */}
+                <div
+                  className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[8px] bg-gradient-to-br from-tp-slate-50 to-tp-slate-100 overflow-hidden"
+                >
+                  {tooth && (
+                    <MiniToothCanvas
+                      tooth={tooth}
+                      size={52}
+                      diagnoses={new Set(entry.diagnoses)}
+                      isImplant={entry.diagnoses.includes("Implant")}
+                      findings={(state?.findingsByTooth?.[entry.fdi] ?? [])}
+                    />
+                  )}
+                </div>
+
+                {/* Middle: FDI + name + chips */}
+                <div className="flex-1 min-w-0 flex flex-col gap-[6px]">
+                  <div className="flex items-center gap-[8px]">
+                    <span className="font-sans text-[12px] font-semibold text-tp-slate-700 truncate">
+                      {toothName}
+                    </span>
+                    <span className="inline-flex h-[20px] items-center rounded-[5px] bg-tp-slate-100 px-[6px] font-sans text-[11px] font-semibold text-tp-slate-600 tabular-nums group-hover:bg-tp-blue-50 group-hover:text-tp-blue-700">
+                      T{entry.fdi}
+                    </span>
+                  </div>
+                  {/* Section-level summary pills */}
+                  <div className="flex flex-wrap items-center gap-[4px]">
+                    {entry.diagnoses.length > 0 && (
+                      <SummaryPill icon="diagnosis" label={entry.diagnoses.join(" · ")} tone="violet" />
+                    )}
+                    {entry.findingCount > 0 && (
+                      <SummaryPill icon="virus" label={`${entry.findingCount} finding${entry.findingCount === 1 ? "" : "s"}`} tone="amber" />
+                    )}
+                    {entry.procedureCount > 0 && (
+                      <SummaryPill icon="surgical-scissors-02" label={`${entry.procedureCount} procedure${entry.procedureCount === 1 ? "" : "s"}`} tone="blue" />
+                    )}
+                    {entry.findings.length > 0 && entry.findingCount === 0 && entry.findings.map((f) => (
+                      <span key={f} className="inline-flex items-center rounded-[4px] bg-amber-50 px-[6px] py-[2px] font-sans text-[10px] font-medium text-amber-700">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Expand (zoom-in) icon — blue on card hover / external hover */}
+                <span className={`flex-shrink-0 transition-colors group-hover:text-tp-blue-500 ${
+                  state?.hoveredToothFdi === entry.fdi ? "text-tp-blue-500" : "text-tp-slate-400"
+                }`}>
+                  <ExpandIcon size={16} />
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// SummaryPill — compact chip with a TP medical icon + label
+// ──────────────────────────────────────────────────────────────
+function SummaryPill({ icon, label, tone }: { icon: string; label: string; tone: "violet" | "amber" | "blue" }) {
+  const tones = {
+    violet: { bg: "bg-tp-violet-50",  text: "text-tp-violet-700", colour: "var(--tp-violet-600)" },
+    amber:  { bg: "bg-amber-50",      text: "text-amber-700",      colour: "#b45309" },
+    blue:   { bg: "bg-tp-blue-50",    text: "text-tp-blue-700",    colour: "var(--tp-blue-600)" },
+  } as const
+  const t = tones[tone]
+  return (
+    <span className={`inline-flex items-center gap-[4px] rounded-[5px] px-[6px] py-[2px] font-sans text-[10px] font-semibold ${t.bg} ${t.text}`}>
+      <TPMedicalIcon name={icon} variant="bulk" size={12} color={t.colour} />
+      <span className="truncate max-w-[180px]">{label}</span>
+    </span>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// ScoreCard — full-circle gauge w/ interior gradient disc + animated score
+// ──────────────────────────────────────────────────────────────
+function ScoreCard({
+  data, infoBtnRef, showFormula, setShowFormula,
+}: {
+  data: ReturnType<typeof computeDentalScore>
+  infoBtnRef: React.RefObject<HTMLButtonElement | null>
+  showFormula: boolean
+  setShowFormula: (v: boolean | ((p: boolean) => boolean)) => void
+}) {
+  const { score, rating, affectedTeeth } = data
+  const zoneIdx = score >= 90 ? 4 : score >= 75 ? 3 : score >= 60 ? 2 : score >= 40 ? 1 : 0
+  // Original TP palette — red → orange → amber → violet → emerald.
+  const colour = [
+    { accent: "var(--tp-error-500)",   accentDark: "var(--tp-error-700)",   tint: "#FFE4E6" },  // Off Track — red
+    { accent: "#F97316",               accentDark: "#C2410C",               tint: "#FFEDD5" },  // Improving — orange
+    { accent: "var(--tp-amber-500)",   accentDark: "var(--tp-amber-700)",   tint: "#FEF3C7" },  // Good — amber
+    { accent: "var(--tp-violet-500)",  accentDark: "var(--tp-violet-700)",  tint: "#EDDFF7" },  // Great — violet
+    { accent: "var(--tp-success-500)", accentDark: "var(--tp-success-700)", tint: "#D1FAE5" },  // Superb — emerald
+  ][zoneIdx]
+
+  // Animate score from 0 → target on mount.
+  const [displayScore, setDisplayScore] = useState(0)
+  useEffect(() => {
+    let raf = 0
+    const start = performance.now()
+    const duration = 900
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplayScore(Math.round(score * eased))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [score])
+
+  // Bigger circle, wider gap at bottom.
+  const size = 188
+  const cx = size / 2
+  const cy = size / 2
+  const r = 72
+  const gapDeg = 28
+  const startA = 90 + gapDeg / 2
+  const sweepTotal = 360 - gapDeg
+  const progress = Math.max(0, Math.min(1, displayScore / 100))
+  const endA = startA + sweepTotal * progress
+  const polar = (a: number, radius = r) => ({
+    x: cx + radius * Math.cos((a * Math.PI) / 180),
+    y: cy + radius * Math.sin((a * Math.PI) / 180),
+  })
+  const p0 = polar(startA)
+  const pFull = polar(startA + sweepTotal)
+  const pProg = polar(endA)
+  const bgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 1 1 ${pFull.x} ${pFull.y}`
+  const fgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${sweepTotal * progress > 180 ? 1 : 0} 1 ${pProg.x} ${pProg.y}`
+  const gid = `gauge-ring-${zoneIdx}`
+  const did = `gauge-disc-${zoneIdx}`
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
+
+  return (
+    <div
+      ref={infoBtnRef}
+      className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[12px] pb-[14px] backdrop-blur-sm"
+      style={{
+        background: `linear-gradient(140deg, ${colour.tint} 0%, rgba(255,255,255,0.65) 55%, ${colour.tint} 100%)`,
+      }}
+      onMouseEnter={(e) => { setShowFormula(true); setCursorPos({ x: e.clientX, y: e.clientY }) }}
+      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+      onMouseLeave={() => setShowFormula(false)}
+    >
+      {/* Heading — glass pill chip with zone-tinted bg */}
+      <div className="relative z-10 mb-[2px]">
+        <span
+          className="inline-flex items-center gap-[5px] rounded-full px-[9px] py-[3px] font-sans text-[10px] font-semibold backdrop-blur-sm"
+          style={{
+            background: "rgba(255,255,255,0.7)",
+            color: colour.accentDark,
+            border: `1px solid ${colour.accent}30`,
+          }}
+        >
+          <span className="h-[5px] w-[5px] rounded-full" style={{ background: colour.accent }} />
+          Dental score
+        </span>
+      </div>
+      {showFormula && cursorPos && <ScoreTooltip cursorPos={cursorPos} data={data} />}
+
+      {/* Gauge */}
+      <div className="relative z-10 flex items-center justify-center">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <defs>
+            <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={colour.accent} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={colour.accentDark} stopOpacity="1" />
+            </linearGradient>
+            {/* Interior disc — glass gradient (transparent highlight + subtle card colour through) */}
+            <linearGradient id={did} x1="20%" y1="0%" x2="80%" y2="100%">
+              <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.65" />
+              <stop offset="45%"  stopColor="#ffffff" stopOpacity="0.15" />
+              <stop offset="100%" stopColor={colour.accent} stopOpacity="0.08" />
+            </linearGradient>
+            <linearGradient id={`score-text-${zoneIdx}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={colour.accent} />
+              <stop offset="100%" stopColor={colour.accentDark} />
+            </linearGradient>
+          </defs>
+          {/* Interior gradient disc */}
+          <circle cx={cx} cy={cy} r={r - 10} fill={`url(#${did})`} />
+          {/* Track — lighter variant of ring colour */}
+          <path d={bgArc} stroke={colour.tint} strokeWidth={14} strokeLinecap="round" fill="none" />
+          {/* Progress */}
+          {progress > 0 && (
+            <path d={fgArc} stroke={`url(#${gid})`} strokeWidth={14} strokeLinecap="round" fill="none" />
+          )}
+          {/* Gradient score */}
+          <text x={cx} y={cy - 8} textAnchor="middle" dominantBaseline="middle"
+            style={{ fontFamily: "Inter, sans-serif", fontSize: 42, fontWeight: 800, fill: `url(#score-text-${zoneIdx})` }}
+          >
+            {displayScore}
+          </text>
+          <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="middle"
+            style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 500, fill: "var(--tp-slate-500)" }}
+          >
+            out of 100
+          </text>
+        </svg>
+        {/* Rating pill — HTML overlay with flex width + info icon */}
+        <span
+          className="pointer-events-none absolute inline-flex items-center gap-[4px] rounded-full px-[10px] py-[3px] font-sans text-[9px] font-bold whitespace-nowrap"
+          style={{
+            top: `${((cy + 34) / size) * 100}%`,
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            background: `${colour.accent}24`,
+            color: colour.accentDark,
+            border: `1px solid ${colour.accent}40`,
+            letterSpacing: "0.5px",
+          }}
+        >
+          {rating.toUpperCase()}
+          <InfoCircle size={10} color="currentColor" variant="Linear" />
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function ScoreTooltip({ cursorPos, data }: {
+  cursorPos: { x: number; y: number }
+  data: ReturnType<typeof computeDentalScore>
+}) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  if (!mounted) return null
+
+  // Smart positioning: tooltip sits to the right of cursor, flipping if it would overflow.
+  const TOOLTIP_W = 280
+  const TOOLTIP_H_ESTIMATE = 280
+  const pad = 16
+  let left = cursorPos.x + 18
+  let top = cursorPos.y + 12
+  if (typeof window !== "undefined") {
+    if (left + TOOLTIP_W + pad > window.innerWidth) left = cursorPos.x - TOOLTIP_W - 18
+    if (top + TOOLTIP_H_ESTIMATE + pad > window.innerHeight) top = cursorPos.y - TOOLTIP_H_ESTIMATE - 12
+    if (left < pad) left = pad
+    if (top < pad) top = pad
+  }
+
+  return createPortal(
+    <div
+      className="fixed z-[9999] pointer-events-none"
+      style={{ top, left }}
+    >
+      <div className="relative w-[280px] overflow-hidden rounded-[12px] bg-white shadow-[0_8px_24px_-4px_rgba(15,23,42,0.18)] border border-tp-slate-200">
+        {/* Header */}
+        <div className="px-[14px] pt-[12px] pb-[8px]">
+          <div className="flex items-center gap-[6px]">
+            <InfoCircle size={14} color="var(--tp-blue-500)" variant="Bold" />
+            <p className="font-sans text-[13px] font-bold text-tp-slate-900">How this is calculated</p>
+          </div>
+          <p className="mt-[3px] font-sans text-[11px] leading-[15px] text-tp-slate-500">
+            Score starts at <strong className="text-tp-slate-800">100</strong> and decreases as diagnoses and surface findings are added.
+          </p>
+        </div>
+        {/* Rows */}
+        <div className="bg-tp-slate-50 px-[14px] py-[10px]">
+          <TooltipRow color="var(--tp-violet-500)" label="Tooth-level diagnoses" value={data.breakdown.diag} />
+          <TooltipRow color="var(--tp-amber-500)" label="Surface findings" value={data.breakdown.findings} />
+        </div>
+        <div className="flex items-center justify-between border-t border-tp-slate-100 px-[14px] py-[9px]">
+          <span className="font-sans text-[11px] font-semibold uppercase tracking-[0.4px] text-tp-slate-500">Total deduction</span>
+          <span className="font-sans text-[14px] font-bold tabular-nums text-tp-error-600">−{data.totalDeduction}</span>
+        </div>
+        {/* Legend */}
+        <div className="border-t border-tp-slate-100 px-[14px] py-[9px]">
+          <p className="mb-[4px] font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400">Weight legend</p>
+          <div className="grid grid-cols-2 gap-x-[10px] gap-y-[3px]">
+            <LegendRow label="Missing" v="−8" />
+            <LegendRow label="Fracture / RCT" v="−4" />
+            <LegendRow label="Bridge / Denture / Caries" v="−3" />
+            <LegendRow label="Crown / Erosion" v="−2" />
+            <LegendRow label="Recession / Abrasion" v="−1" />
+            <LegendRow label="Stain / Plaque" v="−0.5" />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+function TooltipRow({ color, label, value }: { color: string; label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between py-[3px]">
+      <div className="flex items-center gap-[6px]">
+        <span className="h-[6px] w-[6px] rounded-full flex-shrink-0" style={{ background: color }} />
+        <span className="font-sans text-[11px] font-medium text-tp-slate-700">{label}</span>
+      </div>
+      <span className="font-sans text-[11px] font-bold tabular-nums text-tp-slate-800">−{value}</span>
+    </div>
+  )
+}
+
+function LegendRow({ label, v }: { label: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="font-sans text-[10px] text-tp-slate-500 truncate">{label}</span>
+      <span className="font-sans text-[10px] font-semibold tabular-nums text-tp-slate-700">{v}</span>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Single-tooth panel
+//  • Tooth header with back arrow (replaces the separate back CTA)
+//  • Primary diagnosis (tooth-level chips)
+//  • Surface examination (zone chips only if a zone is selected)
+//  • Dental examinations / Oral findings / Past procedures (chip sections)
+//  • Sticky footer: Save findings
+// ──────────────────────────────────────────────────────────────
+type SectionId = "diagnosis" | "findings" | "procedures" | "notes"
+
+function SingleToothPanel({ state }: { state: DentalCanvasState }) {
+  const [activeSection, setActiveSection] = useState<SectionId>("diagnosis")
+  const tryBack = () => state.onBackToDentition()
+  const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
+    diagnosis: null, findings: null, procedures: null, notes: null,
+  })
+
+  const findingCount = state.currentToothEntries.filter((e) => e.kind === "finding").length
+  const procedureCount = state.currentToothEntries.filter((e) => e.kind === "procedure").length
+  const diagnosisCount = state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0)
+  const notesFilled = state.currentToothNotes.trim().length > 0
+
+  const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
+    { id: "diagnosis",  label: "Diagnosis",  icon: "diagnosis",             count: diagnosisCount },
+    { id: "findings",   label: "Findings",   icon: "virus",                 count: findingCount },
+    { id: "procedures", label: "Procedures", icon: "surgical-scissors-02",  count: procedureCount },
+    { id: "notes",      label: "Notes",      icon: "clipboard-activity",    count: notesFilled ? 1 : 0 },
+  ]
+
+  const jumpTo = (id: SectionId) => {
+    setActiveSection(id)
+    // Delay scroll until the accordion has expanded so we scroll to the expanded height.
+    requestAnimationFrame(() => {
+      sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Tooth identity header */}
+      <header className="shrink-0 bg-white border-b border-tp-slate-100">
+        <div className="flex items-center gap-[10px] px-[14px] py-[10px]">
+          <div className="flex h-[36px] w-[36px] flex-shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-tp-slate-50">
+            <MiniToothCanvas
+              tooth={state.selectedTooth}
+              size={36}
+              diagnoses={state.currentToothDiagnoses}
+              isImplant={state.isImplant}
+              findings={state.findings}
+            />
+          </div>
+          <h2 className="font-sans text-[14px] font-semibold text-tp-slate-900 truncate">
+            {state.selectedTooth.name}
+          </h2>
+          <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[8px] font-sans text-[12px] font-semibold text-tp-slate-600 tabular-nums">
+            T{state.selectedTooth.fdi}
+          </span>
+          <div className="flex-1" />
+          <button
+            type="button"
+            onClick={tryBack}
+            aria-label="Back to all teeth"
+            title="Back to all teeth"
+            className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-900 hover:text-white"
+          >
+            <MinimizeIcon size={14} />
+          </button>
+        </div>
+        {/* Jump-nav — underlined tabs with medical icons */}
+        <nav className="flex items-center gap-[0] overflow-x-auto px-[12px]" role="tablist">
+          {sections.map((s) => {
+            const active = activeSection === s.id
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => jumpTo(s.id)}
+                className={`relative inline-flex h-[40px] flex-shrink-0 items-center gap-[6px] border-b-[2px] px-[10px] font-sans text-[12px] font-semibold transition-colors ${
+                  active
+                    ? "border-tp-blue-500 text-tp-blue-700"
+                    : "border-transparent text-tp-slate-500 hover:text-tp-slate-700"
+                }`}
+              >
+                <TPMedicalIcon name={s.icon} variant="bulk" size={14} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-500)"} />
+                {s.label}
+                {s.count > 0 && (
+                  <span className={`inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-[5px] font-sans text-[10px] font-bold tabular-nums ${
+                    active ? "bg-tp-blue-100 text-tp-blue-700" : "bg-tp-slate-100 text-tp-slate-600"
+                  }`}>
+                    {s.count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+      </header>
+
+      {/* SCROLLABLE BODY — very subtle warm-white so inner cards stack without noise */}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
+        style={{ background: "#FCFCFD" }}
+      >
+        <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
+          <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
+            header={<SectionHeader title="Primary Diagnosis" medicalIcon="diagnosis"
+              onTemplate={activeSection === "diagnosis" ? () => {} : undefined}
+              onSave={activeSection === "diagnosis" ? () => {} : undefined}
+              onClear={activeSection === "diagnosis" ? () => {
+                state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d))
+                if (state.isImplant) state.onToggleImplant()
+              } : undefined}
+              chevron={activeSection === "diagnosis" ? "down" : "right"}
+              onClick={activeSection === "diagnosis" ? undefined : () => jumpTo("diagnosis")}
+            />}>
+            <PrimaryDiagnosisBody state={state} />
+          </AccordionWrap>
+        </div>
+
+        <div ref={(el) => { sectionRefs.current.findings = el }}>
+          <AccordionWrap open={activeSection === "findings"} onExpand={() => jumpTo("findings")}
+            header={<SectionHeader title="Findings" medicalIcon="virus"
+              onTemplate={activeSection === "findings" ? () => {} : undefined}
+              onSave={activeSection === "findings" ? () => {} : undefined}
+              onClear={activeSection === "findings" ? () => {
+                state.currentToothEntries.filter((e) => e.kind === "finding").forEach((e) => state.onRemoveEntry(e.id))
+              } : undefined}
+              clearDisabled={findingCount === 0}
+              chevron={activeSection === "findings" ? "down" : "right"}
+              onClick={activeSection === "findings" ? undefined : () => jumpTo("findings")}
+            />}>
+            <EntryTab state={state} kind="finding" />
+          </AccordionWrap>
+        </div>
+
+        <div ref={(el) => { sectionRefs.current.procedures = el }}>
+          <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
+            header={<SectionHeader title="Planned Procedures" medicalIcon="surgical-scissors-02"
+              onTemplate={activeSection === "procedures" ? () => {} : undefined}
+              onSave={activeSection === "procedures" ? () => {} : undefined}
+              onClear={activeSection === "procedures" ? () => {
+                state.currentToothEntries.filter((e) => e.kind === "procedure").forEach((e) => state.onRemoveEntry(e.id))
+              } : undefined}
+              clearDisabled={procedureCount === 0}
+              chevron={activeSection === "procedures" ? "down" : "right"}
+              onClick={activeSection === "procedures" ? undefined : () => jumpTo("procedures")}
+            />}>
+            <EntryTab state={state} kind="procedure" />
+          </AccordionWrap>
+        </div>
+
+        <div ref={(el) => { sectionRefs.current.notes = el }}>
+          <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
+            header={<SectionHeader title="Overall tooth notes" medicalIcon="clipboard-activity"
+              onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
+              chevron={activeSection === "notes" ? "down" : "right"}
+              onClick={activeSection === "notes" ? undefined : () => jumpTo("notes")}
+            />}>
+            <div className="p-[14px]">
+              <textarea
+                value={state.currentToothNotes}
+                onChange={(e) => state.onUpdateToothNotes(e.target.value)}
+                placeholder="General notes for this tooth…"
+                className="h-[140px] w-full resize-none rounded-[8px] border border-tp-slate-200 bg-tp-slate-100 px-[12px] py-[10px] font-sans text-[13px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:bg-white focus:outline-none"
+              />
+            </div>
+          </AccordionWrap>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// AccordionWrap — simple rounded card that collapses its body.
+// ──────────────────────────────────────────────────────────────
+function AccordionWrap({
+  open, header, children, onExpand,
+}: { open: boolean; header: React.ReactNode; children: React.ReactNode; onExpand: () => void }) {
+  return (
+    <div
+      className="rounded-[14px] bg-white overflow-hidden transition-all"
+      onClick={open ? undefined : onExpand}
+    >
+      {header}
+      {open && <div>{children}</div>}
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// SectionHeader — TP medical icon + title + count + Template/Save/Clear
+// Matches RxPad section header styling.
+// ──────────────────────────────────────────────────────────────
+function SectionHeader({
+  title, count, medicalIcon, onTemplate, onSave, onClear, clearDisabled, onClick, chevron,
+}: {
+  title: string
+  count?: number
+  medicalIcon?: string
+  onTemplate?: () => void
+  onSave?: () => void
+  onClear?: () => void
+  clearDisabled?: boolean
+  onClick?: () => void
+  chevron?: "right" | "down"
+}) {
+  const btnClass = "inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+  const stop = (e: React.MouseEvent) => e.stopPropagation()
+  return (
+    <header
+      onClick={onClick}
+      className={`flex items-center gap-[8px] px-[14px] py-[10px] ${onClick ? "cursor-pointer hover:bg-tp-slate-100/60" : ""}`}
+    >
+      {medicalIcon && (
+        <span className="inline-flex h-[32px] w-[32px] items-center justify-center text-tp-violet-500 flex-shrink-0">
+          <TPMedicalIcon name={medicalIcon} variant="bulk" size={22} color="var(--tp-violet-500)" />
+        </span>
+      )}
+      <h4 className="font-sans text-[13px] font-semibold text-tp-slate-800">{title}</h4>
+      {typeof count === "number" && count > 0 && (
+        <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-tp-slate-100 px-[5px] font-sans text-[10px] font-bold text-tp-slate-600 tabular-nums">
+          {count}
+        </span>
+      )}
+      <div className="flex-1" />
+      <div className="inline-flex items-center gap-[14px]" onClick={stop}>
+        {onTemplate && (
+          <button type="button" title="Templates" onClick={onTemplate} className={btnClass}>
+            <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+          </button>
+        )}
+        {onSave && (
+          <button type="button" title="Save as template" onClick={onSave} className={btnClass}>
+            <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+          </button>
+        )}
+        {onClear && (
+          <button type="button" title="Clear" onClick={onClear} disabled={clearDisabled} className={btnClass}>
+            <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+          </button>
+        )}
+        {chevron && (
+          <ArrowRight2
+            size={16}
+            color="#94a3b8"
+            variant="Linear"
+            className="transition-transform duration-200"
+            style={{ transform: chevron === "down" ? "rotate(90deg)" : "rotate(0deg)" }}
+          />
+        )}
+      </div>
+    </header>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// EntryTab — shared builder + table for Findings and Procedures
+// ──────────────────────────────────────────────────────────────
+function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" | "procedure" }) {
+  const [activeRowId, setActiveRowId] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+
+  const isMissing = state.currentToothDiagnoses.has("Missing")
+  const catalog = kind === "finding" ? (DIAGNOSES as readonly string[]) : (PROCEDURE_CATALOG as readonly string[])
+  const entries = state.currentToothEntries.filter((e) => e.kind === kind)
+  const activeRow = entries.find((e) => e.id === activeRowId) ?? null
+
+  // Push multiSelectZones → active row.
+  useEffect(() => {
+    if (!activeRow) return
+    const zonesFromCanvas = Array.from(state.multiSelectZones)
+    const same = zonesFromCanvas.length === activeRow.surfaces.length && zonesFromCanvas.every((z) => activeRow.surfaces.includes(z))
+    if (!same) state.onUpdateEntry(activeRow.id, { surfaces: zonesFromCanvas })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.multiSelectZones, activeRowId])
+
+  // Seed multiSelectZones when active row changes + toggle multi-select mode.
+  useEffect(() => {
+    if (!activeRow) {
+      state.onClearMultiSelect()
+      state.onSetMultiSelectActive(false)
+      return
+    }
+    state.onClearMultiSelect()
+    activeRow.surfaces.forEach((z) => state.onToggleZoneMultiSelect(z))
+    state.onSetMultiSelectActive(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRowId])
+
+  // Deactivate multi-select mode on unmount (switching tabs away).
+  useEffect(() => () => { state.onSetMultiSelectActive(false) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filteredCatalog = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    const selected = new Set(entries.map((e) => e.name.toLowerCase()))
+    const pool = q ? catalog.filter((c) => c.toLowerCase().includes(q)) : catalog
+    return pool.filter((c) => !selected.has(c.toLowerCase())).slice(0, 12)
+  }, [query, catalog, entries])
+
+  const pendingActivateRef = useRef(false)
+  const prevCountRef = useRef(entries.length)
+  useEffect(() => {
+    if (pendingActivateRef.current && entries.length > prevCountRef.current) {
+      const latest = entries[entries.length - 1]
+      if (latest) setActiveRowId(latest.id)
+      pendingActivateRef.current = false
+    }
+    prevCountRef.current = entries.length
+  }, [entries.length, entries])
+
+  const addEntryFromName = (name: string) => {
+    // Clear any previously-selected surfaces so the new row starts fresh.
+    state.onClearMultiSelect()
+    pendingActivateRef.current = true
+    state.onAddEntry({
+      kind,
+      name,
+      surfaces: [],
+      since: undefined,
+      plannedDate: undefined,
+      status: kind === "procedure" ? "planned" : undefined,
+      notes: undefined,
+    })
+    setQuery("")
+  }
+
+  if (isMissing) {
+    return (
+      <div className="px-[14px] py-[22px] text-center">
+        <p className="font-sans text-[12px] text-tp-slate-500">
+          Tooth marked as Missing — no surfaces to {kind === "finding" ? "examine" : "treat"}.
+        </p>
+      </div>
+    )
+  }
+
+  const primaryLabel = kind === "finding" ? "FINDING" : "PROCEDURE"
+  const hasStatus = kind === "procedure"
+
+  return (
+    <div data-rx-module-root className="p-[12px]">
+      {/* RxPad-style editable table */}
+      {entries.length > 0 && (
+        <div className="relative overflow-x-auto rounded-[12px]">
+          <table className="w-full table-fixed font-['Inter',sans-serif] text-[13px]">
+            <colgroup>
+              <col style={{ width: 36, minWidth: 36 }} />
+              <col style={{ minWidth: 150 }} />
+              <col style={{ width: 140, minWidth: 120 }} />
+              <col style={{ width: 120, minWidth: 110 }} />
+              {hasStatus && <col style={{ width: 120, minWidth: 110 }} />}
+              <col style={{ minWidth: 120 }} />
+              <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
+            </colgroup>
+            <thead>
+              <tr className="h-[34px] bg-tp-slate-100 text-left font-['Inter',sans-serif] text-[10px] text-tp-slate-500">
+                <th className="border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" />
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">{primaryLabel}</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">SURFACES</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">{kind === "finding" ? "SINCE" : "DATE"}</th>
+                {hasStatus && <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">STATUS</th>}
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">NOTE</th>
+                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-100 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => {
+                const isActive = activeRowId === e.id
+                return (
+                  <tr
+                    key={e.id}
+                    onClick={() => setActiveRowId(isActive ? null : e.id)}
+                    onMouseEnter={() => { if (!isActive) state.onSetHighlightZones(e.surfaces) }}
+                    onMouseLeave={() => { if (!isActive) state.onSetHighlightZones([]) }}
+                    className="border-t border-tp-slate-100 transition-colors cursor-pointer hover:bg-tp-slate-100/40"
+                  >
+                    {/* Drag handle cell (display-only for now) */}
+                    <td className="border-r border-tp-slate-100 p-0 text-center align-middle">
+                      <span className="inline-flex h-[36px] w-full items-center justify-center text-tp-slate-300">
+                        <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
+                          <circle cx="2" cy="3" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="13" r="1.2" />
+                          <circle cx="6" cy="3" r="1.2" /><circle cx="6" cy="8" r="1.2" /><circle cx="6" cy="13" r="1.2" />
+                        </svg>
+                      </span>
+                    </td>
+                    {/* Primary name — whole cell is the input */}
+                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                      <EditableNameCell
+                        value={e.name}
+                        catalog={catalog}
+                        onCommit={(v) => { if (v.trim()) state.onUpdateEntry(e.id, { name: v.trim() }) }}
+                        onFocusActivate={() => setActiveRowId(e.id)}
+                      />
+                    </td>
+                    {/* Surfaces dropdown — whole cell is the trigger */}
+                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                      <SurfaceCellDropdown
+                        entry={e}
+                        arch={state.selectedTooth.arch}
+                        toothPosition={state.selectedTooth.position}
+                        isActive={isActive}
+                        onActivate={() => setActiveRowId(e.id)}
+                        onToggleZone={state.onToggleZoneMultiSelect}
+                        onClearZones={state.onClearMultiSelect}
+                        onHover={state.onSetHighlightZones}
+                        multiSelectZones={state.multiSelectZones}
+                      />
+                    </td>
+                    {/* Since / Date — whole cell */}
+                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                      {kind === "finding" ? (
+                        <SinceDropdown value={e.since ?? ""} onChange={(v) => state.onUpdateEntry(e.id, { since: v || undefined })} />
+                      ) : (
+                        <input
+                          type="date"
+                          value={e.plannedDate ?? ""}
+                          onChange={(ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined })}
+                          className="h-[40px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 focus:outline-none focus:bg-tp-blue-50/30"
+                        />
+                      )}
+                    </td>
+                    {/* Status (procedures only) */}
+                    {hasStatus && (
+                      <td className="border-r border-tp-slate-100 px-2 py-1.5 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                        <select
+                          value={e.status ?? "planned"}
+                          onChange={(ev) => state.onUpdateEntry(e.id, { status: ev.target.value as ToothEntry["status"] })}
+                          className="h-[32px] w-full rounded-[6px] border border-tp-slate-200 bg-white px-[6px] font-sans text-[11px] font-medium text-tp-slate-700 focus:border-tp-blue-500 focus:outline-none"
+                        >
+                          <option value="planned">Planned</option>
+                          <option value="in-progress">In progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      </td>
+                    )}
+                    {/* Note — whole cell */}
+                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={e.notes ?? ""}
+                        onChange={(ev) => state.onUpdateEntry(e.id, { notes: ev.target.value })}
+                        placeholder="Note…"
+                        className="h-[40px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:bg-tp-blue-50/30"
+                      />
+                    </td>
+                    {/* Sticky delete */}
+                    <td
+                      className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]"
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => { if (activeRowId === e.id) setActiveRowId(null); state.onRemoveEntry(e.id) }}
+                        title="Remove"
+                        className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                      >
+                        <Trash size={14} color="currentColor" variant="Linear" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Search & Add input (+ quick-select chips) — always at bottom, RxPad-style */}
+      <div className="mt-[10px]">
+        <div className="relative">
+          <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
+            <SearchNormal1 size={14} color="currentColor" variant="Linear" />
+          </span>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) addEntryFromName(query.trim()) }}
+            placeholder={kind === "finding" ? "Search & Add Finding" : "Search & Add Procedure"}
+            className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
+          />
+        </div>
+        {filteredCatalog.length > 0 && (
+          <div className="mt-[8px] flex flex-wrap gap-[6px]">
+            {filteredCatalog.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => addEntryFromName(c)}
+                className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+              >
+                {c}
+              </button>
+            ))}
+            {query.trim() && !filteredCatalog.some((c) => c.toLowerCase() === query.toLowerCase().trim()) && (
+              <button
+                type="button"
+                onClick={() => addEntryFromName(query.trim())}
+                className="inline-flex h-[30px] items-center gap-[4px] rounded-[10px] border border-dashed border-tp-blue-300 bg-tp-blue-50 px-[12px] font-sans text-[12px] font-medium text-tp-blue-700 transition-colors hover:bg-tp-blue-100"
+              >
+                <Add size={12} color="currentColor" variant="Linear" />
+                Add "{query.trim()}"
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// SurfaceCellDropdown — in-cell dropdown with highlighted hint row
+// ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+// EditableNameCell — click to turn a name cell into an input + catalog dropdown
+// ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+// DiagnosisNameCell — editable diagnosis name w/ swap dropdown
+// ──────────────────────────────────────────────────────────────
+function DiagnosisNameCell({
+  name, color, activeRows, onSwap,
+}: {
+  name: string
+  color: string
+  activeRows: string[]
+  onSwap: (next: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onDoc)
+    return () => document.removeEventListener("mousedown", onDoc)
+  }, [open])
+
+  // Available diagnoses to swap to (exclude currently-active ones except self).
+  const options = TOOTH_DIAGNOSES.filter((d) => d === name || !activeRows.includes(d))
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex h-[40px] w-full items-center gap-[6px] px-[10px] font-sans text-[12px] transition-colors ${
+          open ? "bg-tp-slate-100" : "hover:bg-tp-slate-50/60"
+        }`}
+      >
+        <span className="h-[10px] w-[10px] rounded-full flex-shrink-0" style={{ background: color }} />
+        <span className="font-semibold text-tp-slate-800 truncate">{name}</span>
+      </button>
+      {open && (
+        <ul className="absolute left-0 top-[calc(100%+2px)] z-[9999] w-full min-w-[160px] max-h-[220px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+          {options.map((d) => {
+            const isCurrent = d === name
+            const dColor = PRIMARY_DIAG_COLOR[d] ?? "#4b4ad5"
+            return (
+              <li key={d}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); onSwap(d); setOpen(false) }}
+                  className={`flex w-full items-center gap-[6px] px-[10px] py-[6px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-50 ${isCurrent ? "bg-tp-slate-50 font-semibold" : ""}`}
+                >
+                  <span className="h-[8px] w-[8px] rounded-full flex-shrink-0" style={{ background: dColor }} />
+                  <span className="flex-1 text-left">{d}</span>
+                  {isCurrent && <span className="text-tp-slate-400 text-[10px]">current</span>}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function EditableNameCell({
+  value, catalog, onCommit, onFocusActivate,
+}: {
+  value: string
+  catalog: readonly string[]
+  onCommit: (next: string) => void
+  onFocusActivate?: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const [highlightIdx, setHighlightIdx] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { if (!editing) setDraft(value) }, [value, editing])
+  useEffect(() => { setHighlightIdx(0) }, [draft])
+
+  const filtered = useMemo(() => {
+    const q = draft.toLowerCase().trim()
+    if (!q) return catalog.slice(0, 8)
+    return catalog.filter((c) => c.toLowerCase().includes(q) && c !== value).slice(0, 8)
+  }, [draft, catalog, value])
+
+  const hasExactMatch = useMemo(
+    () => filtered.some((c) => c.toLowerCase() === draft.trim().toLowerCase()) || catalog.some((c) => c.toLowerCase() === draft.trim().toLowerCase()),
+    [filtered, catalog, draft],
+  )
+  const showCustom = draft.trim().length > 0 && !hasExactMatch
+  const totalItems = filtered.length + (showCustom ? 1 : 0)
+
+  const commit = useCallback((next: string) => {
+    setEditing(false)
+    const trimmed = next.trim()
+    if (trimmed && trimmed !== value) onCommit(trimmed)
+  }, [value, onCommit])
+
+  useEffect(() => {
+    if (!editing) return
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        commit(draft)
+      }
+    }
+    document.addEventListener("mousedown", onDoc)
+    return () => document.removeEventListener("mousedown", onDoc)
+  }, [editing, draft, commit])
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(totalItems - 1, i + 1)) }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHighlightIdx((i) => Math.max(0, i - 1)) }
+    else if (e.key === "Enter") {
+      e.preventDefault()
+      if (totalItems === 0) return
+      if (highlightIdx < filtered.length) commit(filtered[highlightIdx])
+      else commit(draft.trim())  // custom row
+    }
+    else if (e.key === "Escape") { setDraft(value); setEditing(false) }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => { setEditing(true); setDraft(value); onFocusActivate?.(); setTimeout(() => inputRef.current?.focus(), 0) }}
+        className="flex h-[40px] w-full items-center px-[10px] text-left transition-colors hover:bg-tp-slate-100/60"
+      >
+        <span className="font-sans text-[12px] font-semibold text-tp-slate-800 truncate">{value}</span>
+      </button>
+    )
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={onKeyDown}
+        className="h-[40px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[12px] font-semibold text-tp-slate-800 focus:outline-none"
+      />
+      {(filtered.length > 0 || showCustom) && (
+        <div className="absolute left-0 top-[calc(100%+4px)] z-[9999] w-full min-w-[200px] max-h-[240px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
+          <ul>
+            {filtered.map((c, i) => {
+              const highlighted = i === highlightIdx
+              return (
+                <li key={c}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); commit(c) }}
+                    onMouseEnter={() => setHighlightIdx(i)}
+                    className={`flex w-full items-center px-[10px] py-[6px] font-sans text-[12px] text-tp-slate-700 transition-colors ${highlighted ? "bg-tp-slate-100" : "hover:bg-tp-slate-100"}`}
+                  >
+                    {c}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          {showCustom && (
+            <div className="m-[6px]">
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); commit(draft.trim()) }}
+                onMouseEnter={() => setHighlightIdx(filtered.length)}
+                className={`flex w-full items-center gap-[6px] rounded-[6px] border border-dashed border-tp-blue-300 px-[8px] py-[6px] font-sans text-[11px] font-medium text-tp-blue-700 transition-colors ${highlightIdx === filtered.length ? "bg-tp-blue-50" : "hover:bg-tp-blue-50"}`}
+              >
+                <Add size={12} color="currentColor" variant="Linear" />
+                Add custom: "{draft.trim()}"
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SurfaceCellDropdown({
+  entry, arch, toothPosition, isActive, onActivate, onToggleZone, onClearZones, onHover, multiSelectZones,
+}: {
+  entry: ToothEntry
+  arch: "maxillary" | "mandibular"
+  toothPosition: number
+  isActive: boolean
+  onActivate: () => void
+  onToggleZone: (z: ZoneId) => void
+  onClearZones: () => void
+  onHover: (zones: ZoneId[]) => void
+  multiSelectZones: Set<ZoneId>
+}) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const anchorRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  // Auto-open when this row becomes active (user just clicked a search chip).
+  useEffect(() => {
+    if (isActive) setOpen(true)
+    else setOpen(false)
+  }, [isActive])
+
+  // Compute portal position when opened / on scroll / resize.
+  useEffect(() => {
+    if (!open) { setPos(null); return }
+    const reposition = () => {
+      const el = anchorRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 240) })
+    }
+    reposition()
+    window.addEventListener("scroll", reposition, true)
+    window.addEventListener("resize", reposition)
+    return () => {
+      window.removeEventListener("scroll", reposition, true)
+      window.removeEventListener("resize", reposition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      const a = anchorRef.current, p = popoverRef.current
+      const t = e.target as Node
+      if (a && !a.contains(t) && p && !p.contains(t)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onDoc)
+    return () => document.removeEventListener("mousedown", onDoc)
+  }, [open])
+
+  // When the dropdown is open AND this is the active row, what the user sees
+  // mirrors multiSelectZones. When NOT active, show the entry's saved surfaces.
+  const shown = isActive ? Array.from(multiSelectZones) : entry.surfaces
+  // Whole tooth = ALL 7 surfaces selected (so empty array = no selection yet).
+  const isWholeTooth = shown.length === ALL_ZONES.length
+
+  const toggle = (z: ZoneId) => {
+    if (!isActive) { onActivate(); return }
+    onToggleZone(z)
+  }
+  const clickWholeTooth = () => {
+    if (!isActive) onActivate()
+    if (isWholeTooth) {
+      onClearZones()
+    } else {
+      // Select all 7 surfaces (to differentiate from empty "no selection").
+      onClearZones()
+      ALL_ZONES.forEach((z) => onToggleZone(z))
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        onClick={() => { onActivate(); setOpen((o) => !o) }}
+        className={`flex h-[38px] w-full items-center justify-between gap-[6px] rounded-[4px] px-[10px] font-sans text-[12px] transition-colors ${
+          open ? "bg-tp-blue-50 ring-1 ring-inset ring-tp-blue-400" : isActive ? "bg-tp-blue-50/30" : "bg-transparent hover:bg-tp-slate-100/60"
+        }`}
+        style={{ margin: "1px" }}
+      >
+        {shown.length === 0 ? (
+          <span className="font-normal text-tp-slate-400">Select tooth surface</span>
+        ) : shown.length === ALL_ZONES.length ? (
+          <span className="inline-flex items-center gap-[4px] font-medium text-tp-slate-700">
+            <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-400" />
+            Whole tooth
+          </span>
+        ) : (
+          <SurfaceDots surfaces={shown} arch={arch} toothPosition={toothPosition} />
+        )}
+        {/* Chevron: down when collapsed, up when open */}
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
+          <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-[9999] rounded-[8px] border border-tp-slate-200 bg-white shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)]"
+          style={{ top: pos.top, left: pos.left, width: pos.width }}
+        >
+          {/* Informative hint — amber warning tone, tight icon-text gap, highlighted keywords */}
+          <div className="p-[8px]">
+            <div className="flex items-center gap-[6px] rounded-[6px] bg-tp-amber-50 px-[10px] py-[7px]">
+              <InfoCircle size={13} color="var(--tp-amber-700)" variant="Bold" />
+              <span className="font-sans text-[10px] font-normal text-tp-amber-800 leading-[1.35]">
+                Tap the <span className="font-bold text-tp-amber-900">3D tooth</span> to select surfaces, or pick from the list below
+              </span>
+            </div>
+          </div>
+          {/* Surface list — surfaces first, Whole tooth at bottom */}
+          <ul className="max-h-[200px] overflow-y-auto py-[2px] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
+            {ALL_ZONES.map((z) => {
+              const checked = shown.includes(z)
+              const label = getZoneLabel(z, arch, toothPosition)
+              return (
+                <li key={z}>
+                  <button
+                    type="button"
+                    onClick={() => toggle(z)}
+                    onMouseEnter={() => onHover([z])}
+                    onMouseLeave={() => onHover(shown)}
+                    className="flex w-full items-center gap-[8px] px-[10px] py-[5px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+                  >
+                    <span className={`inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] border ${checked ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"} flex-shrink-0`}>
+                      {checked && (
+                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      )}
+                    </span>
+                    <span className="h-[8px] w-[8px] rounded-full flex-shrink-0" style={{ background: ZONE_INFO[z].color }} />
+                    <span className="flex-1 text-left">{label}</span>
+                  </button>
+                </li>
+              )
+            })}
+            <li className="border-t border-tp-slate-100 mt-[2px] pt-[2px]">
+              <button
+                type="button"
+                onClick={clickWholeTooth}
+                className="flex w-full items-center gap-[8px] px-[10px] py-[5px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+              >
+                <span className={`inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] border ${isWholeTooth ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"} flex-shrink-0`}>
+                  {isWholeTooth && (
+                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                </span>
+                <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-300 flex-shrink-0" />
+                <span className="flex-1 text-left font-medium">Whole tooth</span>
+              </button>
+            </li>
+          </ul>
+        </div>,
+        document.body,
+      )}
+    </>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// SurfaceMultiSelect — 7 chips, anatomy-aware labels
+// ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+// SinceDropdown — calendar icon + preset spans ("1 year ago", etc.) + custom date
+// ──────────────────────────────────────────────────────────────
+function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange: (v: string) => void; autoOpen?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const anchorRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  // Open automatically when autoOpen is true and no value is selected.
+  useEffect(() => {
+    if (autoOpen && !value) setOpen(true)
+  }, [autoOpen, value])
+
+  useEffect(() => {
+    if (!open) { setPos(null); return }
+    const reposition = () => {
+      const el = anchorRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 200) })
+    }
+    reposition()
+    window.addEventListener("scroll", reposition, true)
+    window.addEventListener("resize", reposition)
+    return () => {
+      window.removeEventListener("scroll", reposition, true)
+      window.removeEventListener("resize", reposition)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      const a = anchorRef.current, p = popoverRef.current
+      const t = e.target as Node
+      if (a && !a.contains(t) && p && !p.contains(t)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onDoc)
+    return () => document.removeEventListener("mousedown", onDoc)
+  }, [open])
+
+  const presets = [
+    { label: "1 week ago",   value: "1 week" },
+    { label: "2 weeks ago",  value: "2 weeks" },
+    { label: "1 month ago",  value: "1 month" },
+    { label: "3 months ago", value: "3 months" },
+    { label: "6 months ago", value: "6 months" },
+    { label: "1 year ago",   value: "1 year" },
+    { label: "2 years ago",  value: "2 years" },
+    { label: "3 years ago",  value: "3 years" },
+    { label: "5 years ago",  value: "5 years" },
+  ]
+
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex h-[40px] w-full items-center gap-[6px] rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100/60 focus:outline-none focus:bg-tp-blue-50/30"
+      >
+        <Calendar size={14} color="#64748b" variant="Linear" />
+        <span className={`flex-1 text-left truncate ${value ? "" : "text-tp-slate-400"}`}>{value || "Since…"}</span>
+      </button>
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          className="fixed z-[9999] rounded-[8px] border border-tp-slate-200 bg-white shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)]"
+          style={{ top: pos.top, left: pos.left, width: pos.width }}
+        >
+          <ul className="max-h-[200px] overflow-y-auto py-[2px] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
+            {presets.map((p) => (
+              <li key={p.value}>
+                <button
+                  type="button"
+                  onClick={() => { onChange(p.value); setOpen(false) }}
+                  className="flex w-full items-center px-[10px] py-[6px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+                >
+                  {p.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="border-t border-tp-slate-100 p-[6px]">
+            <label className="mb-[3px] block font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400 px-[4px]">
+              Custom date
+            </label>
+            <input
+              type="date"
+              onChange={(e) => { if (e.target.value) { onChange(e.target.value); setOpen(false) } }}
+              className="h-[32px] w-full rounded-[6px] border border-tp-slate-200 bg-white px-[8px] font-sans text-[12px] text-tp-slate-700 focus:border-tp-blue-500 focus:outline-none"
+            />
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  )
+}
+
+function SurfaceMultiSelect({
+  selected, arch, toothPosition, onToggle, onHover,
+}: {
+  selected: ZoneId[]
+  arch: "maxillary" | "mandibular"
+  toothPosition: number
+  onToggle: (z: ZoneId) => void
+  onHover: (zones: ZoneId[]) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-[6px]">
+      {ALL_ZONES.map((z) => {
+        const isActive = selected.includes(z)
+        const label = getZoneLabel(z, arch, toothPosition)
+        const color = ZONE_INFO[z].color
+        return (
+          <button
+            key={z}
+            type="button"
+            onClick={() => onToggle(z)}
+            onMouseEnter={() => onHover([z])}
+            onMouseLeave={() => onHover(selected)}
+            className={`inline-flex h-[32px] items-center gap-[6px] rounded-[10px] border px-[12px] font-sans text-[12px] font-medium transition-all ${
+              isActive
+                ? "border-tp-blue-300 bg-tp-blue-50 text-tp-blue-700"
+                : "border-transparent bg-tp-slate-100 text-tp-slate-600 hover:bg-tp-slate-200"
+            }`}
+          >
+            <span className="h-[8px] w-[8px] rounded-full" style={{ background: color }} />
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function SurfaceDots({
+  surfaces, arch, toothPosition,
+}: {
+  surfaces: ZoneId[]
+  arch: "maxillary" | "mandibular"
+  toothPosition: number
+}) {
+  if (surfaces.length === 0) {
+    return (
+      <span className="inline-flex items-center rounded-[5px] bg-tp-slate-100 px-[6px] py-[2px] font-sans text-[10px] font-semibold text-tp-slate-600">
+        Whole tooth
+      </span>
+    )
+  }
+  const abbr = (z: ZoneId) => {
+    const label = getZoneLabel(z, arch, toothPosition)
+    return label[0]
+  }
+  const shown = surfaces.slice(0, 4)
+  const overflow = surfaces.length - shown.length
+  return (
+    <div className="flex items-center gap-[4px]">
+      {shown.map((z) => (
+        <span
+          key={z}
+          title={getZoneLabel(z, arch, toothPosition)}
+          className="inline-flex h-[18px] items-center gap-[3px] rounded-[4px] px-[5px] font-sans text-[10px] font-bold text-white tabular-nums"
+          style={{ background: ZONE_INFO[z].color }}
+        >
+          {abbr(z)}
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span className="inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-sans text-[10px] font-semibold text-tp-slate-600">
+          +{overflow}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Shared TP-style section card
+// ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+// PrimaryDiagnosisSection — clickable chips with + icon, search,
+// and since/note inputs for the active diagnosis.
+// ──────────────────────────────────────────────────────────────
+function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
+  // Local per-diagnosis since/note — demo-only store.
+  const [details, setDetails] = useState<Record<string, { since: string; note: string }>>({})
+  const [query, setQuery] = useState("")
+
+  // Active diagnoses as "rows"
+  const activeRows = useMemo(() => {
+    const list: string[] = []
+    state.currentToothDiagnoses.forEach((d) => list.push(d))
+    if (state.isImplant && !list.includes("Implant")) list.push("Implant")
+    return list
+  }, [state.currentToothDiagnoses, state.isImplant])
+
+  const filteredCatalog = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    const activeSet = new Set(activeRows.map((r) => r.toLowerCase()))
+    const pool = q ? TOOTH_DIAGNOSES.filter((c) => c.toLowerCase().includes(q)) : TOOTH_DIAGNOSES
+    return pool.filter((c) => !activeSet.has(c.toLowerCase())).slice(0, 12)
+  }, [query, activeRows])
+
+  // Track most recently added diagnosis so we can auto-open its Since dropdown.
+  const [lastAddedName, setLastAddedName] = useState<string | null>(null)
+  const addDiagnosis = (name: string) => {
+    if (name === "Implant") state.onToggleImplant()
+    else state.onToggleToothDiagnosis(name)
+    setLastAddedName(name)
+    setQuery("")
+  }
+
+  const removeDiagnosis = (name: string) => {
+    if (name === "Implant") state.onToggleImplant()
+    else state.onToggleToothDiagnosis(name)
+  }
+
+  const updateDetail = (name: string, patch: Partial<{ since: string; note: string }>) => {
+    setDetails((prev) => ({ ...prev, [name]: { since: "", note: "", ...(prev[name] ?? {}), ...patch } }))
+  }
+
+  return (
+    <div data-rx-module-root className="p-[12px]">
+      {/* Table */}
+      {activeRows.length > 0 && (
+        <div className="relative overflow-x-auto rounded-[12px]">
+          <table className="w-full table-fixed font-['Inter',sans-serif] text-[13px]">
+            <colgroup>
+              <col style={{ width: 36, minWidth: 36 }} />
+              <col style={{ minWidth: 120 }} />
+              <col style={{ width: 140, minWidth: 120 }} />
+              <col style={{ minWidth: 140 }} />
+              <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
+            </colgroup>
+            <thead>
+              <tr className="h-[34px] bg-tp-slate-100 text-left font-['Inter',sans-serif] text-[10px] text-tp-slate-500">
+                <th className="border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" />
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">DIAGNOSIS</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">SINCE</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">NOTE</th>
+                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-100 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
+              </tr>
+            </thead>
+            <tbody>
+              {activeRows.map((name) => {
+                const color = PRIMARY_DIAG_COLOR[name] ?? "#4b4ad5"
+                const d = details[name] ?? { since: "", note: "" }
+                return (
+                  <tr key={name} className="border-t border-tp-slate-100 transition-colors hover:bg-tp-slate-100/60">
+                    <td className="border-r border-tp-slate-100 p-0 text-center align-middle">
+                      <span className="inline-flex h-[36px] w-full items-center justify-center text-tp-slate-300">
+                        <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
+                          <circle cx="2" cy="3" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="13" r="1.2" />
+                          <circle cx="6" cy="3" r="1.2" /><circle cx="6" cy="8" r="1.2" /><circle cx="6" cy="13" r="1.2" />
+                        </svg>
+                      </span>
+                    </td>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                      <DiagnosisNameCell
+                        name={name}
+                        color={color}
+                        activeRows={activeRows}
+                        onSwap={(next) => {
+                          if (next === name) return
+                          // Remove current, add next
+                          if (name === "Implant") state.onToggleImplant()
+                          else state.onToggleToothDiagnosis(name)
+                          if (next === "Implant") state.onToggleImplant()
+                          else state.onToggleToothDiagnosis(next)
+                        }}
+                      />
+                    </td>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                      <SinceDropdown
+                        value={d.since}
+                        onChange={(v) => updateDetail(name, { since: v })}
+                        autoOpen={lastAddedName === name}
+                      />
+                    </td>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                      <input
+                        type="text"
+                        value={d.note}
+                        onChange={(e) => updateDetail(name, { note: e.target.value })}
+                        placeholder="Note…"
+                        className="h-[40px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:bg-tp-blue-50/30"
+                      />
+                    </td>
+                    <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
+                      <button
+                        type="button"
+                        onClick={() => removeDiagnosis(name)}
+                        title="Remove"
+                        className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                      >
+                        <Trash size={14} color="currentColor" variant="Linear" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Search & Add */}
+      <div className="mt-[10px]">
+        <div className="relative">
+          <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
+            <SearchNormal1 size={14} color="currentColor" variant="Linear" />
+          </span>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) { const match = TOOTH_DIAGNOSES.find((d) => d.toLowerCase() === query.toLowerCase().trim()); if (match) addDiagnosis(match) } }}
+            placeholder="Search & Add Diagnosis"
+            className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
+          />
+        </div>
+        {filteredCatalog.length > 0 && (
+          <div className="mt-[8px] flex flex-wrap gap-[6px]">
+            {filteredCatalog.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => addDiagnosis(c)}
+                className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+

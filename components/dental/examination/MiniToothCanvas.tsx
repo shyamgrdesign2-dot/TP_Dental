@@ -1,0 +1,65 @@
+"use client"
+
+/**
+ * MiniToothCanvas — renders the actual <Tooth> component in a tiny R3F canvas.
+ * Reuses the same shader pipeline as the single-tooth view so the thumbnail
+ * exactly mirrors the doctor's current state (tooth-level diagnoses + surface
+ * findings all tint in situ).
+ */
+import { Suspense } from "react"
+import { Canvas } from "@react-three/fiber"
+import { Center } from "@react-three/drei"
+import { Tooth } from "./Tooth"
+import type { ToothDef, Finding } from "./types"
+
+interface MiniToothCanvasProps {
+  tooth: ToothDef
+  diagnoses?: Set<string>
+  isImplant?: boolean
+  findings?: Finding[]
+  size?: number
+}
+
+export function MiniToothCanvas({
+  tooth,
+  diagnoses,
+  isImplant = false,
+  findings = [],
+  size = 44,
+}: MiniToothCanvasProps) {
+  const diag = diagnoses ?? new Set<string>()
+  return (
+    <div style={{ width: size, height: size, pointerEvents: "none" }}>
+      <Canvas
+        camera={{ position: [0, 0, 5], fov: 30 }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, toneMapping: 3, toneMappingExposure: 1.35, alpha: true }}
+      >
+        <ambientLight intensity={0.9} />
+        <directionalLight position={[2, 3, 3]} intensity={0.8} />
+        <directionalLight position={[-2, 1, -2]} intensity={0.3} />
+        <Suspense fallback={null}>
+          <Center>
+            <group scale={0.9}>
+              <Tooth
+                compact
+                modelPath={tooth.modelPath}
+                arch={tooth.arch}
+                mirrorX={tooth.mirrorX}
+                quadrant={tooth.quadrant}
+                toothPosition={tooth.position}
+                toothFdi={tooth.fdi}
+                selectedZone={null}
+                onSelectZone={() => {}}
+                onHoverZone={() => {}}
+                isImplant={isImplant}
+                findings={findings}
+                toothDiagnoses={diag}
+              />
+            </group>
+          </Center>
+        </Suspense>
+      </Canvas>
+    </div>
+  )
+}

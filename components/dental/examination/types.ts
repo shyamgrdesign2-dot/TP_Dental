@@ -1,0 +1,372 @@
+// ══════════════════════════════════════════════════════════════
+// ZONE SYSTEM — varies by tooth position
+// ══════════════════════════════════════════════════════════════
+
+// Base zone IDs used internally
+export type ZoneId =
+  | 'occlusal' | 'buccal' | 'lingual' | 'mesial' | 'distal'
+  | 'cervical' | 'root'
+
+export const ALL_ZONES: ZoneId[] = [
+  'occlusal', 'buccal', 'lingual', 'mesial', 'distal', 'cervical', 'root'
+]
+
+// Zone display names change based on tooth type and arch:
+// - Teeth 1-3 (incisors): "Occlusal" → "Incisal"
+// - Teeth 4-8 (premolars/molars): "Labial" → "Buccal"
+// - Teeth 1-3 (incisors): the outer surface is "Labial" (not "Buccal")
+// - Upper teeth: inner surface = "Palatal" (not "Lingual")
+// - Lower teeth: inner surface = "Lingual"
+
+// Tooth-aware clinical abbreviation (e.g. "La" for labial surface of an incisor).
+export function getZoneAbbr(
+  zoneId: ZoneId,
+  arch: 'maxillary' | 'mandibular',
+  toothNum: number
+): string {
+  const label = getZoneLabel(zoneId, arch, toothNum)
+  switch (label) {
+    case 'Incisal':  return 'I'
+    case 'Occlusal': return 'O'
+    case 'Labial':   return 'La'
+    case 'Buccal':   return 'B'
+    case 'Palatal':  return 'P'
+    case 'Lingual':  return 'L'
+    case 'Mesial':   return 'M'
+    case 'Distal':   return 'D'
+    case 'Cervical': return 'C'
+    case 'Root':     return 'R'
+    default:         return '?'
+  }
+}
+
+export function getZoneLabel(
+  zoneId: ZoneId,
+  arch: 'maxillary' | 'mandibular',
+  toothNum: number // 1-8 within quadrant
+): string {
+  const isAnterior = toothNum <= 3 // incisors + canine
+
+  switch (zoneId) {
+    case 'occlusal':
+      return isAnterior ? 'Incisal' : 'Occlusal'
+    case 'buccal':
+      return isAnterior ? 'Labial' : 'Buccal'
+    case 'lingual':
+      return arch === 'maxillary' ? 'Palatal' : 'Lingual'
+    case 'mesial': return 'Mesial'
+    case 'distal': return 'Distal'
+    case 'cervical': return 'Cervical'
+    case 'root': return 'Root'
+    default: return zoneId
+  }
+}
+
+// Zone colors: maximally distinct hues spread across the spectrum.
+// Each pair of zones sits far apart on the color wheel so they never
+// read as "the same shade" on the tooth surface.
+export const ZONE_INFO: Record<ZoneId, { label: string; color: string; colorVec: [number, number, number]; layer: string }> = {
+  occlusal: { label: 'Occlusal', color: '#14b8a6', colorVec: [0.078, 0.722, 0.651], layer: 'crown' },    // teal
+  buccal:   { label: 'Buccal',   color: '#f97316', colorVec: [0.976, 0.451, 0.086], layer: 'crown' },    // orange
+  lingual:  { label: 'Lingual',  color: '#8b5cf6', colorVec: [0.545, 0.361, 0.965], layer: 'crown' },    // violet
+  mesial:   { label: 'Mesial',   color: '#eab308', colorVec: [0.918, 0.702, 0.031], layer: 'crown' },    // yellow
+  distal:   { label: 'Distal',   color: '#2563eb', colorVec: [0.149, 0.388, 0.922], layer: 'crown' },    // blue
+  cervical: { label: 'Cervical', color: '#ec4899', colorVec: [0.925, 0.282, 0.600], layer: 'cervical' }, // pink
+  root:     { label: 'Root',     color: '#65a30d', colorVec: [0.396, 0.639, 0.051], layer: 'root' },     // muted olive-green
+}
+
+export interface Finding {
+  id: string
+  zoneId: ZoneId
+  type: string
+  notes: string
+  /** World-space 3D click location where this finding was marked — used as spot decal center. */
+  hitPoint?: [number, number, number]
+}
+
+// ══════════════════════════════════════════════════════════════
+// Entity-centric tooth entries (findings + planned procedures)
+// One entry covers N surfaces — no repetition per surface.
+// ══════════════════════════════════════════════════════════════
+export interface ToothEntry {
+  id: string
+  toothFdi: string
+  kind: "finding" | "procedure"
+  name: string
+  surfaces: ZoneId[]
+  since?: string
+  plannedDate?: string
+  status?: "planned" | "in-progress" | "completed"
+  notes?: string
+}
+
+export const PROCEDURE_CATALOG = [
+  "RCT", "Restoration", "Extraction", "Scaling", "Polishing",
+  "Crown Prep", "Bridge Prep", "Implant Placement", "Pulp Cap",
+  "Root Planing", "Veneer", "Composite Filling",
+] as const
+
+export const DIAGNOSES = [
+  'Cavity/Caries', 'Crack', 'Fracture', 'Erosion', 'Abrasion',
+  'Attrition', 'Staining', 'Plaque', 'Calculus', 'Restoration Defect',
+  'NCCL', 'Sensitivity', 'Resorption', 'Recession', 'Normal',
+] as const
+
+// Tooth-level diagnoses (not tied to a specific zone/surface)
+export const TOOTH_DIAGNOSES = [
+  'Implant', 'Missing', 'RCT', 'Crown', 'Bridge', 'Denture',
+] as const
+
+// ══════════════════════════════════════════════════════════════
+// 32-TOOTH CATALOG — FDI notation
+// ══════════════════════════════════════════════════════════════
+//
+// FDI system:
+//   Quadrant 1: Upper Right (11-18)
+//   Quadrant 2: Upper Left  (21-28)
+//   Quadrant 3: Lower Left  (31-38)
+//   Quadrant 4: Lower Right (41-48)
+//
+// Within each quadrant, position 1-8:
+//   1 = Central Incisor
+//   2 = Lateral Incisor
+//   3 = Canine
+//   4 = First Premolar
+//   5 = Second Premolar
+//   6 = First Molar
+//   7 = Second Molar
+//   8 = Third Molar (Wisdom)
+//
+// We have OBJ models for left side (UL = quadrant 2, LL = quadrant 3).
+// Right side (quadrants 1 and 4) are mirrors of the left side.
+
+export type Quadrant = 'upper-right' | 'upper-left' | 'lower-left' | 'lower-right'
+
+export interface ToothDef {
+  fdi: string
+  name: string
+  position: number      // 1-8 within quadrant
+  quadrant: Quadrant
+  arch: 'maxillary' | 'mandibular'
+  type: 'incisor' | 'canine' | 'premolar' | 'molar'
+  modelPath: string     // GLB path (left-side model)
+  mirrorX: boolean      // true for right-side teeth (mirror the model)
+}
+
+const TOOTH_NAMES: Record<number, { name: string; type: 'incisor' | 'canine' | 'premolar' | 'molar' }> = {
+  1: { name: 'Central Incisor', type: 'incisor' },
+  2: { name: 'Lateral Incisor', type: 'incisor' },
+  3: { name: 'Canine',          type: 'canine' },
+  4: { name: 'First Premolar',  type: 'premolar' },
+  5: { name: 'Second Premolar', type: 'premolar' },
+  6: { name: 'First Molar',     type: 'molar' },
+  7: { name: 'Second Molar',    type: 'molar' },
+  8: { name: 'Third Molar',     type: 'molar' },
+}
+
+// Model mapping: which GLB to use for each position
+// Upper teeth use UL (upper left) models, lower use LL (lower left) models
+const UPPER_MODELS: Record<number, string> = {
+  1: '/models/tooth_11.glb',
+  2: '/models/tooth_11.glb', // use central incisor for lateral (closest match)
+  3: '/models/tooth_13.glb',
+  4: '/models/tooth_14.glb',
+  5: '/models/tooth_15.glb',
+  6: '/models/tooth_16.glb',
+  7: '/models/tooth_17.glb',
+  8: '/models/tooth_18.glb',
+}
+
+const LOWER_MODELS: Record<number, string> = {
+  1: '/models/tooth_31.glb',
+  2: '/models/tooth_32.glb',
+  3: '/models/tooth_33.glb',
+  4: '/models/tooth_34.glb',
+  5: '/models/tooth_35.glb',
+  6: '/models/tooth_36.glb',
+  7: '/models/tooth_37.glb',
+  8: '/models/tooth_38.glb',
+}
+
+function buildTeeth(): ToothDef[] {
+  const teeth: ToothDef[] = []
+
+  // Quadrant 1: Upper Right (FDI 11-18) — mirror of upper left
+  for (let pos = 1; pos <= 8; pos++) {
+    const info = TOOTH_NAMES[pos]
+    teeth.push({
+      fdi: `1${pos}`,
+      name: info.name,
+      position: pos,
+      quadrant: 'upper-right',
+      arch: 'maxillary',
+      type: info.type,
+      modelPath: UPPER_MODELS[pos],
+      mirrorX: true,
+    })
+  }
+
+  // Quadrant 2: Upper Left (FDI 21-28) — original models
+  for (let pos = 1; pos <= 8; pos++) {
+    const info = TOOTH_NAMES[pos]
+    teeth.push({
+      fdi: `2${pos}`,
+      name: info.name,
+      position: pos,
+      quadrant: 'upper-left',
+      arch: 'maxillary',
+      type: info.type,
+      modelPath: UPPER_MODELS[pos],
+      mirrorX: false,
+    })
+  }
+
+  // Quadrant 3: Lower Left (FDI 31-38) — original models
+  for (let pos = 1; pos <= 8; pos++) {
+    const info = TOOTH_NAMES[pos]
+    teeth.push({
+      fdi: `3${pos}`,
+      name: info.name,
+      position: pos,
+      quadrant: 'lower-left',
+      arch: 'mandibular',
+      type: info.type,
+      modelPath: LOWER_MODELS[pos],
+      mirrorX: false,
+    })
+  }
+
+  // Quadrant 4: Lower Right (FDI 41-48) — mirror of lower left
+  for (let pos = 1; pos <= 8; pos++) {
+    const info = TOOTH_NAMES[pos]
+    teeth.push({
+      fdi: `4${pos}`,
+      name: info.name,
+      position: pos,
+      quadrant: 'lower-right',
+      arch: 'mandibular',
+      type: info.type,
+      modelPath: LOWER_MODELS[pos],
+      mirrorX: true,
+    })
+  }
+
+  return teeth
+}
+
+export const TEETH: ToothDef[] = buildTeeth()
+
+export const QUADRANT_LABELS: Record<Quadrant, string> = {
+  'upper-right': 'Upper Right',
+  'upper-left': 'Upper Left',
+  'lower-left': 'Lower Left',
+  'lower-right': 'Lower Right',
+}
+
+/** Patient coords: +X = patient's left. Mesial always points toward midline (X → 0). */
+export function isPatientRightQuadrant(q: Quadrant): boolean {
+  return q === 'upper-right' || q === 'lower-right'
+}
+
+// ══════════════════════════════════════════════════════════════
+// VIEW MODE
+// ══════════════════════════════════════════════════════════════
+
+export type ViewMode = 'dentition' | 'single-tooth'
+
+// ══════════════════════════════════════════════════════════════
+// DIAGNOSIS COLORS — for full dentition view tinting
+// ══════════════════════════════════════════════════════════════
+
+export const DIAGNOSIS_COLORS: Record<string, string> = {
+  Crown:   '#6B7280',  // neutral gray
+  Missing: '#EF4444',  // red (the only alert/red tag)
+  RCT:     '#6B7280',  // neutral gray
+  Bridge:  '#6B7280',  // neutral gray
+  Implant: '#6B7280',  // neutral gray
+  Denture: '#6B7280',  // neutral gray
+}
+
+// ══════════════════════════════════════════════════════════════
+// ARCH POSITIONS — place each tooth in dental arch formation
+// ══════════════════════════════════════════════════════════════
+//
+// Dental arch follows a parabolic curve (horseshoe/U shape).
+// Upper arch (maxillary) at Y=0, lower arch (mandibular) offset downward.
+// Each tooth has position [x, y, z] and rotation [rx, ry, rz] in radians.
+// Left side (Q2, Q3) computed first, right side (Q1, Q4) mirrored.
+
+export interface ArchPose {
+  position: [number, number, number]
+  rotation: [number, number, number]
+}
+
+function computeArchPositions(): Record<string, ArchPose> {
+  const result: Record<string, ArchPose> = {}
+
+  // Tooth widths (approximate mesiodistal widths in scene units)
+  const widths: Record<number, number> = {
+    1: 0.55, 2: 0.45, 3: 0.52, 4: 0.48, 5: 0.48, 6: 0.68, 7: 0.65, 8: 0.60,
+  }
+
+  // Arch curve: z = -k * x^2 (parabola opening toward -Z)
+  const kUpper = 0.12
+  const kLower = 0.14   // slightly tighter curve for lower arch
+  const yLower = -1.8   // vertical offset for lower jaw
+
+  // Compute cumulative X positions for left side (Q2 upper, Q3 lower)
+  // Teeth go from midline outward: pos 1 (central incisor) → pos 8 (wisdom)
+  function computeLeftSidePositions(k: number, yOffset: number, archPrefix: string, quadrant: string) {
+    let cumX = 0
+    for (let pos = 1; pos <= 8; pos++) {
+      const w = widths[pos]
+      cumX += w / 2  // half-width to center
+      const x = cumX
+      const z = -k * x * x
+
+      // Rotation: tooth faces outward (perpendicular to arch tangent)
+      // Tangent at x: dz/dx = -2kx, so tangent angle = atan(-2kx)
+      // Tooth should face outward = perpendicular to tangent
+      const tangentAngle = Math.atan(-2 * k * x)
+      const ry = tangentAngle  // Y rotation for outward facing
+
+      const fdi = `${quadrant}${pos}`
+      result[fdi] = {
+        position: [x, yOffset, z],
+        rotation: [0, ry, 0],
+      }
+
+      cumX += w / 2  // other half-width for spacing
+      cumX += 0.04   // small gap between teeth
+    }
+  }
+
+  // Upper Left (Q2): positive X
+  computeLeftSidePositions(kUpper, 0, 'UL', '2')
+
+  // Lower Left (Q3): positive X, lower Y
+  computeLeftSidePositions(kLower, yLower, 'LL', '3')
+
+  // Mirror for right side: negate X, negate ry
+  // Upper Right (Q1)
+  for (let pos = 1; pos <= 8; pos++) {
+    const src = result[`2${pos}`]
+    result[`1${pos}`] = {
+      position: [-src.position[0], src.position[1], src.position[2]],
+      rotation: [src.rotation[0], -src.rotation[1], src.rotation[2]],
+    }
+  }
+
+  // Lower Right (Q4)
+  for (let pos = 1; pos <= 8; pos++) {
+    const src = result[`3${pos}`]
+    result[`4${pos}`] = {
+      position: [-src.position[0], src.position[1], src.position[2]],
+      rotation: [src.rotation[0], -src.rotation[1], src.rotation[2]],
+    }
+  }
+
+  return result
+}
+
+export const ARCH_POSITIONS: Record<string, ArchPose> = computeArchPositions()
