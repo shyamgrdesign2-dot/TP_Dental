@@ -9,7 +9,7 @@
 
 import React, { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft2, Health, ClipboardText } from "iconsax-reactjs"
+import { Health, ClipboardText } from "iconsax-reactjs"
 import { ExaminationTab } from "./examination/ExaminationTab"
 import { TreatmentPlanTab } from "./plan/TreatmentPlanTab"
 
@@ -42,21 +42,21 @@ export function DentalModuleShell() {
 
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-tp-slate-50">
-      {/* Top nav */}
-      <header className="relative flex h-[62px] w-full shrink-0 items-center gap-[16px] bg-white px-[20px]">
+      {/* Top nav — RxPad-style fixed header with 80px back button + Done CTA */}
+      <header className="relative flex h-[62px] w-full shrink-0 items-center bg-white">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex h-[36px] w-[36px] items-center justify-center rounded-[8px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
-          aria-label="Back to RxPad"
-          title="Back"
+          aria-label="Go back"
+          className="relative flex h-[62px] w-[80px] shrink-0 items-center justify-center px-[15px] py-[20px] bg-white transition-colors hover:bg-tp-slate-50"
         >
-          <ArrowLeft2 size={18} color="currentColor" variant="Linear" />
+          <div aria-hidden="true" className="absolute inset-[0_-0.25px_0_0] border-r-[0.5px] border-solid border-[#f1f1f5] pointer-events-none" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#454551" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
+            <path d="m15 18-6-6 6-6" />
+          </svg>
         </button>
 
-        <div className="h-[24px] w-[1px] bg-tp-slate-200" />
-
-        <div className="flex flex-col gap-[2px]">
+        <div className="flex flex-col gap-[2px] pl-[20px]">
           <h1 className="font-sans text-[14px] font-semibold leading-[20px] text-tp-slate-900">
             Dental Module
           </h1>
@@ -65,6 +65,15 @@ export function DentalModuleShell() {
           </p>
         </div>
 
+        <div className="ml-auto pr-[20px]">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex h-[36px] items-center rounded-[8px] bg-tp-blue-500 px-[18px] font-sans text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-600"
+          >
+            Done
+          </button>
+        </div>
       </header>
 
       {/* Body: 2-tab sidebar + tab content */}

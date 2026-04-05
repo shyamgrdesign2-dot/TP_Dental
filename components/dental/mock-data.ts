@@ -82,7 +82,25 @@ export const INITIAL_TOOTH_STATE: Record<string, InitialToothState> = {
 
 /** Dental history entries keyed by patientId (apt-* from appointment screen) */
 export const DENTAL_HISTORY: Record<string, DentalHistoryEntry[]> = {
-  "apt-1": [],     // Shyam GR — empty → triggers empty state
+  "apt-new": [],   // Riya Kapoor — first-visit patient, empty state demo
+  "apt-1": [
+    // Shyam GR — historical entries from past visits (matches current tooth state)
+    { id: "dh-s01", condition: "RCT — 36 (in progress)", since: "Feb 2025", status: "Active", medication: true, notes: "2 sittings completed, crown pending." },
+    { id: "dh-s02", condition: "Crown — 26 (PFM)", since: "Nov 2024", status: "Resolved", medication: false, notes: "Placed after RCT, bite aligned." },
+    { id: "dh-s03", condition: "Caries — 16 (Buccal/Occlusal)", since: "Jan 2025", status: "Monitoring", medication: false, notes: "Staining + early cavity, restoration planned." },
+    { id: "dh-s04", condition: "Scaling & Polishing", since: "Jul 2024", status: "Resolved", medication: false },
+  ],
+  "apt-2": [
+    // Sita Menon — basic historical data
+    { id: "dh-st01", condition: "Extraction — 18, 28 (Wisdom teeth)", since: "Jun 2024", status: "Resolved", medication: true, notes: "Impacted molars, no complications." },
+    { id: "dh-st02", condition: "Fluoride Treatment", since: "Mar 2025", status: "Resolved", medication: false },
+  ],
+  "apt-3": [
+    // Vikram Singh — basic historical data
+    { id: "dh-v01", condition: "Deep Cleaning (Scaling & Root Planing)", since: "Sep 2024", status: "Resolved", medication: false, notes: "Mild gingivitis, improved at 6-month follow-up." },
+  ],
+  "apt-4": [],     // Nisha Rao — no history yet
+  "apt-5": [],     // Rahul Verma — no history yet
   "apt-6": [
     { id: "dh-101", condition: "Scaling & Polishing", since: "Dec 2024", status: "Resolved", medication: false },
     { id: "dh-102", condition: "Restoration — 26 (Occlusal)", since: "Jan 2025", status: "Active", medication: false, notes: "Composite filling, monitor for sensitivity." },

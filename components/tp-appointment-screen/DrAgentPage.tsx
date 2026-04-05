@@ -121,8 +121,23 @@ const appointmentTabs: AppointmentTab[] = [
 
 const queueAppointments: AppointmentRow[] = [
   {
-    id: "apt-1",
+    id: "apt-new",
     serial: 1,
+    name: "Riya Kapoor",
+    gender: "F",
+    age: 24,
+    contact: "+91-9812000123",
+    visitBadge: { text: "First visit", tone: "info" },
+    visitType: "New",
+    slotTime: "10:15 am",
+    slotDate: "9th Oct 2024",
+    hasVideo: false,
+    status: "queue",
+    dateKey: "today",
+  },
+  {
+    id: "apt-1",
+    serial: 2,
     name: "Shyam GR",
     gender: "M",
     age: 35,
@@ -137,7 +152,7 @@ const queueAppointments: AppointmentRow[] = [
   },
   {
     id: "apt-2",
-    serial: 2,
+    serial: 3,
     name: "Sita Menon",
     gender: "F",
     age: 30,
@@ -153,7 +168,7 @@ const queueAppointments: AppointmentRow[] = [
   },
   {
     id: "apt-3",
-    serial: 3,
+    serial: 4,
     name: "Vikram Singh",
     gender: "M",
     age: 42,
@@ -167,7 +182,7 @@ const queueAppointments: AppointmentRow[] = [
   },
   {
     id: "apt-4",
-    serial: 4,
+    serial: 5,
     name: "Nisha Rao",
     gender: "F",
     age: 26,
@@ -181,7 +196,7 @@ const queueAppointments: AppointmentRow[] = [
   },
   {
     id: "apt-5",
-    serial: 5,
+    serial: 6,
     name: "Rahul Verma",
     gender: "M",
     age: 50,

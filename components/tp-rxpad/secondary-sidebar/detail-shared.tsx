@@ -77,13 +77,19 @@ export function useStickyHeaderState(offset = 0) {
 export function ActionButton({
   label = "Add/Edit Details",
   icon = "plus",
+  onClick,
 }: {
   label?: string;
   icon?: "plus" | "none";
+  onClick?: () => void;
 }) {
   return (
     <div className={`bg-white content-stretch flex flex-col items-start p-[12px] relative shrink-0 w-full border-b ${rxSidebarTokens.panelBorderClass}`}>
-      <div className="h-[36px] relative shrink-0 w-full cursor-pointer">
+      <div
+        className="h-[36px] relative shrink-0 w-full cursor-pointer"
+        role={onClick ? "button" : undefined}
+        onClick={onClick}
+      >
         <div aria-hidden="true" className="absolute border border-tp-blue-500 border-solid inset-0 pointer-events-none rounded-[10px]" />
         <div className="flex flex-row items-center justify-center size-full rounded-[10px]">
           <div className="content-stretch flex gap-[4px] items-center justify-center px-[15px] py-px relative size-full">
