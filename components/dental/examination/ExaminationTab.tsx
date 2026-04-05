@@ -209,7 +209,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           src="/icons/ui/drag-handle.svg"
           alt=""
           draggable={false}
-          className="pointer-events-none absolute left-0 top-1/2 z-30 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
+          className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
           style={{ display: "block", width: "22px", height: "32px", maxWidth: "none" }}
         />
       </div>
@@ -514,11 +514,11 @@ function ScoreCard({
     >
       {/* Heading — tab stuck to top-left corner, only bottom-right rounded */}
       <span
-        className="absolute top-0 left-0 z-20 inline-flex items-center px-[10px] py-[4px] font-sans text-[10px] font-semibold tracking-[0.2px]"
+        className="absolute top-0 left-0 z-20 inline-flex items-center px-[11px] py-[5px] font-sans text-[10px] font-semibold tracking-[0.2px]"
         style={{
-          background: "rgba(255,255,255,0.9)",
+          background: "rgba(255,255,255,0.98)",
           color: colour.accentDark,
-          borderBottomRightRadius: "10px",
+          borderBottomRightRadius: "14px",
           backdropFilter: "blur(6px)",
           WebkitBackdropFilter: "blur(6px)",
         }}
@@ -546,8 +546,7 @@ function ScoreCard({
               <stop offset="100%" stopColor={colour.accentDark} />
             </linearGradient>
           </defs>
-          {/* Interior gradient disc */}
-          <circle cx={cx} cy={cy} r={r - 10} fill={`url(#${did})`} />
+          {/* Interior disc removed per design — keep ring + score text only */}
           {/* Track — lighter variant of ring colour */}
           <path d={bgArc} stroke={colour.tint} strokeWidth={14} strokeLinecap="round" fill="none" />
           {/* Progress */}
@@ -577,7 +576,7 @@ function ScoreCard({
             top: `${((cy + 34) / size) * 100}%`,
             left: "50%",
             transform: "translate(-50%, -50%)",
-            background: `linear-gradient(135deg, ${colour.accent}12 0%, #ffffff 60%, ${colour.accent}1a 100%)`,
+            background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
             color: colour.accentDark,
             border: `1px solid ${colour.accent}33`,
             letterSpacing: "0.6px",

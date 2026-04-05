@@ -226,7 +226,7 @@
   position: absolute; left: 14px; right: 14px; z-index: 11;
   /* tooth chart: bottom:12 + height:~62 = 74. Add 28px breathing room = 102. */
   bottom: 102px;
-  display: flex; align-items: flex-end; justify-content: space-between;
+  display: flex; align-items: flex-end; justify-content: flex-end;
   pointer-events: none;
 }
 .dental-canvas-root .viewer-bottom-controls > * { pointer-events: auto; }
