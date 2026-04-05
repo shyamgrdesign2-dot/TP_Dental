@@ -65,15 +65,6 @@ export function DentalModuleShell() {
           </p>
         </div>
 
-        <div className="ml-auto pr-[20px]">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="inline-flex h-[36px] items-center rounded-[8px] bg-tp-blue-500 px-[18px] font-sans text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-600"
-          >
-            Done
-          </button>
-        </div>
       </header>
 
       {/* Body: 2-tab sidebar + tab content */}
