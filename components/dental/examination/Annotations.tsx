@@ -354,31 +354,60 @@ export function Annotations({
                         {zoneLabel}
                       </div>
 
-                      {diagnoses.length > 0 && (
-                        <div style={{
+                      {(() => {
+                        const findingsList = diagnoses
+                          .filter((d) => d.startsWith('Fn:') || (!d.startsWith('Pr:') && !d.startsWith('Dx:')))
+                          .map((d) => (d.startsWith('Fn:') ? d.slice(3).trim() : d))
+                        const proceduresList = diagnoses
+                          .filter((d) => d.startsWith('Pr:'))
+                          .map((d) => d.slice(3).trim())
+                        const sectionLabelStyle: React.CSSProperties = {
+                          fontSize: 9,
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.4px',
+                          color: 'rgba(255,255,255,0.55)',
+                          marginBottom: 3,
+                        }
+                        const tagRowStyle: React.CSSProperties = {
                           display: 'flex',
                           flexWrap: 'wrap',
                           gap: 4,
-                          marginBottom: notes ? 8 : 0,
-                        }}>
-                          {diagnoses.map((d, i) => (
-                            <span
-                              key={i}
-                              style={{
-                                fontSize: 11,
-                                padding: '2px 6px',
-                                borderRadius: 4,
-                                background: 'rgba(255,255,255,0.12)',
-                                color: '#ddd',
-                                fontWeight: 500,
-                                lineHeight: 1.4,
-                              }}
-                            >
-                              {d}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                        }
+                        const tagStyle: React.CSSProperties = {
+                          fontSize: 11,
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          background: 'rgba(255,255,255,0.12)',
+                          color: '#ddd',
+                          fontWeight: 500,
+                          lineHeight: 1.4,
+                        }
+                        return (
+                          <>
+                            {findingsList.length > 0 && (
+                              <div style={{ marginBottom: proceduresList.length > 0 || notes ? 7 : 0 }}>
+                                <div style={sectionLabelStyle}>Findings</div>
+                                <div style={tagRowStyle}>
+                                  {findingsList.map((d, i) => (
+                                    <span key={`f-${i}`} style={tagStyle}>{d}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {proceduresList.length > 0 && (
+                              <div style={{ marginBottom: notes ? 7 : 0 }}>
+                                <div style={sectionLabelStyle}>Procedures</div>
+                                <div style={tagRowStyle}>
+                                  {proceduresList.map((d, i) => (
+                                    <span key={`p-${i}`} style={tagStyle}>{d}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
 
                       {notes.trim() && (
                         <div style={{

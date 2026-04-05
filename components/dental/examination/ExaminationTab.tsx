@@ -232,7 +232,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           {isSingle && canvasState ? (
             <div className="flex h-full w-full flex-col p-[12px]">
               {/* Expanding card wrapping the whole single-tooth view */}
-              <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border border-tp-slate-200">
+              <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border border-white">
                 <SingleToothPanel state={canvasState} />
               </div>
             </div>
@@ -790,10 +790,10 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         </nav>
       </header>
 
-      {/* SCROLLABLE BODY — neutral #F1F1F1 so white section cards stack visibly without borders */}
+      {/* SCROLLABLE BODY — neutral #F2F2F2 so white section cards stack visibly without borders */}
       <div
         className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
-        style={{ background: "#F1F1F1" }}
+        style={{ background: "#F2F2F2" }}
       >
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
