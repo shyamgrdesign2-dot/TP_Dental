@@ -364,14 +364,12 @@ export function DentalCanvas({
   }, [currentToothDiagnoses, selectedTooth.fdi])
 
   const handleToggleZoneMultiSelect = useCallback((zone: ZoneId) => {
+    // Always rotate the 3D camera to the picked surface — the 3D canvas
+    // reacts to actions happening in the side panel (bi-directional link).
+    setSelectedZone(zone)
     // Multi-select mode is gated by multiSelectActive (enabled only when a
     // surface cell in the Findings/Procedures table is active).
-    // When inactive, clicking a zone is a single-select: set selectedZone,
-    // which triggers the camera to rotate to that surface (see ZoneCamera).
-    if (!multiSelectActive) {
-      setSelectedZone((prev) => (prev === zone ? null : zone))
-      return
-    }
+    if (!multiSelectActive) return
     setMultiSelectZones((prev) => {
       const next = new Set(prev)
       if (next.has(zone)) next.delete(zone)
@@ -636,13 +634,48 @@ export function DentalCanvas({
               zonesWithFindings={new Set(findings.map(f => f.zoneId))}
               disabled={currentToothDiagnoses.has('Missing')}
             />
-            {selectedZone && !multiSelectActive && (
-              <div
-                className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-[28px] whitespace-nowrap rounded-[6px] bg-tp-slate-900 px-[8px] py-[3px] font-sans text-[11px] font-semibold text-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.35)]"
-                style={{ left: 'auto', right: 0 }}
-              >
-                {ZONE_INFO[selectedZone]?.label ?? selectedZone}
-              </div>
+            {selectedZone && (
+              (() => {
+                const entries = currentToothEntries.filter(e => e.surfaces.includes(selectedZone))
+                const findingEntries = entries.filter(e => e.kind === 'finding')
+                const procedureEntries = entries.filter(e => e.kind === 'procedure')
+                return (
+                  <div
+                    className="pointer-events-none absolute right-0 -top-[12px] -translate-y-full min-w-[180px] max-w-[240px] rounded-[8px] bg-tp-slate-900 px-[10px] py-[8px] shadow-[0_4px_14px_-4px_rgba(15,23,42,0.4)]"
+                  >
+                    <div className="font-sans text-[11px] font-bold text-white whitespace-nowrap">
+                      {ZONE_INFO[selectedZone]?.label ?? selectedZone}
+                    </div>
+                    {findingEntries.length > 0 && (
+                      <div className="mt-[6px]">
+                        <div className="font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-white/55">Findings</div>
+                        <div className="mt-[3px] flex flex-wrap gap-[3px]">
+                          {findingEntries.map(e => (
+                            <span key={e.id} className="inline-flex items-center rounded-[4px] bg-tp-amber-500/25 px-[6px] py-[1px] font-sans text-[10px] font-medium text-tp-amber-100">
+                              {e.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {procedureEntries.length > 0 && (
+                      <div className="mt-[6px]">
+                        <div className="font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-white/55">Procedures</div>
+                        <div className="mt-[3px] flex flex-wrap gap-[3px]">
+                          {procedureEntries.map(e => (
+                            <span key={e.id} className="inline-flex items-center rounded-[4px] bg-tp-blue-500/25 px-[6px] py-[1px] font-sans text-[10px] font-medium text-tp-blue-100">
+                              {e.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {entries.length === 0 && (
+                      <div className="mt-[4px] font-sans text-[10px] text-white/50">No findings yet</div>
+                    )}
+                  </div>
+                )
+              })()
             )}
           </div>
         )}

@@ -162,7 +162,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
         className="relative min-w-0 my-[12px] ml-[12px] rounded-[20px] overflow-hidden bg-white"
         style={{
           width: `calc(${canvasPct}% - 12px)`,
-          transition: dragging ? "none" : "width 200ms ease",
+          transition: dragging ? "none" : "width 700ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         {/* Subtle graph-paper grid — medium squares, very light */}
@@ -217,7 +217,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
       {/* Right: Context-aware panel */}
       <aside
         className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100"
-        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 200ms ease" }}
+        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 700ms cubic-bezier(0.22, 1, 0.36, 1)" }}
       >
         <div
           key={isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"}
@@ -508,7 +508,7 @@ function ScoreCard({
       ref={infoBtnRef}
       className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[12px] pb-[14px]"
       style={{
-        background: `linear-gradient(140deg, #ffffff 0%, ${colour.tint}80 100%)`,
+        background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}26 55%, ${colour.accent}3d 100%)`,
       }}
     >
       {/* Heading — tab stuck to top-left corner, only bottom-right rounded */}
@@ -729,8 +729,13 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Tooth identity header */}
-      <header className="shrink-0 bg-white">
+      {/* Tooth identity header — violet gradient banner */}
+      <header
+        className="shrink-0"
+        style={{
+          background: "linear-gradient(140deg, #EDDFF7 0%, rgba(75,74,213,0.20) 100%)",
+        }}
+      >
         <div className="flex items-center gap-[10px] px-[14px] py-[10px]">
           <div className="flex h-[36px] w-[36px] flex-shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-tp-slate-50">
             <MiniToothCanvas
@@ -790,8 +795,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         </nav>
       </header>
 
-      {/* SCROLLABLE BODY — darker neutral slate-100 so white section cards stack visibly without borders */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px] bg-tp-slate-100">
+      {/* SCROLLABLE BODY — neutral slate-50 so white section cards stack visibly without borders */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px] bg-tp-slate-50">
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
             header={<SectionHeader title="Primary Diagnosis" medicalIcon="diagnosis"
@@ -1525,21 +1530,22 @@ function SurfaceCellDropdown({
         ref={anchorRef}
         type="button"
         onClick={() => { onActivate(); setOpen((o) => !o) }}
-        className={`flex h-[38px] w-full items-center justify-between gap-[6px] rounded-[4px] px-[10px] font-sans text-[12px] transition-colors ${
+        className={`flex h-[40px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[12px] transition-colors ${
           open ? "bg-tp-blue-50 ring-1 ring-inset ring-tp-blue-400" : isActive ? "bg-tp-blue-50/30" : "bg-transparent hover:bg-tp-slate-100/60"
         }`}
-        style={{ margin: "1px" }}
       >
-        {shown.length === 0 ? (
-          <span className="font-normal text-tp-slate-400">Select tooth surface</span>
-        ) : shown.length === ALL_ZONES.length ? (
-          <span className="inline-flex items-center gap-[4px] font-medium text-tp-slate-700">
-            <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-400" />
-            Whole tooth
-          </span>
-        ) : (
-          <SurfaceDots surfaces={shown} arch={arch} toothPosition={toothPosition} />
-        )}
+        <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+          {shown.length === 0 ? (
+            <span className="font-normal text-tp-slate-400">Select surface</span>
+          ) : shown.length === ALL_ZONES.length ? (
+            <span className="inline-flex items-center gap-[4px] font-medium text-tp-slate-700">
+              <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-400" />
+              Whole tooth
+            </span>
+          ) : (
+            <SurfaceDots surfaces={shown} arch={arch} toothPosition={toothPosition} />
+          )}
+        </span>
         {/* Chevron: down when collapsed, up when open */}
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
           <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
