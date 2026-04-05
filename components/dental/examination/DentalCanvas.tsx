@@ -506,7 +506,7 @@ export function DentalCanvas({
           {isDentitionView ? (
             <div className="tooth-name">Full dentition view</div>
           ) : (
-            <div className="tooth-name">
+            <div className="tooth-name" style={{ paddingLeft: 8, gap: 2 }}>
               <button
                 type="button"
                 onClick={handleBackToDentition}
@@ -516,10 +516,10 @@ export function DentalCanvas({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 18,
-                  height: 18,
+                  width: 16,
+                  height: 16,
                   padding: 0,
-                  marginRight: 2,
+                  margin: 0,
                   borderRadius: 4,
                   background: 'transparent',
                   border: 'none',

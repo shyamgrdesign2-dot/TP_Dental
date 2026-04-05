@@ -162,7 +162,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
         className="relative min-w-0 my-[12px] ml-[12px] rounded-[20px] overflow-hidden bg-white"
         style={{
           width: `calc(${canvasPct}% - 12px)`,
-          transition: dragging ? "none" : "width 700ms cubic-bezier(0.22, 1, 0.36, 1)",
+          transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms",
         }}
       >
         {/* Subtle graph-paper grid — medium squares, very light */}
@@ -209,7 +209,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           src="/icons/ui/drag-handle.svg"
           alt=""
           draggable={false}
-          className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
+          className="pointer-events-none absolute left-0 top-1/2 z-30 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
           style={{ display: "block", width: "22px", height: "32px", maxWidth: "none" }}
         />
       </div>
@@ -217,7 +217,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
       {/* Right: Context-aware panel */}
       <aside
         className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100"
-        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 700ms cubic-bezier(0.22, 1, 0.36, 1)" }}
+        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms" }}
       >
         <div
           key={isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"}
@@ -493,7 +493,7 @@ function ScoreCard({
   const fgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${sweepTotal * progress > 180 ? 1 : 0} 1 ${pProg.x} ${pProg.y}`
   const gid = `gauge-ring-${zoneIdx}`
   const did = `gauge-disc-${zoneIdx}`
-  const infoIconRef = useRef<HTMLButtonElement>(null)
+  const infoIconRef = useRef<HTMLSpanElement>(null)
   const [iconAnchor, setIconAnchor] = useState<{ x: number; y: number } | null>(null)
 
   const openTooltip = () => {
@@ -509,16 +509,18 @@ function ScoreCard({
       ref={infoBtnRef}
       className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[12px] pb-[14px]"
       style={{
-        background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}3d 60%, ${colour.accent}66 100%)`,
+        background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}2b 60%, ${colour.accent}4d 100%)`,
       }}
     >
       {/* Heading — tab stuck to top-left corner, only bottom-right rounded */}
       <span
         className="absolute top-0 left-0 z-20 inline-flex items-center px-[10px] py-[4px] font-sans text-[10px] font-semibold tracking-[0.2px]"
         style={{
-          background: colour.tint,
+          background: "rgba(255,255,255,0.9)",
           color: colour.accentDark,
           borderBottomRightRadius: "10px",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
         }}
       >
         Dental score
@@ -564,39 +566,26 @@ function ScoreCard({
             out of 100
           </text>
         </svg>
-        {/* Rating tag — pill with glass gradient, accent border + accent text */}
-        <div
-          className="absolute inline-flex items-center gap-[4px]"
+        {/* Rating tag — pill with glass gradient, accent border + accent text; info icon embedded */}
+        <span
+          ref={infoIconRef}
+          onMouseEnter={openTooltip}
+          onMouseLeave={closeTooltip}
+          onClick={openTooltip}
+          className="absolute inline-flex items-center gap-[5px] rounded-full px-[10px] py-[3px] font-sans text-[9px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer"
           style={{
             top: `${((cy + 34) / size) * 100}%`,
             left: "50%",
             transform: "translate(-50%, -50%)",
+            background: `linear-gradient(135deg, ${colour.accent}12 0%, #ffffff 60%, ${colour.accent}1a 100%)`,
+            color: colour.accentDark,
+            border: `1px solid ${colour.accent}33`,
+            letterSpacing: "0.6px",
           }}
         >
-          <span
-            className="inline-flex items-center rounded-full px-[10px] py-[3px] font-sans text-[9px] font-bold whitespace-nowrap backdrop-blur-[6px]"
-            style={{
-              background: `linear-gradient(135deg, ${colour.accent}12 0%, #ffffff 60%, ${colour.accent}1a 100%)`,
-              color: colour.accentDark,
-              border: `1px solid ${colour.accent}33`,
-              letterSpacing: "0.6px",
-            }}
-          >
-            {rating.toUpperCase()}
-          </span>
-          <button
-            ref={infoIconRef}
-            type="button"
-            onMouseEnter={openTooltip}
-            onMouseLeave={closeTooltip}
-            onClick={openTooltip}
-            className="inline-flex h-[16px] w-[16px] items-center justify-center rounded-full transition-colors hover:bg-white/60"
-            aria-label="How this score is calculated"
-            style={{ color: colour.accentDark }}
-          >
-            <InfoCircle size={12} color="currentColor" variant="Linear" />
-          </button>
-        </div>
+          {rating.toUpperCase()}
+          <InfoCircle size={11} color="currentColor" variant="Linear" />
+        </span>
       </div>
     </div>
   )
