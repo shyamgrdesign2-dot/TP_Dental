@@ -729,13 +729,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Tooth identity header — violet gradient banner */}
-      <header
-        className="shrink-0"
-        style={{
-          background: "linear-gradient(140deg, #EDDFF7 0%, rgba(75,74,213,0.20) 100%)",
-        }}
-      >
+      {/* Tooth identity header — pure white */}
+      <header className="shrink-0 bg-white">
         <div className="flex items-center gap-[10px] px-[14px] py-[10px]">
           <div className="flex h-[36px] w-[36px] flex-shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-tp-slate-50">
             <MiniToothCanvas
@@ -795,8 +790,13 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         </nav>
       </header>
 
-      {/* SCROLLABLE BODY — neutral slate-50 so white section cards stack visibly without borders */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px] bg-tp-slate-50">
+      {/* SCROLLABLE BODY — subtle violet gradient so white section cards stack visibly without borders */}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
+        style={{
+          background: "linear-gradient(180deg, #F7F1FB 0%, #ECE1F5 60%, rgba(75,74,213,0.08) 100%)",
+        }}
+      >
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
             header={<SectionHeader title="Primary Diagnosis" medicalIcon="diagnosis"
