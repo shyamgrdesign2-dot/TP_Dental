@@ -790,12 +790,10 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         </nav>
       </header>
 
-      {/* SCROLLABLE BODY — subtle violet gradient so white section cards stack visibly without borders */}
+      {/* SCROLLABLE BODY — neutral #E4E4E4 so white section cards stack visibly without borders */}
       <div
         className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
-        style={{
-          background: "linear-gradient(180deg, #F7F1FB 0%, #ECE1F5 60%, rgba(75,74,213,0.08) 100%)",
-        }}
+        style={{ background: "#E4E4E4" }}
       >
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
