@@ -556,45 +556,6 @@ export function DentalCanvas({
           />
         )}
 
-        {/* Top-right collapse button — returns to dentition view */}
-        {!isDentitionView && (
-          <button
-            type="button"
-            onClick={handleBackToDentition}
-            title="Back to all teeth"
-            aria-label="Back to all teeth"
-            style={{
-              position: 'absolute',
-              top: 12,
-              right: 12,
-              zIndex: 15,
-              width: 28,
-              height: 28,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 8,
-              background: '#F1F1F5',
-              color: '#334155',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background 0.15s, color 0.15s',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#0f172a'; (e.currentTarget as HTMLButtonElement).style.color = '#ffffff' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#F1F1F5'; (e.currentTarget as HTMLButtonElement).style.color = '#334155' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 256 256" fill="none">
-              <polyline points="192 104 152 104 152 64" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-              <line x1="208" y1="48" x2="152" y2="104" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-              <polyline points="64 152 104 152 104 192" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-              <line x1="48" y1="208" x2="104" y2="152" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-              <polyline points="152 192 152 152 192 152" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-              <line x1="208" y1="208" x2="152" y2="152" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-              <polyline points="104 64 104 104 64 104" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-              <line x1="48" y1="48" x2="104" y2="104" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="20"/>
-            </svg>
-          </button>
-        )}
 
         {/* QuickSurfaceSelector at bottom-right (single-tooth only) */}
         {!isDentitionView && (
