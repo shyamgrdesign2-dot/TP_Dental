@@ -446,12 +446,13 @@ function ScoreCard({
   const { score, rating, affectedTeeth } = data
   const zoneIdx = score >= 90 ? 4 : score >= 75 ? 3 : score >= 60 ? 2 : score >= 40 ? 1 : 0
   // Original TP palette — red → orange → amber → violet → emerald.
+  // Hex values required so alpha-suffix (e.g. `${accent}40`) works in gradients.
   const colour = [
-    { accent: "var(--tp-error-500)",   accentDark: "var(--tp-error-700)",   tint: "#FFE4E6" },  // Off Track — red
-    { accent: "#F97316",               accentDark: "#C2410C",               tint: "#FFEDD5" },  // Improving — orange
-    { accent: "var(--tp-amber-500)",   accentDark: "var(--tp-amber-700)",   tint: "#FEF3C7" },  // Good — amber
-    { accent: "var(--tp-violet-500)",  accentDark: "var(--tp-violet-700)",  tint: "#EDDFF7" },  // Great — violet
-    { accent: "var(--tp-success-500)", accentDark: "var(--tp-success-700)", tint: "#D1FAE5" },  // Superb — emerald
+    { accent: "#EF4444", accentDark: "#B91C1C", tint: "#FFE4E6" },  // Off Track — red
+    { accent: "#F97316", accentDark: "#C2410C", tint: "#FFEDD5" },  // Improving — orange
+    { accent: "#F59E0B", accentDark: "#B45309", tint: "#FEF3C7" },  // Good — amber
+    { accent: "#8B5CF6", accentDark: "#6D28D9", tint: "#EDDFF7" },  // Great — violet
+    { accent: "#10B981", accentDark: "#047857", tint: "#D1FAE5" },  // Superb — emerald
   ][zoneIdx]
 
   // Animate score from 0 → target on mount.
@@ -508,7 +509,7 @@ function ScoreCard({
       ref={infoBtnRef}
       className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[12px] pb-[14px]"
       style={{
-        background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}26 55%, ${colour.accent}3d 100%)`,
+        background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}3d 60%, ${colour.accent}66 100%)`,
       }}
     >
       {/* Heading — tab stuck to top-left corner, only bottom-right rounded */}

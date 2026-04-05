@@ -30,14 +30,13 @@ export function MiniToothCanvas({
   const diag = diagnoses ?? new Set<string>()
   return (
     <div
-      style={{ width: size, height: size, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{ width: size, height: size, pointerEvents: "none", position: "relative" }}
     >
       <Canvas
         camera={{ position: [0, 0, 5], fov: 30 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true, toneMapping: 3, toneMappingExposure: 1.35, alpha: true }}
-        style={{ pointerEvents: "none" }}
-        eventSource={undefined}
+        style={{ pointerEvents: "none", width: "100%", height: "100%", display: "block" }}
       >
         <ambientLight intensity={0.9} />
         <directionalLight position={[2, 3, 3]} intensity={0.8} />
