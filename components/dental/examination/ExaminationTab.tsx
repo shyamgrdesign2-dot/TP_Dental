@@ -702,7 +702,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
     { id: "findings",   label: "Clinical Examination",   icon: "medical service",      count: findingCount },
     { id: "symptoms",   label: "Chief Complaint",        icon: "Virus",                count: symptomCount },
     { id: "planned",    label: "Treatment Plan",         icon: "surgical-scissors-02", count: plannedCount },
-    { id: "notes",      label: "Notes",                  icon: "clipboard-activity",   count: notesFilled ? 1 : 0 },
+    { id: "notes",      label: "Overall Tooth Notes",     icon: "Notepad",              count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -830,7 +830,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.notes = el }}>
           <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
-            header={<SectionHeader title="Notes" medicalIcon="clipboard-activity"
+            header={<SectionHeader title="Overall Tooth Notes" medicalIcon="Notepad"
               onTemplate={activeSection === "notes" ? () => {} : undefined}
               onSave={activeSection === "notes" ? () => {} : undefined}
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
