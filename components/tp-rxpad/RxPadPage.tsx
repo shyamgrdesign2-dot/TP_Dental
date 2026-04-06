@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useCallback, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import cn from "clsx"
 
@@ -59,33 +59,151 @@ function ToothIconBold({ size = 20, color = "currentColor" }: { size?: number; c
 
 const TAB_IDS: RxTabId[] = ["base", "dental"]
 
+// ── Swipe / drag constants ──
+const GESTURE_LOCK_THRESHOLD = 12   // px to move before deciding horiz vs vert
+const SNAP_VELOCITY_THRESHOLD = 0.3 // px/ms — fast flick snaps even if <30% dragged
+const SNAP_DISTANCE_FRACTION = 0.25 // drag 25% of width to snap
+
 function RxPadInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "apt-1"
   const [activeTab, setActiveTab] = useState<RxTabId>("dental")
 
-  // ── Swipe support (desktop + iPad) ──
-  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  // ── Carousel swipe state ──
+  const containerRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const gestureRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    startTime: number
+    locked: "horizontal" | "vertical" | null   // null = undecided
+    currentDx: number
+  } | null>(null)
+  const [dragOffset, setDragOffset] = useState(0)     // px offset during drag
+  const [isDragging, setIsDragging] = useState(false)  // true while actively dragging horizontally
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    touchStart.current = { x: e.clientX, y: e.clientY }
+  const activeIndex = TAB_IDS.indexOf(activeTab)
+
+  // ── Pointer handlers — gesture-locked carousel ──
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    // Only primary pointer (finger / left mouse)
+    if (e.button !== 0) return
+    // Don't capture if the target is an interactive element or the 3D canvas
+    const tag = (e.target as HTMLElement).tagName
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON" || tag === "CANVAS") return
+
+    gestureRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startTime: Date.now(),
+      locked: null,
+      currentDx: 0,
+    }
+    // Don't setPointerCapture yet — wait until we know it's horizontal.
+    // This lets vertical scroll and canvas interactions work normally.
   }, [])
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!touchStart.current) return
-    const dx = e.clientX - touchStart.current.x
-    const dy = e.clientY - touchStart.current.y
-    touchStart.current = null
-    // Only trigger if horizontal swipe is dominant and >60px
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
-    const curIdx = TAB_IDS.indexOf(activeTab)
-    if (dx < 0 && curIdx < TAB_IDS.length - 1) {
-      setActiveTab(TAB_IDS[curIdx + 1])
-    } else if (dx > 0 && curIdx > 0) {
-      setActiveTab(TAB_IDS[curIdx - 1])
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const g = gestureRef.current
+    if (!g || g.pointerId !== e.pointerId) return
+
+    const dx = e.clientX - g.startX
+    const dy = e.clientY - g.startY
+
+    // Phase 1: Decide gesture direction
+    if (!g.locked) {
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < GESTURE_LOCK_THRESHOLD) return // not enough movement yet
+
+      if (Math.abs(dx) > Math.abs(dy) * 1.2) {
+        // Horizontal swipe detected — capture it
+        g.locked = "horizontal"
+        setIsDragging(true)
+        try {
+          ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+        } catch { /* noop */ }
+      } else {
+        // Vertical — let the browser handle scroll/canvas
+        g.locked = "vertical"
+        return
+      }
     }
-  }, [activeTab])
+
+    if (g.locked !== "horizontal") return
+
+    // Phase 2: Track the drag
+    e.preventDefault()
+    g.currentDx = dx
+
+    // Rubber-band at edges: if dragging past the first/last tab, apply resistance
+    const atLeftEdge = activeIndex === 0 && dx > 0
+    const atRightEdge = activeIndex === TAB_IDS.length - 1 && dx < 0
+    const dampened = (atLeftEdge || atRightEdge) ? dx * 0.2 : dx
+
+    setDragOffset(dampened)
+  }, [activeIndex])
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    const g = gestureRef.current
+    if (!g || g.pointerId !== e.pointerId) return
+    gestureRef.current = null
+
+    if (g.locked !== "horizontal") {
+      setIsDragging(false)
+      setDragOffset(0)
+      return
+    }
+
+    try {
+      ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    } catch { /* noop */ }
+
+    const containerWidth = containerRef.current?.offsetWidth ?? 800
+    const dx = g.currentDx
+    const elapsed = Math.max(1, Date.now() - g.startTime)
+    const velocity = Math.abs(dx) / elapsed  // px/ms
+
+    // Decide whether to snap to next/prev tab
+    const passedDistance = Math.abs(dx) > containerWidth * SNAP_DISTANCE_FRACTION
+    const fastFlick = velocity > SNAP_VELOCITY_THRESHOLD && Math.abs(dx) > 30
+
+    if (passedDistance || fastFlick) {
+      if (dx < 0 && activeIndex < TAB_IDS.length - 1) {
+        setActiveTab(TAB_IDS[activeIndex + 1])
+      } else if (dx > 0 && activeIndex > 0) {
+        setActiveTab(TAB_IDS[activeIndex - 1])
+      }
+    }
+
+    // Always reset drag offset — the CSS transition handles the snap animation
+    setIsDragging(false)
+    setDragOffset(0)
+  }, [activeIndex])
+
+  const onPointerCancel = useCallback((e: React.PointerEvent) => {
+    if (gestureRef.current?.pointerId === e.pointerId) {
+      gestureRef.current = null
+      setIsDragging(false)
+      setDragOffset(0)
+    }
+  }, [])
+
+  // Prevent context menu during swipe (especially on iPad long-press)
+  const onContextMenu = useCallback((e: React.MouseEvent) => {
+    if (isDragging) e.preventDefault()
+  }, [isDragging])
+
+  // Compute the track translateX
+  // Track is N×100% wide, so each panel is (100/N)% of the track.
+  // To show panel at activeIndex, shift by -activeIndex * (100/N)%.
+  const panelPct = 100 / TAB_IDS.length
+  const trackTranslateX = isDragging
+    ? `calc(${-activeIndex * panelPct}% + ${dragOffset}px)`
+    : `${-activeIndex * panelPct}%`
 
   return (
     <RxPadSyncProvider>
@@ -152,22 +270,38 @@ function RxPadInner() {
           </div>
         </div>
 
-        {/* ── Active tab content (swipeable) ── */}
+        {/* ── Swipeable carousel container ── */}
         <div
-          className="flex-1 min-h-0 overflow-hidden touch-pan-y"
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
+          ref={containerRef}
+          className="flex-1 min-h-0 overflow-hidden relative"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onContextMenu={onContextMenu}
+          style={{ touchAction: "pan-y" }}
         >
-          {activeTab === "base" && (
-            <div className="h-full overflow-y-auto">
+          {/* Sliding track — contains both tabs side by side */}
+          <div
+            ref={trackRef}
+            className="flex h-full"
+            style={{
+              width: `${TAB_IDS.length * 100}%`,
+              transform: `translateX(${trackTranslateX})`,
+              transition: isDragging ? "none" : "transform 420ms cubic-bezier(0.32, 0.72, 0, 1)",
+              willChange: isDragging ? "transform" : "auto",
+            }}
+          >
+            {/* General Rx panel */}
+            <div className="h-full overflow-y-auto" style={{ width: `${100 / TAB_IDS.length}%` }}>
               <RxPad />
             </div>
-          )}
-          {activeTab === "dental" && (
-            <div className="h-full overflow-hidden">
+
+            {/* Dental Examination panel */}
+            <div className="h-full overflow-hidden" style={{ width: `${100 / TAB_IDS.length}%` }}>
               <ExaminationTab patientId={patientId} />
             </div>
-          )}
+          </div>
         </div>
       </TPRxPadShell>
     </RxPadSyncProvider>
