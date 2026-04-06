@@ -471,11 +471,11 @@ function ScoreCard({
     return () => cancelAnimationFrame(raf)
   }, [score])
 
-  // Slightly smaller ring to give breathing space in the card.
-  const size = 180
+  // Larger ring → more breathing space for inner content.
+  const size = 200
   const cx = size / 2
   const cy = size / 2
-  const r = 66
+  const r = 80
   const gapDeg = 28
   const startA = 90 + gapDeg / 2
   const sweepTotal = 360 - gapDeg
