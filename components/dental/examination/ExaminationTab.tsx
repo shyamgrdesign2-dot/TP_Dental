@@ -218,8 +218,9 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
         role="separator"
         aria-label="Resize panel"
         aria-orientation="vertical"
-        onMouseDown={(e) => { e.preventDefault(); setDragging(true) }}
-        onTouchStart={(e) => { e.preventDefault(); setDragging(true) }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragging(true) }}
+        onTouchStart={(e) => { e.stopPropagation(); setDragging(true) }}
         className="relative w-0 shrink-0 cursor-col-resize touch-none z-40"
       >
         <span className="absolute inset-y-0 -left-[20px] -right-[20px] touch-none" />
