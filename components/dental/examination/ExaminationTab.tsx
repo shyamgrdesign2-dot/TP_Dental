@@ -680,13 +680,14 @@ function TooltipRow({ label, value }: { label: string; value: number }) {
 //  • Dental examinations / Oral findings / Past procedures (chip sections)
 //  • Sticky footer: Save findings
 // ──────────────────────────────────────────────────────────────
-type SectionId = "diagnosis" | "findings" | "procedures" | "notes"
+type SectionId = "symptoms" | "diagnosis" | "findings" | "procedures" | "notes"
 
 function SingleToothPanel({ state }: { state: DentalCanvasState }) {
-  const [activeSection, setActiveSection] = useState<SectionId>("diagnosis")
+  const [activeSection, setActiveSection] = useState<SectionId>("symptoms")
+  const [toothSymptoms, setToothSymptoms] = useState<string[]>([])
   const tryBack = () => state.onBackToDentition()
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
-    diagnosis: null, findings: null, procedures: null, notes: null,
+    symptoms: null, diagnosis: null, findings: null, procedures: null, notes: null,
   })
 
   const findingCount = state.currentToothEntries.filter((e) => e.kind === "finding").length
@@ -695,6 +696,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
   const notesFilled = state.currentToothNotes.trim().length > 0
 
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
+    { id: "symptoms",   label: "Dental Symptoms", icon: "Virus",               count: toothSymptoms.length },
     { id: "diagnosis",  label: "Diagnosis",  icon: "diagnosis",             count: diagnosisCount },
     { id: "findings",   label: "Findings",   icon: "virus",                 count: findingCount },
     { id: "procedures", label: "Procedures", icon: "surgical-scissors-02",  count: procedureCount },
@@ -748,6 +750,20 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
         style={{ background: "#F2F2F2" }}
       >
+        <div ref={(el) => { sectionRefs.current.symptoms = el }}>
+          <AccordionWrap open={activeSection === "symptoms"} onExpand={() => jumpTo("symptoms")}
+            header={<SectionHeader title="Dental Symptoms" medicalIcon="Virus"
+              onTemplate={activeSection === "symptoms" ? () => {} : undefined}
+              onSave={activeSection === "symptoms" ? () => {} : undefined}
+              onClear={activeSection === "symptoms" ? () => setToothSymptoms([]) : undefined}
+              clearDisabled={toothSymptoms.length === 0}
+              chevron={activeSection === "symptoms" ? "up" : "down"}
+              onClick={activeSection === "symptoms" ? undefined : () => jumpTo("symptoms")}
+            />}>
+            <DentalSymptomsBody symptoms={toothSymptoms} onUpdate={setToothSymptoms} />
+          </AccordionWrap>
+        </div>
+
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
             header={<SectionHeader title="Primary Diagnosis" medicalIcon="diagnosis"
@@ -1760,6 +1776,82 @@ function SurfaceDots({
 // PrimaryDiagnosisSection — clickable chips with + icon, search,
 // and since/note inputs for the active diagnosis.
 // ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+// DentalSymptomsBody — chip-based symptom entry for individual tooth
+// ──────────────────────────────────────────────────────────────
+const DENTAL_SYMPTOM_CATALOG = [
+  "Tooth pain", "Sensitivity to cold", "Sensitivity to hot", "Sensitivity to sweet",
+  "Throbbing pain", "Pain on biting", "Swelling", "Bleeding gums",
+  "Bad breath", "Loose tooth", "Discolouration", "Difficulty chewing",
+  "Jaw pain", "Clicking sound", "Food impaction", "Spontaneous pain",
+]
+
+function DentalSymptomsBody({ symptoms, onUpdate }: { symptoms: string[]; onUpdate: (v: string[]) => void }) {
+  const [query, setQuery] = useState("")
+  const selected = new Set(symptoms)
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim()
+    const pool = q ? DENTAL_SYMPTOM_CATALOG.filter((s) => s.toLowerCase().includes(q)) : DENTAL_SYMPTOM_CATALOG
+    return pool.filter((s) => !selected.has(s)).slice(0, 12)
+  }, [query, selected])
+
+  const add = (s: string) => { onUpdate([...symptoms, s]); setQuery("") }
+  const remove = (s: string) => onUpdate(symptoms.filter((x) => x !== s))
+
+  return (
+    <div className="p-[12px]">
+      {/* Selected symptoms as removable chips */}
+      {symptoms.length > 0 && (
+        <div className="flex flex-wrap gap-[6px] mb-[10px]">
+          {symptoms.map((s) => (
+            <span
+              key={s}
+              className="inline-flex items-center gap-[4px] rounded-[8px] bg-tp-blue-50 px-[10px] py-[5px] font-sans text-[12px] font-medium text-tp-blue-700"
+            >
+              {s}
+              <button type="button" onClick={() => remove(s)} className="ml-[2px] text-tp-blue-400 hover:text-tp-blue-600 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Search input */}
+      <div className="relative">
+        <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
+          <SearchNormal1 size={14} color="currentColor" variant="Linear" />
+        </span>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) add(query.trim()) }}
+          placeholder="Search & Add Dental Symptom"
+          className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
+        />
+      </div>
+
+      {/* Suggestion chips */}
+      {filtered.length > 0 && (
+        <div className="mt-[8px] flex flex-wrap gap-[6px]">
+          {filtered.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => add(s)}
+              className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
   // Local per-diagnosis since/note — demo-only store.
   const [details, setDetails] = useState<Record<string, { since: string; note: string }>>({})

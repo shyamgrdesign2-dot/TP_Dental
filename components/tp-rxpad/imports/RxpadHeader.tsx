@@ -181,7 +181,7 @@ export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
             <TPSplitButton
               primaryAction={{
                 label: "End Visit",
-                icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M11.68 14.2909L14.24 11.7309L11.68 9.1709" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M4 11.7305H13.17" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M12 3.6709H20V19.6709H12" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /></svg>,
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M11.68 14.2909L14.24 11.7309L11.68 9.1709" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M4 11.7305H13.17" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M12 3.6709H20V19.6709H12" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /></svg>,
                 onClick: () => {},
               }}
               secondaryActions={[
