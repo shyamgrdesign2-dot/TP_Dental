@@ -1865,7 +1865,7 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
                     <select value={r.severity} onChange={(e) => updateRow(r.id, { severity: e.target.value })}
                       className="h-[42px] w-full rounded-none border-0 bg-transparent px-[8px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                     >
-                      <option value="">—</option>
+                      <option value="">e.g. Moderate</option>
                       <option value="Mild">Mild</option>
                       <option value="Moderate">Moderate</option>
                       <option value="Severe">Severe</option>
