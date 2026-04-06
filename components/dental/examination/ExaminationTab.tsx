@@ -683,7 +683,7 @@ function TooltipRow({ label, value }: { label: string; value: number }) {
 type SectionId = "procedures" | "findings" | "symptoms" | "planned" | "notes"
 
 function SingleToothPanel({ state }: { state: DentalCanvasState }) {
-  const [activeSection, setActiveSection] = useState<SectionId>("procedures")
+  const [activeSection, setActiveSection] = useState<SectionId | null>("procedures")
   const tryBack = () => state.onBackToDentition()
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
     procedures: null, findings: null, symptoms: null, planned: null, notes: null,
@@ -696,16 +696,21 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
   const diagnosisCount = state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0)
   const notesFilled = state.currentToothNotes.trim().length > 0
 
-  // Order: Diagnosis & Past Procedures → Examination → Symptoms → Planned Procedures → Notes
+  // Dental charting sections — standard clinical workflow order
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "procedures", label: "Diagnosis & Procedures", icon: "diagnosis",            count: diagnosisCount + procedureCount },
-    { id: "findings",   label: "Examination",            icon: "medical service",      count: findingCount },
+    { id: "procedures", label: "Treatment History",      icon: "medical document",     count: diagnosisCount + procedureCount },
+    { id: "findings",   label: "Examination Findings",   icon: "diagnosis",            count: findingCount },
     { id: "symptoms",   label: "Symptoms",               icon: "Virus",                count: symptomCount },
-    { id: "planned",    label: "Planned Procedures",     icon: "surgical-scissors-02", count: plannedCount },
+    { id: "planned",    label: "Treatment Plan",         icon: "surgical-scissors-02", count: plannedCount },
     { id: "notes",      label: "Notes",                  icon: "clipboard-activity",   count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
+    // Toggle: collapse if already active, otherwise expand
+    if (activeSection === id) {
+      setActiveSection(null)
+      return
+    }
     setActiveSection(id)
     // Delay scroll until the accordion has expanded so we scroll to the expanded height.
     requestAnimationFrame(() => {
@@ -752,10 +757,10 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
         style={{ background: "#F2F2F2" }}
       >
-        {/* Diagnosis & Past Procedures — unified: tooth-level chips (Crown/RCT/Implant etc.) + procedure table (no surfaces) */}
+        {/* Treatment History — tooth-level status chips (Crown/RCT/Implant) + past procedure entries */}
         <div ref={(el) => { sectionRefs.current.procedures = el }}>
           <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
-            header={<SectionHeader title="Diagnosis & Procedures" medicalIcon="diagnosis"
+            header={<SectionHeader title="Treatment History" medicalIcon="medical document"
               onTemplate={activeSection === "procedures" ? () => {} : undefined}
               onSave={activeSection === "procedures" ? () => {} : undefined}
               onClear={activeSection === "procedures" ? () => {
@@ -774,7 +779,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.findings = el }}>
           <AccordionWrap open={activeSection === "findings"} onExpand={() => jumpTo("findings")}
-            header={<SectionHeader title="Examination" medicalIcon="medical service"
+            header={<SectionHeader title="Examination Findings" medicalIcon="diagnosis"
               onTemplate={activeSection === "findings" ? () => {} : undefined}
               onSave={activeSection === "findings" ? () => {} : undefined}
               onClear={activeSection === "findings" ? () => {
@@ -808,7 +813,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.planned = el }}>
           <AccordionWrap open={activeSection === "planned"} onExpand={() => jumpTo("planned")}
-            header={<SectionHeader title="Planned Procedures" medicalIcon="surgical-scissors-02"
+            header={<SectionHeader title="Treatment Plan" medicalIcon="surgical-scissors-02"
               onTemplate={activeSection === "planned" ? () => {} : undefined}
               onSave={activeSection === "planned" ? () => {} : undefined}
               onClear={activeSection === "planned" ? () => {
@@ -993,17 +998,27 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
     prevCountRef.current = entries.length
   }, [entries.length, entries])
 
+  // Procedures that apply to the whole tooth (no surface selection needed)
+  const WHOLE_TOOTH_PROCEDURES = new Set([
+    "RCT", "Root Canal Treatment", "Crown", "Crown Prep", "Implant", "Implant Placement",
+    "Extraction", "Bridge", "Bridge Prep", "Denture", "Veneer", "Pulp Cap",
+  ])
+
   const addEntryFromName = (name: string) => {
-    // Clear any previously-selected surfaces so the new row starts fresh.
+    // Auto-select all surfaces for whole-tooth procedures
+    const isWholeTooth = WHOLE_TOOTH_PROCEDURES.has(name)
     state.onClearMultiSelect()
+    if (isWholeTooth) {
+      ALL_ZONES.forEach((z) => state.onToggleZoneMultiSelect(z))
+    }
     pendingActivateRef.current = true
     state.onAddEntry({
       kind,
       name,
-      surfaces: [],
+      surfaces: isWholeTooth ? [...ALL_ZONES] : [],
       since: undefined,
       plannedDate: undefined,
-      status: kind === "procedure" ? "planned" : undefined,
+      status: (kind === "procedure" || kind === "planned") ? "planned" : undefined,
       notes: undefined,
     })
     setQuery("")
@@ -1554,8 +1569,24 @@ function SurfaceCellDropdown({
               </span>
             </div>
           </div>
-          {/* Surface list — surfaces first, Whole tooth at bottom */}
+          {/* Surface list — Whole tooth first, then individual zones */}
           <ul className="max-h-[200px] overflow-y-auto py-[2px] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
+            <li>
+              <button
+                type="button"
+                onClick={clickWholeTooth}
+                className="flex w-full items-center gap-[8px] px-[10px] py-[5px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+              >
+                <span className={`inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] border ${isWholeTooth ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"} flex-shrink-0`}>
+                  {isWholeTooth && (
+                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                </span>
+                <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-400 flex-shrink-0" />
+                <span className="flex-1 text-left font-medium">Whole tooth</span>
+              </button>
+            </li>
+            <li className="border-t border-tp-slate-100 mt-[2px] pt-[2px]" />
             {ALL_ZONES.map((z) => {
               const checked = shown.includes(z)
               const label = getZoneLabel(z, arch, toothPosition)
@@ -1579,21 +1610,6 @@ function SurfaceCellDropdown({
                 </li>
               )
             })}
-            <li className="border-t border-tp-slate-100 mt-[2px] pt-[2px]">
-              <button
-                type="button"
-                onClick={clickWholeTooth}
-                className="flex w-full items-center gap-[8px] px-[10px] py-[5px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
-              >
-                <span className={`inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] border ${isWholeTooth ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"} flex-shrink-0`}>
-                  {isWholeTooth && (
-                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  )}
-                </span>
-                <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-300 flex-shrink-0" />
-                <span className="flex-1 text-left font-medium">Whole tooth</span>
-              </button>
-            </li>
           </ul>
         </div>,
         document.body,
