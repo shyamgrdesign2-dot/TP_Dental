@@ -60,9 +60,9 @@ function ToothIconBold({ size = 20, color = "currentColor" }: { size?: number; c
 const TAB_IDS: RxTabId[] = ["base", "dental"]
 
 // ── Swipe / drag constants ──
-const GESTURE_LOCK_THRESHOLD = 12   // px to move before deciding horiz vs vert
-const SNAP_VELOCITY_THRESHOLD = 0.3 // px/ms — fast flick snaps even if <30% dragged
-const SNAP_DISTANCE_FRACTION = 0.25 // drag 25% of width to snap
+const GESTURE_LOCK_THRESHOLD = 8    // px to move before deciding horiz vs vert
+const SNAP_VELOCITY_THRESHOLD = 0.15 // px/ms — even a gentle flick snaps
+const SNAP_DISTANCE_FRACTION = 0.08 // drag just 8% of width to snap
 
 function RxPadInner() {
   const router = useRouter()

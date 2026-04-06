@@ -248,14 +248,14 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           }}
         >
           {isSingle && canvasState ? (
-            <div className="flex h-full w-full flex-col pl-[10px]">
+            <div className="flex h-full w-full flex-col pl-[18px]">
               {/* Expanding card wrapping the whole single-tooth view */}
               <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border-[2px] border-white">
                 <SingleToothPanel state={canvasState} />
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto pl-[10px]">
+            <div className="flex-1 overflow-y-auto pl-[18px]">
               <DentitionPanel state={canvasState} />
             </div>
           )}
