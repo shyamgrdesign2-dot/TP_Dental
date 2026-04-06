@@ -77,10 +77,10 @@ const ItemizedBillChart = ({
         <div className="report-header">
           <div>
             <div className="clinic-name">
-              {clinic?.hm_name || "Tatvacare Clinic"}
+              {clinic?.hm_name || ""}
             </div>
             <div className="clinic-location">
-              {clinic?.hm_city || "HRS Bangalore"}
+              {clinic?.hm_city || ""}
             </div>
           </div>
           <h1>ITEMIZED BILLING REPORT</h1>
