@@ -504,9 +504,9 @@ export function DentalCanvas({
       <div className="viewer">
         <div className="viewer-header">
           {isDentitionView ? (
-            <div className="tooth-name">Full dentition view</div>
+            <div className="tooth-name">Full Dentition View</div>
           ) : (
-            <div className="tooth-name" style={{ paddingLeft: 8, gap: 2 }}>
+            <div className="tooth-name" style={{ paddingLeft: 6, gap: 3 }}>
               <button
                 type="button"
                 onClick={handleBackToDentition}
@@ -516,22 +516,22 @@ export function DentalCanvas({
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 16,
-                  height: 16,
+                  width: 18,
+                  height: 18,
                   padding: 0,
                   margin: 0,
                   borderRadius: 4,
                   background: 'transparent',
                   border: 'none',
-                  color: '#64748b',
+                  color: '#1e293b',
                   cursor: 'pointer',
                   transition: 'background 0.15s, color 0.15s',
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(15,23,42,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = '#0f172a' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#64748b' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(15,23,42,0.08)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                  <path d="M15 19.92L8.48 13.4c-.77-.77-.77-2.03 0-2.8L15 4.08" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="1.8" />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M15 19.92L8.48 13.4c-.77-.77-.77-2.03 0-2.8L15 4.08" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2.2" />
                 </svg>
               </button>
               {QUADRANT_LABELS[selectedTooth.quadrant]} {selectedTooth.name}

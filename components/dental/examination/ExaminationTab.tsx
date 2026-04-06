@@ -232,7 +232,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           {isSingle && canvasState ? (
             <div className="flex h-full w-full flex-col p-[12px]">
               {/* Expanding card wrapping the whole single-tooth view */}
-              <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border border-white">
+              <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border-[2px] border-white">
                 <SingleToothPanel state={canvasState} />
               </div>
             </div>
@@ -730,7 +730,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               findings={state.findings}
             />
           </div>
-          <h2 className="font-sans text-[14px] font-semibold text-tp-slate-900 truncate">
+          <h2 className="font-sans text-[16px] font-semibold text-tp-slate-900 truncate">
             {state.selectedTooth.name}
           </h2>
           <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[8px] font-sans text-[12px] font-semibold text-tp-slate-600 tabular-nums">
@@ -758,13 +758,13 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 role="tab"
                 aria-selected={active}
                 onClick={() => jumpTo(s.id)}
-                className={`relative inline-flex h-[40px] flex-shrink-0 items-center gap-[6px] border-b-[2px] px-[10px] font-sans text-[12px] font-semibold transition-colors ${
+                className={`relative inline-flex h-[42px] flex-shrink-0 items-center gap-[6px] border-b-[2px] px-[10px] font-sans text-[14px] font-semibold transition-colors ${
                   active
                     ? "border-tp-blue-500 text-tp-blue-700"
                     : "border-transparent text-tp-slate-500 hover:text-tp-slate-700"
                 }`}
               >
-                <TPMedicalIcon name={s.icon} variant="bulk" size={14} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-500)"} />
+                <TPMedicalIcon name={s.icon} variant="bulk" size={18} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-500)"} />
                 {s.label}
                 {s.count > 0 && (
                   <span className={`inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-[5px] font-sans text-[10px] font-bold tabular-nums ${
@@ -900,7 +900,7 @@ function SectionHeader({
           <TPMedicalIcon name={medicalIcon} variant="bulk" size={22} color="var(--tp-violet-500)" />
         </span>
       )}
-      <h4 className="font-sans text-[13px] font-semibold text-tp-slate-800">{title}</h4>
+      <h4 className="font-sans text-[14px] font-semibold text-tp-slate-800">{title}</h4>
       {typeof count === "number" && count > 0 && (
         <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-tp-slate-100 px-[5px] font-sans text-[10px] font-bold text-tp-slate-600 tabular-nums">
           {count}
@@ -1026,7 +1026,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
       {/* RxPad-style editable table */}
       {entries.length > 0 && (
         <div className="relative overflow-x-auto rounded-[12px] border border-tp-slate-200">
-          <table className="w-full table-fixed font-['Inter',sans-serif] text-[13px]">
+          <table className="w-full table-fixed font-['Inter',sans-serif] text-[14px]">
             <colgroup>
               <col style={{ width: 36, minWidth: 36 }} />
               <col style={{ minWidth: 150 }} />
@@ -1060,7 +1060,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                   >
                     {/* Drag handle cell (display-only for now) */}
                     <td className="border-r border-tp-slate-100 p-0 text-center align-middle transition-colors hover:bg-tp-slate-100/60">
-                      <span className="inline-flex h-[36px] w-full items-center justify-center text-tp-slate-300">
+                      <span className="inline-flex h-[42px] w-full items-center justify-center text-tp-slate-300">
                         <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
                           <circle cx="2" cy="3" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="13" r="1.2" />
                           <circle cx="6" cy="3" r="1.2" /><circle cx="6" cy="8" r="1.2" /><circle cx="6" cy="13" r="1.2" />
@@ -1099,7 +1099,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                           type="date"
                           value={e.plannedDate ?? ""}
                           onChange={(ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined })}
-                          className="h-[40px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 focus:outline-none focus:bg-tp-blue-50/30"
+                          className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
                         />
                       )}
                     </td>
@@ -1124,7 +1124,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                         value={e.notes ?? ""}
                         onChange={(ev) => state.onUpdateEntry(e.id, { notes: ev.target.value })}
                         placeholder="Note…"
-                        className="h-[40px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:bg-tp-blue-50/30"
+                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
                       />
                     </td>
                     {/* Sticky delete */}
@@ -1256,7 +1256,7 @@ function DiagnosisNameCell({
         <button
           type="button"
           onClick={() => { setEditing(true); setOpen(true); setDraft("") }}
-          className={`flex h-[40px] w-full items-center px-[10px] font-sans text-[12px] transition-colors ${
+          className={`flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] transition-colors ${
             open ? "bg-tp-slate-100" : "hover:bg-tp-slate-50/60"
           }`}
         >
@@ -1285,7 +1285,7 @@ function DiagnosisNameCell({
           }}
           onBlur={() => { /* close handled by outside click */ }}
           placeholder={name}
-          className="h-[40px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[12px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-semibold focus:outline-none"
+          className="h-[42px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-semibold focus:outline-none"
         />
       )}
       {open && (
@@ -1397,7 +1397,7 @@ function EditableNameCell({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKeyDown}
-        className="h-[40px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[12px] font-semibold text-tp-slate-800 focus:outline-none"
+        className="h-[42px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 focus:outline-none"
       />
       {(filtered.length > 0 || showCustom) && (
         <div className="absolute left-0 top-[calc(100%+4px)] z-[9999] w-full min-w-[200px] max-h-[240px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
@@ -1517,7 +1517,7 @@ function SurfaceCellDropdown({
         ref={anchorRef}
         type="button"
         onClick={() => { onActivate(); setOpen((o) => !o) }}
-        className={`flex h-[40px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[12px] transition-colors ${
+        className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[12px] transition-colors ${
           open ? "bg-tp-blue-50 ring-1 ring-inset ring-tp-blue-400" : isActive ? "bg-tp-blue-50/30" : "bg-transparent hover:bg-tp-slate-100/60"
         }`}
       >
@@ -1664,7 +1664,7 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
         ref={anchorRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-[40px] w-full items-center gap-[6px] rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100/60 focus:outline-none focus:bg-tp-blue-50/30"
+        className="inline-flex h-[42px] w-full items-center gap-[6px] rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100/60 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
       >
         <Calendar size={14} color="#64748b" variant="Linear" />
         <span className={`flex-1 text-left truncate ${value ? "" : "text-tp-slate-400"}`}>{value || "Since…"}</span>
@@ -1833,7 +1833,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
       {/* Table */}
       {activeRows.length > 0 && (
         <div className="relative overflow-x-auto rounded-[12px] border border-tp-slate-200">
-          <table className="w-full table-fixed font-['Inter',sans-serif] text-[13px]">
+          <table className="w-full table-fixed font-['Inter',sans-serif] text-[14px]">
             <colgroup>
               <col style={{ width: 36, minWidth: 36 }} />
               <col style={{ minWidth: 120 }} />
@@ -1857,7 +1857,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                 return (
                   <tr key={name} className="border-t border-tp-slate-100">
                     <td className="border-r border-tp-slate-100 p-0 text-center align-middle transition-colors hover:bg-tp-slate-100/60">
-                      <span className="inline-flex h-[36px] w-full items-center justify-center text-tp-slate-300">
+                      <span className="inline-flex h-[42px] w-full items-center justify-center text-tp-slate-300">
                         <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
                           <circle cx="2" cy="3" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="13" r="1.2" />
                           <circle cx="6" cy="3" r="1.2" /><circle cx="6" cy="8" r="1.2" /><circle cx="6" cy="13" r="1.2" />
@@ -1892,7 +1892,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         value={d.note}
                         onChange={(e) => updateDetail(name, { note: e.target.value })}
                         placeholder="Note…"
-                        className="h-[40px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:bg-tp-blue-50/30"
+                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
                       />
                     </td>
                     <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)] transition-colors hover:bg-tp-slate-100/60">

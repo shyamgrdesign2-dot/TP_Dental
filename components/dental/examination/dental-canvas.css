@@ -35,14 +35,13 @@
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #1e293b;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(241, 241, 245, 0.92);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 .dental-canvas-root .tooth-fdi { font-size: 10px; color: #717179; font-weight: 500; }
 .dental-canvas-root .tooth-fdi { font-weight: 500; color: #aaa; margin-left: 6px; font-size: 13px; }
