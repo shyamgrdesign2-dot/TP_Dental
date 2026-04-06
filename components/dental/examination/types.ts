@@ -115,6 +115,8 @@ export const DIAGNOSES = [
 // Tooth-level diagnoses (not tied to a specific zone/surface)
 export const TOOTH_DIAGNOSES = [
   'Implant', 'Missing', 'RCT', 'Crown', 'Bridge', 'Denture',
+  'Extraction', 'Composite Filling', 'Scaling', 'Polishing',
+  'Veneer', 'Pulp Cap', 'Root Planing', 'Fluoride Treatment',
 ] as const
 
 // ══════════════════════════════════════════════════════════════

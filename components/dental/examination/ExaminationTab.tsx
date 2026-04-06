@@ -698,11 +698,11 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
   // Dental charting sections — standard clinical workflow order
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "procedures", label: "Dental History",         icon: "medical-file-03",      count: diagnosisCount + procedureCount },
+    { id: "procedures", label: "Treatment History",         icon: "clipboard-activity",   count: diagnosisCount + procedureCount },
     { id: "findings",   label: "Clinical Examination",   icon: "medical service",      count: findingCount },
     { id: "symptoms",   label: "Chief Complaint",        icon: "Virus",                count: symptomCount },
-    { id: "planned",    label: "Treatment Plan",         icon: "clipboard-activity",   count: plannedCount },
-    { id: "notes",      label: "Notes",                  icon: "Notepad",              count: notesFilled ? 1 : 0 },
+    { id: "planned",    label: "Treatment Plan",         icon: "surgical-scissors-02", count: plannedCount },
+    { id: "notes",      label: "Notes",                  icon: "clipboard-activity",   count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -760,7 +760,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         {/* Treatment History — tooth-level status chips (Crown/RCT/Implant) + past procedure entries */}
         <div ref={(el) => { sectionRefs.current.procedures = el }}>
           <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
-            header={<SectionHeader title="Dental History" medicalIcon="medical-file-03"
+            header={<SectionHeader title="Treatment History" medicalIcon="clipboard-activity"
               onTemplate={activeSection === "procedures" ? () => {} : undefined}
               onSave={activeSection === "procedures" ? () => {} : undefined}
               onClear={activeSection === "procedures" ? () => {
@@ -813,7 +813,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.planned = el }}>
           <AccordionWrap open={activeSection === "planned"} onExpand={() => jumpTo("planned")}
-            header={<SectionHeader title="Treatment Plan" medicalIcon="clipboard-activity"
+            header={<SectionHeader title="Treatment Plan" medicalIcon="surgical-scissors-02"
               onTemplate={activeSection === "planned" ? () => {} : undefined}
               onSave={activeSection === "planned" ? () => {} : undefined}
               onClear={activeSection === "planned" ? () => {
@@ -830,7 +830,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.notes = el }}>
           <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
-            header={<SectionHeader title="Notes" medicalIcon="Notepad"
+            header={<SectionHeader title="Notes" medicalIcon="clipboard-activity"
               onTemplate={activeSection === "notes" ? () => {} : undefined}
               onSave={activeSection === "notes" ? () => {} : undefined}
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}

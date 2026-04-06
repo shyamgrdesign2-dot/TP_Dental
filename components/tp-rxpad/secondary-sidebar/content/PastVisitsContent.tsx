@@ -107,27 +107,26 @@ const PAST_VISITS: PastVisitEntry[] = [
     id: "visit-27-jan",
     dateLabel: "Today (27 Jan'26)",
     digitalRx: {
-      symptoms: [
-        { label: "Tooth pain", detail: "5 days | Throbbing | Worsens at night" },
-        { label: "Sensitivity", detail: "2 weeks | Cold & sweet stimuli" },
+      symptoms: [],
+      examinations: [],
+      diagnoses: [
+        // ── Per-tooth dental records ──
+        { label: "🦷 T36 — Lower Left First Molar", detail: "" },
+        { label: "Chief Complaint", detail: "Tooth pain (5 days, severe, throbbing at night)" },
+        { label: "Clinical Examination", detail: "Deep cavity, periapical tenderness on percussion" },
+        { label: "Treatment History", detail: "Irreversible pulpitis — deep caries with pulpal involvement" },
+        { label: "Treatment Plan", detail: "RCT (sitting 1 scheduled 28 Jan)" },
+
+        { label: "🦷 T16 — Upper Right First Molar", detail: "" },
+        { label: "Chief Complaint", detail: "Sensitivity to cold & sweet stimuli (2 weeks, moderate)" },
+        { label: "Clinical Examination", detail: "Caries on buccal & occlusal surfaces, staining" },
+        { label: "Treatment History", detail: "Dental caries — early cavity, no prior treatment" },
+        { label: "Treatment Plan", detail: "Composite restoration" },
+
+        { label: "🦷 T41 — Lower Right Central Incisor", detail: "" },
+        { label: "Clinical Examination", detail: "Supragingival calculus on lingual surface" },
+        { label: "Treatment Plan", detail: "Full-mouth scaling & polishing" },
       ],
-      examinations: [
-        // Per-tooth breakdown
-        { label: "Tooth 36 — Lower Left First Molar", detail: "" },
-        { label: "  • Dental Symptoms", detail: "Tooth pain (5 days, severe, throbbing at night)" },
-        { label: "  • Primary Diagnosis", detail: "Irreversible pulpitis — deep caries with pulpal involvement" },
-        { label: "  • Findings", detail: "Deep cavity, periapical tenderness" },
-        { label: "  • Planned Procedure", detail: "RCT (sitting 1 scheduled 28 Jan)" },
-        { label: "Tooth 16 — Upper Right First Molar", detail: "" },
-        { label: "  • Dental Symptoms", detail: "Sensitivity to cold & sweet (2 weeks, moderate)" },
-        { label: "  • Primary Diagnosis", detail: "Dental caries — early cavity" },
-        { label: "  • Findings", detail: "Caries on buccal & occlusal surfaces, staining" },
-        { label: "  • Planned Procedure", detail: "Composite restoration" },
-        { label: "Tooth 41 — Lower Right Central Incisor", detail: "" },
-        { label: "  • Findings", detail: "Supragingival calculus, lingual surface" },
-        { label: "  • Planned Procedure", detail: "Full-mouth scaling" },
-      ],
-      diagnoses: [],
       medications: [
         {
           label: "Amoxicillin 500mg",
@@ -181,18 +180,15 @@ const PAST_VISITS: PastVisitEntry[] = [
     id: "visit-26-jan",
     dateLabel: "26 Jan'26",
     digitalRx: {
-      symptoms: [
-        { label: "Swelling — 26 (upper left molar)", detail: "3 days | Buccal vestibule | Fluctuant" },
-        { label: "Difficulty chewing", detail: "Left side | Since swelling onset" },
+      symptoms: [],
+      examinations: [],
+      diagnoses: [
+        { label: "🦷 T26 — Upper Left First Molar", detail: "" },
+        { label: "Chief Complaint", detail: "Swelling (3 days, buccal vestibule, fluctuant), difficulty chewing on left side" },
+        { label: "Clinical Examination", detail: "Mild left facial swelling, large carious lesion on 26, buccal swelling, TTP positive" },
+        { label: "Treatment History", detail: "Periapical abscess — acute, buccal space involvement" },
+        { label: "Treatment Plan", detail: "I&D under LA performed. RCT or extraction post-antibiotics" },
       ],
-      examinations: [
-        { label: "Tooth 26 — Upper Left First Molar", detail: "" },
-        { label: "  • Dental Symptoms", detail: "Swelling (3 days, buccal vestibule), difficulty chewing" },
-        { label: "  • Primary Diagnosis", detail: "Periapical abscess — acute, buccal space involvement" },
-        { label: "  • Findings", detail: "Large carious lesion, buccal swelling, TTP positive" },
-        { label: "  • Planned Procedure", detail: "I&D under LA, RCT or extraction post-antibiotics" },
-      ],
-      diagnoses: [],
       medications: [
         {
           label: "Augmentin 625mg",
@@ -237,18 +233,16 @@ const PAST_VISITS: PastVisitEntry[] = [
     id: "visit-24-jan",
     dateLabel: "24 Jan'26",
     digitalRx: {
-      symptoms: [
-        { label: "Bleeding gums", detail: "1 month | During brushing | Both arches" },
-        { label: "Bad breath", detail: "Persistent | Self-reported" },
+      symptoms: [],
+      examinations: [],
+      diagnoses: [
+        { label: "🦷 Full Mouth — Periodontal", detail: "" },
+        { label: "Chief Complaint", detail: "Bleeding gums (1 month, during brushing, both arches), persistent bad breath" },
+        { label: "Clinical Examination", detail: "Generalized 3-4mm pockets, bleeding on probing, moderate supragingival calculus (all quadrants)" },
+        { label: "Treatment History", detail: "Chronic gingivitis — generalized, moderate. No prior periodontal treatment" },
+        { label: "Treatment Plan", detail: "Full-mouth scaling & polishing (completed in single sitting)" },
+        { label: "Notes", detail: "Oral hygiene instructions given. Modified Bass brushing technique demonstrated. Recall in 6 months." },
       ],
-      examinations: [
-        { label: "Full Mouth — Periodontal", detail: "" },
-        { label: "  • Dental Symptoms", detail: "Bleeding gums (1 month, during brushing), bad breath" },
-        { label: "  • Primary Diagnosis", detail: "Chronic gingivitis (generalized, moderate)" },
-        { label: "  • Findings", detail: "3-4mm pockets, bleeding on probing, moderate supragingival calculus (all quadrants)" },
-        { label: "  • Planned Procedure", detail: "Full-mouth scaling & polishing (completed in single sitting)" },
-      ],
-      diagnoses: [],
       medications: [
         {
           label: "Chlorhexidine 0.2% Mouthwash",
