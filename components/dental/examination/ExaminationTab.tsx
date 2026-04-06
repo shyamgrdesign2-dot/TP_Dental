@@ -680,13 +680,13 @@ function TooltipRow({ label, value }: { label: string; value: number }) {
 //  • Dental examinations / Oral findings / Past procedures (chip sections)
 //  • Sticky footer: Save findings
 // ──────────────────────────────────────────────────────────────
-type SectionId = "symptoms" | "diagnosis" | "findings" | "procedures" | "planned" | "notes"
+type SectionId = "procedures" | "findings" | "symptoms" | "planned" | "notes"
 
 function SingleToothPanel({ state }: { state: DentalCanvasState }) {
-  const [activeSection, setActiveSection] = useState<SectionId>("diagnosis")
+  const [activeSection, setActiveSection] = useState<SectionId>("procedures")
   const tryBack = () => state.onBackToDentition()
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
-    symptoms: null, diagnosis: null, findings: null, procedures: null, planned: null, notes: null,
+    procedures: null, findings: null, symptoms: null, planned: null, notes: null,
   })
 
   const findingCount = state.currentToothEntries.filter((e) => e.kind === "finding").length
@@ -696,14 +696,13 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
   const diagnosisCount = state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0)
   const notesFilled = state.currentToothNotes.trim().length > 0
 
-  // Order: Diagnosis → Examination → Symptoms → Past Procedures → Planned Procedures → Notes
+  // Order: Diagnosis & Past Procedures → Examination → Symptoms → Planned Procedures → Notes
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "diagnosis",  label: "Diagnosis",            icon: "diagnosis",             count: diagnosisCount },
-    { id: "findings",   label: "Examination",          icon: "medical service",       count: findingCount },
-    { id: "symptoms",   label: "Symptoms",             icon: "Virus",                 count: symptomCount },
-    { id: "procedures", label: "Past Procedures",      icon: "medical document",      count: procedureCount },
-    { id: "planned",    label: "Planned Procedures",   icon: "surgical-scissors-02",  count: plannedCount },
-    { id: "notes",      label: "Notes",                icon: "clipboard-activity",    count: notesFilled ? 1 : 0 },
+    { id: "procedures", label: "Diagnosis & Procedures", icon: "diagnosis",            count: diagnosisCount + procedureCount },
+    { id: "findings",   label: "Examination",            icon: "medical service",      count: findingCount },
+    { id: "symptoms",   label: "Symptoms",               icon: "Virus",                count: symptomCount },
+    { id: "planned",    label: "Planned Procedures",     icon: "surgical-scissors-02", count: plannedCount },
+    { id: "notes",      label: "Notes",                  icon: "clipboard-activity",   count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -753,18 +752,21 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
         style={{ background: "#F2F2F2" }}
       >
-        <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
-          <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
-            header={<SectionHeader title="Diagnosis" medicalIcon="diagnosis"
-              onTemplate={activeSection === "diagnosis" ? () => {} : undefined}
-              onSave={activeSection === "diagnosis" ? () => {} : undefined}
-              onClear={activeSection === "diagnosis" ? () => {
+        {/* Diagnosis & Past Procedures — unified: tooth-level chips (Crown/RCT/Implant etc.) + procedure table (no surfaces) */}
+        <div ref={(el) => { sectionRefs.current.procedures = el }}>
+          <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
+            header={<SectionHeader title="Diagnosis & Procedures" medicalIcon="diagnosis"
+              onTemplate={activeSection === "procedures" ? () => {} : undefined}
+              onSave={activeSection === "procedures" ? () => {} : undefined}
+              onClear={activeSection === "procedures" ? () => {
                 state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d))
                 if (state.isImplant) state.onToggleImplant()
+                state.currentToothEntries.filter((e) => e.kind === "procedure").forEach((e) => state.onRemoveEntry(e.id))
               } : undefined}
-              chevron={activeSection === "diagnosis" ? "up" : "down"}
-              onClick={() => jumpTo("diagnosis")}
-              onChevronClick={() => jumpTo("diagnosis")}
+              clearDisabled={diagnosisCount === 0 && procedureCount === 0}
+              chevron={activeSection === "procedures" ? "up" : "down"}
+              onClick={() => jumpTo("procedures")}
+              onChevronClick={() => jumpTo("procedures")}
             />}>
             <PrimaryDiagnosisBody state={state} />
           </AccordionWrap>
@@ -801,23 +803,6 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               onChevronClick={() => jumpTo("symptoms")}
             />}>
             <EntryTab state={state} kind="symptom" />
-          </AccordionWrap>
-        </div>
-
-        <div ref={(el) => { sectionRefs.current.procedures = el }}>
-          <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
-            header={<SectionHeader title="Past Procedures" medicalIcon="medical document"
-              onTemplate={activeSection === "procedures" ? () => {} : undefined}
-              onSave={activeSection === "procedures" ? () => {} : undefined}
-              onClear={activeSection === "procedures" ? () => {
-                state.currentToothEntries.filter((e) => e.kind === "procedure").forEach((e) => state.onRemoveEntry(e.id))
-              } : undefined}
-              clearDisabled={procedureCount === 0}
-              chevron={activeSection === "procedures" ? "up" : "down"}
-              onClick={() => jumpTo("procedures")}
-              onChevronClick={() => jumpTo("procedures")}
-            />}>
-            <EntryTab state={state} kind="procedure" />
           </AccordionWrap>
         </div>
 
