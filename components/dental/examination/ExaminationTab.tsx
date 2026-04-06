@@ -526,64 +526,60 @@ function ScoreCard({
       </span>
       {showFormula && iconAnchor && <ScoreTooltip anchor={iconAnchor} data={data} />}
 
-      {/* Gauge */}
+      {/* Gauge — ring SVG + centered content overlay */}
       <div className="relative z-10 flex items-center justify-center">
+        {/* Ring-only SVG — no text inside */}
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <defs>
             <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={colour.accent} stopOpacity="0.85" />
               <stop offset="100%" stopColor={colour.accentDark} stopOpacity="1" />
             </linearGradient>
-            {/* Interior disc — glass gradient (transparent highlight + subtle card colour through) */}
-            <linearGradient id={did} x1="20%" y1="0%" x2="80%" y2="100%">
-              <stop offset="0%"   stopColor="#ffffff" stopOpacity="0.65" />
-              <stop offset="45%"  stopColor="#ffffff" stopOpacity="0.15" />
-              <stop offset="100%" stopColor={colour.accent} stopOpacity="0.08" />
-            </linearGradient>
-            <linearGradient id={`score-text-${zoneIdx}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={colour.accent} />
-              <stop offset="100%" stopColor={colour.accentDark} />
-            </linearGradient>
           </defs>
-          {/* Interior disc removed per design — keep ring + score text only */}
-          {/* Track — lighter variant of ring colour */}
+          {/* Track */}
           <path d={bgArc} stroke={colour.tint} strokeWidth={14} strokeLinecap="round" fill="none" />
           {/* Progress */}
           {progress > 0 && (
             <path d={fgArc} stroke={`url(#${gid})`} strokeWidth={14} strokeLinecap="round" fill="none" />
           )}
-          {/* Gradient score */}
-          <text x={cx} y={cy - 8} textAnchor="middle" dominantBaseline="middle"
-            style={{ fontFamily: "Inter, sans-serif", fontSize: 42, fontWeight: 800, fill: `url(#score-text-${zoneIdx})` }}
+        </svg>
+        {/* Centered content frame — score + "out of 100" + rating tag */}
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+          style={{ gap: 4 }}
+        >
+          <span
+            className="font-sans font-[800] tabular-nums"
+            style={{
+              fontSize: 48,
+              lineHeight: 1,
+              background: `linear-gradient(135deg, ${colour.accent}, ${colour.accentDark})`,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
           >
             {displayScore}
-          </text>
-          <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="middle"
-            style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, fill: "var(--tp-slate-500)" }}
-          >
+          </span>
+          <span className="font-sans text-[12px] font-medium text-tp-slate-500">
             out of 100
-          </text>
-        </svg>
-        {/* Rating tag — pill with glass gradient, accent border + accent text; info icon embedded */}
-        <span
-          ref={infoIconRef}
-          onMouseEnter={openTooltip}
-          onMouseLeave={closeTooltip}
-          onClick={openTooltip}
-          className="absolute inline-flex items-center gap-[5px] rounded-full px-[12px] py-[4px] font-sans text-[11px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer"
-          style={{
-            top: `${((cy + 42) / size) * 100}%`,
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
-            color: colour.accentDark,
-            border: `1px solid ${colour.accent}33`,
-            letterSpacing: "0.6px",
-          }}
-        >
-          {rating.toUpperCase()}
-          <InfoCircle size={14} color="currentColor" variant="Linear" />
-        </span>
+          </span>
+          <span
+            ref={infoIconRef}
+            onMouseEnter={openTooltip}
+            onMouseLeave={closeTooltip}
+            onClick={openTooltip}
+            className="pointer-events-auto inline-flex items-center gap-[5px] rounded-full px-[12px] py-[3px] font-sans text-[11px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer mt-[2px]"
+            style={{
+              background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
+              color: colour.accentDark,
+              border: `1px solid ${colour.accent}33`,
+              letterSpacing: "0.6px",
+            }}
+          >
+            {rating.toUpperCase()}
+            <InfoCircle size={14} color="currentColor" variant="Linear" />
+          </span>
+        </div>
       </div>
     </div>
   )
