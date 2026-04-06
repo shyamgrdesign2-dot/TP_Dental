@@ -1941,18 +1941,13 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[];
                     <span className="flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800">{r.name}</span>
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
-                    <button type="button" onClick={() => {}}
-                      className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] px-[10px] font-sans text-[14px] bg-white ${
-                        r.surfaces.length > 0 ? "text-tp-slate-700" : "text-tp-slate-400"
-                      }`}
-                    >
-                      <span className="flex-1 min-w-0 text-left truncate">
-                        {r.surfaces.length === 0 ? "Select surface" : r.surfaces.map((z) => getZoneLabel(z, state.selectedTooth.arch, state.selectedTooth.position)).join(", ")}
-                      </span>
-                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                        <path d="M1 1l4 4 4-4" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    <SymptomSurfacePicker
+                      key={r.id}
+                      surfaces={r.surfaces}
+                      arch={state.selectedTooth.arch}
+                      toothPosition={state.selectedTooth.position}
+                      onChange={(next) => updateRow(r.id, { surfaces: next })}
+                    />
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
                     <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="e.g. 5 days"
