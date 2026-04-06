@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ClipboardText, Health, Receipt1 } from "iconsax-reactjs"
 import cn from "clsx"
@@ -23,7 +23,7 @@ const RX_TABS: { id: RxTabId; label: string; Icon: React.ComponentType<any> }[] 
   { id: "treatment-plan", label: "Treatment Plan",  Icon: Receipt1 },
 ]
 
-export function RxPadPage() {
+function RxPadInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "apt-1"
@@ -86,5 +86,13 @@ export function RxPadPage() {
         </div>
       </TPRxPadShell>
     </RxPadSyncProvider>
+  )
+}
+
+export function RxPadPage() {
+  return (
+    <Suspense>
+      <RxPadInner />
+    </Suspense>
   )
 }
