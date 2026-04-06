@@ -471,11 +471,11 @@ function ScoreCard({
     return () => cancelAnimationFrame(raf)
   }, [score])
 
-  // Larger ring → more breathing space for inner content.
-  const size = 200
+  // Larger ring circumference for breathing space.
+  const size = 220
   const cx = size / 2
   const cy = size / 2
-  const r = 80
+  const r = 90
   const gapDeg = 28
   const startA = 90 + gapDeg / 2
   const sweepTotal = 360 - gapDeg
@@ -551,7 +551,7 @@ function ScoreCard({
           <span
             className="font-sans font-[800] tabular-nums"
             style={{
-              fontSize: 48,
+              fontSize: 38,
               lineHeight: 1,
               color: colour.accentDark,
             }}
