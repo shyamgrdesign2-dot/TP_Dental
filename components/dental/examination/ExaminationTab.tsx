@@ -751,13 +751,13 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 role="tab"
                 aria-selected={active}
                 onClick={() => jumpTo(s.id)}
-                className={`relative inline-flex h-[42px] flex-shrink-0 items-center gap-[6px] border-b-[2px] px-[10px] font-sans text-[14px] font-semibold transition-colors ${
+                className={`relative inline-flex h-[42px] flex-shrink-0 items-center gap-[6px] border-b-[2px] px-[14px] font-sans text-[14px] font-semibold transition-colors ${
                   active
                     ? "border-tp-blue-500 text-tp-blue-700"
-                    : "border-transparent text-tp-slate-500 hover:text-tp-slate-700"
+                    : "border-transparent text-tp-slate-600 hover:text-tp-slate-800"
                 }`}
               >
-                <TPMedicalIcon name={s.icon} variant={active ? "bulk" : "linear"} size={18} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-400)"} />
+                <TPMedicalIcon name={s.icon} variant={active ? "bulk" : "linear"} size={18} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-600)"} />
                 {s.label}
                 {s.count > 0 && (
                   <span className={`inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-[5px] font-sans text-[10px] font-bold tabular-nums ${
@@ -828,6 +828,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         <div ref={(el) => { sectionRefs.current.notes = el }}>
           <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
             header={<SectionHeader title="Overall tooth notes" medicalIcon="clipboard-activity"
+              onTemplate={activeSection === "notes" ? () => {} : undefined}
+              onSave={activeSection === "notes" ? () => {} : undefined}
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
               chevron={activeSection === "notes" ? "up" : "down"}
               onClick={activeSection === "notes" ? undefined : () => jumpTo("notes")}
@@ -837,7 +839,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 value={state.currentToothNotes}
                 onChange={(e) => state.onUpdateToothNotes(e.target.value)}
                 placeholder="General notes for this tooth…"
-                className="h-[140px] w-full resize-none rounded-[8px] border border-tp-slate-200 bg-tp-slate-100 px-[12px] py-[10px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:bg-white focus:outline-none"
+                className="h-[140px] w-full resize-none rounded-[8px] border border-tp-slate-200 bg-white px-[12px] py-[10px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
               />
             </div>
           </AccordionWrap>
