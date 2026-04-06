@@ -79,11 +79,21 @@ function RxPadInner() {
         </div>
 
         {/* ── Active tab content ── */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          {activeTab === "base" && <RxPad />}
-          {activeTab === "dental" && <ExaminationTab patientId={patientId} />}
-          {activeTab === "treatment-plan" && <TreatmentPlanTab patientId={patientId} />}
-        </div>
+        {activeTab === "base" && (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <RxPad />
+          </div>
+        )}
+        {activeTab === "dental" && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ExaminationTab patientId={patientId} />
+          </div>
+        )}
+        {activeTab === "treatment-plan" && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <TreatmentPlanTab patientId={patientId} />
+          </div>
+        )}
       </TPRxPadShell>
     </RxPadSyncProvider>
   )

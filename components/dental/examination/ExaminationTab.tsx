@@ -793,7 +793,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               chevron={activeSection === "symptoms" ? "up" : "down"}
               onClick={activeSection === "symptoms" ? undefined : () => jumpTo("symptoms")}
             />}>
-            <DentalSymptomsBody rows={symptomRows} onUpdateRows={setSymptomRows} />
+            <DentalSymptomsBody rows={symptomRows} onUpdateRows={setSymptomRows} state={state} />
           </AccordionWrap>
         </div>
 
@@ -878,7 +878,7 @@ function SectionHeader({
   return (
     <header
       onClick={onClick}
-      className={`flex items-center gap-[8px] px-[14px] py-[10px] ${onClick ? "cursor-pointer hover:bg-tp-slate-100/60" : ""}`}
+      className={`flex items-center gap-[8px] px-[14px] pt-[10px] pb-[6px] ${onClick ? "cursor-pointer hover:bg-tp-slate-100/60" : ""}`}
     >
       {medicalIcon && (
         <span className="inline-flex h-[32px] w-[32px] items-center justify-center text-tp-violet-500 flex-shrink-0">
@@ -1784,7 +1784,7 @@ function SurfaceDots({
 interface SymptomRow {
   id: string
   name: string
-  surfaces: string
+  surfaces: ZoneId[]
   since: string
   severity: string
   note: string
@@ -1800,8 +1800,93 @@ const DENTAL_SYMPTOM_CATALOG = [
 let _symId = 0
 const getSymId = () => `sym-${++_symId}`
 
-function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpdateRows: (v: SymptomRow[]) => void }) {
+function SymptomSurfacePicker({ surfaces, arch, toothPosition, onChange }: {
+  surfaces: ZoneId[]
+  arch: "maxillary" | "mandibular"
+  toothPosition: number
+  onChange: (next: ZoneId[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const anchorRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const selected = new Set(surfaces)
+
+  useEffect(() => {
+    if (!open) { setPos(null); return }
+    const el = anchorRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 200) })
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e: MouseEvent) => {
+      const a = anchorRef.current, p = popoverRef.current, t = e.target as Node
+      if (a && !a.contains(t) && p && !p.contains(t)) setOpen(false)
+    }
+    document.addEventListener("mousedown", onDoc)
+    return () => document.removeEventListener("mousedown", onDoc)
+  }, [open])
+
+  const toggle = (z: ZoneId) => {
+    onChange(selected.has(z) ? surfaces.filter((s) => s !== z) : [...surfaces, z])
+  }
+
+  return (
+    <>
+      <button ref={anchorRef} type="button" onClick={() => setOpen((o) => !o)}
+        className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[14px] transition-colors ${
+          open ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : "bg-white"
+        }`}
+      >
+        <span className="flex-1 min-w-0 text-left truncate">
+          {surfaces.length === 0 ? (
+            <span className="text-tp-slate-400">Select surface</span>
+          ) : (
+            <span className="text-tp-slate-700 font-medium">{surfaces.map((z) => getZoneLabel(z, arch, toothPosition)).join(", ")}</span>
+          )}
+        </span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
+          <path d="M1 1l4 4 4-4" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <div ref={popoverRef}
+          className="fixed z-[9999] rounded-[8px] border border-tp-slate-200 bg-white shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)]"
+          style={{ top: pos.top, left: pos.left, width: pos.width }}
+        >
+          <ul className="max-h-[200px] overflow-y-auto py-[2px]">
+            {ALL_ZONES.map((z) => {
+              const checked = selected.has(z)
+              const label = getZoneLabel(z, arch, toothPosition)
+              const color = ZONE_INFO[z]?.color || "#888"
+              return (
+                <li key={z}>
+                  <button type="button" onMouseDown={(e) => { e.preventDefault(); toggle(z) }}
+                    className="flex w-full items-center gap-[8px] px-[10px] py-[5px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+                  >
+                    <span className={`inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] border ${checked ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"} flex-shrink-0`}>
+                      {checked && <svg width="8" height="8" viewBox="0 0 24 24" fill="none"><path d="M6 12l4.5 4.5L18 7.5" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                    </span>
+                    <span className="h-[8px] w-[8px] rounded-full flex-shrink-0" style={{ background: color }} />
+                    <span className="flex-1 text-left">{label}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
+function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[]; onUpdateRows: (v: SymptomRow[]) => void; state: DentalCanvasState }) {
   const [query, setQuery] = useState("")
+  const [activeRowId, setActiveRowId] = useState<string | null>(null)
   const selectedNames = new Set(rows.map((r) => r.name.toLowerCase()))
 
   const filtered = useMemo(() => {
@@ -1811,7 +1896,7 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
   }, [query, selectedNames])
 
   const addSymptom = (name: string) => {
-    onUpdateRows([...rows, { id: getSymId(), name, surfaces: "", since: "", severity: "", note: "" }])
+    onUpdateRows([...rows, { id: getSymId(), name, surfaces: [], since: "", severity: "", note: "" }])
     setQuery("")
   }
 
@@ -1829,9 +1914,9 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
           <table className="w-full table-fixed font-['Inter',sans-serif] text-[14px]">
             <colgroup>
               <col style={{ minWidth: 140 }} />
-              <col style={{ width: 110, minWidth: 100 }} />
+              <col style={{ width: 140, minWidth: 120 }} />
               <col style={{ width: 100, minWidth: 90 }} />
-              <col style={{ width: 100, minWidth: 90 }} />
+              <col style={{ width: 140, minWidth: 140 }} />
               <col style={{ minWidth: 110 }} />
               <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
             </colgroup>
@@ -1846,15 +1931,28 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t border-tp-slate-100 transition-colors hover:bg-tp-slate-100/40">
+              {rows.map((r) => {
+                const isRowActive = activeRowId === r.id
+                return (
+                <tr key={r.id} className="border-t border-tp-slate-100 transition-colors"
+                  onClick={() => setActiveRowId(isRowActive ? null : r.id)}
+                >
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
                     <span className="flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800">{r.name}</span>
                   </td>
-                  <td className="border-r border-tp-slate-100 p-0 align-middle">
-                    <input type="text" value={r.surfaces} onChange={(e) => updateRow(r.id, { surfaces: e.target.value })} placeholder="e.g. Buccal"
-                      className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
-                    />
+                  <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                    <button type="button" onClick={() => {}}
+                      className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] px-[10px] font-sans text-[14px] bg-white ${
+                        r.surfaces.length > 0 ? "text-tp-slate-700" : "text-tp-slate-400"
+                      }`}
+                    >
+                      <span className="flex-1 min-w-0 text-left truncate">
+                        {r.surfaces.length === 0 ? "Select surface" : r.surfaces.map((z) => getZoneLabel(z, state.selectedTooth.arch, state.selectedTooth.position)).join(", ")}
+                      </span>
+                      <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                        <path d="M1 1l4 4 4-4" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
                     <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="e.g. 5 days"
@@ -1877,14 +1975,15 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
                     />
                   </td>
                   <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
-                    <button type="button" onClick={() => removeRow(r.id)} title="Remove"
+                    <button type="button" onClick={(ev) => { ev.stopPropagation(); removeRow(r.id) }} title="Remove"
                       className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
                     >
                       <Trash size={14} color="currentColor" variant="Linear" />
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
