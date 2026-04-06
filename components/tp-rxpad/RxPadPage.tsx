@@ -227,7 +227,7 @@ function RxPadInner() {
               type="button"
               onClick={() => setActiveTab("base")}
               className={cn(
-                "group relative flex items-center gap-[8px] px-[6px] py-[14px] text-[15px] font-medium transition-colors",
+                "group relative flex items-center gap-[8px] px-[6px] py-[10px] text-[14px] font-medium transition-colors",
                 activeTab === "base"
                   ? "text-tp-blue-600 font-semibold"
                   : "text-tp-slate-500 hover:text-tp-slate-700",
@@ -250,7 +250,7 @@ function RxPadInner() {
               type="button"
               onClick={() => setActiveTab("dental")}
               className={cn(
-                "group relative flex items-center gap-[8px] px-[6px] py-[14px] text-[15px] font-medium transition-colors",
+                "group relative flex items-center gap-[8px] px-[6px] py-[10px] text-[14px] font-medium transition-colors",
                 activeTab === "dental"
                   ? "text-tp-blue-600 font-semibold"
                   : "text-tp-slate-500 hover:text-tp-slate-700",
