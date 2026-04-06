@@ -91,12 +91,12 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Separate persisted widths for dentition vs single-tooth. Both draggable 40-60.
   // Defer localStorage read to useEffect so SSR + first client render match.
-  // Default: dentition 30% (canvas takes 70%); single-tooth 60% content / 40% canvas.
+  // Default: dentition 30% (canvas takes 70%); single-tooth 65% content / 35% canvas.
   const [dentitionAsidePct, setDentitionAsidePct] = useState<number>(30)
-  const [singleAsidePct, setSingleAsidePct] = useState<number>(60)
+  const [singleAsidePct, setSingleAsidePct] = useState<number>(65)
   useEffect(() => {
     if (typeof window === "undefined") return
-    const defaultSingle = 60
+    const defaultSingle = 65
     setSingleAsidePct(defaultSingle)
     const d = parseFloat(window.localStorage.getItem("dental.aside.pct.dentition") ?? "")
     if (Number.isFinite(d) && d >= 30 && d <= 40) setDentitionAsidePct(d)
@@ -680,28 +680,30 @@ function TooltipRow({ label, value }: { label: string; value: number }) {
 //  • Dental examinations / Oral findings / Past procedures (chip sections)
 //  • Sticky footer: Save findings
 // ──────────────────────────────────────────────────────────────
-type SectionId = "symptoms" | "diagnosis" | "findings" | "procedures" | "notes"
+type SectionId = "symptoms" | "diagnosis" | "findings" | "procedures" | "planned" | "notes"
 
 function SingleToothPanel({ state }: { state: DentalCanvasState }) {
   const [activeSection, setActiveSection] = useState<SectionId>("diagnosis")
-  const [symptomRows, setSymptomRows] = useState<SymptomRow[]>([])
   const tryBack = () => state.onBackToDentition()
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
-    symptoms: null, diagnosis: null, findings: null, procedures: null, notes: null,
+    symptoms: null, diagnosis: null, findings: null, procedures: null, planned: null, notes: null,
   })
 
   const findingCount = state.currentToothEntries.filter((e) => e.kind === "finding").length
+  const symptomCount = state.currentToothEntries.filter((e) => e.kind === "symptom").length
   const procedureCount = state.currentToothEntries.filter((e) => e.kind === "procedure").length
+  const plannedCount = state.currentToothEntries.filter((e) => e.kind === "planned").length
   const diagnosisCount = state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0)
   const notesFilled = state.currentToothNotes.trim().length > 0
 
-  // Order: Primary Diagnosis → Findings → Dental Symptoms → Planned Procedures → Notes
+  // Order: Diagnosis → Examination → Symptoms → Past Procedures → Planned Procedures → Notes
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "diagnosis",  label: "Diagnosis",        icon: "diagnosis",             count: diagnosisCount },
-    { id: "findings",   label: "Findings",         icon: "virus",                 count: findingCount },
-    { id: "symptoms",   label: "Dental Symptoms",  icon: "Virus",                 count: symptomRows.length },
-    { id: "procedures", label: "Procedures",       icon: "surgical-scissors-02",  count: procedureCount },
-    { id: "notes",      label: "Notes",            icon: "clipboard-activity",    count: notesFilled ? 1 : 0 },
+    { id: "diagnosis",  label: "Diagnosis",            icon: "diagnosis",             count: diagnosisCount },
+    { id: "findings",   label: "Examination",          icon: "medical service",       count: findingCount },
+    { id: "symptoms",   label: "Symptoms",             icon: "Virus",                 count: symptomCount },
+    { id: "procedures", label: "Past Procedures",      icon: "medical document",      count: procedureCount },
+    { id: "planned",    label: "Planned Procedures",   icon: "surgical-scissors-02",  count: plannedCount },
+    { id: "notes",      label: "Notes",                icon: "clipboard-activity",    count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -753,7 +755,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
       >
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
-            header={<SectionHeader title="Primary Diagnosis" medicalIcon="diagnosis"
+            header={<SectionHeader title="Diagnosis" medicalIcon="diagnosis"
               onTemplate={activeSection === "diagnosis" ? () => {} : undefined}
               onSave={activeSection === "diagnosis" ? () => {} : undefined}
               onClear={activeSection === "diagnosis" ? () => {
@@ -761,7 +763,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 if (state.isImplant) state.onToggleImplant()
               } : undefined}
               chevron={activeSection === "diagnosis" ? "up" : "down"}
-              onClick={activeSection === "diagnosis" ? undefined : () => jumpTo("diagnosis")}
+              onClick={() => jumpTo("diagnosis")}
+              onChevronClick={() => jumpTo("diagnosis")}
             />}>
             <PrimaryDiagnosisBody state={state} />
           </AccordionWrap>
@@ -769,7 +772,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.findings = el }}>
           <AccordionWrap open={activeSection === "findings"} onExpand={() => jumpTo("findings")}
-            header={<SectionHeader title="Findings" medicalIcon="virus"
+            header={<SectionHeader title="Examination" medicalIcon="medical service"
               onTemplate={activeSection === "findings" ? () => {} : undefined}
               onSave={activeSection === "findings" ? () => {} : undefined}
               onClear={activeSection === "findings" ? () => {
@@ -777,7 +780,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               } : undefined}
               clearDisabled={findingCount === 0}
               chevron={activeSection === "findings" ? "up" : "down"}
-              onClick={activeSection === "findings" ? undefined : () => jumpTo("findings")}
+              onClick={() => jumpTo("findings")}
+              onChevronClick={() => jumpTo("findings")}
             />}>
             <EntryTab state={state} kind="finding" />
           </AccordionWrap>
@@ -785,21 +789,24 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.symptoms = el }}>
           <AccordionWrap open={activeSection === "symptoms"} onExpand={() => jumpTo("symptoms")}
-            header={<SectionHeader title="Dental Symptoms" medicalIcon="Virus"
+            header={<SectionHeader title="Symptoms" medicalIcon="Virus"
               onTemplate={activeSection === "symptoms" ? () => {} : undefined}
               onSave={activeSection === "symptoms" ? () => {} : undefined}
-              onClear={activeSection === "symptoms" ? () => setSymptomRows([]) : undefined}
-              clearDisabled={symptomRows.length === 0}
+              onClear={activeSection === "symptoms" ? () => {
+                state.currentToothEntries.filter((e) => e.kind === "symptom").forEach((e) => state.onRemoveEntry(e.id))
+              } : undefined}
+              clearDisabled={symptomCount === 0}
               chevron={activeSection === "symptoms" ? "up" : "down"}
-              onClick={activeSection === "symptoms" ? undefined : () => jumpTo("symptoms")}
+              onClick={() => jumpTo("symptoms")}
+              onChevronClick={() => jumpTo("symptoms")}
             />}>
-            <DentalSymptomsBody rows={symptomRows} onUpdateRows={setSymptomRows} state={state} />
+            <EntryTab state={state} kind="symptom" />
           </AccordionWrap>
         </div>
 
         <div ref={(el) => { sectionRefs.current.procedures = el }}>
           <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
-            header={<SectionHeader title="Planned Procedures" medicalIcon="surgical-scissors-02"
+            header={<SectionHeader title="Past Procedures" medicalIcon="medical document"
               onTemplate={activeSection === "procedures" ? () => {} : undefined}
               onSave={activeSection === "procedures" ? () => {} : undefined}
               onClear={activeSection === "procedures" ? () => {
@@ -807,9 +814,27 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               } : undefined}
               clearDisabled={procedureCount === 0}
               chevron={activeSection === "procedures" ? "up" : "down"}
-              onClick={activeSection === "procedures" ? undefined : () => jumpTo("procedures")}
+              onClick={() => jumpTo("procedures")}
+              onChevronClick={() => jumpTo("procedures")}
             />}>
             <EntryTab state={state} kind="procedure" />
+          </AccordionWrap>
+        </div>
+
+        <div ref={(el) => { sectionRefs.current.planned = el }}>
+          <AccordionWrap open={activeSection === "planned"} onExpand={() => jumpTo("planned")}
+            header={<SectionHeader title="Planned Procedures" medicalIcon="surgical-scissors-02"
+              onTemplate={activeSection === "planned" ? () => {} : undefined}
+              onSave={activeSection === "planned" ? () => {} : undefined}
+              onClear={activeSection === "planned" ? () => {
+                state.currentToothEntries.filter((e) => e.kind === "planned").forEach((e) => state.onRemoveEntry(e.id))
+              } : undefined}
+              clearDisabled={plannedCount === 0}
+              chevron={activeSection === "planned" ? "up" : "down"}
+              onClick={() => jumpTo("planned")}
+              onChevronClick={() => jumpTo("planned")}
+            />}>
+            <EntryTab state={state} kind="planned" />
           </AccordionWrap>
         </div>
 
@@ -820,7 +845,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               onSave={activeSection === "notes" ? () => {} : undefined}
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
               chevron={activeSection === "notes" ? "up" : "down"}
-              onClick={activeSection === "notes" ? undefined : () => jumpTo("notes")}
+              onClick={() => jumpTo("notes")}
+              onChevronClick={() => jumpTo("notes")}
             />}>
             <div className="p-[14px]">
               <textarea
@@ -861,7 +887,7 @@ function AccordionWrap({
 // Matches RxPad section header styling.
 // ──────────────────────────────────────────────────────────────
 function SectionHeader({
-  title, count, medicalIcon, onTemplate, onSave, onClear, clearDisabled, onClick, chevron,
+  title, count, medicalIcon, onTemplate, onSave, onClear, clearDisabled, onClick, chevron, onChevronClick,
 }: {
   title: string
   count?: number
@@ -872,6 +898,7 @@ function SectionHeader({
   clearDisabled?: boolean
   onClick?: () => void
   chevron?: "right" | "down" | "up"
+  onChevronClick?: () => void
 }) {
   const btnClass = "inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
   const stop = (e: React.MouseEvent) => e.stopPropagation()
@@ -909,15 +936,17 @@ function SectionHeader({
           </button>
         )}
         {chevron && (
-          chevron === "up" ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200">
-              <path d="M19.92 15.05L13.4 8.53c-.77-.77-2.03-.77-2.8 0l-6.52 6.52" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" />
-            </svg>
-          ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200">
-              <path d="M19.92 8.95L13.4 15.47c-.77.77-2.03.77-2.8 0L4.08 8.95" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" />
-            </svg>
-          )
+          <button type="button" onClick={(e) => { e.stopPropagation(); onChevronClick?.() ?? onClick?.() }} className="inline-flex items-center justify-center rounded-[6px] p-[2px] transition-colors hover:bg-tp-slate-200">
+            {chevron === "up" ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M19.92 15.05L13.4 8.53c-.77-.77-2.03-.77-2.8 0l-6.52 6.52" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M19.92 8.95L13.4 15.47c-.77.77-2.03.77-2.8 0L4.08 8.95" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" />
+              </svg>
+            )}
+          </button>
         )}
       </div>
     </header>
@@ -927,12 +956,12 @@ function SectionHeader({
 // ──────────────────────────────────────────────────────────────
 // EntryTab — shared builder + table for Findings and Procedures
 // ──────────────────────────────────────────────────────────────
-function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" | "procedure" }) {
+function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" | "procedure" | "symptom" | "planned" }) {
   const [activeRowId, setActiveRowId] = useState<string | null>(null)
   const [query, setQuery] = useState("")
 
   const isMissing = state.currentToothDiagnoses.has("Missing")
-  const catalog = kind === "finding" ? (DIAGNOSES as readonly string[]) : (PROCEDURE_CATALOG as readonly string[])
+  const catalog = kind === "finding" ? (DIAGNOSES as readonly string[]) : kind === "symptom" ? (DENTAL_SYMPTOM_CATALOG as readonly string[]) : (kind === "planned" || kind === "procedure") ? (PROCEDURE_CATALOG as readonly string[]) : (PROCEDURE_CATALOG as readonly string[])
   const entries = state.currentToothEntries.filter((e) => e.kind === kind)
   const activeRow = entries.find((e) => e.id === activeRowId) ?? null
 
@@ -1005,8 +1034,8 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
     )
   }
 
-  const primaryLabel = kind === "finding" ? "FINDING" : "PROCEDURE"
-  const hasStatus = kind === "procedure"
+  const primaryLabel = kind === "finding" ? "EXAMINATION" : kind === "symptom" ? "SYMPTOM" : kind === "planned" ? "PROCEDURE" : "PROCEDURE"
+  const hasStatus = kind === "procedure" || kind === "planned"
 
   return (
     <div data-rx-module-root className="p-[12px]">
@@ -1147,7 +1176,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) addEntryFromName(query.trim()) }}
-            placeholder={kind === "finding" ? "Search & Add Finding" : "Search & Add Procedure"}
+            placeholder={kind === "finding" ? "Search & Add Examination" : kind === "symptom" ? "Search & Add Symptom" : kind === "planned" ? "Search & Add Planned Procedure" : "Search & Add Procedure"}
             className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
           />
         </div>

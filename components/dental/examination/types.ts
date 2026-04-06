@@ -91,7 +91,7 @@ export interface Finding {
 export interface ToothEntry {
   id: string
   toothFdi: string
-  kind: "finding" | "procedure"
+  kind: "finding" | "procedure" | "symptom" | "planned"
   name: string
   surfaces: ZoneId[]
   since?: string
