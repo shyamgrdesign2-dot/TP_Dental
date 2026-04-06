@@ -33,7 +33,7 @@ export function MiniToothCanvas({
       style={{ width: size, height: size, pointerEvents: "none", position: "relative" }}
     >
       <Canvas
-        camera={{ position: [0, 0, 5], fov: 30 }}
+        camera={{ position: [0, -0.2, 5], fov: 30 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true, toneMapping: 3, toneMappingExposure: 1.35, alpha: true }}
         style={{ pointerEvents: "none", width: "100%", height: "100%", display: "block" }}

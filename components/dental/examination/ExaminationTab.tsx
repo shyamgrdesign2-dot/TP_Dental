@@ -91,13 +91,12 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Separate persisted widths for dentition vs single-tooth. Both draggable 40-60.
   // Defer localStorage read to useEffect so SSR + first client render match.
-  // Default: dentition 30% (canvas takes 70%); single-tooth 60% desktop / 65% iPad.
+  // Default: dentition 30% (canvas takes 70%); single-tooth 60% content / 40% canvas.
   const [dentitionAsidePct, setDentitionAsidePct] = useState<number>(30)
   const [singleAsidePct, setSingleAsidePct] = useState<number>(60)
   useEffect(() => {
     if (typeof window === "undefined") return
-    const vw = window.innerWidth
-    const defaultSingle = vw < 1200 ? 65 : 60
+    const defaultSingle = 60
     setSingleAsidePct(defaultSingle)
     const d = parseFloat(window.localStorage.getItem("dental.aside.pct.dentition") ?? "")
     if (Number.isFinite(d) && d >= 30 && d <= 40) setDentitionAsidePct(d)
@@ -312,7 +311,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
 
       {/* Tooth records */}
       <div className="mt-[20px] mb-[10px] flex items-center gap-[8px] px-[2px]">
-        <h3 className="font-sans text-[13px] font-semibold text-tp-slate-800">
+        <h3 className="font-sans text-[14px] font-semibold text-tp-slate-800">
           Tooth records
         </h3>
         {summary.length > 0 && (
@@ -373,7 +372,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
                 {/* Middle: FDI + name + chips */}
                 <div className="flex-1 min-w-0 flex flex-col gap-[6px]">
                   <div className="flex items-center gap-[8px]">
-                    <span className="font-sans text-[12px] font-semibold text-tp-slate-700 truncate">
+                    <span className="font-sans text-[14px] font-semibold text-tp-slate-800 truncate">
                       {toothName}
                     </span>
                     <span className="inline-flex h-[20px] items-center rounded-[5px] bg-tp-slate-100 px-[6px] font-sans text-[11px] font-semibold text-tp-slate-600 tabular-nums group-hover:bg-tp-blue-50 group-hover:text-tp-blue-700">
@@ -472,11 +471,11 @@ function ScoreCard({
     return () => cancelAnimationFrame(raf)
   }, [score])
 
-  // Bigger circle, wider gap at bottom.
-  const size = 188
+  // Slightly smaller ring to give breathing space in the card.
+  const size = 180
   const cx = size / 2
   const cy = size / 2
-  const r = 72
+  const r = 66
   const gapDeg = 28
   const startA = 90 + gapDeg / 2
   const sweepTotal = 360 - gapDeg
@@ -507,7 +506,7 @@ function ScoreCard({
   return (
     <div
       ref={infoBtnRef}
-      className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[12px] pb-[14px]"
+      className="mb-[8px] relative overflow-hidden rounded-[20px] px-[16px] pt-[8px] pb-[10px]"
       style={{
         background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}2b 60%, ${colour.accent}4d 100%)`,
       }}
@@ -559,8 +558,8 @@ function ScoreCard({
           >
             {displayScore}
           </text>
-          <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="middle"
-            style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 500, fill: "var(--tp-slate-500)" }}
+          <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="middle"
+            style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, fill: "var(--tp-slate-500)" }}
           >
             out of 100
           </text>
@@ -571,9 +570,9 @@ function ScoreCard({
           onMouseEnter={openTooltip}
           onMouseLeave={closeTooltip}
           onClick={openTooltip}
-          className="absolute inline-flex items-center gap-[5px] rounded-full px-[10px] py-[3px] font-sans text-[9px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer"
+          className="absolute inline-flex items-center gap-[5px] rounded-full px-[12px] py-[4px] font-sans text-[11px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer"
           style={{
-            top: `${((cy + 34) / size) * 100}%`,
+            top: `${((cy + 32) / size) * 100}%`,
             left: "50%",
             transform: "translate(-50%, -50%)",
             background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
@@ -583,7 +582,7 @@ function ScoreCard({
           }}
         >
           {rating.toUpperCase()}
-          <InfoCircle size={11} color="currentColor" variant="Linear" />
+          <InfoCircle size={14} color="currentColor" variant="Linear" />
         </span>
       </div>
     </div>
@@ -1099,7 +1098,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                           type="date"
                           value={e.plannedDate ?? ""}
                           onChange={(ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined })}
-                          className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
+                          className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                         />
                       )}
                     </td>
@@ -1124,7 +1123,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                         value={e.notes ?? ""}
                         onChange={(ev) => state.onUpdateEntry(e.id, { notes: ev.target.value })}
                         placeholder="Note…"
-                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
+                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                       />
                     </td>
                     {/* Sticky delete */}
@@ -1664,7 +1663,7 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
         ref={anchorRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-[42px] w-full items-center gap-[6px] rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100/60 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
+        className="inline-flex h-[42px] w-full items-center gap-[6px] rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100/60 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
       >
         <Calendar size={14} color="#64748b" variant="Linear" />
         <span className={`flex-1 text-left truncate ${value ? "" : "text-tp-slate-400"}`}>{value || "Since…"}</span>
@@ -1892,7 +1891,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         value={d.note}
                         onChange={(e) => updateDetail(name, { note: e.target.value })}
                         placeholder="Note…"
-                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px]"
+                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                       />
                     </td>
                     <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)] transition-colors hover:bg-tp-slate-100/60">
