@@ -2246,10 +2246,10 @@ function Prescription() {
                   ) : e.tmdpm_id === 14 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       {" "}
-                      <InvestigationBox
+                      {/* <InvestigationBox
                         handleDDxDrawer={handleDDxDrawer}
                         generatedDDx={generatedDDx?.results}
-                      />
+                      /> */}
                     </div>
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
