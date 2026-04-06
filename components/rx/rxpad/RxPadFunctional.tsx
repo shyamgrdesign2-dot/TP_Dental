@@ -2236,6 +2236,7 @@ export function RxPadFunctional() {
 
   return (
     <div className="space-y-4 p-4 max-lg:p-3 [&_input]:[caret-color:var(--tp-blue-500)] [&_textarea]:[caret-color:var(--tp-blue-500)] [&_input]:[caret-width:2px] [&_textarea]:[caret-width:2px]">
+      {/* Section order: Symptoms → Lab Investigation → Medication → Advice → Examination → Diagnosis */}
       <EditableTableModule
         id="symptoms"
         title="Symptoms"
@@ -2250,29 +2251,15 @@ export function RxPadFunctional() {
       />
 
       <EditableTableModule
-        id="examinations"
-        title="Examinations"
-        icon={<TPMedicalIcon name="medical service" variant="bulk" size={24} color="var(--tp-violet-500)" />}
-        columns={examinationsColumns}
-        primaryKey="name"
-        rows={examinationRows}
-        onChangeRows={setExaminationRows}
-        searchPlaceholder="Search & Add Examinations"
-        searchSuggestions={examinationSuggestions}
-        cannedChips={examinationSuggestions.slice(0, 12)}
-      />
-
-      <EditableTableModule
-        id="diagnosis"
-        title="Diagnosis"
-        icon={<TPMedicalIcon name="Diagnosis" variant="bulk" size={24} color="var(--tp-violet-500)" />}
-        columns={diagnosisColumns}
-        primaryKey="name"
-        rows={diagnosisRows}
-        onChangeRows={setDiagnosisRows}
-        searchPlaceholder="Search & Add Diagnosis"
-        searchSuggestions={diagnosisSuggestions}
-        cannedChips={diagnosisSuggestions.slice(0, 12)}
+        id="lab"
+        title="Lab Investigation"
+        icon={<TPMedicalIcon name="Test Tube" variant="bulk" size={24} color="var(--tp-violet-500)" />}
+        columns={labColumns}
+        primaryKey="investigation"
+        rows={labRows}
+        onChangeRows={setLabRows}
+        searchPlaceholder="Search & Add Lab Investigation"
+        cannedChips={LAB_INVESTIGATION_BASE_OPTIONS}
       />
 
       <EditableTableModule
@@ -2310,28 +2297,32 @@ export function RxPadFunctional() {
       />
 
       <EditableTableModule
-        id="lab"
-        title="Lab Investigation"
-        icon={<TPMedicalIcon name="Test Tube" variant="bulk" size={24} color="var(--tp-violet-500)" />}
-        columns={labColumns}
-        primaryKey="investigation"
-        rows={labRows}
-        onChangeRows={setLabRows}
-        searchPlaceholder="Search & Add Lab Investigation"
-        cannedChips={LAB_INVESTIGATION_BASE_OPTIONS}
+        id="examinations"
+        title="Examinations"
+        icon={<TPMedicalIcon name="medical service" variant="bulk" size={24} color="var(--tp-violet-500)" />}
+        columns={examinationsColumns}
+        primaryKey="name"
+        rows={examinationRows}
+        onChangeRows={setExaminationRows}
+        searchPlaceholder="Search & Add Examinations"
+        searchSuggestions={examinationSuggestions}
+        cannedChips={examinationSuggestions.slice(0, 12)}
       />
 
       <EditableTableModule
-        id="surgery"
-        title="Surgery"
-        icon={<TPMedicalIcon name="surgical-scissors-02" variant="bulk" size={24} color="var(--tp-violet-500)" />}
-        columns={surgeryColumns}
-        primaryKey="surgery"
-        rows={surgeryRows}
-        onChangeRows={setSurgeryRows}
-        searchPlaceholder="Search & Add Surgery"
-        cannedChips={SURGERY_SUGGESTIONS}
+        id="diagnosis"
+        title="Diagnosis"
+        icon={<TPMedicalIcon name="Diagnosis" variant="bulk" size={24} color="var(--tp-violet-500)" />}
+        columns={diagnosisColumns}
+        primaryKey="name"
+        rows={diagnosisRows}
+        onChangeRows={setDiagnosisRows}
+        searchPlaceholder="Search & Add Diagnosis"
+        searchSuggestions={diagnosisSuggestions}
+        cannedChips={diagnosisSuggestions.slice(0, 12)}
       />
+
+      {/* Surgery section disabled via customization settings */}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <TPRxPadSection

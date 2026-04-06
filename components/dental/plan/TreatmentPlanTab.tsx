@@ -158,15 +158,17 @@ export function TreatmentPlanTab({ patientId }: TreatmentPlanTabProps) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-tp-slate-50">
-      {/* Tab strip */}
-      <nav className="flex shrink-0 items-center border-b border-tp-slate-200 bg-white px-[20px]">
-        <TabPill active={activeSubTab === "estimates"} onClick={() => setActiveSubTab("estimates")} icon={<Clipboard size={13} color="currentColor" variant={activeSubTab === "estimates" ? "Bulk" : "Linear"} />} label="Plan Estimates" count={plans.length} />
-        <TabPill active={activeSubTab === "progress"} onClick={() => setActiveSubTab("progress")} icon={<Clock size={13} color="currentColor" variant={activeSubTab === "progress" ? "Bulk" : "Linear"} />} label="In Progress" count={inProgress.length} />
-        <TabPill active={activeSubTab === "completed"} onClick={() => setActiveSubTab("completed")} icon={<ClipboardTick size={13} color="currentColor" variant={activeSubTab === "completed" ? "Bulk" : "Linear"} />} label="Completed" count={completed.length} />
-      </nav>
+      {/* Segmented pill sub-tabs — standalone, no white card bg */}
+      <div className="shrink-0 px-[20px] pt-[16px] pb-[10px]">
+        <div className="inline-flex items-center gap-[3px] rounded-[10px] bg-tp-slate-100 p-[3px]">
+          <TabPill active={activeSubTab === "estimates"} onClick={() => setActiveSubTab("estimates")} icon={<Clipboard size={14} color="currentColor" variant={activeSubTab === "estimates" ? "Bulk" : "Linear"} />} label="Plan Estimates" count={plans.length} />
+          <TabPill active={activeSubTab === "progress"} onClick={() => setActiveSubTab("progress")} icon={<Clock size={14} color="currentColor" variant={activeSubTab === "progress" ? "Bulk" : "Linear"} />} label="In Progress" count={inProgress.length} />
+          <TabPill active={activeSubTab === "completed"} onClick={() => setActiveSubTab("completed")} icon={<ClipboardTick size={14} color="currentColor" variant={activeSubTab === "completed" ? "Bulk" : "Linear"} />} label="Completed" count={completed.length} />
+        </div>
+      </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-[20px]">
+      <div className="flex-1 overflow-auto p-[20px] pt-[12px]">
         {activeSubTab === "estimates" && (
           <PlanEstimatesTab
             plans={plans}
@@ -215,14 +217,16 @@ function TabPill({
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex items-center gap-[7px] border-b-2 px-[16px] py-[14px] font-sans text-[13px] font-semibold transition-colors ${
-        active ? "border-tp-blue-500 text-tp-blue-700" : "border-transparent text-tp-slate-500 hover:text-tp-slate-700"
+      className={`relative flex items-center gap-[6px] rounded-[8px] px-[14px] py-[7px] font-sans text-[13px] font-semibold transition-all ${
+        active
+          ? "bg-white text-tp-blue-700 shadow-[0_1px_3px_rgba(15,23,42,0.1)]"
+          : "text-tp-slate-500 hover:text-tp-slate-700"
       }`}
     >
       {icon}
       {label}
       {count > 0 && (
-        <span className={`inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-[4px] font-sans text-[9px] font-semibold tabular-nums ${active ? "bg-tp-blue-100 text-tp-blue-700" : "bg-tp-slate-100 text-tp-slate-500"}`}>
+        <span className={`inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-[4px] font-sans text-[9px] font-semibold tabular-nums ${active ? "bg-tp-blue-100 text-tp-blue-700" : "bg-tp-slate-200 text-tp-slate-500"}`}>
           {count}
         </span>
       )}

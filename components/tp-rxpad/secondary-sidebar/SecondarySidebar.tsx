@@ -10,7 +10,7 @@ import { ContentPanel } from "./ContentPanel";
 import type { NavItemId } from "./types";
 
 export function SecondarySidebar() {
-  const [activeId, setActiveId] = useState<NavItemId | null>("pastVisits");
+  const [activeId, setActiveId] = useState<NavItemId | null>(null);
 
   function handleSelect(id: NavItemId) {
     setActiveId((prev) => (prev === id ? null : id));

@@ -206,6 +206,63 @@ const PAST_VISITS: PastVisitEntry[] = [
     writtenRx: [],
   },
   {
+    id: "visit-25-jan-dental",
+    dateLabel: "25 Jan'26 (Dental)",
+    digitalRx: {
+      symptoms: [
+        { label: "Tooth pain — 36 (lower left)", detail: "5 days | Throbbing | Worsens at night" },
+        { label: "Sensitivity — 16 (upper right)", detail: "2 weeks | Cold & sweet stimuli" },
+      ],
+      examinations: [
+        { label: "Intraoral examination", detail: "Caries on 16 buccal/occlusal, deep cavity 36 with periapical tenderness" },
+        { label: "Periodontal screening", detail: "Calculus on 41 lingual, mild gingival inflammation" },
+      ],
+      diagnoses: [
+        { label: "Irreversible pulpitis — 36", detail: "Deep caries with pulpal involvement" },
+        { label: "Dental caries — 16", detail: "Early cavity, buccal and occlusal surfaces" },
+        { label: "Calculus — 41", detail: "Supragingival, lingual surface" },
+      ],
+      medications: [
+        {
+          label: "Amoxicillin 500",
+          detail: "1 capsule | 1-0-1 | After Food | 5 days",
+          row: {
+            medicine: "Amoxicillin 500",
+            unitPerDose: "1 Capsule",
+            frequency: "1 - 0 - 1",
+            when: "After Food",
+            duration: "5 Days",
+            note: "Pre-RCT antibiotic cover",
+          },
+        },
+        {
+          label: "Ibuprofen 400",
+          detail: "1 tablet | SOS | After Food",
+          row: {
+            medicine: "Ibuprofen 400",
+            unitPerDose: "1 Tablet",
+            frequency: "SOS",
+            when: "After Food",
+            duration: "3 Days",
+            note: "For pain management",
+          },
+        },
+      ],
+      advice: "Avoid chewing on left side. Warm salt water rinse 3×/day. RCT sitting 1 scheduled for 28 Jan. Scaling appointment to follow.",
+      followUp: "After 3 days (RCT sitting 1)",
+      labInvestigations: [],
+      vitals: {
+        bpSystolic: "122",
+        bpDiastolic: "78",
+        temperature: "98.6",
+        heartRate: "76",
+        respiratoryRate: "16",
+      },
+      additionalNotes: "Dental consultation — treatment plan: RCT on 36, composite restoration on 16, full-mouth scaling. Crown (PFM) on 26 post-RCT.",
+    },
+    writtenRx: [],
+  },
+  {
     id: "visit-24-jan",
     dateLabel: "24 Jan'26",
     digitalRx: {

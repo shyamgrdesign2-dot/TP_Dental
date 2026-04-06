@@ -14,7 +14,7 @@ export function TPRxPadShell({ topNav, sidebar, children }: TPRxPadShellProps) {
       {topNav}
       <div className="flex h-[calc(100vh-62px)] overflow-hidden">
         <aside className="h-full shrink-0">{sidebar}</aside>
-        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-tp-slate-100">{children}</main>
+        <main className="min-w-0 flex-1 flex flex-col overflow-hidden bg-tp-slate-100">{children}</main>
       </div>
     </div>
   )

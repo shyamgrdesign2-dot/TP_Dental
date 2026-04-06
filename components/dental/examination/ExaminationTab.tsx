@@ -740,36 +740,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
             <MinimizeIcon size={14} />
           </button>
         </div>
-        {/* Jump-nav — underlined tabs with medical icons */}
-        <nav className="flex items-center gap-[0] overflow-x-auto px-[12px]" role="tablist">
-          {sections.map((s) => {
-            const active = activeSection === s.id
-            return (
-              <button
-                key={s.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => jumpTo(s.id)}
-                className={`relative inline-flex h-[42px] flex-shrink-0 items-center gap-[6px] border-b-[2px] px-[14px] font-sans text-[14px] font-semibold transition-colors ${
-                  active
-                    ? "border-tp-blue-500 text-tp-blue-700"
-                    : "border-transparent text-tp-slate-600 hover:text-tp-slate-800"
-                }`}
-              >
-                <TPMedicalIcon name={s.icon} variant={active ? "bulk" : "linear"} size={18} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-600)"} />
-                {s.label}
-                {s.count > 0 && (
-                  <span className={`inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-[5px] font-sans text-[10px] font-bold tabular-nums ${
-                    active ? "bg-tp-blue-100 text-tp-blue-700" : "bg-tp-slate-100 text-tp-slate-600"
-                  }`}>
-                    {s.count}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </nav>
+        {/* Jump-nav removed — users click directly on section accordions */}
       </header>
 
       {/* SCROLLABLE BODY — neutral #F2F2F2 so white section cards stack visibly without borders */}
