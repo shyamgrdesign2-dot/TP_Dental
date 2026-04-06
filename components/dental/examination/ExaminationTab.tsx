@@ -698,9 +698,9 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
   // Dental charting sections — standard clinical workflow order
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "procedures", label: "Treatment History",      icon: "medical document",     count: diagnosisCount + procedureCount },
-    { id: "findings",   label: "Examination Findings",   icon: "diagnosis",            count: findingCount },
-    { id: "symptoms",   label: "Symptoms",               icon: "Virus",                count: symptomCount },
+    { id: "procedures", label: "Prior Treatment",        icon: "medical service",      count: diagnosisCount + procedureCount },
+    { id: "findings",   label: "Clinical Examination",   icon: "diagnosis",            count: findingCount },
+    { id: "symptoms",   label: "Chief Complaint",        icon: "Virus",                count: symptomCount },
     { id: "planned",    label: "Treatment Plan",         icon: "surgical-scissors-02", count: plannedCount },
     { id: "notes",      label: "Notes",                  icon: "clipboard-activity",   count: notesFilled ? 1 : 0 },
   ]
@@ -760,7 +760,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         {/* Treatment History — tooth-level status chips (Crown/RCT/Implant) + past procedure entries */}
         <div ref={(el) => { sectionRefs.current.procedures = el }}>
           <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
-            header={<SectionHeader title="Treatment History" medicalIcon="medical document"
+            header={<SectionHeader title="Prior Treatment" medicalIcon="medical service"
               onTemplate={activeSection === "procedures" ? () => {} : undefined}
               onSave={activeSection === "procedures" ? () => {} : undefined}
               onClear={activeSection === "procedures" ? () => {
@@ -779,7 +779,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.findings = el }}>
           <AccordionWrap open={activeSection === "findings"} onExpand={() => jumpTo("findings")}
-            header={<SectionHeader title="Examination Findings" medicalIcon="diagnosis"
+            header={<SectionHeader title="Clinical Examination" medicalIcon="diagnosis"
               onTemplate={activeSection === "findings" ? () => {} : undefined}
               onSave={activeSection === "findings" ? () => {} : undefined}
               onClear={activeSection === "findings" ? () => {
@@ -796,7 +796,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.symptoms = el }}>
           <AccordionWrap open={activeSection === "symptoms"} onExpand={() => jumpTo("symptoms")}
-            header={<SectionHeader title="Symptoms" medicalIcon="Virus"
+            header={<SectionHeader title="Chief Complaint" medicalIcon="Virus"
               onTemplate={activeSection === "symptoms" ? () => {} : undefined}
               onSave={activeSection === "symptoms" ? () => {} : undefined}
               onClear={activeSection === "symptoms" ? () => {
@@ -1681,10 +1681,14 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
         ref={anchorRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-[42px] w-full items-center gap-[6px] rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+        className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[14px] transition-colors ${
+          open ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : "bg-white"
+        }`}
       >
-        <Calendar size={14} color="#64748b" variant="Linear" />
-        <span className={`flex-1 text-left truncate ${value ? "" : "text-tp-slate-400"}`}>{value || "e.g. 2 weeks ago"}</span>
+        <span className={`flex-1 text-left truncate ${value ? "text-tp-slate-700" : "text-tp-slate-400"}`}>{value || "e.g. 2 weeks ago"}</span>
+        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }}>
+          <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
         <div
@@ -1692,7 +1696,7 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
           className="fixed z-[9999] rounded-[8px] border border-tp-slate-200 bg-white shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)]"
           style={{ top: pos.top, left: pos.left, width: pos.width }}
         >
-          <ul className="max-h-[200px] overflow-y-auto py-[2px] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
+          <ul className="max-h-[200px] overflow-y-auto py-[2px] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100 [mask-image:linear-gradient(to_bottom,transparent_0px,black_6px,black_calc(100%-6px),transparent_100%)]">
             {presets.map((p) => (
               <li key={p.value}>
                 <button
