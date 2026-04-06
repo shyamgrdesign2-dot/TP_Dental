@@ -14,10 +14,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import dynamic from "next/dynamic"
-import { InfoCircle, TickCircle, ArrowLeft2, Eye, Trash, ArrowRight2, Grid5, Ram, Eraser, More, Add, Edit2, Calendar, SearchNormal1 } from "iconsax-reactjs"
+import { InfoCircle, TickCircle, ArrowLeft2, Eye, Trash, ArrowRight2, Grid5, Ram, Eraser, More, Add, Edit2, Calendar, SearchNormal1, DocumentText, Mouse, Note1, Chart, Health } from "iconsax-reactjs"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { ExpandIcon, MinimizeIcon } from "./ui-icons"
 import type { DentalCanvasState } from "./DentalCanvas"
-import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PROCEDURE_CATALOG } from "./types"
+import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PROCEDURE_CATALOG, QUADRANT_LABELS } from "./types"
 import type { ZoneId, ToothEntry } from "./types"
 import { MiniToothCanvas } from "./MiniToothCanvas"
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons"
@@ -221,10 +232,10 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
         />
       </div>
 
-      {/* Right: Context-aware panel */}
+      {/* Right: Context-aware panel — matches canvas vertical spacing */}
       <aside
-        className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100"
-        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms" }}
+        className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100 my-[12px] mr-[12px]"
+        style={{ width: `calc(${asidePct}% - 12px)`, transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms" }}
       >
         <div
           key={isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"}
@@ -315,33 +326,24 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
 
   return (
     <>
-      <ScoreCard data={scoreData} infoBtnRef={infoBtnRef} showFormula={showFormula} setShowFormula={setShowFormula} />
+      {summary.length > 0 ? (
+        <>
+          <ScoreCard data={scoreData} infoBtnRef={infoBtnRef} showFormula={showFormula} setShowFormula={setShowFormula} />
 
-      {/* Tooth records */}
-      <div className="mt-[20px] mb-[10px] flex items-center gap-[8px] px-[2px]">
-        <h3 className="font-sans text-[14px] font-semibold text-tp-slate-800">
-          Tooth records
-        </h3>
-        {summary.length > 0 && (
-          <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-tp-slate-200 font-sans text-[10px] font-bold text-tp-slate-600 tabular-nums">
-            {summary.length}
-          </span>
-        )}
-      </div>
+          {/* Tooth records */}
+          <div className="mt-[20px] mb-[10px] flex items-center gap-[8px] px-[2px]">
+            <h3 className="font-sans text-[14px] font-semibold text-tp-slate-800">
+              Tooth records
+            </h3>
+            <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-tp-slate-200 font-sans text-[12px] font-bold text-tp-slate-600 tabular-nums">
+              {summary.length}
+            </span>
+          </div>
 
-      {summary.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-[10px] rounded-[16px] border border-dashed border-tp-slate-200 bg-white py-[40px] px-[20px]">
-          <Eye size={32} color="#cbd5e1" variant="Linear" />
-          <p className="font-sans text-[14px] font-semibold text-tp-slate-600">No findings yet</p>
-          <p className="max-w-[260px] text-center font-sans text-[12px] text-tp-slate-400">
-            Click any tooth on the 3D view to add diagnoses or zone findings.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-[8px]">
+          <div className="flex flex-col gap-[8px]">
           {summary.map((entry) => {
             const tooth = TEETH.find((t) => t.fdi === entry.fdi)
-            const toothName = tooth?.name ?? ""
+            const toothName = tooth ? `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` : ""
             const isMax = tooth?.arch === "maxillary"
             // Determine thumbnail color by most-severe diagnosis
             let crownColor = "#E8DDD5", rootColor = "#C4AD97"
@@ -383,7 +385,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
                     <span className="font-sans text-[14px] font-semibold text-tp-slate-800 truncate">
                       {toothName}
                     </span>
-                    <span className="inline-flex h-[20px] items-center rounded-[5px] bg-tp-slate-100 px-[6px] font-sans text-[11px] font-semibold text-tp-slate-600 tabular-nums group-hover:bg-tp-blue-50 group-hover:text-tp-blue-700">
+                    <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[7px] font-sans text-[12px] font-bold text-tp-slate-600 tabular-nums">
                       T{entry.fdi}
                     </span>
                   </div>
@@ -415,6 +417,91 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
               </button>
             )
           })}
+        </div>
+        </>
+      ) : (
+        /* First-time user onboarding — polished educational panel */
+        <div className="flex flex-col gap-[14px]">
+
+          {/* Quick-start steps — clean white card with connected dotted lines */}
+          <div className="rounded-[16px] bg-white p-[18px] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-[10px] mb-[18px]">
+              <div className="flex h-[36px] w-[36px] items-center justify-center rounded-[10px] bg-gradient-to-br from-violet-500 to-purple-600 shrink-0">
+                <TPMedicalIcon name="health care" variant="bulk" size={18} color="#ffffff" />
+              </div>
+              <div>
+                <h3 className="font-sans text-[15px] font-bold text-tp-slate-900">Getting Started</h3>
+                <p className="font-sans text-[12px] text-tp-slate-400">4 simple steps to examine</p>
+              </div>
+            </div>
+
+            {/* Steps with dotted connector lines — icons replace numbers */}
+            <div className="relative flex flex-col gap-[12px]">
+              {[
+                { step: "1", title: "Select a tooth", desc: "Click any tooth on the 3D model to open its detail view", icon: "tooth" },
+                { step: "2", title: "Record findings", desc: "Add treatment history, surface findings, and diagnoses", icon: "diagnosis" },
+                { step: "3", title: "Plan procedures", desc: "Create treatment plans and add clinical notes", icon: "surgical-scissors-02" },
+                { step: "4", title: "View dental score", desc: "Return to full view to see your score and tooth records", icon: "tooth" },
+              ].map((item, idx, arr) => (
+                <div key={item.step} className="relative flex items-center">
+                  {/* Left: icon circle (replacing step numbers) */}
+                  <div className="shrink-0 relative flex items-center justify-center" style={{ width: 36 }}>
+                    <div
+                      className="flex items-center justify-center rounded-full relative z-10"
+                      style={{ width: 34, height: 34, background: "#7c3aed14" }}
+                    >
+                      <TPMedicalIcon name={item.icon} variant="bulk" size={16} color="#7c3aed" />
+                    </div>
+                  </div>
+
+                  {/* Right: content card */}
+                  <div className="flex-1 min-w-0 flex items-center gap-[10px] rounded-[10px] bg-tp-slate-50/80 px-[14px] py-[12px] ml-[10px]">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-[14px] font-semibold text-tp-slate-800">{item.title}</p>
+                      <p className="font-sans text-[12px] text-tp-slate-400 leading-[1.4]">{item.desc}</p>
+                    </div>
+                  </div>
+
+                  {/* Dotted connector line between steps */}
+                  {idx < arr.length - 1 && (
+                    <div
+                      className="absolute z-0"
+                      style={{
+                        left: 17,
+                        top: "calc(50% + 17px)",
+                        height: "calc(100% - 10px)",
+                        width: 0,
+                        borderLeft: "1.5px dashed #c4b5fd",
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Tutorial video — exact PNG image with hover effect */}
+            <div className="mt-[16px] relative rounded-[12px] overflow-hidden cursor-pointer group transition-all hover:shadow-[0_4px_16px_rgba(88,28,135,0.2)] hover:-translate-y-[1px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/tutorial-dental-preview.png"
+                alt="How Dental Works? — Watch tutorial"
+                className="w-full h-auto object-cover rounded-[12px] transition-transform duration-300 group-hover:scale-[1.02]"
+              />
+              {/* Subtle hover overlay */}
+              <div className="absolute inset-0 rounded-[12px] bg-black/0 group-hover:bg-black/10 transition-colors duration-300 pointer-events-none" />
+            </div>
+
+            {/* Pro tip — info icon (linear), highlighted text, no bg on icon */}
+            <div className="mt-[12px] flex items-start gap-[8px] rounded-[10px] bg-amber-50/50 px-[12px] py-[10px]">
+              <InfoCircle size={16} color="#d97706" variant="Linear" className="shrink-0 mt-[1px]" />
+              <p className="font-sans text-[12px] text-amber-700/80 leading-[1.5]">
+                <span className="font-semibold text-amber-800">Pro tip:</span>{" "}
+                <span className="text-amber-700/70">Right-click on any tooth in the </span>
+                <span className="font-semibold text-amber-800">3D model</span>
+                <span className="text-amber-700/70"> to start recording findings instantly.</span>
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </>
@@ -453,7 +540,6 @@ function ScoreCard({
   const { score, rating, affectedTeeth } = data
   const zoneIdx = score >= 90 ? 4 : score >= 75 ? 3 : score >= 60 ? 2 : score >= 40 ? 1 : 0
   // Original TP palette — red → orange → amber → violet → emerald.
-  // Hex values required so alpha-suffix (e.g. `${accent}40`) works in gradients.
   const colour = [
     { accent: "#EF4444", accentDark: "#B91C1C", tint: "#FFE4E6" },  // Off Track — red
     { accent: "#F97316", accentDark: "#C2410C", tint: "#FFEDD5" },  // Improving — orange
@@ -499,7 +585,6 @@ function ScoreCard({
   const bgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 1 1 ${pFull.x} ${pFull.y}`
   const fgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${sweepTotal * progress > 180 ? 1 : 0} 1 ${pProg.x} ${pProg.y}`
   const gid = `gauge-ring-${zoneIdx}`
-  const did = `gauge-disc-${zoneIdx}`
   const infoIconRef = useRef<HTMLSpanElement>(null)
   const [iconAnchor, setIconAnchor] = useState<{ x: number; y: number } | null>(null)
 
@@ -574,7 +659,7 @@ function ScoreCard({
             onMouseEnter={openTooltip}
             onMouseLeave={closeTooltip}
             onClick={openTooltip}
-            className="pointer-events-auto inline-flex items-center gap-[5px] rounded-full px-[12px] py-[3px] font-sans text-[11px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer mt-[2px]"
+            className="pointer-events-auto inline-flex items-center gap-[5px] rounded-full px-[12px] py-[3px] font-sans text-[12px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer mt-[2px]"
             style={{
               background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
               color: colour.accentDark,
@@ -638,8 +723,8 @@ function ScoreTooltip({ anchor, data }: {
         className="w-[220px] rounded-[8px] px-[12px] py-[10px] shadow-[0_6px_18px_-4px_rgba(15,23,42,0.35)]"
         style={{ background: "#0f172a", color: "#ffffff" }}
       >
-        <p className="font-sans text-[11px] font-semibold text-white/95">How this is calculated</p>
-        <p className="mt-[2px] font-sans text-[10px] leading-[14px] text-white/55">
+        <p className="font-sans text-[12px] font-semibold text-white/95">How this is calculated</p>
+        <p className="mt-[2px] font-sans text-[12px] leading-[14px] text-white/55">
           Starts at 100, decreases with diagnoses &amp; findings.
         </p>
         <div className="mt-[8px] flex flex-col gap-[4px]">
@@ -647,7 +732,7 @@ function ScoreTooltip({ anchor, data }: {
           <TooltipRow label="Findings" value={data.breakdown.findings} />
         </div>
         <div className="mt-[7px] flex items-center justify-between border-t border-white/15 pt-[6px]">
-          <span className="font-sans text-[10px] font-medium text-white/60">Total deducted</span>
+          <span className="font-sans text-[12px] font-medium text-white/60">Total deducted</span>
           <span className="font-sans text-[12px] font-bold tabular-nums text-white">−{data.totalDeduction}</span>
         </div>
       </div>
@@ -674,8 +759,8 @@ function ScoreTooltip({ anchor, data }: {
 function TooltipRow({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="font-sans text-[11px] font-medium text-white/80">{label}</span>
-      <span className="font-sans text-[11px] font-semibold tabular-nums text-white">−{value}</span>
+      <span className="font-sans text-[12px] font-medium text-white/80">{label}</span>
+      <span className="font-sans text-[12px] font-semibold tabular-nums text-white">−{value}</span>
     </div>
   )
 }
@@ -688,17 +773,31 @@ function TooltipRow({ label, value }: { label: string; value: number }) {
 //  • Dental examinations / Oral findings / Past procedures (chip sections)
 //  • Sticky footer: Save findings
 // ──────────────────────────────────────────────────────────────
-type SectionId = "procedures" | "findings" | "symptoms" | "planned" | "notes"
+type SectionId = "procedures" | "findings" | "planned" | "notes"
 
 function SingleToothPanel({ state }: { state: DentalCanvasState }) {
   const [activeSection, setActiveSection] = useState<SectionId | null>("procedures")
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
   const tryBack = () => state.onBackToDentition()
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
-    procedures: null, findings: null, symptoms: null, planned: null, notes: null,
+    procedures: null, findings: null, planned: null, notes: null,
   })
 
+  const clearAllToothData = () => {
+    // Clear all diagnoses
+    state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d))
+    // Clear implant
+    if (state.isImplant) state.onToggleImplant()
+    // Clear all entries (findings, procedures, planned)
+    state.currentToothEntries.forEach((e) => state.onRemoveEntry(e.id))
+    // Clear notes
+    state.onUpdateToothNotes("")
+    setShowClearConfirm(false)
+  }
+
+  const hasAnyData = state.currentToothDiagnoses.size > 0 || state.isImplant || state.currentToothEntries.length > 0 || state.currentToothNotes.trim().length > 0
+
   const findingCount = state.currentToothEntries.filter((e) => e.kind === "finding").length
-  const symptomCount = state.currentToothEntries.filter((e) => e.kind === "symptom").length
   const procedureCount = state.currentToothEntries.filter((e) => e.kind === "procedure").length
   const plannedCount = state.currentToothEntries.filter((e) => e.kind === "planned").length
   const diagnosisCount = state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0)
@@ -706,11 +805,10 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
   // Dental charting sections — standard clinical workflow order
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "procedures", label: "Treatment History",         icon: "clipboard-activity",   count: diagnosisCount + procedureCount },
-    { id: "findings",   label: "Clinical Examination",   icon: "medical service",      count: findingCount },
-    { id: "symptoms",   label: "Chief Complaint",        icon: "Virus",                count: symptomCount },
-    { id: "planned",    label: "Treatment Plan",         icon: "surgical-scissors-02", count: plannedCount },
-    { id: "notes",      label: "Overall Tooth Notes",     icon: "Notepad",              count: notesFilled ? 1 : 0 },
+    { id: "procedures", label: "Treatment History",  icon: "clipboard-activity",   count: diagnosisCount + procedureCount },
+    { id: "findings",   label: "Findings",            icon: "diagnosis",            count: findingCount },
+    { id: "planned",    label: "Procedures",          icon: "surgical-scissors-02", count: plannedCount },
+    { id: "notes",      label: "Overall Tooth Notes", icon: "note-2",              count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -741,21 +839,80 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
             />
           </div>
           <h2 className="font-sans text-[16px] font-semibold text-tp-slate-900 truncate">
-            {state.selectedTooth.name}
+            {QUADRANT_LABELS[state.selectedTooth.quadrant]} {state.selectedTooth.name}
           </h2>
-          <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[8px] font-sans text-[12px] font-semibold text-tp-slate-600 tabular-nums">
+          <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[8px] font-sans text-[13px] font-bold text-tp-slate-600 tabular-nums">
             T{state.selectedTooth.fdi}
           </span>
           <div className="flex-1" />
-          <button
-            type="button"
-            onClick={tryBack}
-            aria-label="Back to all teeth"
-            title="Back to all teeth"
-            className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-900 hover:text-white"
-          >
-            <MinimizeIcon size={14} />
-          </button>
+          <div className="flex items-center gap-[6px]">
+            <button
+              type="button"
+              title="Templates"
+              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+            >
+              <Grid5 color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+            </button>
+            <button
+              type="button"
+              title="Save as template"
+              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+            >
+              <Ram color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+            </button>
+            <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  title="Clear all data for this tooth"
+                  disabled={!hasAnyData}
+                  className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Eraser color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="max-w-[400px] rounded-[16px] p-[24px]">
+                <AlertDialogHeader>
+                  <div className="flex items-center gap-[10px] mb-[4px]">
+                    <div className="flex h-[36px] w-[36px] items-center justify-center rounded-[10px] bg-red-50 shrink-0">
+                      <Trash color="#ef4444" size={18} variant="Bulk" />
+                    </div>
+                    <AlertDialogTitle className="font-sans text-[16px] font-semibold text-tp-slate-900">
+                      Clear all data?
+                    </AlertDialogTitle>
+                  </div>
+                  <AlertDialogDescription className="font-sans text-[13px] text-tp-slate-500 leading-[1.5]">
+                    This will remove all treatment history, findings, procedures, and notes for{" "}
+                    <span className="font-semibold text-tp-slate-700">
+                      {QUADRANT_LABELS[state.selectedTooth.quadrant]} {state.selectedTooth.name} (T{state.selectedTooth.fdi})
+                    </span>
+                    . This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="mt-[16px] flex gap-[10px]">
+                  <AlertDialogCancel className="flex-1 h-[40px] rounded-[10px] border border-tp-slate-200 bg-white font-sans text-[13px] font-semibold text-tp-slate-700 hover:bg-tp-slate-50">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={clearAllToothData}
+                    className="flex-1 h-[40px] rounded-[10px] border-0 bg-red-500 font-sans text-[13px] font-semibold text-white hover:bg-red-600"
+                  >
+                    Clear all
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <div className="w-[1px] h-[18px] bg-tp-slate-200 mx-[2px]" />
+            <button
+              type="button"
+              onClick={tryBack}
+              aria-label="Back to all teeth"
+              title="Back to all teeth"
+              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-900 hover:text-white"
+            >
+              <MinimizeIcon size={14} />
+            </button>
+          </div>
         </div>
         {/* Jump-nav removed — users click directly on section accordions */}
       </header>
@@ -787,7 +944,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.findings = el }}>
           <AccordionWrap open={activeSection === "findings"} onExpand={() => jumpTo("findings")}
-            header={<SectionHeader title="Clinical Examination" medicalIcon="medical service"
+            header={<SectionHeader title="Findings" medicalIcon="diagnosis"
               onTemplate={activeSection === "findings" ? () => {} : undefined}
               onSave={activeSection === "findings" ? () => {} : undefined}
               onClear={activeSection === "findings" ? () => {
@@ -802,26 +959,9 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
           </AccordionWrap>
         </div>
 
-        <div ref={(el) => { sectionRefs.current.symptoms = el }}>
-          <AccordionWrap open={activeSection === "symptoms"} onExpand={() => jumpTo("symptoms")}
-            header={<SectionHeader title="Chief Complaint" medicalIcon="Virus"
-              onTemplate={activeSection === "symptoms" ? () => {} : undefined}
-              onSave={activeSection === "symptoms" ? () => {} : undefined}
-              onClear={activeSection === "symptoms" ? () => {
-                state.currentToothEntries.filter((e) => e.kind === "symptom").forEach((e) => state.onRemoveEntry(e.id))
-              } : undefined}
-              clearDisabled={symptomCount === 0}
-              chevron={activeSection === "symptoms" ? "up" : "down"}
-              onClick={() => jumpTo("symptoms")}
-              onChevronClick={() => jumpTo("symptoms")}
-            />}>
-            <EntryTab state={state} kind="symptom" />
-          </AccordionWrap>
-        </div>
-
         <div ref={(el) => { sectionRefs.current.planned = el }}>
           <AccordionWrap open={activeSection === "planned"} onExpand={() => jumpTo("planned")}
-            header={<SectionHeader title="Treatment Plan" medicalIcon="surgical-scissors-02"
+            header={<SectionHeader title="Procedures" medicalIcon="surgical-scissors-02"
               onTemplate={activeSection === "planned" ? () => {} : undefined}
               onSave={activeSection === "planned" ? () => {} : undefined}
               onClear={activeSection === "planned" ? () => {
@@ -838,7 +978,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.notes = el }}>
           <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
-            header={<SectionHeader title="Overall Tooth Notes" medicalIcon="Notepad"
+            header={<SectionHeader title="Overall Tooth Notes" medicalIcon="note-2"
               onTemplate={activeSection === "notes" ? () => {} : undefined}
               onSave={activeSection === "notes" ? () => {} : undefined}
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
@@ -912,7 +1052,7 @@ function SectionHeader({
       )}
       <h4 className="font-sans text-[14px] font-semibold text-tp-slate-800">{title}</h4>
       {typeof count === "number" && count > 0 && (
-        <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-tp-slate-100 px-[5px] font-sans text-[10px] font-bold text-tp-slate-600 tabular-nums">
+        <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-tp-slate-100 px-[5px] font-sans text-[12px] font-bold text-tp-slate-600 tabular-nums">
           {count}
         </span>
       )}
@@ -1087,14 +1227,14 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
               <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
             </colgroup>
             <thead>
-              <tr className="h-[34px] bg-tp-slate-100 text-left font-['Inter',sans-serif] text-[10px] text-tp-slate-500">
+              <tr className="h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500">
                 <th className="border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" />
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">{primaryLabel}</th>
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">SURFACES</th>
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">{kind === "finding" ? "SINCE" : "DATE"}</th>
-                {hasStatus && <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">STATUS</th>}
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">NOTE</th>
-                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-100 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">{primaryLabel}</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">SURFACES</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">{kind === "finding" ? "SINCE" : "DATE"}</th>
+                {hasStatus && <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">STATUS</th>}
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">NOTE</th>
+                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
               </tr>
             </thead>
             <tbody>
@@ -1352,14 +1492,14 @@ function DiagnosisNameCell({
                   className={`flex w-full items-center px-[10px] py-[6px] font-sans text-[12px] text-tp-slate-700 transition-colors ${highlighted ? "bg-tp-slate-100" : "hover:bg-tp-slate-50"} ${isCurrent ? "font-semibold" : ""}`}
                 >
                   <span className="flex-1 text-left">{d}</span>
-                  {isCurrent && <span className="text-tp-slate-400 text-[10px]">current</span>}
+                  {isCurrent && <span className="text-tp-slate-400 text-[12px]">current</span>}
                 </button>
               </li>
             )
           })}
           {filtered.length === 0 && (
             <li>
-              <div className="px-[10px] py-[8px] font-sans text-[11px] text-tp-slate-400">No match</div>
+              <div className="px-[10px] py-[8px] font-sans text-[12px] text-tp-slate-400">No match</div>
             </li>
           )}
         </ul>
@@ -1474,7 +1614,7 @@ function EditableNameCell({
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); commit(draft.trim()) }}
                 onMouseEnter={() => setHighlightIdx(filtered.length)}
-                className={`flex w-full items-center gap-[6px] rounded-[6px] border border-dashed border-tp-blue-300 px-[8px] py-[6px] font-sans text-[11px] font-medium text-tp-blue-700 transition-colors ${highlightIdx === filtered.length ? "bg-tp-blue-50" : "hover:bg-tp-blue-50"}`}
+                className={`flex w-full items-center gap-[6px] rounded-[6px] border border-dashed border-tp-blue-300 px-[8px] py-[6px] font-sans text-[12px] font-medium text-tp-blue-700 transition-colors ${highlightIdx === filtered.length ? "bg-tp-blue-50" : "hover:bg-tp-blue-50"}`}
               >
                 <Add size={12} color="currentColor" variant="Linear" />
                 Add custom: "{draft.trim()}"
@@ -1598,7 +1738,7 @@ function SurfaceCellDropdown({
           <div className="p-[8px]">
             <div className="flex items-center gap-[6px] rounded-[6px] bg-tp-amber-50 px-[10px] py-[7px]">
               <InfoCircle size={13} color="var(--tp-amber-700)" variant="Bold" />
-              <span className="font-sans text-[10px] font-normal text-tp-amber-800 leading-[1.35]">
+              <span className="font-sans text-[12px] font-normal text-tp-amber-800 leading-[1.35]">
                 Tap the <span className="font-bold text-tp-amber-900">3D tooth</span> to select surfaces, or pick from the list below
               </span>
             </div>
@@ -1744,7 +1884,7 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
             ))}
           </ul>
           <div className="border-t border-tp-slate-100 p-[6px]">
-            <label className="mb-[3px] block font-sans text-[9px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400 px-[4px]">
+            <label className="mb-[3px] block font-sans text-[12px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400 px-[4px]">
               Custom date
             </label>
             <input
@@ -1806,7 +1946,7 @@ function SurfaceDots({
 }) {
   if (surfaces.length === 0) {
     return (
-      <span className="inline-flex items-center rounded-[5px] bg-tp-slate-100 px-[6px] py-[2px] font-sans text-[10px] font-semibold text-tp-slate-600">
+      <span className="inline-flex items-center rounded-[5px] bg-tp-slate-100 px-[6px] py-[2px] font-sans text-[12px] font-semibold text-tp-slate-600">
         Whole tooth
       </span>
     )
@@ -1823,14 +1963,14 @@ function SurfaceDots({
         <span
           key={z}
           title={getZoneLabel(z, arch, toothPosition)}
-          className="inline-flex h-[18px] items-center gap-[3px] rounded-[4px] px-[5px] font-sans text-[10px] font-bold text-white tabular-nums"
+          className="inline-flex h-[18px] items-center gap-[3px] rounded-[4px] px-[5px] font-sans text-[12px] font-bold text-white tabular-nums"
           style={{ background: ZONE_INFO[z].color }}
         >
           {abbr(z)}
         </span>
       ))}
       {overflow > 0 && (
-        <span className="inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-sans text-[10px] font-semibold text-tp-slate-600">
+        <span className="inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-sans text-[12px] font-semibold text-tp-slate-600">
           +{overflow}
         </span>
       )}
@@ -1989,13 +2129,13 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[];
               <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
             </colgroup>
             <thead>
-              <tr className="h-[34px] bg-tp-slate-100 text-left font-['Inter',sans-serif] text-[10px] text-tp-slate-500">
+              <tr className="h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500">
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SYMPTOM</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SURFACES</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SINCE</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SEVERITY</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">NOTE</th>
-                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-100 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
+                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
               </tr>
             </thead>
             <tbody>
@@ -2133,12 +2273,12 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
               <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
             </colgroup>
             <thead>
-              <tr className="h-[34px] bg-tp-slate-100 text-left font-['Inter',sans-serif] text-[10px] text-tp-slate-500">
+              <tr className="h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500">
                 <th className="border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" />
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">DIAGNOSIS</th>
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">SINCE</th>
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">NOTE</th>
-                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-100 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">DIAGNOSIS</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">SINCE</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">NOTE</th>
+                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
               </tr>
             </thead>
             <tbody>

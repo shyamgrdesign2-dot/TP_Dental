@@ -12,7 +12,8 @@ export type NavItemId =
   | "medicalRecords"
   | "labResults"
   | "personalNotes"
-  | "dental";
+  | "dental"
+  | "dentalPlan";
 
 /** Sections that have real data */
 export const SECTIONS_WITH_DATA: NavItemId[] = [

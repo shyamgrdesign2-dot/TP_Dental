@@ -1,4 +1,7 @@
+"use client"
+
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   ArrowDown2,
   Calendar2,
@@ -24,6 +27,7 @@ type RxpadHeaderProps = {
 }
 
 export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
+  const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   return (
@@ -116,6 +120,13 @@ export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
                     </button>
                     <button
                       type="button"
+                      onClick={() => {
+                        setIsProfileOpen(false)
+                        // Navigate to patient detail page; use patientId from URL if available
+                        const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
+                        const pid = params.get("patientId") ?? "apt-1"
+                        router.push(`/patient-detail?patientId=${pid}&from=rxpad`)
+                      }}
                       className="inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-[14px] border border-tp-blue-200 bg-white px-4 text-tp-blue-500 hover:bg-tp-blue-50/40"
                     >
                       <ClipboardText color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
@@ -181,11 +192,11 @@ export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
             <TPSplitButton
               primaryAction={{
                 label: "End Visit",
-                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M11.68 14.2909L14.24 11.7309L11.68 9.1709" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M4 11.7305H13.17" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M12 3.6709H20V19.6709H12" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /></svg>,
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M8.9 7.56c.31-3.6 2.16-5.07 6.21-5.07h.13c4.47 0 6.26 1.79 6.26 6.26v6.52c0 4.47-1.79 6.26-6.26 6.26h-.13c-4.02 0-5.87-1.45-6.2-4.99" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12h12.88" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M12.65 8.65L16 12l-3.35 3.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>,
                 onClick: () => {},
               }}
               secondaryActions={[
-                { id: "end-visit", label: "End Visit", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M11.68 14.2909L14.24 11.7309L11.68 9.1709" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M4 11.7305H13.17" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /><path d="M12 3.6709H20V19.6709H12" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="square" /></svg>, onClick: () => {} },
+                { id: "end-visit", label: "End Visit", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M8.9 7.56c.31-3.6 2.16-5.07 6.21-5.07h.13c4.47 0 6.26 1.79 6.26 6.26v6.52c0 4.47-1.79 6.26-6.26 6.26h-.13c-4.02 0-5.87-1.45-6.2-4.99" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12h12.88" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M12.65 8.65L16 12l-3.35 3.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>, onClick: () => {} },
                 { id: "draft", label: "Save as Draft", icon: <DocumentSketch color="currentColor" size={14} variant="Linear" />, onClick: () => {} },
               ]}
               variant="solid"

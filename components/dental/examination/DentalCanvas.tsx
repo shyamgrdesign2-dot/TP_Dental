@@ -352,6 +352,8 @@ export function DentalCanvas({
       setZoneHitPoints(prev => ({ ...prev, [key]: hitPoint }))
     }
     if (opts?.multi) {
+      // Always rotate camera to the clicked surface — even during multi-select
+      setSelectedZone(zone)
       setMultiSelectZones((prev) => {
         const next = new Set(prev)
         if (next.has(zone)) next.delete(zone)
@@ -517,7 +519,7 @@ export function DentalCanvas({
                 <path d="M15 19.92L8.48 13.4c-.77-.77-.77-2.03 0-2.8L15 4.08" stroke="#1e293b" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2.2" />
               </svg>
               {QUADRANT_LABELS[selectedTooth.quadrant]} {selectedTooth.name}
-              <span className="tooth-fdi">#{selectedTooth.fdi}</span>
+              <span className="tooth-fdi">T{selectedTooth.fdi}</span>
             </div>
           )}
         </div>
@@ -605,6 +607,8 @@ export function DentalCanvas({
                 onSelectTooth={handleSelectTooth}
                 onHoverTooth={setHoveredToothFdi}
                 externalHoveredFdi={hoveredToothFdi}
+                allEntries={allEntries}
+                toothNotes={toothNotes}
               />
             ) : (
               <Tooth

@@ -40,6 +40,7 @@ const SECTION_TITLES: Record<NavItemId, string> = {
   labResults:    "Lab Results",
   personalNotes: "Personal Notes",
   dental:        "Dental History",
+  dentalPlan:    "Dental Treatment Plan",
 };
 
 // ─── Section header (gradient bar) ───────────────────────────────────────────
@@ -125,7 +126,7 @@ type Props = {
 
 export function ContentPanel({ activeId, onClose }: Props) {
   return (
-    <div className="bg-white content-stretch flex h-full w-[250px] min-w-[250px] max-w-[250px] shrink-0 flex-col items-center relative xl:w-[clamp(250px,26vw,350px)] xl:max-w-[350px]">
+    <div className="bg-white content-stretch flex h-full w-[420px] min-w-[420px] max-w-[560px] shrink-0 flex-col items-center relative xl:w-[clamp(420px,42vw,560px)] xl:max-w-[560px]">
       <div aria-hidden="true" className={`absolute ${rxSidebarTokens.panelBorderClass} border-r border-solid inset-[0_-1px_0_0] pointer-events-none`} />
       <SectionHeader title={SECTION_TITLES[activeId]} onClose={onClose} />
       {/* flex-[1_0_0] + min-h-px → constrains height so inner overflow-y-auto works */}

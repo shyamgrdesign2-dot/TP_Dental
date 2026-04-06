@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * SecondaryNavPanel — 80px left sidebar
  * Mixed icon source:
@@ -5,6 +7,7 @@
  * - iconsax for requested utility nav items
  */
 import React, { useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowDown2, DocumentText, Glass, Note1, Notepad2, Ruler } from "iconsax-reactjs"
 import { ToothIcon } from "@/components/dental/ToothIcon"
 
@@ -96,13 +99,15 @@ const NAV_ITEMS: Array<{
   id: NavItemId
   label: string
   icon: NavIconConfig
+  navigateTo?: string  // if set, clicking navigates instead of opening panel
 }> = [
-  { id: "pastVisits", label: "Past Visits", icon: { kind: "iconsax", Icon: Note1 } },
-  { id: "vitals", label: "Vitals", icon: { kind: "medical", name: "Heart Rate" } },
-  { id: "history", label: "Medical History", icon: { kind: "medical", name: "clipboard-activity" } },
-  { id: "medicalRecords", label: "Records", icon: { kind: "medical", name: "health-file-03" } },
-  { id: "labResults", label: "Lab Results", icon: { kind: "medical", name: "Lab" } },
+  { id: "pastVisits",  label: "Past Visits",    icon: { kind: "iconsax",  Icon: Note1 } },
+  { id: "vitals",      label: "Vitals",          icon: { kind: "medical",  name: "Heart Rate" } },
+  { id: "history",     label: "Medical History", icon: { kind: "medical",  name: "clipboard-activity" } },
+  { id: "medicalRecords", label: "Records",      icon: { kind: "medical",  name: "health-file-03" } },
+  { id: "labResults",  label: "Lab Results",     icon: { kind: "medical",  name: "Lab" } },
   { id: "personalNotes", label: "Personal Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  { id: "dentalPlan",  label: "Dental Plan",     icon: { kind: "medical",  name: "surgical-scissors-02" }, navigateTo: "/treatment-plan" },
 ]
 
 function DrAgentGlyph({ active }: { active: boolean }) {
@@ -246,6 +251,8 @@ type Props = {
 }
 
 export function NavPanel({ active, onSelect }: Props) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const [showScrollHint, setShowScrollHint] = useState(false)
 
@@ -283,14 +290,21 @@ export function NavPanel({ active, onSelect }: Props) {
         className="content-stretch flex flex-col gap-[4px] h-full items-center overflow-x-visible overflow-y-auto relative [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         style={{ ...NAV_BG, width: rxSidebarTokens.railWidth }}
       >
-        {NAV_ITEMS.map(({ id, label, icon }) => (
+        {NAV_ITEMS.map(({ id, label, icon, navigateTo }) => (
           <NavItem
             key={id}
             id={id}
             label={label}
             icon={icon}
             active={active === id}
-            onClick={onSelect}
+            onClick={(id) => {
+              if (navigateTo) {
+                const patientId = searchParams?.get("patientId") ?? "apt-1"
+                router.push(`${navigateTo}?patientId=${patientId}`)
+              } else {
+                onSelect(id)
+              }
+            }}
           />
         ))}
       </div>

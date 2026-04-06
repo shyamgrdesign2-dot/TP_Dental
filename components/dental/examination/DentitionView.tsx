@@ -4,7 +4,7 @@ import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { useGLTF, Html, Center } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { TEETH, ARCH_POSITIONS, ZONE_INFO, getZoneLabel, type ToothDef, type Finding } from './types'
+import { TEETH, ARCH_POSITIONS, ZONE_INFO, getZoneLabel, QUADRANT_LABELS, type ToothDef, type Finding, type ToothEntry } from './types'
 import {
   cloneSceneWithUniqueMaterials,
   injectShader,
@@ -336,10 +336,10 @@ const ArchTooth = memo(function ArchTooth({
           }}>
             {diagLabels.map(d => (
               <span key={d} style={{
-                fontSize: '7px', fontWeight: 600, padding: '1px 5px',
-                borderRadius: '3px', fontFamily: 'Inter, system-ui, sans-serif',
-                background: 'rgba(107, 114, 128, 0.72)', color: '#fff', lineHeight: '1.2',
-                backdropFilter: 'blur(3px)',
+                fontSize: '11px', fontWeight: 600, padding: '2px 7px',
+                borderRadius: '4px', fontFamily: 'Inter, system-ui, sans-serif',
+                background: 'rgba(107, 114, 128, 0.78)', color: '#fff', lineHeight: '1.3',
+                backdropFilter: 'blur(3px)', letterSpacing: '0.01em',
               }}>{d}</span>
             ))}
           </div>
@@ -360,6 +360,8 @@ interface DentitionViewProps {
   onSelectTooth: (tooth: ToothDef) => void
   onHoverTooth?: (fdi: string | null) => void
   externalHoveredFdi?: string | null
+  allEntries?: ToothEntry[]
+  toothNotes?: Record<string, string>
 }
 
 export default function DentitionView({
@@ -369,6 +371,8 @@ export default function DentitionView({
   onSelectTooth,
   onHoverTooth,
   externalHoveredFdi,
+  allEntries,
+  toothNotes,
 }: DentitionViewProps) {
   const [hoveredTooth, setHoveredToothInternal] = useState<string | null>(null)
   // Wrap setter to also notify parent.
@@ -428,6 +432,8 @@ export default function DentitionView({
           findings={findingsByTooth[activeTooth.fdi] || []}
           diagnoses={toothDiagnoses[activeTooth.fdi]}
           isImplant={implantTeeth.has(activeTooth.fdi)}
+          allEntries={allEntries}
+          toothNotes={toothNotes}
         />
       )}
     </group>
@@ -439,12 +445,14 @@ export default function DentitionView({
 // screen regardless of tooth rotation. Only the leader line updates.
 // ══════════════════════════════════════════════════════════════
 function DentitionTooltip({
-  tooth, findings, diagnoses, isImplant,
+  tooth, findings, diagnoses, isImplant, allEntries, toothNotes,
 }: {
   tooth: ToothDef
   findings: Finding[]
   diagnoses: Set<string> | undefined
   isImplant: boolean
+  allEntries?: ToothEntry[]
+  toothNotes?: Record<string, string>
 }) {
   const tooltipGroupRef = useRef<THREE.Group>(null!)
   const lineRef = useRef<any>(null)
@@ -502,11 +510,25 @@ function DentitionTooltip({
     return Array.from(m.entries())
   }, [findings])
 
+  // Derive data for 4-section tooltip
   const diagLabels: string[] = []
   if (diagnoses) { for (const d of diagnoses) diagLabels.push(d) }
   if (isImplant && !diagLabels.includes('Implant')) diagLabels.push('Implant')
 
-  const hasContent = diagLabels.length > 0 || grouped.length > 0
+  const toothEntries = useMemo(() => (allEntries ?? []).filter(e => e.toothFdi === tooth.fdi), [allEntries, tooth.fdi])
+  const procedures = toothEntries.filter(e => e.kind === 'procedure')
+  const planned = toothEntries.filter(e => e.kind === 'planned')
+  const noteText = toothNotes?.[tooth.fdi] ?? ''
+
+  // Treatment History = diagnoses + procedures
+  const treatmentHistory = [...diagLabels, ...procedures.map(p => p.name)].filter(Boolean)
+  // Has any content across all 4 sections?
+  const hasContent = treatmentHistory.length > 0 || grouped.length > 0 || planned.length > 0 || noteText.length > 0
+
+  const sectionHeadingStyle: React.CSSProperties = {
+    fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.6px',
+    color: '#cbd5e1', marginBottom: '4px', fontWeight: 600,
+  }
 
   return (
     <>
@@ -529,46 +551,56 @@ function DentitionTooltip({
           <div style={{
             transform: tooltipTransform,
             transformOrigin: tooltipOrigin,
-            background: 'rgba(0, 0, 0, 0.78)', color: '#fff',
-            backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-            padding: '10px 13px', borderRadius: '8px', fontSize: '12px',
+            background: 'rgba(15, 23, 42, 0.88)', color: '#fff',
+            backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+            padding: hasContent ? '12px 14px' : '10px 13px', borderRadius: '10px', fontSize: '12px',
             fontFamily: "'Inter', sans-serif",
-            minWidth: '180px', maxWidth: '220px', whiteSpace: 'normal',
-            boxShadow: '0 4px 18px rgba(0,0,0,0.45)',
-            borderLeft: '3px solid #60a5fa',
+            minWidth: '240px', maxWidth: '320px', whiteSpace: 'normal',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)',
             textAlign: 'left',
           }}>
+            {/* Heading: T{fdi} · Full Name */}
             <div style={{
-              fontWeight: 700, fontSize: '12px',
-              paddingBottom: hasContent ? '7px' : 0,
-              marginBottom: hasContent ? '7px' : 0,
-              borderBottom: hasContent ? '1px solid rgba(255,255,255,0.12)' : 'none',
-              display: 'flex', alignItems: 'center', gap: '6px', lineHeight: 1.3,
+              fontWeight: 700, fontSize: '13px',
+              paddingBottom: hasContent ? '8px' : 0,
+              marginBottom: hasContent ? '10px' : 0,
+              borderBottom: hasContent ? '1px solid rgba(255,255,255,0.1)' : 'none',
+              display: 'flex', alignItems: 'center', gap: '7px', lineHeight: 1.3,
+              whiteSpace: 'nowrap',
             }}>
-              <span style={{ color: '#93c5fd' }}>#{tooth.fdi}</span>
-              <span style={{ fontWeight: 500, color: '#e5e7eb' }}>{tooth.name}</span>
+              <span style={{
+                color: '#475569', background: '#f1f5f9', borderRadius: '4px',
+                padding: '1px 6px', fontSize: '12px', fontWeight: 700, flexShrink: 0,
+              }}>T{tooth.fdi}</span>
+              <span style={{ fontWeight: 600, color: '#f1f5f9', flexShrink: 0 }}>{QUADRANT_LABELS[tooth.quadrant]} {tooth.name}</span>
             </div>
-            {diagLabels.length > 0 && (
-              <div style={{ marginBottom: grouped.length > 0 ? '9px' : 0 }}>
-                <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#cbd5e1', marginBottom: '4px', fontWeight: 600 }}>
-                  Diagnosis
-                </div>
+
+            {/* Section 1: Treatment History */}
+            {treatmentHistory.length > 0 && (
+              <div style={{
+                marginBottom: (grouped.length > 0 || planned.length > 0 || noteText) ? '8px' : 0,
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+              }}>
+                <div style={sectionHeadingStyle}>Treatment History</div>
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  {diagLabels.map(d => (
+                  {treatmentHistory.map(d => (
                     <span key={d} style={{
                       fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
-                      background: 'rgba(107,114,128,0.85)', color: '#fff',
+                      background: 'rgba(148,163,184,0.3)', color: '#f1f5f9',
                     }}>{d}</span>
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Section 2: Findings (surface findings) */}
             {grouped.length > 0 && (
-              <div>
-                <div style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#cbd5e1', marginBottom: '5px', fontWeight: 600 }}>
-                  Surface Findings
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              <div style={{
+                marginBottom: (planned.length > 0 || noteText) ? '8px' : 0,
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+              }}>
+                <div style={sectionHeadingStyle}>Findings</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {grouped.map(([zid, types]) => {
                     const zc = ZONE_INFO[zid as keyof typeof ZONE_INFO]?.color || '#888'
                     const zl = getZoneLabel(zid as any, tooth.arch, tooth.position)
@@ -579,16 +611,43 @@ function DentitionTooltip({
                           flexShrink: 0, marginTop: '3px',
                         }} />
                         <span style={{ fontWeight: 600, color: zc, minWidth: '56px' }}>{zl}</span>
-                        <span style={{ color: '#e5e7eb' }}>{types.join(', ')}</span>
+                        <span style={{ color: '#e2e8f0' }}>{types.join(', ')}</span>
                       </div>
                     )
                   })}
                 </div>
               </div>
             )}
+
+            {/* Section 3: Procedures */}
+            {planned.length > 0 && (
+              <div style={{
+                marginBottom: noteText ? '8px' : 0,
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+              }}>
+                <div style={sectionHeadingStyle}>Procedures</div>
+                <div style={{ fontSize: '10px', color: '#e2e8f0', lineHeight: 1.4 }}>
+                  {planned.map(p => p.name).join(', ')}
+                </div>
+              </div>
+            )}
+
+            {/* Section 4: Notes */}
+            {noteText && (
+              <div style={{
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+              }}>
+                <div style={sectionHeadingStyle}>Notes</div>
+                <div style={{ fontSize: '10px', color: '#e2e8f0', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  &ldquo;{noteText.length > 80 ? noteText.slice(0, 80) + '…' : noteText}&rdquo;
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
             {!hasContent && (
-              <div style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic' }}>
-                No findings — click to examine
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
+                Click on the tooth to start adding details
               </div>
             )}
           </div>

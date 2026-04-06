@@ -667,8 +667,11 @@ export function DrAgentPage() {
 
                                 <td className="px-3 py-3 align-middle">
                                   <div className="max-w-[200px] overflow-hidden">
-                                    {/* Patient name: hover underline */}
-                                    <p className="cursor-pointer truncate text-sm font-semibold text-tp-blue-500 hover:underline">
+                                    {/* Patient name: hover underline → opens patient detail */}
+                                    <p
+                                      className="cursor-pointer truncate text-sm font-semibold text-tp-blue-500 hover:underline"
+                                      onClick={() => router.push(`/patient-detail?patientId=${row.id}&from=appointments`)}
+                                    >
                                       {row.name}
                                     </p>
                                     <p className="mt-1 truncate text-sm text-tp-slate-700">

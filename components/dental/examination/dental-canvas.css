@@ -43,8 +43,16 @@
   -webkit-backdrop-filter: blur(8px);
   border-radius: 8px;
 }
-.dental-canvas-root .tooth-fdi { font-size: 10px; color: #717179; font-weight: 500; }
-.dental-canvas-root .tooth-fdi { font-weight: 500; color: #aaa; margin-left: 6px; font-size: 13px; }
+.dental-canvas-root .tooth-fdi {
+  font-weight: 700;
+  color: #475569;
+  margin-left: 4px;
+  font-size: 13px;
+  background: #f1f5f9;
+  border-radius: 5px;
+  padding: 2px 8px;
+  letter-spacing: 0.3px;
+}
 
 /* ── Zone Navigator with Arrows ── */
 .dental-canvas-root .zone-navigator {
@@ -121,8 +129,8 @@
   letter-spacing: 0.5px;
 }
 .dental-canvas-root .tooth-pick {
-  flex: 1; min-width: 0; height: 24px; border: 1px solid #e2e8f0; border-radius: 5px;
-  background: #fff; font-size: 9px; font-weight: 600; color: #64748b; cursor: pointer;
+  flex: 1; min-width: 0; height: 26px; border: 1px solid #e2e8f0; border-radius: 5px;
+  background: #fff; font-size: 10px; font-weight: 700; color: #475569; cursor: pointer;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex; align-items: center; justify-content: center; padding: 0;
   font-family: 'Inter', sans-serif;
