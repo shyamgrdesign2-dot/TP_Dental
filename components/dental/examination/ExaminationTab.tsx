@@ -232,10 +232,10 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
         />
       </div>
 
-      {/* Right: Context-aware panel — matches canvas vertical spacing */}
+      {/* Right: Context-aware panel — flush with canvas edges */}
       <aside
-        className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100 my-[12px] mr-[12px]"
-        style={{ width: `calc(${asidePct}% - 12px)`, transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms" }}
+        className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100"
+        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms" }}
       >
         <div
           key={isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"}
@@ -248,14 +248,14 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           }}
         >
           {isSingle && canvasState ? (
-            <div className="flex h-full w-full flex-col p-[12px]">
+            <div className="flex h-full w-full flex-col px-[12px] py-[12px]">
               {/* Expanding card wrapping the whole single-tooth view */}
               <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border-[2px] border-white">
                 <SingleToothPanel state={canvasState} />
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto p-[16px]">
+            <div className="flex-1 overflow-y-auto px-[16px] py-[12px]">
               <DentitionPanel state={canvasState} />
             </div>
           )}
@@ -1002,20 +1002,46 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// AccordionWrap — simple rounded card that collapses its body.
+// AccordionWrap — rounded card with animated expand/collapse.
+// Uses a measured height transition so content visibly slides open/shut.
 // ──────────────────────────────────────────────────────────────
 function AccordionWrap({
   open, header, children, onExpand,
 }: { open: boolean; header: React.ReactNode; children: React.ReactNode; onExpand: () => void }) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [bodyHeight, setBodyHeight] = useState(0)
+
+  // Measure the natural height of the body content whenever it changes
+  useEffect(() => {
+    if (!open || !bodyRef.current) { setBodyHeight(0); return }
+    const measure = () => {
+      if (bodyRef.current) setBodyHeight(bodyRef.current.scrollHeight)
+    }
+    measure()
+    // Re-measure on resize or content change
+    const ro = new ResizeObserver(measure)
+    ro.observe(bodyRef.current)
+    return () => ro.disconnect()
+  }, [open, children])
+
   return (
     <div
-      className={`rounded-[14px] bg-white overflow-hidden transition-all ${
+      className={`rounded-[14px] bg-white overflow-hidden transition-shadow duration-300 ${
         open ? "shadow-[0_2px_10px_-2px_rgba(15,23,42,0.10)]" : ""
       }`}
       onClick={open ? undefined : onExpand}
     >
       {header}
-      {open && <div>{children}</div>}
+      <div
+        style={{
+          height: open ? bodyHeight : 0,
+          opacity: open ? 1 : 0,
+          overflow: "hidden",
+          transition: "height 380ms cubic-bezier(0.25, 0.8, 0.25, 1), opacity 280ms ease",
+        }}
+      >
+        <div ref={bodyRef}>{children}</div>
+      </div>
     </div>
   )
 }

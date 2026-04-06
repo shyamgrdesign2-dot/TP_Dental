@@ -68,7 +68,7 @@ function RxPadInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "apt-1"
-  const [activeTab, setActiveTab] = useState<RxTabId>("dental")
+  const [activeTab, setActiveTab] = useState<RxTabId>("base")
 
   // ── Carousel swipe state ──
   const containerRef = useRef<HTMLDivElement>(null)
@@ -288,7 +288,7 @@ function RxPadInner() {
             style={{
               width: `${TAB_IDS.length * 100}%`,
               transform: `translateX(${trackTranslateX})`,
-              transition: isDragging ? "none" : "transform 420ms cubic-bezier(0.32, 0.72, 0, 1)",
+              transition: isDragging ? "none" : "transform 580ms cubic-bezier(0.25, 0.8, 0.25, 1)",
               willChange: isDragging ? "transform" : "auto",
             }}
           >

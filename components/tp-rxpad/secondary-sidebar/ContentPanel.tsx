@@ -126,7 +126,18 @@ type Props = {
 
 export function ContentPanel({ activeId, onClose }: Props) {
   return (
-    <div className="bg-white content-stretch flex h-full w-[420px] min-w-[420px] max-w-[560px] shrink-0 flex-col items-center relative xl:w-[clamp(420px,42vw,560px)] xl:max-w-[560px]">
+    <div
+      className="bg-white content-stretch flex h-full w-[420px] min-w-[420px] max-w-[560px] shrink-0 flex-col items-center relative xl:w-[clamp(420px,42vw,560px)] xl:max-w-[560px]"
+      style={{
+        animation: "sidebarSlideIn 380ms cubic-bezier(0.25, 0.8, 0.25, 1) both",
+      }}
+    >
+      <style>{`
+        @keyframes sidebarSlideIn {
+          from { opacity: 0; transform: translateX(-24px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
       <div aria-hidden="true" className={`absolute ${rxSidebarTokens.panelBorderClass} border-r border-solid inset-[0_-1px_0_0] pointer-events-none`} />
       <SectionHeader title={SECTION_TITLES[activeId]} onClose={onClose} />
       {/* flex-[1_0_0] + min-h-px → constrains height so inner overflow-y-auto works */}
