@@ -1086,7 +1086,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                           type="date"
                           value={e.plannedDate ?? ""}
                           onChange={(ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined })}
-                          className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                          className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                         />
                       )}
                     </td>
@@ -1096,7 +1096,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                         <select
                           value={e.status ?? "planned"}
                           onChange={(ev) => state.onUpdateEntry(e.id, { status: ev.target.value as ToothEntry["status"] })}
-                          className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                          className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                         >
                           <option value="planned">Planned</option>
                           <option value="in-progress">In progress</option>
@@ -1111,7 +1111,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                         value={e.notes ?? ""}
                         onChange={(ev) => state.onUpdateEntry(e.id, { notes: ev.target.value })}
                         placeholder="e.g. Monitor at next visit"
-                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                       />
                     </td>
                     {/* Sticky delete */}
@@ -1272,7 +1272,7 @@ function DiagnosisNameCell({
           }}
           onBlur={() => { /* close handled by outside click */ }}
           placeholder={name}
-          className="h-[42px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-semibold focus:outline-none"
+          className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-semibold focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
         />
       )}
       {open && (
@@ -1384,7 +1384,7 @@ function EditableNameCell({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKeyDown}
-        className="h-[42px] w-full rounded-none border-0 bg-tp-blue-50/30 px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 focus:outline-none"
+        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
       />
       {(filtered.length > 0 || showCustom) && (
         <div className="absolute left-0 top-[calc(100%+4px)] z-[9999] w-full min-w-[200px] max-h-[240px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
@@ -1505,7 +1505,7 @@ function SurfaceCellDropdown({
         type="button"
         onClick={() => { onActivate(); setOpen((o) => !o) }}
         className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[12px] transition-colors ${
-          open ? "bg-tp-blue-50 ring-1 ring-inset ring-tp-blue-400" : isActive ? "bg-tp-blue-50/30" : "bg-transparent hover:bg-tp-slate-100/60"
+          open ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : isActive ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : "bg-white"
         }`}
       >
         <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
@@ -1651,7 +1651,7 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
         ref={anchorRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-[42px] w-full items-center gap-[6px] rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100/60 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+        className="inline-flex h-[42px] w-full items-center gap-[6px] rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
       >
         <Calendar size={14} color="#64748b" variant="Linear" />
         <span className={`flex-1 text-left truncate ${value ? "" : "text-tp-slate-400"}`}>{value || "e.g. 2 weeks ago"}</span>
@@ -1853,19 +1853,19 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
                     <input type="text" value={r.surfaces} onChange={(e) => updateRow(r.id, { surfaces: e.target.value })} placeholder="e.g. Buccal"
-                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                      className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                     />
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
                     <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="e.g. 5 days"
-                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                      className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                     />
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
                     <select value={r.severity} onChange={(e) => updateRow(r.id, { severity: e.target.value })}
-                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[8px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                      className={`h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] ${r.severity ? "text-tp-slate-700" : "text-tp-slate-400"}`}
                     >
-                      <option value="">e.g. Moderate</option>
+                      <option value="" className="text-tp-slate-400">e.g. Moderate</option>
                       <option value="Mild">Mild</option>
                       <option value="Moderate">Moderate</option>
                       <option value="Severe">Severe</option>
@@ -1873,7 +1873,7 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
                     <input type="text" value={r.note} onChange={(e) => updateRow(r.id, { note: e.target.value })} placeholder="e.g. Worsens at night"
-                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                      className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                     />
                   </td>
                   <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
@@ -2021,7 +2021,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         value={d.note}
                         onChange={(e) => updateDetail(name, { note: e.target.value })}
                         placeholder="e.g. Monitor at next visit"
-                        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                       />
                     </td>
                     <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)] transition-colors hover:bg-tp-slate-100/60">
