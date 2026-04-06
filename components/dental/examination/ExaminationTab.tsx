@@ -683,8 +683,8 @@ function TooltipRow({ label, value }: { label: string; value: number }) {
 type SectionId = "symptoms" | "diagnosis" | "findings" | "procedures" | "notes"
 
 function SingleToothPanel({ state }: { state: DentalCanvasState }) {
-  const [activeSection, setActiveSection] = useState<SectionId>("symptoms")
-  const [toothSymptoms, setToothSymptoms] = useState<string[]>([])
+  const [activeSection, setActiveSection] = useState<SectionId>("diagnosis")
+  const [symptomRows, setSymptomRows] = useState<SymptomRow[]>([])
   const tryBack = () => state.onBackToDentition()
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
     symptoms: null, diagnosis: null, findings: null, procedures: null, notes: null,
@@ -695,12 +695,13 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
   const diagnosisCount = state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0)
   const notesFilled = state.currentToothNotes.trim().length > 0
 
+  // Order: Primary Diagnosis → Findings → Dental Symptoms → Planned Procedures → Notes
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "symptoms",   label: "Dental Symptoms", icon: "Virus",               count: toothSymptoms.length },
-    { id: "diagnosis",  label: "Diagnosis",  icon: "diagnosis",             count: diagnosisCount },
-    { id: "findings",   label: "Findings",   icon: "virus",                 count: findingCount },
-    { id: "procedures", label: "Procedures", icon: "surgical-scissors-02",  count: procedureCount },
-    { id: "notes",      label: "Notes",      icon: "clipboard-activity",    count: notesFilled ? 1 : 0 },
+    { id: "diagnosis",  label: "Diagnosis",        icon: "diagnosis",             count: diagnosisCount },
+    { id: "findings",   label: "Findings",         icon: "virus",                 count: findingCount },
+    { id: "symptoms",   label: "Dental Symptoms",  icon: "Virus",                 count: symptomRows.length },
+    { id: "procedures", label: "Procedures",       icon: "surgical-scissors-02",  count: procedureCount },
+    { id: "notes",      label: "Notes",            icon: "clipboard-activity",    count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -750,20 +751,6 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
         style={{ background: "#F2F2F2" }}
       >
-        <div ref={(el) => { sectionRefs.current.symptoms = el }}>
-          <AccordionWrap open={activeSection === "symptoms"} onExpand={() => jumpTo("symptoms")}
-            header={<SectionHeader title="Dental Symptoms" medicalIcon="Virus"
-              onTemplate={activeSection === "symptoms" ? () => {} : undefined}
-              onSave={activeSection === "symptoms" ? () => {} : undefined}
-              onClear={activeSection === "symptoms" ? () => setToothSymptoms([]) : undefined}
-              clearDisabled={toothSymptoms.length === 0}
-              chevron={activeSection === "symptoms" ? "up" : "down"}
-              onClick={activeSection === "symptoms" ? undefined : () => jumpTo("symptoms")}
-            />}>
-            <DentalSymptomsBody symptoms={toothSymptoms} onUpdate={setToothSymptoms} />
-          </AccordionWrap>
-        </div>
-
         <div ref={(el) => { sectionRefs.current.diagnosis = el }}>
           <AccordionWrap open={activeSection === "diagnosis"} onExpand={() => jumpTo("diagnosis")}
             header={<SectionHeader title="Primary Diagnosis" medicalIcon="diagnosis"
@@ -793,6 +780,20 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               onClick={activeSection === "findings" ? undefined : () => jumpTo("findings")}
             />}>
             <EntryTab state={state} kind="finding" />
+          </AccordionWrap>
+        </div>
+
+        <div ref={(el) => { sectionRefs.current.symptoms = el }}>
+          <AccordionWrap open={activeSection === "symptoms"} onExpand={() => jumpTo("symptoms")}
+            header={<SectionHeader title="Dental Symptoms" medicalIcon="Virus"
+              onTemplate={activeSection === "symptoms" ? () => {} : undefined}
+              onSave={activeSection === "symptoms" ? () => {} : undefined}
+              onClear={activeSection === "symptoms" ? () => setSymptomRows([]) : undefined}
+              clearDisabled={symptomRows.length === 0}
+              chevron={activeSection === "symptoms" ? "up" : "down"}
+              onClick={activeSection === "symptoms" ? undefined : () => jumpTo("symptoms")}
+            />}>
+            <DentalSymptomsBody rows={symptomRows} onUpdateRows={setSymptomRows} />
           </AccordionWrap>
         </div>
 
@@ -1777,77 +1778,143 @@ function SurfaceDots({
 // and since/note inputs for the active diagnosis.
 // ──────────────────────────────────────────────────────────────
 // ──────────────────────────────────────────────────────────────
-// DentalSymptomsBody — chip-based symptom entry for individual tooth
+// DentalSymptomsBody — table-based symptom entry (like EntryTab)
+// Columns: Symptom | Surfaces | Since | Severity | Note
 // ──────────────────────────────────────────────────────────────
+interface SymptomRow {
+  id: string
+  name: string
+  surfaces: string
+  since: string
+  severity: string
+  note: string
+}
+
 const DENTAL_SYMPTOM_CATALOG = [
   "Tooth pain", "Sensitivity to cold", "Sensitivity to hot", "Sensitivity to sweet",
   "Throbbing pain", "Pain on biting", "Swelling", "Bleeding gums",
   "Bad breath", "Loose tooth", "Discolouration", "Difficulty chewing",
   "Jaw pain", "Clicking sound", "Food impaction", "Spontaneous pain",
-]
+] as const
 
-function DentalSymptomsBody({ symptoms, onUpdate }: { symptoms: string[]; onUpdate: (v: string[]) => void }) {
+let _symId = 0
+const getSymId = () => `sym-${++_symId}`
+
+function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpdateRows: (v: SymptomRow[]) => void }) {
   const [query, setQuery] = useState("")
-  const selected = new Set(symptoms)
+  const selectedNames = new Set(rows.map((r) => r.name.toLowerCase()))
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
     const pool = q ? DENTAL_SYMPTOM_CATALOG.filter((s) => s.toLowerCase().includes(q)) : DENTAL_SYMPTOM_CATALOG
-    return pool.filter((s) => !selected.has(s)).slice(0, 12)
-  }, [query, selected])
+    return pool.filter((s) => !selectedNames.has(s.toLowerCase())).slice(0, 12)
+  }, [query, selectedNames])
 
-  const add = (s: string) => { onUpdate([...symptoms, s]); setQuery("") }
-  const remove = (s: string) => onUpdate(symptoms.filter((x) => x !== s))
+  const addSymptom = (name: string) => {
+    onUpdateRows([...rows, { id: getSymId(), name, surfaces: "", since: "", severity: "", note: "" }])
+    setQuery("")
+  }
+
+  const updateRow = (id: string, patch: Partial<SymptomRow>) => {
+    onUpdateRows(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  }
+
+  const removeRow = (id: string) => onUpdateRows(rows.filter((r) => r.id !== id))
 
   return (
-    <div className="p-[12px]">
-      {/* Selected symptoms as removable chips */}
-      {symptoms.length > 0 && (
-        <div className="flex flex-wrap gap-[6px] mb-[10px]">
-          {symptoms.map((s) => (
-            <span
-              key={s}
-              className="inline-flex items-center gap-[4px] rounded-[8px] bg-tp-blue-50 px-[10px] py-[5px] font-sans text-[12px] font-medium text-tp-blue-700"
-            >
-              {s}
-              <button type="button" onClick={() => remove(s)} className="ml-[2px] text-tp-blue-400 hover:text-tp-blue-600 transition-colors">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-              </button>
-            </span>
-          ))}
+    <div data-rx-module-root className="p-[12px]">
+      {/* Table */}
+      {rows.length > 0 && (
+        <div className="relative overflow-x-auto rounded-[12px] border border-tp-slate-200">
+          <table className="w-full table-fixed font-['Inter',sans-serif] text-[14px]">
+            <colgroup>
+              <col style={{ minWidth: 140 }} />
+              <col style={{ width: 110, minWidth: 100 }} />
+              <col style={{ width: 100, minWidth: 90 }} />
+              <col style={{ width: 100, minWidth: 90 }} />
+              <col style={{ minWidth: 110 }} />
+              <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
+            </colgroup>
+            <thead>
+              <tr className="h-[34px] bg-tp-slate-100 text-left font-['Inter',sans-serif] text-[10px] text-tp-slate-500">
+                <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SYMPTOM</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SURFACES</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SINCE</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SEVERITY</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">NOTE</th>
+                <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-100 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} className="border-t border-tp-slate-100 transition-colors hover:bg-tp-slate-100/40">
+                  <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <span className="flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800">{r.name}</span>
+                  </td>
+                  <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <input type="text" value={r.surfaces} onChange={(e) => updateRow(r.id, { surfaces: e.target.value })} placeholder="e.g. Buccal"
+                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                    />
+                  </td>
+                  <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="Since..."
+                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                    />
+                  </td>
+                  <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <select value={r.severity} onChange={(e) => updateRow(r.id, { severity: e.target.value })}
+                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[8px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                    >
+                      <option value="">—</option>
+                      <option value="Mild">Mild</option>
+                      <option value="Moderate">Moderate</option>
+                      <option value="Severe">Severe</option>
+                    </select>
+                  </td>
+                  <td className="border-r border-tp-slate-100 p-0 align-middle">
+                    <input type="text" value={r.note} onChange={(e) => updateRow(r.id, { note: e.target.value })} placeholder="Note..."
+                      className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                    />
+                  </td>
+                  <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
+                    <button type="button" onClick={() => removeRow(r.id)} title="Remove"
+                      className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                    >
+                      <Trash size={14} color="currentColor" variant="Linear" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Search input */}
-      <div className="relative">
-        <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
-          <SearchNormal1 size={14} color="currentColor" variant="Linear" />
-        </span>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) add(query.trim()) }}
-          placeholder="Search & Add Dental Symptom"
-          className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
-        />
+      {/* Search & Add */}
+      <div className="mt-[10px]">
+        <div className="relative">
+          <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
+            <SearchNormal1 size={14} color="currentColor" variant="Linear" />
+          </span>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) addSymptom(query.trim()) }}
+            placeholder="Search & Add Dental Symptom"
+            className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
+          />
+        </div>
+        {filtered.length > 0 && (
+          <div className="mt-[8px] flex flex-wrap gap-[6px]">
+            {filtered.map((s) => (
+              <button key={s} type="button" onClick={() => addSymptom(s)}
+                className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+              >{s}</button>
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Suggestion chips */}
-      {filtered.length > 0 && (
-        <div className="mt-[8px] flex flex-wrap gap-[6px]">
-          {filtered.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => add(s)}
-              className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
