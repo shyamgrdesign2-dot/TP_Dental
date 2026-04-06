@@ -174,7 +174,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
   const canvasPct = 100 - asidePct
 
   return (
-    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[18px] gap-[18px]">
+    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[18px]">
       {/* Left: 3D canvas — plain white with subtle grid + minimal dots */}
       <div
         className="relative min-w-0 rounded-[20px] overflow-hidden bg-white"
@@ -213,7 +213,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
         </div>
       </div>
 
-      {/* Invisible drag handle (no visible divider) */}
+      {/* Invisible drag handle — icon sticks to canvas right edge */}
       <div
         role="separator"
         aria-label="Resize panel"
@@ -227,8 +227,8 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           src="/icons/ui/drag-handle.svg"
           alt=""
           draggable={false}
-          className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
-          style={{ display: "block", width: "22px", height: "32px", maxWidth: "none" }}
+          className="pointer-events-none absolute top-1/2 z-30 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
+          style={{ display: "block", width: "22px", height: "32px", maxWidth: "none", left: "-11px" }}
         />
       </div>
 
@@ -248,14 +248,14 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           }}
         >
           {isSingle && canvasState ? (
-            <div className="flex h-full w-full flex-col">
+            <div className="flex h-full w-full flex-col pl-[10px]">
               {/* Expanding card wrapping the whole single-tooth view */}
               <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border-[2px] border-white">
                 <SingleToothPanel state={canvasState} />
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto pl-[10px]">
               <DentitionPanel state={canvasState} />
             </div>
           )}
@@ -849,14 +849,14 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
             <button
               type="button"
               title="Templates"
-              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
             >
               <Grid5 color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
             </button>
             <button
               type="button"
               title="Save as template"
-              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
             >
               <Ram color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
             </button>
@@ -866,7 +866,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                   type="button"
                   title="Clear all data for this tooth"
                   disabled={!hasAnyData}
-                  className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Eraser color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
                 </button>
@@ -908,7 +908,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               onClick={tryBack}
               aria-label="Back to all teeth"
               title="Back to all teeth"
-              className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-900 hover:text-white"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-900 hover:text-white"
             >
               <MinimizeIcon size={14} />
             </button>
