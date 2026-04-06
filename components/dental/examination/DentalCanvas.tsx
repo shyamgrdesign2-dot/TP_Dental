@@ -542,7 +542,7 @@ export function DentalCanvas({
             <LottieIcon name="arrow-up" size={26} color="#94a3b8" />
             <span
               style={{
-                fontSize: '11px',
+                fontSize: '14px',
                 color: '#64748b',
                 fontWeight: 500,
                 letterSpacing: '0.2px',
