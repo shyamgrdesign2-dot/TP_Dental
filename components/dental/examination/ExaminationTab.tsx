@@ -174,7 +174,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
   const canvasPct = 100 - asidePct
 
   return (
-    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[24px] gap-[24px]">
+    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[18px] gap-[18px]">
       {/* Left: 3D canvas — plain white with subtle grid + minimal dots */}
       <div
         className="relative min-w-0 rounded-[20px] overflow-hidden bg-white"
