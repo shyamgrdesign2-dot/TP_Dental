@@ -47,7 +47,7 @@ const SECTION_TITLES: Record<NavItemId, string> = {
 function SectionHeader({ title, onClose }: { title: string; onClose?: () => void }) {
   return (
     <div
-      className="h-[45px] shrink-0 w-full relative"
+      className="h-[42px] shrink-0 w-full relative"
       style={{ backgroundImage: "linear-gradient(101.381deg, rgb(55,54,166) 2.0111%, rgb(38,38,136) 83.764%)" }}
     >
       <div className="content-stretch flex gap-[24px] items-center px-[12px] py-[8px] relative size-full">

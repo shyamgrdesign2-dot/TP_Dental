@@ -1897,50 +1897,13 @@ export function RxPadFunctional() {
   const lastHandledCopyId = useRef<number>(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  const [symptomRows, setSymptomRows] = useState<TableRow[]>([
-    { id: getRowId("symptoms"), name: "Redness in both eyes", since: "2 days", status: "Severe", note: "" },
-    { id: getRowId("symptoms"), name: "Fever", since: "2 days", status: "Moderate", note: "" },
-  ])
-  const [examinationRows, setExaminationRows] = useState<TableRow[]>([
-    { id: getRowId("exam"), name: "Cold & Cough", note: "" },
-    { id: getRowId("exam"), name: "Left Knee Tenderness", note: "" },
-  ])
-  const [diagnosisRows, setDiagnosisRows] = useState<TableRow[]>([
-    { id: getRowId("diagnosis"), name: "Allergic Rhinitis", since: "2 days", status: "Suspected", note: "" },
-    { id: getRowId("diagnosis"), name: "Viral Pharyngitis", since: "2 days", status: "Confirmed", note: "" },
-  ])
-  const [medicationRows, setMedicationRows] = useState<TableRow[]>([
-    {
-      id: getRowId("med"),
-      medicine: "A Tron 4mg Tablet MD",
-      unitPerDose: "1 tablet",
-      frequency: "1-0-1",
-      when: "After Food",
-      duration: "5 days",
-      note: "",
-    },
-    {
-      id: getRowId("med"),
-      medicine: "Paracetamol 650mg",
-      unitPerDose: "1 tablet",
-      frequency: "1-0-0-1",
-      when: "After Food",
-      duration: "3 days",
-      note: "",
-    },
-  ])
-  const [adviceRows, setAdviceRows] = useState<TableRow[]>([
-    { id: getRowId("advice"), advice: "Stay hydrated daily", note: "" },
-    { id: getRowId("advice"), advice: "Practice deep breathing", note: "" },
-  ])
-  const [labRows, setLabRows] = useState<TableRow[]>([
-    { id: getRowId("lab"), investigation: "Complete Blood Count", note: "" },
-    { id: getRowId("lab"), investigation: "Liver Function Test", note: "" },
-  ])
-  const [surgeryRows, setSurgeryRows] = useState<TableRow[]>([
-    { id: getRowId("surgery"), surgery: "Cardiac Restoration Surgery", note: "" },
-    { id: getRowId("surgery"), surgery: "Gastrointestinal Detox Surgery", note: "" },
-  ])
+  const [symptomRows, setSymptomRows] = useState<TableRow[]>([])
+  const [examinationRows, setExaminationRows] = useState<TableRow[]>([])
+  const [diagnosisRows, setDiagnosisRows] = useState<TableRow[]>([])
+  const [medicationRows, setMedicationRows] = useState<TableRow[]>([])
+  const [adviceRows, setAdviceRows] = useState<TableRow[]>([])
+  const [labRows, setLabRows] = useState<TableRow[]>([])
+  const [surgeryRows, setSurgeryRows] = useState<TableRow[]>([])
 
   const [additionalNotes, setAdditionalNotes] = useState("")
   const [followUp, setFollowUp] = useState("")

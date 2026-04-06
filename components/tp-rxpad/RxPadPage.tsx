@@ -52,7 +52,7 @@ function RxPadInner() {
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "group relative flex shrink-0 items-center gap-[8px] px-[24px] h-[45px] text-[14px] font-medium transition-colors",
+                    "group relative flex shrink-0 items-center gap-[8px] px-[24px] h-[42px] text-[14px] font-medium transition-colors",
                     isActive
                       ? "text-tp-blue-600 font-semibold"
                       : "text-tp-slate-600 hover:text-tp-slate-800",
