@@ -391,7 +391,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
                       <SummaryPill icon="surgical-scissors-02" label={`${entry.procedureCount} procedure${entry.procedureCount === 1 ? "" : "s"}`} tone="blue" />
                     )}
                     {entry.findings.length > 0 && entry.findingCount === 0 && entry.findings.map((f) => (
-                      <span key={f} className="inline-flex items-center rounded-[4px] bg-amber-50 px-[6px] py-[2px] font-sans text-[10px] font-medium text-amber-700">
+                      <span key={f} className="inline-flex items-center rounded-[4px] bg-amber-50 px-[6px] py-[2px] font-sans text-[12px] font-medium text-amber-700">
                         {f}
                       </span>
                     ))}
@@ -424,7 +424,7 @@ function SummaryPill({ icon, label, tone }: { icon: string; label: string; tone:
   } as const
   const t = tones[tone]
   return (
-    <span className={`inline-flex items-center gap-[4px] rounded-[5px] px-[6px] py-[2px] font-sans text-[10px] font-semibold ${t.bg} ${t.text}`}>
+    <span className={`inline-flex items-center gap-[4px] rounded-[5px] px-[6px] py-[2px] font-sans text-[12px] font-semibold ${t.bg} ${t.text}`}>
       <TPMedicalIcon name={icon} variant="bulk" size={12} color={t.colour} />
       <span className="truncate max-w-[180px]">{label}</span>
     </span>
@@ -553,9 +553,7 @@ function ScoreCard({
             style={{
               fontSize: 48,
               lineHeight: 1,
-              background: `linear-gradient(135deg, ${colour.accent}, ${colour.accentDark})`,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              color: colour.accentDark,
             }}
           >
             {displayScore}
@@ -759,7 +757,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                     : "border-transparent text-tp-slate-500 hover:text-tp-slate-700"
                 }`}
               >
-                <TPMedicalIcon name={s.icon} variant="bulk" size={18} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-500)"} />
+                <TPMedicalIcon name={s.icon} variant={active ? "bulk" : "linear"} size={18} color={active ? "var(--tp-blue-600)" : "var(--tp-slate-400)"} />
                 {s.label}
                 {s.count > 0 && (
                   <span className={`inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-[5px] font-sans text-[10px] font-bold tabular-nums ${
@@ -788,7 +786,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d))
                 if (state.isImplant) state.onToggleImplant()
               } : undefined}
-              chevron={activeSection === "diagnosis" ? "down" : "right"}
+              chevron={activeSection === "diagnosis" ? "up" : "down"}
               onClick={activeSection === "diagnosis" ? undefined : () => jumpTo("diagnosis")}
             />}>
             <PrimaryDiagnosisBody state={state} />
@@ -804,7 +802,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 state.currentToothEntries.filter((e) => e.kind === "finding").forEach((e) => state.onRemoveEntry(e.id))
               } : undefined}
               clearDisabled={findingCount === 0}
-              chevron={activeSection === "findings" ? "down" : "right"}
+              chevron={activeSection === "findings" ? "up" : "down"}
               onClick={activeSection === "findings" ? undefined : () => jumpTo("findings")}
             />}>
             <EntryTab state={state} kind="finding" />
@@ -820,7 +818,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 state.currentToothEntries.filter((e) => e.kind === "procedure").forEach((e) => state.onRemoveEntry(e.id))
               } : undefined}
               clearDisabled={procedureCount === 0}
-              chevron={activeSection === "procedures" ? "down" : "right"}
+              chevron={activeSection === "procedures" ? "up" : "down"}
               onClick={activeSection === "procedures" ? undefined : () => jumpTo("procedures")}
             />}>
             <EntryTab state={state} kind="procedure" />
@@ -831,7 +829,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
           <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
             header={<SectionHeader title="Overall tooth notes" medicalIcon="clipboard-activity"
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
-              chevron={activeSection === "notes" ? "down" : "right"}
+              chevron={activeSection === "notes" ? "up" : "down"}
               onClick={activeSection === "notes" ? undefined : () => jumpTo("notes")}
             />}>
             <div className="p-[14px]">
@@ -839,7 +837,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 value={state.currentToothNotes}
                 onChange={(e) => state.onUpdateToothNotes(e.target.value)}
                 placeholder="General notes for this tooth…"
-                className="h-[140px] w-full resize-none rounded-[8px] border border-tp-slate-200 bg-tp-slate-100 px-[12px] py-[10px] font-sans text-[13px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:bg-white focus:outline-none"
+                className="h-[140px] w-full resize-none rounded-[8px] border border-tp-slate-200 bg-tp-slate-100 px-[12px] py-[10px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:bg-white focus:outline-none"
               />
             </div>
           </AccordionWrap>
@@ -857,7 +855,9 @@ function AccordionWrap({
 }: { open: boolean; header: React.ReactNode; children: React.ReactNode; onExpand: () => void }) {
   return (
     <div
-      className="rounded-[14px] bg-white overflow-hidden transition-all"
+      className={`rounded-[14px] bg-white overflow-hidden transition-all ${
+        open ? "shadow-[0_2px_10px_-2px_rgba(15,23,42,0.10)]" : ""
+      }`}
       onClick={open ? undefined : onExpand}
     >
       {header}
@@ -881,7 +881,7 @@ function SectionHeader({
   onClear?: () => void
   clearDisabled?: boolean
   onClick?: () => void
-  chevron?: "right" | "down"
+  chevron?: "right" | "down" | "up"
 }) {
   const btnClass = "inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
   const stop = (e: React.MouseEvent) => e.stopPropagation()
@@ -919,13 +919,15 @@ function SectionHeader({
           </button>
         )}
         {chevron && (
-          <ArrowRight2
-            size={16}
-            color="#94a3b8"
-            variant="Linear"
-            className="transition-transform duration-200"
-            style={{ transform: chevron === "down" ? "rotate(90deg)" : "rotate(0deg)" }}
-          />
+          chevron === "up" ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200">
+              <path d="M19.92 15.05L13.4 8.53c-.77-.77-2.03-.77-2.8 0l-6.52 6.52" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="transition-transform duration-200">
+              <path d="M19.92 8.95L13.4 15.47c-.77.77-2.03.77-2.8 0L4.08 8.95" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" />
+            </svg>
+          )
         )}
       </div>
     </header>
