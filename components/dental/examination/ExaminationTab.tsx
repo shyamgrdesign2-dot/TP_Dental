@@ -174,12 +174,12 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
   const canvasPct = 100 - asidePct
 
   return (
-    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100">
+    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[8px]">
       {/* Left: 3D canvas — plain white with subtle grid + minimal dots */}
       <div
-        className="relative min-w-0 my-[12px] ml-[12px] rounded-[20px] overflow-hidden bg-white"
+        className="relative min-w-0 mr-[4px] rounded-[20px] overflow-hidden bg-white"
         style={{
-          width: `calc(${canvasPct}% - 12px)`,
+          width: `${canvasPct}%`,
           transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms",
         }}
       >
@@ -232,7 +232,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
         />
       </div>
 
-      {/* Right: Context-aware panel — flush with canvas edges */}
+      {/* Right: Context-aware panel */}
       <aside
         className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100"
         style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms" }}
@@ -248,14 +248,14 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           }}
         >
           {isSingle && canvasState ? (
-            <div className="flex h-full w-full flex-col px-[12px] py-[12px]">
+            <div className="flex h-full w-full flex-col">
               {/* Expanding card wrapping the whole single-tooth view */}
               <div className="flex h-full w-full flex-col overflow-hidden rounded-[16px] bg-white border-[2px] border-white">
                 <SingleToothPanel state={canvasState} />
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto px-[16px] py-[12px]">
+            <div className="flex-1 overflow-y-auto">
               <DentitionPanel state={canvasState} />
             </div>
           )}

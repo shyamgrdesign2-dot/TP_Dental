@@ -221,7 +221,7 @@ function RxPadInner() {
           className="shrink-0 bg-white relative z-10"
           style={{ boxShadow: "0 2px 8px -2px rgba(0,0,0,0.08)" }}
         >
-          <div className="flex items-center justify-center gap-[40px] px-[20px]">
+          <div className="flex items-center justify-center gap-[40px] px-[20px] h-[42px]">
             {/* General Rx tab */}
             <button
               type="button"

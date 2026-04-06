@@ -127,7 +127,7 @@ type Props = {
 export function ContentPanel({ activeId, onClose }: Props) {
   return (
     <div
-      className="bg-white content-stretch flex h-full w-[420px] min-w-[420px] max-w-[560px] shrink-0 flex-col items-center relative xl:w-[clamp(420px,42vw,560px)] xl:max-w-[560px]"
+      className="bg-white content-stretch flex h-full w-[280px] min-w-[250px] max-w-[350px] shrink-0 flex-col items-center relative xl:w-[clamp(250px,28vw,350px)] xl:max-w-[350px]"
       style={{
         animation: "sidebarSlideIn 380ms cubic-bezier(0.25, 0.8, 0.25, 1) both",
       }}

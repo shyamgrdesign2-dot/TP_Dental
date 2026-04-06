@@ -7,9 +7,9 @@ import type { CSSProperties } from "react";
  */
 export const rxSidebarTokens = {
   railWidth: 80,
-  panelMinWidth: 420,
-  panelMaxWidth: 560,
-  panelPreferredWidth: "clamp(420px, 42vw, 560px)",
+  panelMinWidth: 250,
+  panelMaxWidth: 350,
+  panelPreferredWidth: "clamp(250px, 28vw, 350px)",
   itemGap: 6,
   itemPaddingX: 6,
   itemPaddingY: 12,
