@@ -551,7 +551,7 @@ function ScoreCard({
           <span
             className="font-sans font-[800] tabular-nums"
             style={{
-              fontSize: 38,
+              fontSize: 42,
               lineHeight: 1,
               color: colour.accentDark,
             }}
