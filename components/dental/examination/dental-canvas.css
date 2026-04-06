@@ -83,7 +83,7 @@
 }
 .dental-canvas-root .summary-badges { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; }
 .dental-canvas-root .summary-badge {
-  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 10px;
   backdrop-filter: blur(8px); white-space: nowrap;
 }
 .dental-canvas-root .summary-badge.tooth-badge {

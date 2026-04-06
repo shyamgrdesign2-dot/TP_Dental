@@ -316,7 +316,7 @@ export function DentalCanvas({
     // Tooth-level diagnosis changed → clear all surface findings for this tooth
     setFindingsByTooth(prev => { const next = { ...prev }; delete next[fdi]; return next })
 
-    if (diagnosis === 'Missing') {
+    if (diagnosis === 'Missing' || diagnosis === 'Extraction') {
       setImplantTeeth(prev => {
         const next = new Set(prev)
         next.delete(selectedTooth.fdi)
@@ -346,7 +346,7 @@ export function DentalCanvas({
   }, [])
 
   const handleSelectZone = useCallback((zone: ZoneId, hitPoint?: [number, number, number], opts?: { multi?: boolean }) => {
-    if (currentToothDiagnoses.has('Missing')) return
+    if (currentToothDiagnoses.has('Missing') || currentToothDiagnoses.has('Extraction')) return
     if (hitPoint) {
       const key = `${selectedTooth.fdi}-${zone}`
       setZoneHitPoints(prev => ({ ...prev, [key]: hitPoint }))

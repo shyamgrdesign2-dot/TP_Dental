@@ -45,12 +45,20 @@ const DIAG_WEIGHT: Record<string, number> = {
 
 /** Accent colors per tooth-level diagnosis — makes each chip visually distinct */
 const PRIMARY_DIAG_COLOR: Record<string, string> = {
-  Implant: "#0891b2",   // cyan
-  Missing: "#dc2626",   // red
-  RCT:     "#ea580c",   // orange
-  Crown:   "#d4af37",   // gold
-  Bridge:  "#a16207",   // amber-brown
-  Denture: "#ec4899",   // pink
+  Implant:            "#0891b2",   // cyan
+  Missing:            "#dc2626",   // red
+  RCT:                "#ea580c",   // orange
+  Crown:              "#d4af37",   // gold
+  Bridge:             "#a16207",   // amber-brown
+  Denture:            "#ec4899",   // pink
+  Extraction:         "#b91c1c",   // dark red (similar to missing)
+  "Composite Filling":"#f5f5f4",   // off-white (filling material)
+  Scaling:            "#059669",   // emerald
+  Polishing:          "#10b981",   // green
+  Veneer:             "#e2e8f0",   // light porcelain
+  "Pulp Cap":         "#f97316",   // orange
+  "Root Planing":     "#0d9488",   // teal
+  "Fluoride Treatment":"#06b6d4", // cyan-light
 }
 const FINDING_WEIGHT: Record<string, number> = {
   "Cavity/Caries": 3, "Crack": 2, "Fracture": 4, "Erosion": 2, "Abrasion": 1,
@@ -950,7 +958,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
   const [activeRowId, setActiveRowId] = useState<string | null>(null)
   const [query, setQuery] = useState("")
 
-  const isMissing = state.currentToothDiagnoses.has("Missing")
+  const isMissing = state.currentToothDiagnoses.has("Missing") || state.currentToothDiagnoses.has("Extraction")
   const catalog = kind === "finding" ? (DIAGNOSES as readonly string[]) : kind === "symptom" ? (DENTAL_SYMPTOM_CATALOG as readonly string[]) : (kind === "planned" || kind === "procedure") ? (PROCEDURE_CATALOG as readonly string[]) : (PROCEDURE_CATALOG as readonly string[])
   const entries = state.currentToothEntries.filter((e) => e.kind === kind)
   const activeRow = entries.find((e) => e.id === activeRowId) ?? null
@@ -998,24 +1006,50 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
     prevCountRef.current = entries.length
   }, [entries.length, entries])
 
-  // Procedures that apply to the whole tooth (no surface selection needed)
-  const WHOLE_TOOTH_PROCEDURES = new Set([
-    "RCT", "Root Canal Treatment", "Crown", "Crown Prep", "Implant", "Implant Placement",
-    "Extraction", "Bridge", "Bridge Prep", "Denture", "Veneer", "Pulp Cap",
-  ])
+  // Surface auto-selection rules per treatment type:
+  // "whole-tooth" → selects ALL zones (Implant, Missing, RCT, Crown, Bridge, Extraction)
+  // "root" → selects only root zone (Denture)
+  // "ask" → asks user to pick surfaces (Scaling, Polishing, Composite Filling, etc.)
+  const TREATMENT_SURFACE_RULES: Record<string, "whole-tooth" | "root" | "ask"> = {
+    "Implant": "whole-tooth",
+    "Missing": "whole-tooth",
+    "RCT": "whole-tooth",
+    "Root Canal Treatment": "whole-tooth",
+    "Crown": "whole-tooth",
+    "Crown Prep": "whole-tooth",
+    "Bridge": "whole-tooth",
+    "Bridge Prep": "whole-tooth",
+    "Extraction": "whole-tooth",
+    "Veneer": "whole-tooth",
+    "Pulp Cap": "whole-tooth",
+    "Implant Placement": "whole-tooth",
+    "Denture": "root",
+    "Scaling": "ask",
+    "Polishing": "ask",
+    "Composite Filling": "ask",
+    "Restoration": "ask",
+    "Root Planing": "ask",
+    "Fluoride Treatment": "ask",
+  }
 
   const addEntryFromName = (name: string) => {
-    // Auto-select all surfaces for whole-tooth procedures
-    const isWholeTooth = WHOLE_TOOTH_PROCEDURES.has(name)
+    const rule = TREATMENT_SURFACE_RULES[name] ?? "ask"
     state.onClearMultiSelect()
-    if (isWholeTooth) {
-      ALL_ZONES.forEach((z) => state.onToggleZoneMultiSelect(z))
+
+    let surfaces: ZoneId[] = []
+    if (rule === "whole-tooth") {
+      surfaces = [...ALL_ZONES]
+    } else if (rule === "root") {
+      surfaces = ["root" as ZoneId]
+      state.onToggleZoneMultiSelect("root" as ZoneId)
     }
+    // "ask" → empty surfaces, user selects manually
+
     pendingActivateRef.current = true
     state.onAddEntry({
       kind,
       name,
-      surfaces: isWholeTooth ? [...ALL_ZONES] : [],
+      surfaces,
       since: undefined,
       plannedDate: undefined,
       status: (kind === "procedure" || kind === "planned") ? "planned" : undefined,
