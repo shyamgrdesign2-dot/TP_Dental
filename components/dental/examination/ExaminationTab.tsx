@@ -1110,7 +1110,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                         type="text"
                         value={e.notes ?? ""}
                         onChange={(ev) => state.onUpdateEntry(e.id, { notes: ev.target.value })}
-                        placeholder="Note…"
+                        placeholder="e.g. Monitor at next visit"
                         className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                       />
                     </td>
@@ -1137,7 +1137,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
       )}
 
       {/* Search & Add input (+ quick-select chips) — always at bottom, RxPad-style */}
-      <div className="mt-[10px]">
+      <div className="mt-[16px]">
         <div className="relative">
           <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
             <SearchNormal1 size={14} color="currentColor" variant="Linear" />
@@ -1654,7 +1654,7 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
         className="inline-flex h-[42px] w-full items-center gap-[6px] rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100/60 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
       >
         <Calendar size={14} color="#64748b" variant="Linear" />
-        <span className={`flex-1 text-left truncate ${value ? "" : "text-tp-slate-400"}`}>{value || "Since…"}</span>
+        <span className={`flex-1 text-left truncate ${value ? "" : "text-tp-slate-400"}`}>{value || "e.g. 2 weeks ago"}</span>
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
         <div
@@ -1857,7 +1857,7 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
                     />
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
-                    <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="Since..."
+                    <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="e.g. 5 days"
                       className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                     />
                   </td>
@@ -1872,7 +1872,7 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
                     </select>
                   </td>
                   <td className="border-r border-tp-slate-100 p-0 align-middle">
-                    <input type="text" value={r.note} onChange={(e) => updateRow(r.id, { note: e.target.value })} placeholder="Note..."
+                    <input type="text" value={r.note} onChange={(e) => updateRow(r.id, { note: e.target.value })} placeholder="e.g. Worsens at night"
                       className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                     />
                   </td>
@@ -1891,7 +1891,7 @@ function DentalSymptomsBody({ rows, onUpdateRows }: { rows: SymptomRow[]; onUpda
       )}
 
       {/* Search & Add */}
-      <div className="mt-[10px]">
+      <div className="mt-[16px]">
         <div className="relative">
           <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
             <SearchNormal1 size={14} color="currentColor" variant="Linear" />
@@ -2020,7 +2020,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         type="text"
                         value={d.note}
                         onChange={(e) => updateDetail(name, { note: e.target.value })}
-                        placeholder="Note…"
+                        placeholder="e.g. Monitor at next visit"
                         className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                       />
                     </td>
@@ -2043,7 +2043,7 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
       )}
 
       {/* Search & Add */}
-      <div className="mt-[10px]">
+      <div className="mt-[16px]">
         <div className="relative">
           <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
             <SearchNormal1 size={14} color="currentColor" variant="Linear" />

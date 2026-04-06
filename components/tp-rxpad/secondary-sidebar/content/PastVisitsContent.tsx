@@ -108,18 +108,26 @@ const PAST_VISITS: PastVisitEntry[] = [
     dateLabel: "Today (27 Jan'26)",
     digitalRx: {
       symptoms: [
-        { label: "Tooth pain — 36 (lower left)", detail: "5 days | Throbbing | Worsens at night" },
-        { label: "Sensitivity — 16 (upper right)", detail: "2 weeks | Cold & sweet stimuli" },
+        { label: "Tooth pain", detail: "5 days | Throbbing | Worsens at night" },
+        { label: "Sensitivity", detail: "2 weeks | Cold & sweet stimuli" },
       ],
       examinations: [
-        { label: "Intraoral examination", detail: "Caries on 16 buccal/occlusal, deep cavity 36 with periapical tenderness" },
-        { label: "Periodontal screening", detail: "Calculus on 41 lingual, mild gingival inflammation" },
+        // Per-tooth breakdown
+        { label: "Tooth 36 — Lower Left First Molar", detail: "" },
+        { label: "  • Dental Symptoms", detail: "Tooth pain (5 days, severe, throbbing at night)" },
+        { label: "  • Primary Diagnosis", detail: "Irreversible pulpitis — deep caries with pulpal involvement" },
+        { label: "  • Findings", detail: "Deep cavity, periapical tenderness" },
+        { label: "  • Planned Procedure", detail: "RCT (sitting 1 scheduled 28 Jan)" },
+        { label: "Tooth 16 — Upper Right First Molar", detail: "" },
+        { label: "  • Dental Symptoms", detail: "Sensitivity to cold & sweet (2 weeks, moderate)" },
+        { label: "  • Primary Diagnosis", detail: "Dental caries — early cavity" },
+        { label: "  • Findings", detail: "Caries on buccal & occlusal surfaces, staining" },
+        { label: "  • Planned Procedure", detail: "Composite restoration" },
+        { label: "Tooth 41 — Lower Right Central Incisor", detail: "" },
+        { label: "  • Findings", detail: "Supragingival calculus, lingual surface" },
+        { label: "  • Planned Procedure", detail: "Full-mouth scaling" },
       ],
-      diagnoses: [
-        { label: "Irreversible pulpitis — 36", detail: "Deep caries with pulpal involvement" },
-        { label: "Dental caries — 16", detail: "Early cavity, buccal and occlusal surfaces" },
-        { label: "Calculus — 41", detail: "Supragingival, lingual surface" },
-      ],
+      diagnoses: [],
       medications: [
         {
           label: "Amoxicillin 500mg",
@@ -178,12 +186,13 @@ const PAST_VISITS: PastVisitEntry[] = [
         { label: "Difficulty chewing", detail: "Left side | Since swelling onset" },
       ],
       examinations: [
-        { label: "Extraoral examination", detail: "Mild left facial swelling, no lymphadenopathy" },
-        { label: "Intraoral examination", detail: "Tooth 26: large carious lesion, buccal swelling, TTP positive" },
+        { label: "Tooth 26 — Upper Left First Molar", detail: "" },
+        { label: "  • Dental Symptoms", detail: "Swelling (3 days, buccal vestibule), difficulty chewing" },
+        { label: "  • Primary Diagnosis", detail: "Periapical abscess — acute, buccal space involvement" },
+        { label: "  • Findings", detail: "Large carious lesion, buccal swelling, TTP positive" },
+        { label: "  • Planned Procedure", detail: "I&D under LA, RCT or extraction post-antibiotics" },
       ],
-      diagnoses: [
-        { label: "Periapical abscess — 26", detail: "Acute, with buccal space involvement" },
-      ],
+      diagnoses: [],
       medications: [
         {
           label: "Augmentin 625mg",
@@ -233,12 +242,13 @@ const PAST_VISITS: PastVisitEntry[] = [
         { label: "Bad breath", detail: "Persistent | Self-reported" },
       ],
       examinations: [
-        { label: "Periodontal examination", detail: "Generalized 3-4mm pockets, bleeding on probing, moderate calculus" },
+        { label: "Full Mouth — Periodontal", detail: "" },
+        { label: "  • Dental Symptoms", detail: "Bleeding gums (1 month, during brushing), bad breath" },
+        { label: "  • Primary Diagnosis", detail: "Chronic gingivitis (generalized, moderate)" },
+        { label: "  • Findings", detail: "3-4mm pockets, bleeding on probing, moderate supragingival calculus (all quadrants)" },
+        { label: "  • Planned Procedure", detail: "Full-mouth scaling & polishing (completed in single sitting)" },
       ],
-      diagnoses: [
-        { label: "Chronic gingivitis", detail: "Generalized, moderate" },
-        { label: "Calculus (supragingival)", detail: "All quadrants" },
-      ],
+      diagnoses: [],
       medications: [
         {
           label: "Chlorhexidine 0.2% Mouthwash",
