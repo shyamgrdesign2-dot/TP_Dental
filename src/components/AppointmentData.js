@@ -90,22 +90,23 @@ import {
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import config from "../config";
-import noData from "../assets/images/nodata-found.svg";
 import visitEnd from "../assets/images/end-visit.svg";
 import ImgcancelEnd from "../assets/images/cancel-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
-import newTag from "../assets/images/new-gif.gif";
+import newTagWebm from "../assets/images/new-gif.webm";
+import newTagMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
 import alertIcon from "../assets/images/alertIcon.svg";
 import draftIconSecondary from "../assets/images/draft-secondary.svg";
 import draftIconPrimary from "../assets/images/draft-primary.svg";
 import { MESSAGE_KEY } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import docimg from "../assets/images/docimg.png";
+import docimg from "../assets/images/docimg.webp";
 import welcomdoc from "../assets/images/welcom-doc.svg";
 import symptoms from "../assets/images/symptoms-green.svg";
 import PrimaryActionButton from "./PrimaryActionButton";
 import suporticon from "../assets/images/suport-icon.svg";
-import windoc from "../assets/images/win-doc.png";
+import windoc from "../assets/images/win-doc.webp";
 import AbhaIcon from '../assets/images/abha-svg.svg';
 import videoIcon from "../assets/images/video_icon.svg";
 import videoSvg from "../assets/images/video.svg";
@@ -115,6 +116,7 @@ import { saveAs } from "file-saver";
 
 import CommonModal from "../common/CommonModal";
 import { useSelector, useDispatch } from "react-redux";
+
 
 import {
   getCaseTypes,
@@ -186,7 +188,7 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
-
+const noData = `${process.env.PUBLIC_URL}/nodata-found.svg`;
 const { TextArea } = Input;
 
 const dateFormat = "YYYY-MM-DD";
@@ -358,7 +360,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           }}
         >
           Symptoms Collected
-          <img className="img-fluid" width={52} height={20} src={newTag} />
+          <LoopingVideo
+            webm={newTagWebm}
+            mp4={newTagMp4}
+            className="img-fluid"
+            width={52}
+            height={20}
+            ariaLabel="New"
+          />
         </div>
       ),
       description: (
@@ -419,9 +428,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -2661,6 +2670,9 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                   ref={index === firstSymptomIndex ? setTourRef : null}
                   src={symptoms}
                   alt="symptoms"
+                  width={24}
+                  height={25}
+                  loading="lazy"
                   onClick={() => setIsSymptomsCollectorTour(true)}
                   style={{ cursor: "pointer", marginLeft: "10px" }}
                 />
@@ -2718,7 +2730,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       className="d-flex flex-column align-items-center justify-content-center"
       style={{ height: "calc(100vh - 350px)" }}
     >
-      <img src={noData} alt="Warning" />
+      <img
+        src={noData}
+        alt="No data"
+        width={218}
+        height={138}
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />
       <div className="mt-3 fontroboto fw-normal">
         {selectedTab === TAB_QUEUE
           ? "There are no patients in your queue right now!"
@@ -2918,7 +2938,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           <>
             <div className="alert-warning rounded-10px p-2 patient-details">
               <div className="d-flex align-items-center">
-                <img className="me-3" src={alertIcon} alt="Warning" />
+                <img
+                  className="me-3"
+                  src={alertIcon}
+                  alt="Warning"
+                  width={32}
+                  height={33}
+                  loading="lazy"
+                />
                 <span>
                   {`The doctor ended ${appointmentSelectedFromMenu?.pm_first_name}’s visit without adding prescription details.`}
                 </span>
@@ -2970,7 +2997,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             </div>
             <div className="alert-warning rounded-10px p-2 patient-details mt-3">
               <div className="d-flex align-items-center">
-                <img className="me-3" src={alertIcon} alt="Warning" />
+                <img
+                  className="me-3"
+                  src={alertIcon}
+                  alt="Warning"
+                  width={32}
+                  height={33}
+                  loading="lazy"
+                />
                 <span>
                   Canceling this appointment will free up the time slot for
                   others. This action cannot be undone. Do you want to proceed?
@@ -3024,7 +3058,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                         className: "message-appointment",
                         content: (
                           <div className="d-flex align-items-center">
-                            <img src={ImgcancelEnd} className="me-3" />
+                            <img
+                              src={ImgcancelEnd}
+                              className="me-3"
+                              alt="Appointment cancelled"
+                              width={32}
+                              height={33}
+                              loading="lazy"
+                            />
                             <div>
                               <div className="title-common text-start fontroboto">
                                 Appointment Cancelled Successfully
@@ -3036,7 +3077,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
                             <img
                               src={imgCloseVisit}
                               className="ms-3"
+                              alt="Close notification"
+                              width={24}
+                              height={25}
+                              loading="lazy"
                               onClick={() => message.destroy()}
+                              role="button"
                             />
                           </div>
                         ),
@@ -3116,7 +3162,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         className: "message-appointment",
         content: (
           <div className="d-flex align-items-center">
-            <img src={visitEnd} className="me-3" />
+            <img
+              src={visitEnd}
+              className="me-3"
+              alt="Visit ended"
+              width={32}
+              height={33}
+              loading="lazy"
+            />
             <div>
               <div className="title-common text-start fontroboto">{`${appointmentSelectedFromMenu?.pm_first_name}’s visit ended successfully.`}</div>
               <div className="fontroboto text-start fw-normal mt-1">
@@ -3126,7 +3179,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             <img
               src={imgCloseVisit}
               className="ms-3"
+              alt="Close notification"
+              width={24}
+              height={25}
+              loading="lazy"
               onClick={() => message.destroy()}
+              role="button"
             />
           </div>
         ),
@@ -3651,7 +3709,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             <>
               <div className="alert-warning rounded-10px p-2 patient-details">
                 <div className="d-flex align-items-center">
-                  <img className="me-3" src={alertIcon} alt="Warning" />
+            <img
+              className="me-3"
+              src={alertIcon}
+              alt="Warning"
+              width={32}
+              height={33}
+              loading="lazy"
+            />
                   <span>
                     {isFileSizeError ? (
                       <>

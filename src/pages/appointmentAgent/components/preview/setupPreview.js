@@ -1,8 +1,10 @@
-import iPhoneBg from "../../../../assets/images/iPhone.png";
+import iPhoneBg from "../../../../assets/images/iPhone.webp";
 import { Button } from "antd";
 import "./Preview.scss";
 import profile from "../../../../assets/images/profile-blue.svg";
-import genRxBg from "../../../../assets/images/gen-rx-bg.gif";
+import genRxBgWebm from "../../../../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../../../../assets/images/gen-rx-bg.mp4";
+import LoopingVideo from "../../../../components/common/LoopingVideo";
 
 const SetupPreview = ({
   name,
@@ -75,9 +77,9 @@ const SetupPreview = ({
           }}
         >
           {/* Animated GIF background */}
-          <img
-            src={genRxBg}
-            alt="bg"
+          <LoopingVideo
+            webm={genRxBgWebm}
+            mp4={genRxBgMp4}
             style={{
               position: "absolute",
               top: 0,
@@ -90,6 +92,7 @@ const SetupPreview = ({
               borderRadius: "50px",
               paddingTop: 75,
             }}
+            ariaLabel="Background"
           />
           <div
             className="d-flex justify-content-between align-items-center flex-column"

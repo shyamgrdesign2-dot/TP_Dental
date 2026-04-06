@@ -13,15 +13,56 @@ import reportWebVitals from './reportWebVitals';
 
 import './index.css';
 import './assets/scss/app.scss';
+import 'slick-carousel/slick/slick.css';
+import 'slick-carousel/slick/slick-theme.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as Sentry from "@sentry/react";
+
+// Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
+if (typeof window !== "undefined") {
+  window.Moengage = window.Moengage || {};
+  window.__moeQueue = window.__moeQueue || [];
+  window.__flushMoeQueue = window.__flushMoeQueue || ((moeInstance) => {
+    if (!moeInstance || !window.__moeQueue) return;
+    const queue = window.__moeQueue;
+    window.__moeQueue = [];
+    queue.forEach(({ fn, args }) => {
+      try {
+        if (typeof moeInstance?.[fn] === "function") {
+          moeInstance[fn](...args);
+        }
+      } catch (_) {
+        // no-op: avoid breaking app on analytics errors
+      }
+    });
+  });
+  [
+    "track_event",
+    "add_user_attribute",
+    "add_unique_user_id",
+    "add_first_name",
+    "add_last_name",
+    "add_email",
+    "add_mobile",
+    "destroy_session",
+  ].forEach((fn) => {
+    if (!window.Moengage[fn]) {
+      window.Moengage[fn] = (...args) => {
+        const q = window.__moeQueue;
+        if (!q) return;
+        if (q.length >= 50) q.shift();
+        q.push({ fn, args });
+      };
+    }
+  });
+}
 
 const appEnv = process.env.REACT_APP_ENV || "prod";
 const isProd = appEnv === "prod";
 const tracesSampleRateValue =
   Number(
     process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??
-      (isProd ? 1.0 : 1.0)
+      (isProd ? 0.4 : 1.0)
   ) || 1.0;
 
 Sentry.init({

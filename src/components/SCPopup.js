@@ -1,10 +1,10 @@
 import { Button, Checkbox, Divider, message, Modal } from "antd";
 import { useContext, useState } from "react";
-import scHeaderBg from "../assets/images/sc-header-bg.png";
+import scHeaderBg from "../assets/images/sc-header-bg.webp";
 import autoFillRx from "../assets/images/sc-rx.svg";
 import scBg from "../assets/images/sc-bg.svg";
 import close from "../assets/images/close-square.svg";
-import scStrip from "../assets/images/sc-strip.png";
+import scStrip from "../assets/images/sc-strip.webp";
 import { useSelector } from "react-redux";
 import symptoms from "../assets/images/Symptoms.svg";
 import custom from "../assets/images/custom-module.svg";

@@ -1,5 +1,5 @@
 import { Button } from "antd";
-import scStrip from "../assets/images/sc-banner-strip.png";
+import scStrip from "../assets/images/sc-banner-strip.webp";
 import { useDispatch } from "react-redux";
 import { setShowSCPopup } from "../redux/ddxSlice";
 import { getClinicName, getTokenData, trackEvent } from "../utils/utils";

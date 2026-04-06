@@ -1,8 +1,11 @@
 import { Collapse } from "antd";
 import arrow from "../assets/images/shaded-arrow.svg";
 import grounding from "../assets/images/grounding-purple.svg";
-import cdssWallpaper from "../assets/images/cdss-wallpaper.gif";
-import newTag from "../assets/images/new-gif.gif";
+import cdssWallpaperWebm from "../assets/images/cdss-wallpaper.webm";
+import cdssWallpaperMp4 from "../assets/images/cdss-wallpaper.mp4";
+import newTagWebm from "../assets/images/new-gif.webm";
+import newTagMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "./common/LoopingVideo";
 
 import { useState } from "react";
 import { isMobile } from "react-device-detect";
@@ -39,12 +42,13 @@ const GroundingBox = ({ handleGroundingKnowMore }) => {
               >
                 <span>Zydus Data Engine</span>
               </div>
-              <img
+              <LoopingVideo
                 style={{ marginLeft: 10 }}
-                src={newTag}
-                alt="new-tag"
+                webm={newTagWebm}
+                mp4={newTagMp4}
                 width={39}
                 height={16}
+                ariaLabel="New"
               />
             </div>
             {isCollapseActive && (
@@ -94,27 +98,32 @@ const GroundingBox = ({ handleGroundingKnowMore }) => {
   return (
     <div>
       {isMobile ? (
+        <>
         <div>
           <div
-            className="d-flex flex-column justify-content-center align-items-center"
+            className="cdss-wallpaper-container d-flex flex-column justify-content-center align-items-center"
             style={{
               rowGap: "24px",
               padding: "24px 10px",
-              background: `linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), url(${cdssWallpaper})`,
               width: "100%",
-              backgroundSize: "cover",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
               borderRadius: "0 0 20px 20px",
             }}
           >
-            <div className="d-flex align-items-center justify-content-center flex-column">
-              <img
+            <LoopingVideo
+              webm={cdssWallpaperWebm}
+              mp4={cdssWallpaperMp4}
+              className="cdss-wallpaper-video"
+              ariaLabel="Background"
+            />
+            <div className="cdss-wallpaper-overlay" />
+            <div className="cdss-wallpaper-content d-flex align-items-center justify-content-center flex-column">
+              <LoopingVideo
                 style={{ marginBottom: 8 }}
-                src={newTag}
-                alt="new-tag"
+                webm={newTagWebm}
+                mp4={newTagMp4}
                 width={39}
                 height={16}
+                ariaLabel="New"
               />
               <div
                 className="d-flex flex-column align-items-center justify-content-center"
@@ -148,6 +157,7 @@ const GroundingBox = ({ handleGroundingKnowMore }) => {
               <span className="semi-bold-text">boost patient fulfilment</span>{" "}
               and <span className="semi-bold-text">improve accuracy</span>.
             </div>
+            </div>
           </div>
           <div
             className="d-flex align-items-center p-14"
@@ -165,7 +175,8 @@ const GroundingBox = ({ handleGroundingKnowMore }) => {
             </div>
             <img src={arrow} alt="arrow" />
           </div>
-        </div>
+        {/* </div> */}
+        </>
       ) : (
         <Collapse
           items={accordionItems}

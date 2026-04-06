@@ -1,7 +1,9 @@
 import { Button, Tour } from "antd";
 import draftIcon from "../assets/images/draft-primary.svg";
 import { useEffect, useRef, useState } from "react";
-import tagNew from "../assets/images/new-gif.gif";
+import tagNewWebm from "../assets/images/new-gif.webm";
+import tagNewMp4 from "../assets/images/new-gif.mp4";
+import LoopingVideo from "../components/common/LoopingVideo";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -38,12 +40,13 @@ const SaveDraft = ({ onSaveAsDraft, loading, label }) => {
         <>
           <div className="fs-18 fw-semibold pt-3 text-black">
             Save as Draft
-            <img
+            <LoopingVideo
               className="img-fluid ms-2"
               width={60}
               height={50}
-              src={tagNew}
-              alt="New"
+              webm={tagNewWebm}
+              mp4={tagNewMp4}
+              ariaLabel="New"
             />
           </div>
           <div className="pt-1">

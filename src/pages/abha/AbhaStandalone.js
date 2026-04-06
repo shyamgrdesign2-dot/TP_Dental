@@ -13,7 +13,9 @@ import AbhaSuccessScreen from "../../components/abha/common/AbhaSuccessScreen";
 import OtpVerificationCode from "../../components/abha/common/OtpVerificationCode";
 import AbhaDrawerHeader from "../../components/abha/common/AbhaDrawerHeader";
 import AbhaHeadingSVG from "../../assets/images/abha-svg.svg";
-import SuccessGif from "../../assets/images/succcess-abha-animation.gif";
+import SuccessWebm from "../../assets/images/succcess-abha-animation.webm";
+import SuccessMp4 from "../../assets/images/succcess-abha-animation.mp4";
+import LoopingVideo from "../../components/common/LoopingVideo";
 import visitEnd from "../../assets/images/check-badge.svg";
 import imgCloseVisit from "../../assets/images/close-visit.svg";
 import { message, notification } from "antd";
@@ -864,7 +866,12 @@ const AbhaStandalone = () => {
           if (screenData?.showReturnToTabMessage) {
             return (
               <div className="abha_verified_container">
-                <img src={SuccessGif} alt="SUCCESS GIF" width={200} />
+                <LoopingVideo
+                  webm={SuccessWebm}
+                  mp4={SuccessMp4}
+                  width={200}
+                  ariaLabel="Success"
+                />
                 <div className="verified_label">ABHA has been created successfully.</div>
                 <div className="verified_label" style={{ marginTop: "8px", fontSize: "14px" }}>Please return to the previous tab.</div>
               </div>
@@ -873,7 +880,12 @@ const AbhaStandalone = () => {
           if (flow === FLOW_TYPES.LINK_EXISTING && screenData?.linkedAddress) {
             return (
               <div className="abha_verified_container">
-                <img src={SuccessGif} alt="SUCCESS GIF" width={200} />
+                <LoopingVideo
+                  webm={SuccessWebm}
+                  mp4={SuccessMp4}
+                  width={200}
+                  ariaLabel="Success"
+                />
                 <div className="verified_label">ABHA ID: {screenData.linkedAddress} linked successfully</div>
               </div>
             );
@@ -968,4 +980,3 @@ const AbhaStandalone = () => {
 };
 
 export default AbhaStandalone;
-

@@ -350,7 +350,7 @@ const Signup = ({reason, handleView, number}) => {
             window.Moengage.add_last_name(lname);
             window.Moengage.add_mobile("+91" + mobileNumber);
             window.Moengage.add_user_name("Dr. " + fname + " " + lname); // Full name for user
-            window.Moengage.add_unique_user_id(userOnboard?.data?.body?.b2c_id);
+            window.Moengage?.add_unique_user_id?.(userOnboard?.data?.body?.b2c_id);
             const params = new URLSearchParams(window.location.search);
             window.Moengage.track_event('TP_Signup_Success', {
                 first_name: fname,

@@ -45,7 +45,9 @@ import growthChartDark from "../../assets/images/growth-chart-dark.svg";
 import privateNotesWhite from "../../assets/images/private-notes-white.svg";
 import privateNotesDark from "../../assets/images/private-notes-dark.svg";
 import apexAIImg from "../../assets/images/apexAI.svg";
-import blinkingDot from "../../assets/images/blinkingDot.gif";
+import blinkingDotWebm from "../../assets/images/blinkingDot.webm";
+import blinkingDotMp4 from "../../assets/images/blinkingDot.mp4";
+import LoopingVideo from "../../components/common/LoopingVideo";
 import ddxVector from "../../assets/images/ddx-tab-vector.svg";
 import ddxImg from "../../assets/images/ddx.svg";
 import ddxInactiveImg from "../../assets/images/tab-ddx-inactive.svg";
@@ -59,7 +61,8 @@ import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
 import labParamsDark from "../../assets/images/Lab-Parameters.svg";
 import groundingImgWhite from "../../assets/images/grounding-white.svg";
 import groundingImgDark from "../../assets/images/grounding-purple.svg";
-import genRxBg from "../../assets/images/gen-rx-bg.gif";
+import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
 import carePlanIcon from "../../assets/images/Care plan.svg";
 import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
 // import labParametersWhite from '../../assets/images/lab-parameters-white.svg';
@@ -1113,9 +1116,9 @@ function TabPrescription() {
             (file.type === "image/jpeg" ||
               file.type === "image/png" ||
               file.type === "image/jpg") &&
-            (cleanFileName === "image.jpg" ||
-              cleanFileName === "image.png" ||
-              cleanFileName === "image.jpeg");
+            (cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp" ||
+              cleanFileName === "image.webp");
 
           let newFile = file;
 
@@ -1908,9 +1911,9 @@ function TabPrescription() {
                       >
                         <img src={apexAIImg} alt="apex-AI" />
                         {isDDxReadyToGenerate && generatedDDx?.results?.length > 0 && (
-                          <img
-                            src={blinkingDot}
-                            alt="blinking-dot"
+                          <LoopingVideo
+                            webm={blinkingDotWebm}
+                            mp4={blinkingDotMp4}
                             width={30}
                             height={30}
                             style={{
@@ -1918,6 +1921,7 @@ function TabPrescription() {
                               top: -15,
                               right: -15,
                             }}
+                            ariaLabel="Updates available"
                           />
                         )}
                       </div>
@@ -2381,8 +2385,23 @@ function TabPrescription() {
                     }
                   }
                   return e.tmdpm_id === 5 && e.tmdpm_status === 0 ? (
-                    <div key={i} className="prescription-box-sm" style={showShimmer ? { background: `url(${genRxBg})`, padding: "2px" } : {}}>
-                     <div style={showShimmer ? {background: "white", borderRadius: "17px"} : {}}>
+                    <div
+                      key={i}
+                      className={`prescription-box-sm ${showShimmer ? "genrx-shimmer" : ""}`}
+                      style={showShimmer ? { padding: "2px" } : {}}
+                    >
+                      {showShimmer && (
+                        <LoopingVideo
+                          webm={genRxBgWebm}
+                          mp4={genRxBgMp4}
+                          className="genrx-shimmer-video"
+                          ariaLabel="Background"
+                        />
+                      )}
+                     <div
+                      className={showShimmer ? "genrx-shimmer-content" : ""}
+                      style={showShimmer ? {background: "white", borderRadius: "17px"} : {}}
+                    >
                       <TabSymptomsBox
                           handleDDxDrawer={handleDDxDrawer}
                           generatedDDx={generatedDDx?.results}

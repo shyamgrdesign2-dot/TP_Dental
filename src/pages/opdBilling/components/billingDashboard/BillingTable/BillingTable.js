@@ -16,6 +16,7 @@ import {
 import moment from "moment";
 import dayjs from "dayjs";
 import "./BillingTable.scss";
+import "../../../../../components/common/dateRangePill.scss";
 import DownloadBill from "../DownloadBill/DownloadBill.js";
 import {
   fetchBillingDashboard,

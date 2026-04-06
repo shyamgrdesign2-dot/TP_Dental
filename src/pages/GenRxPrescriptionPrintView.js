@@ -17,7 +17,7 @@ import {
 import api from "../api/services/axiosService";
 
 import wtsp from "../assets/images/wtsp.svg";
-import loadingImg from "../assets/images/loading.png";
+import loadingImg from "../assets/images/loading.webp";
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
 import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";

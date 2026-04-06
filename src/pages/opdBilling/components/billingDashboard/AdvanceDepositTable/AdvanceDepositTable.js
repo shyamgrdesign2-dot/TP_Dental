@@ -22,6 +22,7 @@ import { useSelector } from "react-redux";
 import moment from "moment";
 import dayjs from "dayjs";
 import "../AdvanceDepositTable/AdvanceDepositTable.scss";
+import "../../../../../components/common/dateRangePill.scss";
 import { useReactToPrint } from "react-to-print";
 import DownloadBill from "../DownloadBill/DownloadBill.js";
 import {

@@ -3,10 +3,10 @@ import codeIcon from "../assets/images/code.svg";
 import validateHealthcareIcon from "../assets/images/validate-heathcare.svg";
 import clinicalStudyIcon from "../assets/images/clinical-study.svg";
 import apexAI from "../assets/images/apexAI.svg";
-import scannerIcon from "../assets/images/scanner.png";
-import sunIcon from "../assets/images/sun.png";
-import cameraIcon from "../assets/images/camera.png";
-import cropIcon from "../assets/images/crop.png";
+import scannerIcon from "../assets/images/scanner.webp";
+import sunIcon from "../assets/images/sun.webp";
+import cameraIcon from "../assets/images/camera.webp";
+import cropIcon from "../assets/images/crop.webp";
 
 export const PERSISTANT_STORAGE_KEY_AUTH_TOKEN =
   "persistant.storage.key.auth-token";
