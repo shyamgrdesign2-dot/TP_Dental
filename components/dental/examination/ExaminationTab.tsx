@@ -1090,13 +1090,13 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                         />
                       )}
                     </td>
-                    {/* Status (procedures only) */}
+                    {/* Status (procedures only) — matches cell design system */}
                     {hasStatus && (
-                      <td className="border-r border-tp-slate-100 px-2 py-1.5 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
+                      <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
                         <select
                           value={e.status ?? "planned"}
                           onChange={(ev) => state.onUpdateEntry(e.id, { status: ev.target.value as ToothEntry["status"] })}
-                          className="h-[32px] w-full rounded-[6px] border border-tp-slate-200 bg-white px-[6px] font-sans text-[11px] font-medium text-tp-slate-700 focus:border-tp-blue-500 focus:outline-none"
+                          className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
                         >
                           <option value="planned">Planned</option>
                           <option value="in-progress">In progress</option>
