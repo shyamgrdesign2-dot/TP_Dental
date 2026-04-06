@@ -293,7 +293,7 @@
 /* ── Quick Surface Selector — raw clickable SVG, no card ── */
 .dental-canvas-root .quick-surface-selector {
   position: relative;
-  width: 60px; padding: 0;
+  width: 78px; padding: 0;
   pointer-events: auto;
 }
 .dental-canvas-root .quick-surface-svg {
