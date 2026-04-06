@@ -513,7 +513,7 @@ function ScoreCard({
     >
       {/* Heading — tab stuck to top-left corner, only bottom-right rounded */}
       <span
-        className="absolute top-0 left-0 z-20 inline-flex items-center px-[11px] py-[5px] font-sans text-[10px] font-semibold tracking-[0.2px]"
+        className="absolute top-0 left-0 z-20 inline-flex items-center px-[11px] py-[5px] font-sans text-[14px] font-semibold tracking-[0.2px]"
         style={{
           background: "rgba(255,255,255,0.98)",
           color: colour.accentDark,
@@ -558,7 +558,7 @@ function ScoreCard({
           >
             {displayScore}
           </text>
-          <text x={cx} y={cy + 16} textAnchor="middle" dominantBaseline="middle"
+          <text x={cx} y={cy + 14} textAnchor="middle" dominantBaseline="middle"
             style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, fill: "var(--tp-slate-500)" }}
           >
             out of 100
@@ -572,7 +572,7 @@ function ScoreCard({
           onClick={openTooltip}
           className="absolute inline-flex items-center gap-[5px] rounded-full px-[12px] py-[4px] font-sans text-[11px] font-bold whitespace-nowrap backdrop-blur-[6px] cursor-pointer"
           style={{
-            top: `${((cy + 32) / size) * 100}%`,
+            top: `${((cy + 42) / size) * 100}%`,
             left: "50%",
             transform: "translate(-50%, -50%)",
             background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
