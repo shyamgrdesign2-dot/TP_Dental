@@ -119,9 +119,6 @@ const TabRxCanvas = forwardRef(({
 
   // Sync with prop when it arrives from parent (e.g. backend metadata). Never wipe pages/strokes
   // once the user has real work — parent prop can update later and would otherwise clear everything.
-  // Only react to parent-driven `initialTemplateId` changes. Including `selectedTemplateId`
-  // in deps re-ran this after every sidebar pick while the prop still held the metadata
-  // default (e.g. standard) and wiped single-page custom layouts.
   useEffect(() => {
     if (!initialTemplateId || initialTemplateId === selectedTemplateId) return;
 
@@ -148,7 +145,6 @@ const TabRxCanvas = forwardRef(({
     }
     setStrokesByPage({ [newPageId]: [] });
     setTextElementsByPage({ [newPageId]: [] });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only sync when parent prop changes
   }, [initialTemplateId]);
 
   // Handle external multi-page custom background images

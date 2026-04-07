@@ -49,8 +49,6 @@ const TemplateSidebar = ({
       return;
     }
     loadTemplates();
-    // Run once for local-only mode.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadTemplates = async () => {
