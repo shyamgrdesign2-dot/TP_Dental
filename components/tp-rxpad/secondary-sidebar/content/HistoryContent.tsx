@@ -34,11 +34,21 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    id: "mental",
-    title: "Mental Health",
+    id: "surgery",
+    title: "Surgery History",
     items: [
-      { name: "Stress", detail: "Work-related stress reported | Sleep hygiene counselling provided" },
-      { name: "Mood", detail: "No depressive red flags on current screening" },
+      { name: "Appendectomy", detail: "Date: 20 Nov 2018 | Hospital: City General Hospital | Outcome: Uneventful recovery" },
+      { name: "Impacted Wisdom Tooth Extraction", detail: "Date: 14 Jul 2023 | Facility: TP Dental Care | Outcome: Healed well in 1 week" },
+    ],
+  },
+  {
+    id: "dental-history",
+    title: "Dental History",
+    items: [
+      { name: "Upper Right Quadrant (UR)", detail: "Findings: Generalized plaque, cervical sensitivity | Procedures: Quadrant scaling and root planing (Completed)" },
+      { name: "Upper Left Quadrant (UL)", detail: "Findings: Early caries (26, 27), mild gingival inflammation | Procedures: Fluoride varnish + oral prophylaxis (Planned)" },
+      { name: "Lower Arches (LR/LL)", detail: "Findings: Calculus deposits in molar region, food impaction | Procedures: Full-mouth scaling and polishing (In Progress)" },
+      { name: "Full Mouth Summary", detail: "Primary Diagnosis: Chronic generalized gingivitis | Advice: 3-month periodontal maintenance recall" },
     ],
   },
   {

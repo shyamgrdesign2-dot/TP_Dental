@@ -2,6 +2,10 @@
    NO global resets, NO body/html styles — host TP app owns those. */
 @keyframes dentalCanvasZonePopIn { from { transform: scale(0.85) translateY(4px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 @keyframes dentalCanvasAnnotFadeIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes dentalCanvasTitleSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 
 .dental-canvas-root {
   display: grid;
@@ -25,7 +29,7 @@
 .dental-canvas-root .zone-navigator { animation-name: dentalCanvasZonePopIn; }
 
 /* ── 3D Viewer ── */
-.dental-canvas-root .viewer { position: relative; background: transparent; overflow: hidden; touch-action: none; }
+.dental-canvas-root .viewer { position: relative; background: transparent; overflow: hidden; touch-action: none; container-type: inline-size; }
 .dental-canvas-root .viewer canvas { touch-action: none; }
 
 /* ── Viewer Header ── */
@@ -34,23 +38,51 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
-  font-size: 14px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
-  background: rgba(241, 241, 245, 0.92);
+  color: #1f3558;
+  background-color: rgba(244, 244, 247, 1);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border-radius: 8px;
+  border-radius: 10px;
+  border: none;
+  border-image: none;
+}
+.dental-canvas-root .tooth-name--dentition {
+  position: relative;
+  overflow: hidden;
+  padding-left: 16px;
+  background-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.dental-canvas-root .tooth-name--dentition::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 8px 0 0 8px;
+  background: var(--tp-blue-500);
+}
+.dental-canvas-root .tooth-name-text {
+  display: inline-block;
+  animation: dentalCanvasTitleSlideIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .dental-canvas-root .tooth-fdi {
   font-weight: 700;
-  color: #475569;
+  color: #334155;
   margin-left: 4px;
-  font-size: 13px;
-  background: #f1f5f9;
+  font-size: 12px;
+  background: unset;
+  background-color: rgba(218, 218, 220, 1);
+  border: none;
+  border-image: none;
   border-radius: 5px;
-  padding: 2px 8px;
+  padding: 1px 7px;
   letter-spacing: 0.3px;
 }
 
@@ -114,22 +146,28 @@
 
 /* ── Tooth Selector (Dental Chart) ── */
 .dental-canvas-root .tooth-selector { position: absolute; bottom: 12px; left: 14px; right: 14px; z-index: 10; }
+.dental-canvas-root .tooth-selector-surface {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 12;
+}
 .dental-canvas-root .tooth-chart {
   background: rgba(255,255,255,0.96); backdrop-filter: blur(14px);
   border-radius: 12px; padding: 9px 12px;
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
   border: none;
 }
-.dental-canvas-root .tooth-chart-row { display: flex; align-items: center; gap: 3px; }
-.dental-canvas-root .tooth-quadrant { display: flex; gap: 2px; flex: 1; }
+.dental-canvas-root .tooth-chart-row { display: flex; align-items: center; gap: 5px; }
+.dental-canvas-root .tooth-quadrant { display: flex; gap: 5px; flex: 1; min-width: 0; }
 .dental-canvas-root .chart-midline { width: 1px; height: 22px; background: #e2e8f0; margin: 0 6px; }
 .dental-canvas-root .chart-horizontal-line { height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent); margin: 4px 0; }
 .dental-canvas-root .quadrant-label {
-  font-size: 8px; color: #94a3b8; font-weight: 700; width: 18px; text-align: center;
+  font-size: 8px; color: #94a3b8; font-weight: 700; width: 22px; text-align: center;
   letter-spacing: 0.5px;
 }
 .dental-canvas-root .tooth-pick {
-  flex: 1; min-width: 0; height: 26px; border: 1px solid #e2e8f0; border-radius: 5px;
+  flex: 1 1 24px; min-width: 24px; height: 24px; border: 1px solid #e2e8f0; border-radius: 5px;
   background: #fff; font-size: 10px; font-weight: 700; color: #475569; cursor: pointer;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex; align-items: center; justify-content: center; padding: 0;
@@ -138,14 +176,25 @@
 .dental-canvas-root .tooth-pick:hover {
   border-color: #60a5fa; color: #2563eb; background: #eff6ff;
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(37,99,235,0.12);
 }
 .dental-canvas-root .tooth-pick.active {
-  background: linear-gradient(180deg, #60a5fa, #3b82f6); color: #fff;
-  border-color: #2563eb;
-  box-shadow: 0 2px 6px rgba(37,99,235,0.35);
+  background: var(--tp-blue-500); color: #fff;
+  border-color: var(--tp-blue-500);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.24);
 }
-.dental-canvas-root .tooth-pick.active:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(37,99,235,0.4); }
+.dental-canvas-root .tooth-pick.active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.28);
+}
+.dental-canvas-root .tooth-pick.has-diagnosis:not(.active) {
+  border-color: #e2e8f0;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+.dental-canvas-root .tooth-pick.has-diagnosis:hover:not(.active) {
+  border-color: #e2e8f0;
+  background: #ede9fe;
+}
 
 /* ── Tooth Diagnosis Section ── */
 .dental-canvas-root .tooth-diagnosis-section { padding: 16px 24px; border-bottom: 1px solid #f0f1f3; }
@@ -215,7 +264,7 @@
 .dental-canvas-root .tooth-pick-dot {
   position: absolute; bottom: 2px; right: 2px;
   width: 6px; height: 6px; border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.8);
+  border: 1px solid rgba(255,255,255,0.9);
 }
 
 /* ── Back to Full View Button ── */
@@ -228,15 +277,6 @@
 .dental-canvas-root .back-to-full-view-btn:hover { background: rgba(74, 158, 255, 0.15); }
 
 /* ── Mini Dentition Preview ── */
-/* Bottom controls wrapper — sits above .tooth-selector with generous breathing room */
-.dental-canvas-root .viewer-bottom-controls {
-  position: absolute; left: 14px; right: 14px; z-index: 11;
-  /* tooth chart: bottom:12 + height:~62 = 74. Add 28px breathing room = 102. */
-  bottom: 102px;
-  display: flex; align-items: flex-end; justify-content: flex-end;
-  pointer-events: none;
-}
-.dental-canvas-root .viewer-bottom-controls > * { pointer-events: auto; }
 .dental-canvas-root .mini-dentition-preview {
   position: relative;
   width: 96px;
@@ -301,29 +341,62 @@
 /* ── Quick Surface Selector — raw clickable SVG, no card ── */
 .dental-canvas-root .quick-surface-selector {
   position: relative;
-  width: 62px; padding: 0;
+  width: 65px; padding: 0;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
 }
-.dental-canvas-root .quick-whole-selector {
-  width: 52px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  line-height: 0;
-}
-.dental-canvas-root .quick-whole-selector__svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.06));
+
+/* Narrow canvas: keep tooth targets tappable and avoid crunching. */
+@container (max-width: 660px) {
+  .dental-canvas-root .tooth-chart {
+    padding: 10px;
+  }
+
+  .dental-canvas-root .tooth-chart-row {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    align-items: center;
+    column-gap: 6px;
+    row-gap: 6px;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .chart-midline {
+    display: none;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .quadrant-label:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    width: 22px;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .tooth-quadrant:first-of-type {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .tooth-quadrant:last-of-type {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .dental-canvas-root .tooth-chart-row > .quadrant-label:last-child {
+    grid-column: 1;
+    grid-row: 2;
+    width: 22px;
+    min-width: 22px;
+    text-align: center;
+  }
 }
 .dental-canvas-root .quick-surface-svg {
-  width: 100%; max-height: 110px; display: block;
+  width: 76px;
+  height: auto;
+  max-height: 164px;
+  display: block;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
 }
 /* ── Tooltip for Quick Surface Selector ── */

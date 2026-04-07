@@ -416,7 +416,7 @@ export const ARCH_POSITIONS: Record<string, ArchPose> = computeArchPositions()
 // PEDIATRIC DENTITION (20 Teeth)
 // ══════════════════════════════════════════════════════════════
 
-export type PatientType = 'adult' | 'pediatric'
+export type PatientType = 'adult' | 'pediatric' | 'mixed'
 export type PediatricQuadrant = 'upper-right-primary' | 'upper-left-primary' | 'lower-left-primary' | 'lower-right-primary'
 
 function buildPediatricTeeth(): ToothDef[] {

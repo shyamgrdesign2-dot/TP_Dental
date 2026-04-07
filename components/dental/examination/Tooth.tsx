@@ -729,13 +729,24 @@ export function injectShader(
          }
        }`)
   }
+  // Always reset material state before enabling diagnosis-specific flags.
+  // Without this reset, tab/scope switches can leave stale transparent/double-sided
+  // settings on materials and cause incorrect full-tooth tinting.
+  mat.transparent = false
+  mat.opacity = 1
+  mat.depthWrite = true
+  mat.side = THREE.FrontSide
+
   // Enable transparency for diagnoses that need it (Crown = slightly transparent crown portion only)
   if (isMissing || isRCT || isDenture || isCrown) {
     mat.transparent = true
-    mat.depthWrite = true
   }
-  // DoubleSide is essential so we can see the hollow dark interior of discarded roots (like for Bridge)
-  mat.side = THREE.DoubleSide
+
+  // DoubleSide only where shell/interior rendering is needed.
+  if (isCrown || isBridge || isDenture) {
+    mat.side = THREE.DoubleSide
+  }
+
   mat.needsUpdate = true
   return ref
 }
@@ -1761,13 +1772,13 @@ export function Tooth({
   useEffect(() => {
     // Update the findings ref whenever findings or multi-select zones change — picked up next frame
     zoneFindingsRef.current = ALL_ZONES.map(z =>
-      findings.some(f => f.zoneId === z) || (multiSelectZones?.has(z) ?? false) ? 1 : 0
+      findings.some(f => f.zoneId === z) || (multiSelectActive && (multiSelectZones?.has(z) ?? false)) ? 1 : 0
     )
-  }, [findings, multiSelectZones])
+  }, [findings, multiSelectZones, multiSelectActive])
   useEffect(() => {
-    wholeToothStateRef.current.selected = selectedZone === 'whole' || (multiSelectZones?.has('whole') ?? false)
+    wholeToothStateRef.current.selected = selectedZone === 'whole' || (multiSelectActive && (multiSelectZones?.has('whole') ?? false))
     wholeToothStateRef.current.marked = false
-  }, [multiSelectZones, selectedZone, toothEntries, treatmentHistoryDetails])
+  }, [multiSelectZones, selectedZone, toothEntries, treatmentHistoryDetails, multiSelectActive])
 
   // Push zone uniforms every frame — guarantees highlighting even after shader recompile
   useFrame(() => {
@@ -1956,7 +1967,7 @@ export function Tooth({
         }
         if (hideTags || wholeTags.length === 0) return null
         
-        const occlusalOffsetY = arch === 'maxillary' ? -0.85 : 0.85
+        const occlusalOffsetY = arch === 'maxillary' ? -0.72 : 0.72
         return (
           <Html
             position={[0, occlusalOffsetY, 0]}

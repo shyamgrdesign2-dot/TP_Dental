@@ -25,6 +25,7 @@ import {
 interface ArchToothProps {
   tooth: ToothDef
   archPose: ArchPose
+  toothScale?: number
   diagnoses: Set<string> | undefined
   findings: Finding[]
   treatmentHistoryTags: string[]
@@ -37,7 +38,7 @@ interface ArchToothProps {
 }
 
 const ArchTooth = memo(function ArchTooth({
-  tooth, archPose, diagnoses, findings, treatmentHistoryTags, isImplant, isHovered, isPinned, onHover, onClick, onPin,
+  tooth, archPose, toothScale = 1, diagnoses, findings, treatmentHistoryTags, isImplant, isHovered, isPinned, onHover, onClick, onPin,
 }: ArchToothProps) {
   const gltf = useGLTF(tooth.modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
@@ -56,20 +57,6 @@ const ArchTooth = memo(function ArchTooth({
     return cloneSceneWithUniqueMaterials(gltf.scene)
   }, [gltf])
 
-  // Dispose on unmount
-  useEffect(() => {
-    return () => {
-      clonedScene.traverse((obj) => {
-        const m = obj as THREE.Mesh
-        if (m.isMesh) {
-          m.geometry?.dispose()
-          if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose())
-          else m.material?.dispose()
-        }
-      })
-    }
-  }, [clonedScene])
-
   // Implant placement state + tooth mesh ref for procedural implant
   const [implantPlacement, setImplantPlacement] = useState<{
     cervicalY: number; centerX: number; centerZ: number; cervicalDiam: number
@@ -83,6 +70,7 @@ const ArchTooth = memo(function ArchTooth({
   const implantBB = useRef<THREE.Box3 | null>(null)
   const shaderRefs = useRef<Array<{ shader: any }>>([])
   const zoneFindingsRef = useRef<number[]>([0, 0, 0, 0, 0, 0, 0])
+  const [shaderReady, setShaderReady] = useState(false)
 
   // Update findings ref whenever findings change — picked up next frame
   useEffect(() => {
@@ -117,12 +105,15 @@ const ArchTooth = memo(function ArchTooth({
   // No guard ref — always re-inject when diagnosis flags change.
   // Uses requestAnimationFrame to wait for <Center> layout.
   useEffect(() => {
-    if (!groupRef.current) return
-    const raf = requestAnimationFrame(() => {
-      if (!groupRef.current) return
+    setShaderReady(false)
+    const applyToCurrentScene = () => {
+      if (!groupRef.current) return false
       groupRef.current.updateMatrixWorld(true)
 
       const bb = new THREE.Box3().setFromObject(groupRef.current)
+      const sizeProbe = new THREE.Vector3()
+      bb.getSize(sizeProbe)
+      if (sizeProbe.lengthSq() < 1e-8) return false
       const center = new THREE.Vector3()
       const size = new THREE.Vector3()
       bb.getCenter(center)
@@ -163,6 +154,8 @@ const ArchTooth = memo(function ArchTooth({
             isImplant, isMissing, isCrown, isRCT, isBridge, isDenture,
           )
         )
+        // Force immediate recompilation so we don't show partially-updated tooth colors.
+        mat.needsUpdate = true
       }
 
       // Compute implant placement + store bb
@@ -210,7 +203,20 @@ const ArchTooth = memo(function ArchTooth({
           distal: transformDir(dirs.distal),
         })
       }
-    })
+      setShaderReady(true)
+      return true
+    }
+
+    if (applyToCurrentScene()) return
+    let raf = 0
+    let tries = 0
+    const maxTries = 12
+    const tick = () => {
+      if (applyToCurrentScene()) return
+      tries += 1
+      if (tries < maxTries) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [clonedScene, tooth, isImplant, isMissing, isCrown, isRCT, isBridge, isDenture])
 
@@ -276,11 +282,13 @@ const ArchTooth = memo(function ArchTooth({
       ref={meshRef}
       position={archPose.position}
       rotation={archPose.rotation}
+      scale={[toothScale, toothScale, toothScale]}
     >
       <group ref={outerGroupRef} scale={tooth.mirrorX ? [-1, 1, 1] : [1, 1, 1]}>
         <Center ref={groupRef}>
           <primitive
             object={clonedScene}
+            visible={shaderReady}
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}
             onClick={handleClick}
@@ -353,6 +361,12 @@ const ArchTooth = memo(function ArchTooth({
 
 interface DentitionViewProps {
   patientType: PatientType
+  visibleFdis?: string[]
+  disableSelection?: boolean
+  layoutMode?: 'split' | 'natural'
+  showGuides?: boolean
+  showScopeHotspots?: boolean
+  onSelectScope?: (scope: 'UR' | 'UL' | 'LR' | 'LL' | 'FULL') => void
   toothDiagnoses: Record<string, Set<string>>
   findingsByTooth: Record<string, Finding[]>
   implantTeeth: Set<string>
@@ -365,6 +379,12 @@ interface DentitionViewProps {
 
 export default function DentitionView({
   patientType,
+  visibleFdis,
+  disableSelection = false,
+  layoutMode = 'split',
+  showGuides = false,
+  showScopeHotspots = false,
+  onSelectScope,
   toothDiagnoses,
   findingsByTooth,
   implantTeeth,
@@ -374,6 +394,7 @@ export default function DentitionView({
   allEntries,
   toothNotes,
 }: DentitionViewProps) {
+  const USE_SPLIT_QUADRANT_EXPERIMENT = layoutMode === 'split'
   const [hoveredTooth, setHoveredToothInternal] = useState<string | null>(null)
   // Wrap setter to also notify parent.
   const setHoveredTooth = useCallback((v: string | null) => {
@@ -405,15 +426,113 @@ export default function DentitionView({
   }, [])
 
   const activeFdi = effectiveHovered || pinnedTooth
-  const activeTeeth = patientType === 'pediatric' ? PEDIATRIC_TEETH : TEETH
-  const activePositions = patientType === 'pediatric' ? PEDIATRIC_ARCH_POSITIONS : ARCH_POSITIONS
-  const scale = patientType === 'pediatric' ? [0.85, 0.85, 0.85] as [number, number, number] : [1, 1, 1] as [number, number, number]
+  const isPediatricOnly = patientType === 'pediatric'
+  const isMixed = patientType === 'mixed'
+  const activeTeeth = isMixed ? [...TEETH, ...PEDIATRIC_TEETH] : (isPediatricOnly ? PEDIATRIC_TEETH : TEETH)
+  const activePositions = useMemo<Record<string, ArchPose>>(() => {
+    if (isMixed) {
+      const mixed: Record<string, ArchPose> = {}
 
+      // Adult arches stay top/bottom. Pediatric arches sit in-between.
+      const adultUpperYOffset = 2.25
+      const adultLowerYOffset = -1.9
+      const pedUpperYOffset = 0.2
+      const pedLowerYOffset = -0.15
+
+      for (const tooth of TEETH) {
+        const base = ARCH_POSITIONS[tooth.fdi]
+        if (!base) continue
+        const yShift = tooth.arch === 'maxillary' ? adultUpperYOffset : adultLowerYOffset
+        const xShift = USE_SPLIT_QUADRANT_EXPERIMENT
+          ? (tooth.quadrant === 'upper-left' || tooth.quadrant === 'lower-left' ? 0.35 : -0.35)
+          : 0
+        mixed[tooth.fdi] = {
+          position: [base.position[0] + xShift, base.position[1] + yShift, base.position[2]],
+          rotation: base.rotation,
+        }
+      }
+
+      for (const tooth of PEDIATRIC_TEETH) {
+        const base = PEDIATRIC_ARCH_POSITIONS[tooth.fdi]
+        if (!base) continue
+        const yShift = tooth.arch === 'maxillary' ? pedUpperYOffset : pedLowerYOffset
+        const xShift = USE_SPLIT_QUADRANT_EXPERIMENT
+          ? (tooth.quadrant === 'upper-left' || tooth.quadrant === 'lower-left' ? 0.35 : -0.35)
+          : 0
+        mixed[tooth.fdi] = {
+          position: [base.position[0] + xShift, base.position[1] + yShift, base.position[2]],
+          rotation: base.rotation,
+        }
+      }
+      return mixed
+    }
+    const baseline = isPediatricOnly ? PEDIATRIC_ARCH_POSITIONS : ARCH_POSITIONS
+    if (!USE_SPLIT_QUADRANT_EXPERIMENT) return baseline
+
+    const split: Record<string, ArchPose> = {}
+    for (const tooth of activeTeeth) {
+      const base = baseline[tooth.fdi]
+      if (!base) continue
+      const isUpper = tooth.arch === 'maxillary'
+      const isLeft = tooth.quadrant === 'upper-left' || tooth.quadrant === 'lower-left'
+      split[tooth.fdi] = {
+        position: [
+            base.position[0] + (isLeft ? 0.5 : -0.5),
+            base.position[1] + (isUpper ? 0.42 : -0.42),
+          base.position[2],
+        ],
+        rotation: base.rotation,
+      }
+    }
+    return split
+  }, [USE_SPLIT_QUADRANT_EXPERIMENT, activeTeeth, isMixed, isPediatricOnly])
+  const sceneScale = isPediatricOnly ? [0.85, 0.85, 0.85] as [number, number, number] : [1, 1, 1] as [number, number, number]
+
+  const visibleTeeth = useMemo(
+    () => activeTeeth.filter((tooth) => !visibleFdis || visibleFdis.includes(tooth.fdi)),
+    [activeTeeth, visibleFdis]
+  )
+  const contentCenter = useMemo<[number, number, number]>(() => {
+    if (visibleTeeth.length === 0) return [0, 0, 0]
+    const sum = visibleTeeth.reduce<[number, number, number]>((acc, tooth) => {
+      const pose = activePositions[tooth.fdi]
+      if (!pose) return acc
+      return [acc[0] + pose.position[0], acc[1] + pose.position[1], acc[2] + pose.position[2]]
+    }, [0, 0, 0])
+    return [sum[0] / visibleTeeth.length, sum[1] / visibleTeeth.length, sum[2] / visibleTeeth.length]
+  }, [activePositions, visibleTeeth])
+  // Keep the dentition stack slightly lower so it aligns with the split drag-handle midpoint.
+  const frameVerticalOffset = -0.5
   const activeTooth = activeFdi ? activeTeeth.find(t => t.fdi === activeFdi) : null
+  const guideSegments = useMemo(() => {
+    if (!showGuides) return null
+    if (isMixed) {
+      // Vertical center + separators between the 4 mixed rows.
+      return new Float32Array([
+        0, 3.2, -2.6, 0, -3.2, -2.6,
+        -5.2, 1.15, -2.6, 5.2, 1.15, -2.6,
+        -5.2, -0.4, -2.6, 5.2, -0.4, -2.6,
+        -5.2, -2.05, -2.6, 5.2, -2.05, -2.6,
+      ])
+    }
+    return new Float32Array([
+      0, 2.3, -2.6, 0, -2.3, -2.6,
+      -5.2, 0, -2.6, 5.2, 0, -2.6,
+    ])
+  }, [showGuides, isMixed])
 
   return (
-    <group scale={scale}>
-      {activeTeeth.map((tooth) => {
+    <group scale={sceneScale} position={[-contentCenter[0], -contentCenter[1] + frameVerticalOffset, -contentCenter[2]]}>
+      {guideSegments && (
+        <lineSegments renderOrder={1}>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" args={[guideSegments, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial color="#94a3b8" transparent opacity={0.35} />
+        </lineSegments>
+      )}
+      {visibleTeeth.map((tooth) => {
+        const isPrimaryTooth = ['5', '6', '7', '8'].includes(tooth.fdi[0])
         const findings = findingsByTooth[tooth.fdi] || []
         const treatmentHistoryTags = Array.from(new Set([
           ...(toothDiagnoses[tooth.fdi] ? Array.from(toothDiagnoses[tooth.fdi]!) : []),
@@ -421,9 +540,10 @@ export default function DentitionView({
         ]))
         return (
           <ArchTooth
-            key={`${tooth.fdi}-${[...(toothDiagnoses[tooth.fdi] || [])].join(',')}-${implantTeeth.has(tooth.fdi)}`}
+            key={`${patientType}-${layoutMode}-${tooth.fdi}-${[...(toothDiagnoses[tooth.fdi] || [])].join(',')}-${implantTeeth.has(tooth.fdi)}`}
             tooth={tooth}
             archPose={activePositions[tooth.fdi]}
+            toothScale={isMixed && isPrimaryTooth ? 0.85 : 1}
             diagnoses={toothDiagnoses[tooth.fdi]}
             findings={findings}
             treatmentHistoryTags={treatmentHistoryTags}
@@ -431,11 +551,20 @@ export default function DentitionView({
             isHovered={effectiveHovered === tooth.fdi}
             isPinned={pinnedTooth === tooth.fdi}
             onHover={setHoveredTooth}
-            onClick={onSelectTooth}
+            onClick={disableSelection ? () => {} : onSelectTooth}
             onPin={setPinnedTooth}
           />
         )
       })}
+      {showScopeHotspots && onSelectScope && (
+        <>
+          <ScopeHotspot label="UR" position={[-3.2, 1.2, -2.8]} onClick={() => onSelectScope('UR')} />
+          <ScopeHotspot label="UL" position={[3.2, 1.2, -2.8]} onClick={() => onSelectScope('UL')} />
+          <ScopeHotspot label="LR" position={[-3.2, -1.2, -2.8]} onClick={() => onSelectScope('LR')} />
+          <ScopeHotspot label="LL" position={[3.2, -1.2, -2.8]} onClick={() => onSelectScope('LL')} />
+          <ScopeHotspot label="Full" position={[0, 0, -3.2]} onClick={() => onSelectScope('FULL')} emphasized />
+        </>
+      )}
       {activeTooth && (
         <DentitionTooltip
           tooth={activeTooth}
@@ -448,6 +577,55 @@ export default function DentitionView({
         />
       )}
     </group>
+  )
+}
+
+function ScopeHotspot({
+  label,
+  position,
+  onClick,
+  emphasized = false,
+}: {
+  label: string
+  position: [number, number, number]
+  onClick: () => void
+  emphasized?: boolean
+}) {
+  return (
+    <Html position={position} transform occlude zIndexRange={[220, 80]}>
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          cursor: 'pointer',
+          minWidth: emphasized ? 64 : 44,
+          height: emphasized ? 30 : 28,
+          borderRadius: emphasized ? 16 : 14,
+          border: '1px solid rgba(255,255,255,0.42)',
+          background: emphasized ? 'rgba(30, 41, 59, 0.78)' : 'rgba(15, 23, 42, 0.66)',
+          color: '#f8fafc',
+          fontSize: emphasized ? 12 : 11,
+          fontWeight: 700,
+          padding: '0 12px',
+          boxShadow: '0 4px 14px rgba(2, 6, 23, 0.22)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-1px)'
+          e.currentTarget.style.background = emphasized ? 'rgba(15, 23, 42, 0.88)' : 'rgba(30, 41, 59, 0.78)'
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 6, 23, 0.3)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.background = emphasized ? 'rgba(30, 41, 59, 0.78)' : 'rgba(15, 23, 42, 0.66)'
+          e.currentTarget.style.boxShadow = '0 4px 14px rgba(2, 6, 23, 0.22)'
+        }}
+      >
+        {label}
+      </button>
+    </Html>
   )
 }
 
@@ -478,7 +656,8 @@ function DentitionTooltip({
   const toothOnScreenRight = tooth.quadrant === 'upper-left' || tooth.quadrant === 'lower-left'
   // Small horizontal nudge toward the tooth's side so the leader line stays short
   const offsetX = toothOnScreenRight ? 1.1 : -1.1
-  const offsetY = isMax ? 1.6 : -1.6
+  // Keep tooltip closer to tooth so it stays inside the visible canvas area.
+  const offsetY = isMax ? 1.18 : -1.18
   const offsetZ = -8.2
   // Anchor tooltip horizontally on the tooth's side; keep it below/above vertically
   const tooltipTransform = "translate(-50%, " + (isMax ? "0%" : "-100%") + ")"

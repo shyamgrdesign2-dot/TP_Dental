@@ -15,7 +15,7 @@ import {
 
 type RxTabId = "base" | "dental"
 
-/** Clipboard-text icon — Linear (outline) variant for General Rx */
+/** Clipboard-text icon — Linear (outline) variant for Clinical Examination */
 function ClipboardTextLinear({ size = 20, color = "currentColor" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -26,7 +26,7 @@ function ClipboardTextLinear({ size = 20, color = "currentColor" }: { size?: num
   )
 }
 
-/** Clipboard-text icon — Bold (filled) variant for General Rx */
+/** Clipboard-text icon — Bold (filled) variant for Clinical Examination */
 function ClipboardTextBold({ size = 20, color = "currentColor" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
@@ -69,6 +69,19 @@ function RxPadInner() {
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "apt-1"
   const [activeTab, setActiveTab] = useState<RxTabId>("base")
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const saved = window.localStorage.getItem("rxpad.active-tab")
+    if (saved === "base" || saved === "dental") {
+      setActiveTab(saved)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem("rxpad.active-tab", activeTab)
+  }, [activeTab])
 
   // ── Carousel swipe state ──
   const containerRef = useRef<HTMLDivElement>(null)
@@ -222,7 +235,7 @@ function RxPadInner() {
           style={{ boxShadow: "0 2px 8px -2px rgba(0,0,0,0.08)" }}
         >
           <div className="flex items-center justify-center gap-[40px] px-[20px] h-[46px]">
-            {/* General Rx tab */}
+            {/* Clinical Examination tab */}
             <button
               type="button"
               onClick={() => setActiveTab("base")}
@@ -239,7 +252,7 @@ function RxPadInner() {
               ) : (
                 <ClipboardTextLinear size={20} color="var(--tp-slate-400)" />
               )}
-              General Rx
+              Clinical Examination
               {activeTab === "base" && (
                 <span className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-full bg-tp-blue-600" />
               )}
@@ -292,7 +305,7 @@ function RxPadInner() {
               willChange: isDragging ? "transform" : "auto",
             }}
           >
-            {/* General Rx panel */}
+            {/* Clinical Examination panel */}
             <div className="h-full overflow-y-auto" style={{ width: `${100 / TAB_IDS.length}%` }}>
               <RxPad />
             </div>

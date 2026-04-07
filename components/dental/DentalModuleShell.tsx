@@ -7,7 +7,7 @@
  *   2. Treatment Plan → PRD-spec table with auto-calculation
  */
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Health, ClipboardText } from "iconsax-reactjs"
 import { ExaminationTab } from "./examination/ExaminationTab"
@@ -37,6 +37,19 @@ export function DentalModuleShell() {
   const ageMatch = rawName.match(/(\d+)[MF]/)
   const patientAge = ageMatch ? parseInt(ageMatch[1], 10) : 30
   const [activeTab, setActiveTab] = useState<DentalTabId>("examination")
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const saved = window.localStorage.getItem(`dental.module.active-tab.${patientId}`)
+    if (saved === "examination" || saved === "plan") {
+      setActiveTab(saved)
+    }
+  }, [patientId])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem(`dental.module.active-tab.${patientId}`, activeTab)
+  }, [activeTab, patientId])
 
   const handleBack = () => {
     router.push(`/rxpad?patientId=${patientId}`)

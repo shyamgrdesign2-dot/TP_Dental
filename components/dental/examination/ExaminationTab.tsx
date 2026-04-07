@@ -13,7 +13,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import dynamic from "next/dynamic"
 import { InfoCircle, TickCircle, ArrowLeft2, Eye, Trash, ArrowRight2, Grid5, Ram, Eraser, More, Add, Edit2, Calendar, SearchNormal1, DocumentText, Mouse, Note1, Chart, Health, ArrowDown2, SidebarRight } from "iconsax-reactjs"
 import {
   AlertDialog,
@@ -27,23 +26,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { ExpandIcon, MinimizeIcon } from "./ui-icons"
+import { DentalCanvas } from "./DentalCanvas"
 import type { DentalCanvasState } from "./DentalCanvas"
 import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PROCEDURE_CATALOG, QUADRANT_LABELS, getDefaultTreatmentSurfaces } from "./types"
 import type { ZoneId, ToothEntry } from "./types"
 import { MiniToothCanvas } from "./MiniToothCanvas"
+import { MiniScopeCanvas } from "./MiniScopeCanvas"
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons"
-
-const DentalCanvas = dynamic(() => import("./DentalCanvas").then((m) => m.DentalCanvas), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full items-center justify-center bg-tp-slate-100">
-      <div className="flex flex-col items-center gap-[12px]">
-        <div className="h-[32px] w-[32px] animate-spin rounded-full border-[3px] border-tp-slate-200 border-t-tp-blue-500" />
-        <p className="font-sans text-[12px] text-tp-slate-500">Loading 3D dental canvas…</p>
-      </div>
-    </div>
-  ),
-})
 
 interface ExaminationTabProps {
   patientId: string
@@ -248,7 +237,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }: ExaminationTabPro
 
       {/* Right: Context-aware panel */}
       <aside
-        className={`flex shrink-0 flex-col overflow-hidden ${isGetStarted ? 'rounded-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.06)] bg-white w-auto h-fit my-auto' : 'bg-tp-slate-100'}`}
+        className={`flex shrink-0 flex-col overflow-hidden ${isGetStarted ? 'bg-transparent w-auto h-full' : 'bg-tp-slate-100'}`}
         style={{
           width: isGetStarted ? "auto" : `${asidePct}%`,
           transition: dragging ? "none" : "width 350ms ease-out"
@@ -272,7 +261,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }: ExaminationTabPro
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto pl-[18px]">
+            <div className={isGetStarted ? "flex-1 overflow-y-auto w-full min-w-[300px] max-w-[350px] mx-auto" : "flex-1 overflow-y-auto pl-[18px]"}>
               <DentitionPanel state={canvasState} />
             </div>
           )}
@@ -401,7 +390,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
                       <span className="font-sans text-[14px] font-semibold text-tp-slate-800 truncate">
                         {toothName}
                       </span>
-                      <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[7px] font-sans text-[12px] font-bold text-tp-slate-600 tabular-nums">
+                      <span className="inline-flex h-[20px] w-[36px] items-center rounded-[5px] bg-tp-slate-100 px-[7px] font-sans text-[12px] font-bold text-tp-slate-700 tabular-nums">
                         T{entry.fdi}
                       </span>
                     </div>
@@ -417,7 +406,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
                         <SummaryPill icon="surgical-scissors-02" label={`${entry.procedureCount} procedure${entry.procedureCount === 1 ? "" : "s"}`} tone="blue" />
                       )}
                       {entry.findings.length > 0 && entry.findingCount === 0 && entry.findings.map((f) => (
-                        <span key={f} className="inline-flex items-center rounded-[4px] bg-amber-50 px-[6px] py-[2px] font-sans text-[12px] font-medium text-amber-700">
+                        <span key={f} className="inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[6px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-700">
                           {f}
                         </span>
                       ))}
@@ -436,10 +425,10 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
         </>
       ) : (
         /* First-time user onboarding — polished educational panel */
-        <div className="flex flex-col gap-[14px] mx-auto min-w-[300px] max-w-[400px] w-full">
+        <div className="flex h-full w-full min-w-[300px] max-w-[350px] mx-auto flex-col gap-[14px]">
 
-          {/* Quick-start steps — clean white card with connected dotted lines */}
-          <div className="rounded-[16px] bg-white p-[18px] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          {/* Quick-start steps — single visible Dentition panel card */}
+          <div className="h-full w-full overflow-y-auto rounded-[16px] bg-white p-[18px] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
             <div className="flex items-center gap-[10px] mb-[18px]">
               <div className="flex h-[36px] w-[36px] items-center justify-center rounded-[10px] bg-gradient-to-br from-violet-500 to-purple-600 shrink-0">
                 <TPMedicalIcon name="health care" variant="bulk" size={18} color="#ffffff" />
@@ -526,11 +515,12 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
 // ──────────────────────────────────────────────────────────────
 // SummaryPill — compact chip with a TP medical icon + label
 // ──────────────────────────────────────────────────────────────
-function SummaryPill({ icon, label, tone }: { icon: string; label: string; tone: "violet" | "amber" | "blue" }) {
+function SummaryPill({ icon, label, tone }: { icon: string; label: string; tone: "violet" | "amber" | "blue" | "slate" }) {
   const tones = {
     violet: { bg: "bg-tp-violet-50", text: "text-tp-violet-700", colour: "var(--tp-violet-600)" },
     amber: { bg: "bg-amber-50", text: "text-amber-700", colour: "#b45309" },
     blue: { bg: "bg-tp-blue-50", text: "text-tp-blue-700", colour: "var(--tp-blue-600)" },
+    slate: { bg: "bg-tp-slate-100", text: "text-tp-slate-700", colour: "var(--tp-slate-600)" },
   } as const
   const t = tones[tone]
   return (
@@ -791,6 +781,13 @@ function TooltipRow({ label, value }: { label: string; value: number }) {
 type SectionId = "procedures" | "findings" | "planned" | "notes"
 
 function SingleToothPanel({ state }: { state: DentalCanvasState }) {
+  const isGroupedScope = state.selectionScopeType === "quadrant" || state.selectionScopeType === "full-mouth"
+  const entityLabel = isGroupedScope
+    ? (state.selectionScopeLabel || "Selected Scope")
+    : `${QUADRANT_LABELS[state.selectedTooth.quadrant]} ${state.selectedTooth.name}`
+  const entityBadge = isGroupedScope
+    ? (state.selectionScopeType === "full-mouth" ? "FULL" : (state.selectionScopeId || "Q"))
+    : `T${state.selectedTooth.fdi}`
   const [activeSection, setActiveSection] = useState<SectionId | null>("procedures")
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const tryBack = () => state.onBackToDentition()
@@ -823,7 +820,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
     { id: "procedures", label: "Treatment History", icon: "clipboard-activity", count: diagnosisCount + procedureCount },
     { id: "findings", label: "Findings", icon: "diagnosis", count: findingCount },
     { id: "planned", label: "Procedures", icon: "surgical-scissors-02", count: plannedCount },
-    { id: "notes", label: "Overall Tooth Notes", icon: "note-2", count: notesFilled ? 1 : 0 },
+    { id: "notes", label: isGroupedScope ? "Overall Group Notes" : "Overall Tooth Notes", icon: "note-2", count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -843,24 +840,36 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
     <div className="flex h-full flex-col">
       {/* Tooth identity header — RxPad style */}
       <header className="shrink-0 border-b border-tp-slate-100 bg-white">
-        <div className="flex items-center justify-between gap-[16px] px-[18px] py-[18px]">
-          <div className="inline-flex items-center gap-[12px] min-w-0">
+        <div className="flex items-center justify-between gap-[60px] px-[18px] py-[18px]">
+          <div className="inline-flex flex-1 items-center gap-[12px] min-w-0">
             <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center relative rounded-[6px] bg-gradient-to-br from-tp-slate-50 to-tp-slate-100 overflow-hidden">
-              <MiniToothCanvas
-                tooth={state.selectedTooth}
-                size={40}
-                diagnoses={state.currentToothDiagnoses}
-                isImplant={state.isImplant}
-                findings={state.findings}
-              />
+              {isGroupedScope ? (
+                <MiniScopeCanvas
+                  patientType={state.patientType ?? "adult"}
+                  scopeType={state.selectionScopeType === "full-mouth" ? "full-mouth" : "quadrant"}
+                  fdis={state.selectionScopeFdis ?? []}
+                  toothDiagnoses={state.toothDiagnoses}
+                  findingsByTooth={state.findingsByTooth}
+                  implantTeeth={state.implantTeeth}
+                  size={40}
+                />
+              ) : (
+                <MiniToothCanvas
+                  tooth={state.selectedTooth}
+                  size={40}
+                  diagnoses={state.currentToothDiagnoses}
+                  isImplant={state.isImplant}
+                  findings={state.findings}
+                />
+              )}
             </div>
             <div className="flex flex-col min-w-0 justify-center">
               <div className="flex items-center gap-[6px] min-w-0">
                 <h3 className="text-[17px] font-semibold leading-[20px] text-tp-slate-800 font-['Inter',sans-serif] tracking-[0.1px] truncate">
-                  {QUADRANT_LABELS[state.selectedTooth.quadrant]} {state.selectedTooth.name}
+                  {entityLabel}
                 </h3>
-                <span className="inline-flex h-[20px] shrink-0 items-center rounded-[4px] bg-tp-slate-100 px-[6px] font-sans text-[11px] font-bold text-tp-slate-600 tabular-nums">
-                  T{state.selectedTooth.fdi}
+                <span className="inline-flex h-[20px] shrink-0 items-center rounded-[4px] bg-tp-slate-100 px-[6px] font-sans text-[11px] font-bold text-tp-slate-700 tabular-nums">
+                  {entityBadge}
                 </span>
               </div>
             </div>
@@ -905,7 +914,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                   <AlertDialogDescription className="font-sans text-[13px] text-tp-slate-500 leading-[1.5]">
                     This will remove all treatment history, findings, procedures, and notes for{" "}
                     <span className="font-semibold text-tp-slate-700">
-                      {QUADRANT_LABELS[state.selectedTooth.quadrant]} {state.selectedTooth.name} (T{state.selectedTooth.fdi})
+                      {entityLabel} ({entityBadge})
                     </span>
                     . This action cannot be undone.
                   </AlertDialogDescription>
@@ -996,7 +1005,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
         <div ref={(el) => { sectionRefs.current.notes = el }}>
           <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
-            header={<SectionHeader title="Overall Tooth Notes" medicalIcon="note-2"
+            header={<SectionHeader title={isGroupedScope ? "Overall Group Notes" : "Overall Tooth Notes"} medicalIcon="note-2"
               onTemplate={activeSection === "notes" ? () => { } : undefined}
               onSave={activeSection === "notes" ? () => { } : undefined}
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
@@ -1008,7 +1017,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
               <textarea
                 value={state.currentToothNotes}
                 onChange={(e) => state.onUpdateToothNotes(e.target.value)}
-                placeholder="General notes for this tooth…"
+                placeholder={isGroupedScope ? "General notes for this selected group…" : "General notes for this tooth…"}
                 className="h-[140px] w-full resize-none rounded-[8px] border border-tp-slate-200 bg-white px-[12px] py-[10px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
               />
             </div>
@@ -1163,7 +1172,30 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
   }, [])
 
   const isMissing = state.currentToothDiagnoses.has("Missing") || state.currentToothDiagnoses.has("Extraction")
-  const catalog = kind === "finding" ? (DIAGNOSES as readonly string[]) : kind === "symptom" ? (DENTAL_SYMPTOM_CATALOG as readonly string[]) : (kind === "planned" || kind === "procedure") ? (PROCEDURE_CATALOG as readonly string[]) : (PROCEDURE_CATALOG as readonly string[])
+  const isGroupedScope = state.selectionScopeType === "quadrant" || state.selectionScopeType === "full-mouth"
+  const groupedFindingCatalog = [
+    "Generalized plaque accumulation",
+    "Generalized gingival inflammation",
+    "Quadrant-level calculus",
+    "Generalized recession",
+    "Generalized bleeding on probing",
+    "Widespread sensitivity",
+  ] as const
+  const groupedProcedureCatalog = [
+    "Quadrant scaling and root planing",
+    "Full-mouth scaling and polishing",
+    "Oral prophylaxis",
+    "Fluoride varnish (full arch)",
+    "Desensitization therapy (quadrant)",
+    "Periodontal maintenance",
+  ] as const
+  const catalog = kind === "finding"
+    ? (isGroupedScope ? groupedFindingCatalog : (DIAGNOSES as readonly string[]))
+    : kind === "symptom"
+      ? (DENTAL_SYMPTOM_CATALOG as readonly string[])
+      : (kind === "planned" || kind === "procedure")
+        ? (isGroupedScope ? groupedProcedureCatalog : (PROCEDURE_CATALOG as readonly string[]))
+        : (PROCEDURE_CATALOG as readonly string[])
   const entries = state.currentToothEntries.filter((e) => e.kind === kind)
   const activeSurfaceRowId = activeCell?.colKey === "surfaces" ? activeCell.rowId : null
   const activeRow = entries.find((e) => e.id === activeSurfaceRowId) ?? null
@@ -1210,11 +1242,15 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
 
   const quickSelectChips = useMemo(() => {
     const defaults = kind === "finding"
-      ? ["Cavity/Caries", "Crack", "Fracture", "Sensitivity", "Plaque", "Calculus"]
-      : ["RCT", "Restoration", "Extraction", "Scaling", "Polishing", "Crown Prep", "Implant Placement", "Veneer"]
+      ? (isGroupedScope
+        ? ["Generalized plaque accumulation", "Generalized gingival inflammation", "Quadrant-level calculus", "Widespread sensitivity"]
+        : ["Cavity/Caries", "Crack", "Fracture", "Sensitivity", "Plaque", "Calculus"])
+      : (isGroupedScope
+        ? ["Quadrant scaling and root planing", "Full-mouth scaling and polishing", "Oral prophylaxis", "Periodontal maintenance"]
+        : ["RCT", "Restoration", "Extraction", "Scaling", "Polishing", "Crown Prep", "Implant Placement", "Veneer"])
     const selected = new Set(entries.map((e) => e.name.toLowerCase()))
     return defaults.filter((name) => (catalog as readonly string[]).includes(name) && !selected.has(name.toLowerCase()))
-  }, [catalog, entries, kind])
+  }, [catalog, entries, isGroupedScope, kind])
 
   const pendingActivateRef = useRef(false)
   const prevCountRef = useRef(entries.length)
@@ -1437,7 +1473,15 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                 if (match) { addEntryFromName(match); setSearchOpen(false) }
               }
             }}
-            placeholder={kind === "finding" ? "Search & Add Examination" : kind === "symptom" ? "Search & Add Symptom" : kind === "planned" ? "Search & Add Planned Procedure" : "Search & Add Procedure"}
+            placeholder={
+              kind === "finding"
+                ? (isGroupedScope ? "Search & Add Group Finding" : "Search & Add Examination")
+                : kind === "symptom"
+                  ? "Search & Add Symptom"
+                  : kind === "planned"
+                    ? (isGroupedScope ? "Search & Add Group Planned Procedure" : "Search & Add Planned Procedure")
+                    : (isGroupedScope ? "Search & Add Group Procedure" : "Search & Add Procedure")
+            }
             className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
           />
           {searchOpen && pos && typeof document !== "undefined" && (filteredCatalog.length > 0 || query.trim()) && createPortal(
@@ -1876,8 +1920,13 @@ function SurfaceCellDropdown({
         ref={anchorRef}
         type="button"
         onClick={() => {
+          if (open) {
+            setOpen(false)
+            onDeactivate?.()
+            return
+          }
           onActivate()
-          setOpen((current) => !current)
+          setOpen(true)
         }}
         className="relative z-20 flex h-[52px] w-full min-w-0 items-center justify-between gap-[6px] bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] transition-colors focus:outline-none"
       >

@@ -173,7 +173,7 @@ export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
             <button
               type="button"
               aria-label="Customisation"
-              className="bg-[#f1f1f5] content-stretch flex h-[42px] items-center justify-center p-[8.4px] relative rounded-[10.5px] shrink-0 transition-colors hover:bg-[#e9e9ef]"
+              className="bg-[rgba(233,233,239,1)] content-stretch flex h-[42px] items-center justify-center p-[8.4px] relative rounded-[10.5px] shrink-0 transition-colors hover:bg-[#e9e9ef]"
               data-name="Customisation"
             >
               <Setting2 color="#454551" size={24} strokeWidth={1.5} variant="Linear" />
