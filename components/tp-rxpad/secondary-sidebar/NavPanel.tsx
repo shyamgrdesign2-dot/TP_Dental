@@ -8,6 +8,7 @@
  */
 import React, { useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { ArrowDown2, DocumentText, Glass, Note1, Notepad2, Ruler } from "iconsax-reactjs"
 import { ToothIcon } from "@/components/dental/ToothIcon"
 
@@ -115,9 +116,7 @@ function DrAgentGlyph({ active }: { active: boolean }) {
     <div
       className="relative h-[32px] w-[32px] overflow-hidden rounded-[10px]"
       style={{
-        background: active
-          ? "radial-gradient(120% 120% at 20% 20%, #6F4E99 0%, #3A2258 55%, #24123D 100%)"
-          : "radial-gradient(120% 120% at 20% 20%, #F4ECFF 0%, #E8DBFF 58%, #DCC7FF 100%)",
+        background: active ? "var(--tp-slate-700)" : "var(--tp-slate-100)",
       }}
     >
       <svg
@@ -128,16 +127,8 @@ function DrAgentGlyph({ active }: { active: boolean }) {
       >
         <path
           d="M18.0841 11.612C18.4509 11.6649 18.4509 12.3351 18.0841 12.388C14.1035 12.9624 12.9624 14.1035 12.388 18.0841C12.3351 18.4509 11.6649 18.4509 11.612 18.0841C11.0376 14.1035 9.89647 12.9624 5.91594 12.388C5.5491 12.3351 5.5491 11.6649 5.91594 11.612C9.89647 11.0376 11.0376 9.89647 11.612 5.91594C11.6649 5.5491 12.3351 5.5491 12.388 5.91594C12.9624 9.89647 14.1035 11.0376 18.0841 11.612Z"
-          fill={active ? "#FFFFFF" : "url(#drAgentAiGrad)"}
+          fill={active ? "#FFFFFF" : "var(--tp-slate-400)"}
         />
-        {!active ? (
-          <defs>
-            <linearGradient id="drAgentAiGrad" x1="3" y1="3" x2="21" y2="21" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#8A4DBB" />
-              <stop offset="1" stopColor="#4B4AD5" />
-            </linearGradient>
-          </defs>
-        ) : null}
       </svg>
     </div>
   )
@@ -200,7 +191,7 @@ function NavItem({
   )
 }
 
-function DrAgentItem({ active, onClick }: { active: boolean; onClick: () => void }) {
+function EncyclopediaItem({ active, onClick }: { active: boolean; onClick: () => void }) {
   const [hovered, setHovered] = useState(false)
 
   const rowBg = active
@@ -229,14 +220,9 @@ function DrAgentItem({ active, onClick }: { active: boolean; onClick: () => void
         <DrAgentGlyph active={active} />
 
         <p
-          className={`${rxSidebarTokens.navLabelClass} min-w-full not-italic overflow-hidden relative shrink-0 text-center text-ellipsis w-[min-content] whitespace-pre-wrap`}
-          style={{
-            background: "linear-gradient(90deg, #f4e6ff, #c0c0ff)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
+          className={`${rxSidebarTokens.navLabelClass} min-w-full not-italic overflow-hidden relative shrink-0 text-center text-ellipsis text-white w-[min-content] whitespace-pre-wrap`}
         >
-          Dr.Agent
+          Encyclopedia
         </p>
       </div>
       {active ? <div className="absolute bg-white bottom-0 left-0 rounded-br-[12px] rounded-tr-[12px] top-0 w-[3px]" /> : null}
@@ -290,23 +276,31 @@ export function NavPanel({ active, onSelect }: Props) {
         className="content-stretch flex flex-col gap-[4px] h-full items-center overflow-x-visible overflow-y-auto relative [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
         style={{ ...NAV_BG, width: rxSidebarTokens.railWidth, touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
       >
-        {NAV_ITEMS.map(({ id, label, icon, navigateTo }) => (
-          <NavItem
-            key={id}
-            id={id}
-            label={label}
-            icon={icon}
-            active={active === id}
-            onClick={(id) => {
-              if (navigateTo) {
-                const patientId = searchParams?.get("patientId") ?? "apt-1"
-                router.push(`${navigateTo}?patientId=${patientId}`)
-              } else {
-                onSelect(id)
-              }
-            }}
-          />
-        ))}
+        {NAV_ITEMS.map(({ id, label, icon, navigateTo }) => {
+          const content = (
+            <NavItem
+              key={id}
+              id={id}
+              label={label}
+              icon={icon}
+              active={active === id}
+              onClick={(id) => {
+                if (!navigateTo) onSelect(id)
+              }}
+            />
+          )
+
+          if (navigateTo) {
+            const patientId = searchParams?.get("patientId") ?? "apt-1"
+            return (
+              <Link key={id} href={`${navigateTo}?patientId=${patientId}`} className="block">
+                {content}
+              </Link>
+            )
+          }
+
+          return content
+        })}
       </div>
 
       {showScrollHint ? (

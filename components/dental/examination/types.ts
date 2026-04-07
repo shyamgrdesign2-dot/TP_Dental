@@ -411,3 +411,101 @@ function computeArchPositions(): Record<string, ArchPose> {
 }
 
 export const ARCH_POSITIONS: Record<string, ArchPose> = computeArchPositions()
+
+// ══════════════════════════════════════════════════════════════
+// PEDIATRIC DENTITION (20 Teeth)
+// ══════════════════════════════════════════════════════════════
+
+export type PatientType = 'adult' | 'pediatric'
+export type PediatricQuadrant = 'upper-right-primary' | 'upper-left-primary' | 'lower-left-primary' | 'lower-right-primary'
+
+function buildPediatricTeeth(): ToothDef[] {
+  const teeth: ToothDef[] = []
+
+  // Mapping primary positions (1-5) to adult model positions for reuse
+  // 1=Central, 2=Lateral, 3=Canine, 4=First Molar (uses adult 6), 5=Second Molar (uses adult 7)
+  const posMap: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 6, 5: 7 }
+  const typeMap: Record<number, 'incisor' | 'canine' | 'molar'> = { 1: 'incisor', 2: 'incisor', 3: 'canine', 4: 'molar', 5: 'molar' }
+  const nameMap: Record<number, string> = { 1: 'Central Incisor', 2: 'Lateral Incisor', 3: 'Canine', 4: 'First Molar', 5: 'Second Molar' }
+
+  // Q5: Upper Right
+  for (let pos = 1; pos <= 5; pos++) {
+    const adultPos = posMap[pos]
+    teeth.push({
+      fdi: `5${pos}`, name: nameMap[pos], position: pos, type: typeMap[pos],
+      quadrant: 'upper-right', arch: 'maxillary', mirrorX: true, modelPath: UPPER_MODELS[adultPos],
+    })
+  }
+
+  // Q6: Upper Left
+  for (let pos = 1; pos <= 5; pos++) {
+    const adultPos = posMap[pos]
+    teeth.push({
+      fdi: `6${pos}`, name: nameMap[pos], position: pos, type: typeMap[pos],
+      quadrant: 'upper-left', arch: 'maxillary', mirrorX: false, modelPath: UPPER_MODELS[adultPos],
+    })
+  }
+
+  // Q7: Lower Left
+  for (let pos = 1; pos <= 5; pos++) {
+    const adultPos = posMap[pos]
+    teeth.push({
+      fdi: `7${pos}`, name: nameMap[pos], position: pos, type: typeMap[pos],
+      quadrant: 'lower-left', arch: 'mandibular', mirrorX: false, modelPath: LOWER_MODELS[adultPos],
+    })
+  }
+
+  // Q8: Lower Right
+  for (let pos = 1; pos <= 5; pos++) {
+    const adultPos = posMap[pos]
+    teeth.push({
+      fdi: `8${pos}`, name: nameMap[pos], position: pos, type: typeMap[pos],
+      quadrant: 'lower-right', arch: 'mandibular', mirrorX: true, modelPath: LOWER_MODELS[adultPos],
+    })
+  }
+
+  return teeth
+}
+
+export const PEDIATRIC_TEETH: ToothDef[] = buildPediatricTeeth()
+
+function computePediatricArchPositions(): Record<string, ArchPose> {
+  const result: Record<string, ArchPose> = {}
+  
+  // Widths based on adult positions reused
+  const widths: Record<number, number> = { 1: 0.55, 2: 0.45, 3: 0.52, 4: 0.68, 5: 0.65 }
+  
+  // Scale down curve variables slightly for smaller jaws
+  const kUpper = 0.16
+  const kLower = 0.18
+  const yLower = -1.5
+
+  function computeLeftSidePositions(k: number, yOffset: number, quadrant: string) {
+    let cumX = 0
+    for (let pos = 1; pos <= 5; pos++) {
+      const w = widths[pos]
+      cumX += w / 2
+      const x = cumX
+      const z = -k * x * x
+      const ry = Math.atan(-2 * k * x)
+      result[`${quadrant}${pos}`] = { position: [x, yOffset, z], rotation: [0, ry, 0] }
+      cumX += w / 2 + 0.04
+    }
+  }
+
+  computeLeftSidePositions(kUpper, 0, '6')
+  computeLeftSidePositions(kLower, yLower, '7')
+
+  // Mirror right side
+  for (let pos = 1; pos <= 5; pos++) {
+    const src6 = result[`6${pos}`]
+    result[`5${pos}`] = { position: [-src6.position[0], src6.position[1], src6.position[2]], rotation: [src6.rotation[0], -src6.rotation[1], src6.rotation[2]] }
+    
+    const src7 = result[`7${pos}`]
+    result[`8${pos}`] = { position: [-src7.position[0], src7.position[1], src7.position[2]], rotation: [src7.rotation[0], -src7.rotation[1], src7.rotation[2]] }
+  }
+
+  return result
+}
+
+export const PEDIATRIC_ARCH_POSITIONS: Record<string, ArchPose> = computePediatricArchPositions()

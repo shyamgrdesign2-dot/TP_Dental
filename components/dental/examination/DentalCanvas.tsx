@@ -8,9 +8,8 @@ import { Tooth } from './Tooth'
 import DentitionView from './DentitionView'
 import { ToothSelector } from './ToothSelector'
 import { QuickSurfaceSelector } from './QuickSurfaceSelector'
-import { ExaminationPanel } from './ExaminationPanel'
-import type { ZoneId, Finding, ToothDef, ViewMode, ToothEntry, TreatmentHistoryDetail } from './types'
-import { TEETH, QUADRANT_LABELS, ARCH_POSITIONS, ZONE_INFO, getDefaultTreatmentSurfaces } from './types'
+import type { ZoneId, Finding, ToothDef, ViewMode, ToothEntry, TreatmentHistoryDetail, PatientType } from './types'
+import { TEETH, PEDIATRIC_TEETH, QUADRANT_LABELS, ARCH_POSITIONS, ZONE_INFO, getDefaultTreatmentSurfaces } from './types'
 import { applyDiagnosisSelection } from './DiagnosisMatrix'
 import './dental-canvas.css'
 import { LottieIcon } from '../LottieIcon'
@@ -81,13 +80,13 @@ const SINGLE_TOOTH_CAMERA = { position: new THREE.Vector3(0.5, -0.15, 7.5), targ
 // Zone → spherical camera angle (azimuth, polar). Rotates the single-tooth
 // camera around the tooth to show the selected surface head-on.
 const ZONE_ANGLES: Record<string, { az: number; pol: number }> = {
-  buccal:   { az: 0,             pol: Math.PI / 2 },
-  lingual:  { az: Math.PI,       pol: Math.PI / 2 },
-  mesial:   { az: -Math.PI / 2,  pol: Math.PI / 2 },
-  distal:   { az:  Math.PI / 2,  pol: Math.PI / 2 },
-  occlusal: { az: 0,             pol: 0.25 },
-  cervical: { az: 0,             pol: Math.PI / 2.4 },
-  root:     { az: 0,             pol: Math.PI - 0.35 },
+  buccal:   { az: Math.PI,             pol: Math.PI / 2 },
+  lingual:  { az: 0,                   pol: Math.PI / 2 },
+  mesial:   { az: Math.PI / 2,         pol: Math.PI / 2 },
+  distal:   { az: -Math.PI / 2,        pol: Math.PI / 2 },
+  occlusal: { az: Math.PI,             pol: 0.25 },
+  cervical: { az: Math.PI,             pol: Math.PI / 2.4 },
+  root:     { az: Math.PI,             pol: Math.PI - 0.35 },
 }
 
 function ZoneCameraRotator({ zone, controlsRef, radius = 7.5 }: { zone: ZoneId | null; controlsRef: React.RefObject<any>; radius?: number }) {
@@ -241,10 +240,12 @@ function CameraController({ viewMode, controlsRef }: { viewMode: ViewMode; contr
 
 export function DentalCanvas({
   patientId,
+  patientAge = 30,
   compact = false,
   onStateChange,
 }: {
   patientId: string
+  patientAge?: number
   compact?: boolean
   /** Emitted whenever view mode, selected tooth, findings, or diagnoses change */
   onStateChange?: (state: DentalCanvasState) => void
@@ -268,8 +269,11 @@ export function DentalCanvas({
     }
     return out
   }, [initialState])
+  const [patientType, setPatientType] = useState<PatientType>(patientAge < 12 ? 'pediatric' : 'adult')
+  const activeTeeth = patientType === 'adult' ? TEETH : PEDIATRIC_TEETH
+
   const [viewMode, setViewMode] = useState<ViewMode>('dentition')
-  const [selectedTooth, setSelectedTooth] = useState<ToothDef>(TEETH.find(t => t.fdi === '26')!)
+  const [selectedTooth, setSelectedTooth] = useState<ToothDef>(activeTeeth.find(t => t.fdi === (patientType === 'adult' ? '26' : '64')) ?? activeTeeth[0])
   const [selectedZone, setSelectedZone] = useState<ZoneId | null>(null)
   const [, setHoveredZone] = useState<ZoneId | null>(null)
   const [findingsByTooth, setFindingsByTooth] = useState<Record<string, Finding[]>>(initialFindings)
@@ -565,6 +569,26 @@ export function DentalCanvas({
           )}
         </div>
 
+        {/* Top-Right Toggle (Adult vs Pediatric) */}
+        {isDentitionView && (
+          <div className="absolute top-4 right-4 z-20">
+            <div className="flex bg-slate-100/90 p-1 rounded-lg border border-slate-200 backdrop-blur-md">
+              <button 
+                onClick={() => setPatientType('adult')}
+                className={`relative px-6 py-2 text-[12px] font-bold rounded-md transition-colors uppercase tracking-widest ${patientType === 'adult' ? 'bg-white border text-slate-900 border-slate-200 pointer-events-none' : 'text-slate-500 border border-transparent hover:text-slate-700 hover:bg-slate-200/50'}`}
+              >
+                Adult
+              </button>
+              <button 
+                onClick={() => setPatientType('pediatric')}
+                className={`relative px-6 py-2 text-[12px] font-bold rounded-md transition-colors uppercase tracking-widest ${patientType === 'pediatric' ? 'bg-white border text-slate-900 border-slate-200 pointer-events-none' : 'text-slate-500 border border-transparent hover:text-slate-700 hover:bg-slate-200/50'}`}
+              >
+                Pediatric
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Bottom-center hint — animated up-arrow + "Click any tooth" text */}
         {isDentitionView && (
           <div
@@ -601,6 +625,7 @@ export function DentalCanvas({
         {!isDentitionView && (
           <ToothSelector
             selectedTooth={selectedTooth}
+            patientType={patientType}
             onSelectTooth={handleSelectTooth}
             toothDiagnoses={toothDiagnoses}
             viewMode={viewMode}
@@ -642,6 +667,7 @@ export function DentalCanvas({
           <Suspense fallback={null}>
             {isDentitionView ? (
               <DentitionView
+                patientType={patientType}
                 toothDiagnoses={toothDiagnoses}
                 findingsByTooth={findingsByTooth}
                 implantTeeth={implantTeeth}
@@ -688,27 +714,6 @@ export function DentalCanvas({
           />
         </Canvas>
       </div>
-
-      {/* Examination panel — only in single-tooth view. In compact mode it renders
-          inside the host panel (not here) — we still need to keep it unmounted here
-          to avoid double-rendering. */}
-      {!isDentitionView && !compact && (
-        <ExaminationPanel
-          selectedZone={selectedZone}
-          findings={findings}
-          onAddFinding={handleAddFinding}
-          onRemoveFinding={handleRemoveFinding}
-          onUpdateNotes={handleUpdateNotes}
-          zoneNotes={zoneNotes}
-          tooth={selectedTooth}
-          isImplant={isImplant}
-          onToggleImplant={toggleImplant}
-          toothDiagnoses={currentToothDiagnoses}
-          onToggleToothDiagnosis={toggleToothDiagnosis}
-          toothNotes={currentToothNotes}
-          onUpdateToothNotes={updateToothNotes}
-        />
-      )}
     </div>
   )
 }

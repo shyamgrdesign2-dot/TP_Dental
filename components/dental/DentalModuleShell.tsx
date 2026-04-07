@@ -20,12 +20,12 @@ const PATIENT_NAMES: Record<string, string> = {
   "apt-2": "Sita Menon, 30F",
   "apt-3": "Vikram Singh, 42M",
   "apt-4": "Nisha Rao, 28F",
-  "apt-5": "Rahul Verma, 15M",
+  "apt-5": "Rahul Verma, 9M",
   "apt-6": "Anjali Patel, 28F",
   // Legacy PAT-* IDs retained for direct testing
   "PAT-001": "Aarav Mehta, 34M",
   "PAT-002": "Priya Sharma, 28F",
-  "PAT-003": "Rahul Verma, 15M",
+  "PAT-003": "Rahul Verma, 9M",
   "PAT-004": "Sneha Reddy, 42F",
 }
 
@@ -33,7 +33,9 @@ export function DentalModuleShell() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "PAT-001"
-  void PATIENT_NAMES
+  const rawName = PATIENT_NAMES[patientId] || "Unknown, 30M"
+  const ageMatch = rawName.match(/(\d+)[MF]/)
+  const patientAge = ageMatch ? parseInt(ageMatch[1], 10) : 30
   const [activeTab, setActiveTab] = useState<DentalTabId>("examination")
 
   const handleBack = () => {
@@ -61,7 +63,7 @@ export function DentalModuleShell() {
             Dental Module
           </h1>
           <p className="font-sans text-[11px] leading-[14px] text-tp-slate-500">
-            Tooth-wise examination &amp; treatment planning
+            Tooth-wise examination &amp; treatment planning - {rawName}
           </p>
         </div>
 
@@ -95,9 +97,9 @@ export function DentalModuleShell() {
         {/* Tab content */}
         <main className="flex-1 min-h-0 min-w-0 overflow-hidden">
           {activeTab === "examination" ? (
-            <ExaminationTab patientId={patientId} />
+            <ExaminationTab patientId={patientId} patientAge={patientAge} />
           ) : (
-            <TreatmentPlanTab patientId={patientId} />
+            <TreatmentPlanTab patientId={patientId} patientAge={patientAge} />
           )}
         </main>
       </div>

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { ZONE_INFO, type ZoneId } from './types'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { ZONE_INFO, getZoneLabel, type ZoneId } from './types'
 
 interface QuickSurfaceSelectorProps {
   /** Multi-select set — any zone in here renders filled with its zone colour. */
@@ -31,28 +31,106 @@ const PATH_BR = "M110.406 56.4385 C110.162 62.6336 108.783 68.7448 106.327 74.48
 const PATH_CERVICAL = "M20.2764 2.09277 C22.6396 4.22348 25.3376 5.95239 28.2588 7.20117 C31.6387 8.64602 35.2518 9.42177 38.8926 9.48047 C42.5334 9.53917 46.1308 8.87973 49.4785 7.53809 C52.3594 6.38352 55.0049 4.74215 57.3057 2.68848 L76.1113 21.4941 C71.4287 25.91 65.9482 29.4121 59.9346 31.8223 C57.1171 32.9514 54.2272 32.4166 50.8525 31.3887 C47.6179 30.4034 43.8244 28.903 39.915 28.8398 C36.0217 28.7771 31.9637 30.1422 28.4619 31.0205 C24.7979 31.9395 21.6159 32.3855 18.7334 31.1533 C12.6099 28.5357 6.98563 24.8327 2.13574 20.2334 L20.2764 2.09277 Z"
 const PATH_ROOT = "M21.8115 41.4541 H56.4404 C58.7185 41.4541 59.8096 44.2519 58.1328 45.7939 L40.8184 61.7178 C39.8618 62.5974 38.3902 62.5973 37.4336 61.7178 L20.1191 45.7939 C18.4424 44.2519 19.5335 41.4541 21.8115 41.4541 Z"
 
+// ──────────────────────────────────────────────────────────────
+// Tooltip component — positioned above/below the hovered zone
+// ──────────────────────────────────────────────────────────────
+function ZoneTooltip({ text, x, y, visible }: { text: string; x: number; y: number; visible: boolean }) {
+  return (
+    <div
+      className="qss-tooltip"
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        transform: 'translate(-50%, -100%)',
+        pointerEvents: 'none',
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.15s ease',
+        zIndex: 20,
+      }}
+    >
+      <div
+        style={{
+          background: 'rgba(15, 23, 42, 0.92)',
+          color: '#f1f5f9',
+          fontSize: '11px',
+          fontWeight: 600,
+          padding: '4px 10px',
+          borderRadius: '6px',
+          whiteSpace: 'nowrap',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+          backdropFilter: 'blur(6px)',
+          letterSpacing: '0.2px',
+          marginBottom: '6px',
+        }}
+      >
+        {text}
+        {/* Tooltip arrow */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '2px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0,
+            height: 0,
+            borderLeft: '5px solid transparent',
+            borderRight: '5px solid transparent',
+            borderTop: '5px solid rgba(15, 23, 42, 0.92)',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 /**
  * QuickSurfaceSelector — 7-zone picker (5 crown wedges + cervical band + root tip).
  * Uses the user-provided reference SVGs for cervical + root shapes.
+ *
+ * Enhancements:
+ *  • Taller & narrower overall shape (width reduced, height increased)
+ *  • Hover tooltips showing the context-aware surface name
+ *  • Tooltip suppressed when a zone is already selected (active)
  */
 export function QuickSurfaceSelector({
-  selectedZones, onToggleZone, zonesWithFindings, disabled,
+  selectedZones, onToggleZone, arch = 'maxillary', toothPosition = 6, zonesWithFindings, disabled,
 }: QuickSurfaceSelectorProps) {
   const [hovered, setHovered] = useState<ZoneId | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+
+  // Resolve context-aware label for the hovered zone
+  const getLabel = useCallback((zone: ZoneId) => {
+    return getZoneLabel(zone, arch, toothPosition)
+  }, [arch, toothPosition])
+
+  // Track mouse position within the container for tooltip placement
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setTooltipPos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top - 4,
+    })
+  }, [])
 
   const NEUTRAL_STROKE = '#94a3b8'  // slate-400
   const NEUTRAL_FINDING_FILL = '#cbd5e1'  // slate-300
   const wholeSelected = selectedZones.has('whole')
   const wholeHovered = hovered === 'whole'
+
+  // Tooltip is visible only when:
+  //  1. A zone is hovered
+  //  2. That zone is NOT currently selected (selected zones don't need tooltip)
+  //  3. Component is not disabled
+  const showTooltip = hovered !== null && !disabled && !selectedZones.has(hovered)
+
   const zoneProps = (id: ZoneId) => {
     const baseColor = ZONE_INFO[id].color
     const isSel = selectedZones.has(id)
     const isHov = hovered === id
     const hasFinding = zonesWithFindings?.has(id) ?? false
-    // Default: neutral stroke + no fill.
-    // Hover: neutral fill (subtle preview).
-    // Finding (no selection): light neutral fill.
-    // Selected: ONLY state where the zone color shows.
     let fill: string
     let fillOpacity: number
     let stroke: string
@@ -79,26 +157,31 @@ export function QuickSurfaceSelector({
     }
   }
 
-  // Scale cervical + root to ~72% of the crown width — big enough to read
-  // clearly, smaller than the crown so the crown remains the focal point.
-  // Cervical original: 79 wide. Root original: 79 wide.
-  // Target width = ~72, scale = 72/79 ≈ 0.91
+  // Scale cervical + root to ~72% of the crown width
   const shapeScale = 0.91
   const shapeWidth = 79 * shapeScale
   const shapeX = (113 - shapeWidth) / 2
-  // Cervical crescent: below the crown circle (crown ends ~y=108)
   const cervTransform = `translate(${shapeX}, 112) scale(${shapeScale})`
-  // Root tip: directly below cervical
   const rootTransform = `translate(${shapeX}, 114) scale(${shapeScale})`
 
-  // Upper teeth: flip the crown orientation vertically (buccal moves from top to bottom wedge).
-  // We keep the SVG layout simple — the user reads "top half = outer surface wedges".
-  // Cervical + root tip always appear BELOW the crown regardless of arch.
   return (
     <div
+      ref={containerRef}
       className="quick-surface-selector"
       style={disabled ? { opacity: 0.45, pointerEvents: 'none' } : undefined}
+      onMouseMove={handleMouseMove}
     >
+      {/* Tooltip */}
+      {showTooltip && hovered && (
+        <ZoneTooltip
+          text={getLabel(hovered)}
+          x={tooltipPos.x}
+          y={tooltipPos.y}
+          visible={showTooltip}
+        />
+      )}
+
+      {/* "Whole Tooth" pill — taller & narrower */}
       <button
         type="button"
         onMouseEnter={() => setHovered('whole')}
@@ -108,15 +191,15 @@ export function QuickSurfaceSelector({
         aria-label="Select whole tooth"
       >
         <svg
-          viewBox="0 0 102 28"
+          viewBox="0 0 72 36"
           className="quick-whole-selector__svg"
           aria-hidden="true"
         >
           <rect
             x="2"
             y="2"
-            width="97.6523"
-            height="23.0654"
+            width="68"
+            height="32"
             rx="10"
             fill={wholeSelected ? ZONE_INFO.whole.color : NEUTRAL_STROKE}
             fillOpacity={disabled ? 0 : wholeSelected ? 0.92 : wholeHovered ? 0.22 : 0}

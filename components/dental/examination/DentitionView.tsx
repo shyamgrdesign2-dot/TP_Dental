@@ -4,7 +4,7 @@ import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { useGLTF, Html, Center } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { TEETH, ARCH_POSITIONS, ZONE_INFO, getZoneLabel, QUADRANT_LABELS, type ToothDef, type Finding, type ToothEntry } from './types'
+import { TEETH, PEDIATRIC_TEETH, ARCH_POSITIONS, PEDIATRIC_ARCH_POSITIONS, ZONE_INFO, getZoneLabel, QUADRANT_LABELS, type ToothDef, type Finding, type ToothEntry, type PatientType, type ArchPose } from './types'
 import {
   cloneSceneWithUniqueMaterials,
   injectShader,
@@ -24,6 +24,7 @@ import {
 
 interface ArchToothProps {
   tooth: ToothDef
+  archPose: ArchPose
   diagnoses: Set<string> | undefined
   findings: Finding[]
   treatmentHistoryTags: string[]
@@ -36,7 +37,7 @@ interface ArchToothProps {
 }
 
 const ArchTooth = memo(function ArchTooth({
-  tooth, diagnoses, findings, treatmentHistoryTags, isImplant, isHovered, isPinned, onHover, onClick, onPin,
+  tooth, archPose, diagnoses, findings, treatmentHistoryTags, isImplant, isHovered, isPinned, onHover, onClick, onPin,
 }: ArchToothProps) {
   const gltf = useGLTF(tooth.modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
@@ -236,7 +237,6 @@ const ArchTooth = memo(function ArchTooth({
     })
   })
 
-  const archPose = ARCH_POSITIONS[tooth.fdi]
   if (!archPose) return null
 
   const handlePointerEnter = useCallback((e: any) => {
@@ -352,6 +352,7 @@ const ArchTooth = memo(function ArchTooth({
 // ══════════════════════════════════════════════════════════════
 
 interface DentitionViewProps {
+  patientType: PatientType
   toothDiagnoses: Record<string, Set<string>>
   findingsByTooth: Record<string, Finding[]>
   implantTeeth: Set<string>
@@ -363,6 +364,7 @@ interface DentitionViewProps {
 }
 
 export default function DentitionView({
+  patientType,
   toothDiagnoses,
   findingsByTooth,
   implantTeeth,
@@ -403,11 +405,15 @@ export default function DentitionView({
   }, [])
 
   const activeFdi = effectiveHovered || pinnedTooth
-  const activeTooth = activeFdi ? TEETH.find(t => t.fdi === activeFdi) : null
+  const activeTeeth = patientType === 'pediatric' ? PEDIATRIC_TEETH : TEETH
+  const activePositions = patientType === 'pediatric' ? PEDIATRIC_ARCH_POSITIONS : ARCH_POSITIONS
+  const scale = patientType === 'pediatric' ? [0.85, 0.85, 0.85] as [number, number, number] : [1, 1, 1] as [number, number, number]
+
+  const activeTooth = activeFdi ? activeTeeth.find(t => t.fdi === activeFdi) : null
 
   return (
-    <group>
-      {TEETH.map((tooth) => {
+    <group scale={scale}>
+      {activeTeeth.map((tooth) => {
         const findings = findingsByTooth[tooth.fdi] || []
         const treatmentHistoryTags = Array.from(new Set([
           ...(toothDiagnoses[tooth.fdi] ? Array.from(toothDiagnoses[tooth.fdi]!) : []),
@@ -417,6 +423,7 @@ export default function DentitionView({
           <ArchTooth
             key={`${tooth.fdi}-${[...(toothDiagnoses[tooth.fdi] || [])].join(',')}-${implantTeeth.has(tooth.fdi)}`}
             tooth={tooth}
+            archPose={activePositions[tooth.fdi]}
             diagnoses={toothDiagnoses[tooth.fdi]}
             findings={findings}
             treatmentHistoryTags={treatmentHistoryTags}
@@ -432,6 +439,7 @@ export default function DentitionView({
       {activeTooth && (
         <DentitionTooltip
           tooth={activeTooth}
+          archPose={activePositions[activeTooth.fdi]}
           findings={findingsByTooth[activeTooth.fdi] || []}
           diagnoses={toothDiagnoses[activeTooth.fdi]}
           isImplant={implantTeeth.has(activeTooth.fdi)}
@@ -448,9 +456,10 @@ export default function DentitionView({
 // screen regardless of tooth rotation. Only the leader line updates.
 // ══════════════════════════════════════════════════════════════
 function DentitionTooltip({
-  tooth, findings, diagnoses, isImplant, allEntries, toothNotes,
+  tooth, archPose, findings, diagnoses, isImplant, allEntries, toothNotes,
 }: {
   tooth: ToothDef
+  archPose: ArchPose
   findings: Finding[]
   diagnoses: Set<string> | undefined
   isImplant: boolean
@@ -475,7 +484,6 @@ function DentitionTooltip({
   const tooltipTransform = "translate(-50%, " + (isMax ? "0%" : "-100%") + ")"
   const tooltipOrigin = isMax ? "center top" : "center bottom"
 
-  const archPose = ARCH_POSITIONS[tooth.fdi]
   const toothWorldPos = useMemo(() => {
     if (!archPose) return new THREE.Vector3()
     return new THREE.Vector3(archPose.position[0], archPose.position[1], archPose.position[2])

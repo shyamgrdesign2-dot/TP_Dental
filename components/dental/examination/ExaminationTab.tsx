@@ -47,6 +47,7 @@ const DentalCanvas = dynamic(() => import("./DentalCanvas").then((m) => m.Dental
 
 interface ExaminationTabProps {
   patientId: string
+  patientAge?: number
 }
 
 // Score weights per diagnosis/finding severity (out of 100).
@@ -104,7 +105,7 @@ function computeDentalScore(state: DentalCanvasState | null): {
   return { score, rating, totalDeduction, affectedTeeth: affected.size, breakdown: { diag: Math.round(diag), findings: Math.round(findings) } }
 }
 
-export function ExaminationTab({ patientId }: ExaminationTabProps) {
+export function ExaminationTab({ patientId, patientAge = 30 }: ExaminationTabProps) {
   const [canvasState, setCanvasState] = useState<DentalCanvasState | null>(null)
   const isSingle = canvasState?.viewMode === "single-tooth"
   const containerRef = useRef<HTMLDivElement>(null)
@@ -210,7 +211,11 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
           }}
         />
         <div className="relative z-10 h-full w-full">
-          <DentalCanvas patientId={patientId} compact onStateChange={setCanvasState} />
+          <DentalCanvas
+            patientId={patientId}
+            patientAge={patientAge}
+            onStateChange={setCanvasState}
+          />
         </div>
       </div>
 

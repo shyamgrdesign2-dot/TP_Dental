@@ -74,45 +74,40 @@ function ServiceSubCard({ service, plan, index }: { service: PlanService; plan: 
       {/* Service header */}
       <div className="flex items-center gap-[10px] border-b border-tp-slate-100 bg-[linear-gradient(180deg,rgba(245,158,11,0.08),rgba(245,158,11,0))] px-[14px] py-[12px]">
         {/* Number counting badge */}
-        <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[6px] bg-tp-warning-50 shrink-0">
-          <span className="font-sans text-[12px] font-bold text-tp-warning-600">{index + 1}</span>
+        <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-warning-50 shrink-0">
+          <span className="font-sans text-[14px] font-bold text-tp-warning-600">{index + 1}</span>
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-[6px]">
-            <p className="font-sans text-[14px] font-semibold text-tp-slate-900">
-              {service.treatment}
-            </p>
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-[12px]">
+          <p className="font-sans text-[16px] font-bold text-tp-slate-900 shrink-0">
+            {service.treatment}
+          </p>
+          <div className="flex flex-wrap items-center gap-[6px] font-sans text-[13px] font-medium text-tp-slate-500">
+            {service.toothFdi !== "full-mouth" && (
+              <span className="font-bold text-tp-slate-600">T{service.toothFdi}</span>
+            )}
+            {service.toothFdi !== "full-mouth" && <span className="text-tp-slate-300 mx-1">•</span>}
+            <span className="text-tp-warning-600 font-semibold">{formatINR(service.amount)}</span>
+            {service.startedAt && (
+              <>
+                <span className="text-tp-slate-300 mx-1">•</span>
+                <span>Started {service.startedAt}</span>
+              </>
+            )}
           </div>
-          <div className="mt-[8px] flex flex-wrap items-center gap-[6px]">
-            <span className="inline-flex items-center rounded-[999px] bg-tp-slate-100 px-[8px] py-[3px] font-sans text-[12px] font-bold text-tp-slate-600">
-              {service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`}
-            </span>
-            <span className="inline-flex items-center rounded-[999px] bg-tp-warning-50 px-[8px] py-[3px] font-sans text-[12px] font-semibold text-tp-warning-700">
-              {formatINR(service.amount)}
-            </span>
-            {service.startedAt ? (
-              <span className="inline-flex items-center rounded-[999px] bg-white px-[8px] py-[3px] font-sans text-[12px] text-tp-slate-400 ring-1 ring-tp-slate-200">
-                Started {service.startedAt}
-              </span>
-            ) : null}
-          </div>
-          <div className="mt-[6px] flex flex-wrap items-center gap-[6px]">
-            <span className="font-sans text-[12px] text-tp-slate-400">{service.toothLabel}</span>
-            {service.surfaces.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-[4px]">
-                {service.surfaces.map((surface) => (
-                  <span
-                    key={surface}
-                    className="inline-flex h-[18px] items-center rounded-[4px] px-[5px] font-sans text-[11px] font-bold text-white"
-                    style={{ background: SURFACE_COLORS[surface as SurfaceId] }}
-                  >
-                    {SURFACE_ABBR[surface as SurfaceId]}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          {service.surfaces.length > 0 && (
+             <div className="flex flex-wrap items-center gap-[4px] ml-2">
+               {service.surfaces.map((surface) => (
+                 <span
+                   key={surface}
+                   className="inline-flex h-[18px] items-center rounded-[4px] px-[5px] font-sans text-[11px] font-bold text-white"
+                   style={{ background: SURFACE_COLORS[surface as SurfaceId] }}
+                 >
+                   {SURFACE_ABBR[surface as SurfaceId]}
+                 </span>
+               ))}
+             </div>
+          )}
         </div>
 
         <div className="flex items-center gap-[5px] shrink-0">
@@ -238,19 +233,16 @@ function PlanClusterCard({ plan }: { plan: TreatmentPlan }) {
     <div className="rounded-[18px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 10px 30px rgba(15,23,42,0.08)" }}>
       {/* Cluster header — orange/warning icon */}
       <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100 bg-[linear-gradient(180deg,rgba(245,158,11,0.08),rgba(245,158,11,0))]">
-        <div className="flex items-center gap-[10px]">
-          <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-tp-warning-50">
-            <Timer1 size={16} variant="Bulk" className="text-tp-warning-600" />
+        <div className="flex items-center gap-[12px]">
+          <div className="flex h-[40px] w-[40px] items-center justify-center rounded-[10px] bg-tp-warning-50">
+            <Timer1 size={22} variant="Bulk" className="text-tp-warning-600" />
           </div>
           <div>
-            <h4 className="font-sans text-[16px] font-bold text-tp-slate-900">{plan.name}</h4>
-            <div className="mt-[6px] flex flex-wrap items-center gap-[8px]">
-              <span className="inline-flex h-[24px] items-center rounded-[999px] bg-tp-warning-50 px-[8px] font-sans text-[12px] font-semibold text-tp-warning-700">
-                {inProgressServices.length} in progress
-              </span>
-              <span className="inline-flex h-[24px] items-center rounded-[999px] bg-white px-[8px] font-sans text-[12px] font-semibold text-tp-slate-600 ring-1 ring-tp-slate-200">
-                {formatINR(total)}
-              </span>
+            <h4 className="font-sans text-[18px] font-bold text-tp-slate-900">{plan.name}</h4>
+            <div className="flex flex-wrap items-center gap-[6px] font-sans text-[13px] font-medium text-tp-slate-500 mt-[2px]">
+              <span className="text-tp-warning-600 font-semibold">{inProgressServices.length} in progress</span>
+              <span className="text-tp-slate-300">•</span>
+              <span>{formatINR(total)}</span>
             </div>
           </div>
         </div>
@@ -367,11 +359,11 @@ export function InProgressTab() {
         <div className="rounded-[16px] bg-white">
           {/* Cluster header — orange/warning icon */}
           <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100">
-            <div className="flex items-center gap-[10px]">
-              <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-warning-50">
-                <Timer1 size={18} variant="Bulk" className="text-tp-warning-600" />
+            <div className="flex items-center gap-[12px]">
+              <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-warning-50">
+                <Timer1 size={24} variant="Bulk" className="text-tp-warning-600" />
               </div>
-              <h3 className="font-sans text-[16px] font-bold text-tp-slate-900">In Progress</h3>
+              <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">In Progress</h3>
             </div>
           </div>
           {/* Empty state inside cluster */}

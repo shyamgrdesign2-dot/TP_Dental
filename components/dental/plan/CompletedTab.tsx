@@ -128,22 +128,26 @@ function CompletedPlanCluster({ plan, index }: { plan: TreatmentPlan; index: num
     <div className="rounded-[14px] bg-white overflow-hidden">
       {/* Plan sub-card header — number badge instead of icon */}
       <div className="flex items-center justify-between px-[14px] py-[10px]">
-        <div className="flex items-center gap-[8px]">
-          <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[6px] bg-tp-success-50 shrink-0">
-            <span className="font-sans text-[12px] font-bold text-tp-success-600">{index + 1}</span>
+        <div className="flex items-center gap-[12px]">
+          <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-success-50 shrink-0">
+            <span className="font-sans text-[14px] font-bold text-tp-success-600">{index + 1}</span>
           </div>
-          <div>
-            <h4 className="font-sans text-[14px] font-semibold text-tp-slate-900">{plan.name}</h4>
-            <p className="font-sans text-[12px] text-tp-slate-400">
-              {plan.services.length} service{plan.services.length !== 1 ? "s" : ""}
-              {discount > 0 && <> · Discount: -{formatINR(discount)}</>}
-            </p>
+          <div className="flex-1 min-w-0 flex flex-wrap items-center gap-[12px]">
+            <h4 className="font-sans text-[16px] font-bold text-tp-slate-900 shrink-0">{plan.name}</h4>
+            <div className="flex flex-wrap items-center gap-[6px] font-sans text-[13px] font-medium text-tp-slate-500">
+              <span className="text-tp-success-600 font-semibold">{formatINR(total)}</span>
+              <span className="text-tp-slate-300">•</span>
+              <span>{plan.services.length} service{plan.services.length !== 1 ? "s" : ""}</span>
+              {discount > 0 && (
+                <>
+                  <span className="text-tp-slate-300">•</span>
+                  <span>Discount: -{formatINR(discount)}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-[8px]">
-          <span className="font-sans text-[14px] font-bold text-tp-success-700">
-            {formatINR(total)}
-          </span>
           {/* Three-dot — plain, no bg */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -234,11 +238,11 @@ export function CompletedTab() {
         <div className="rounded-[16px] bg-white">
           {/* Cluster header — clipboard-tick icon, green */}
           <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100">
-            <div className="flex items-center gap-[10px]">
-              <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-success-50">
-                <ClipboardTickIcon size={18} className="text-tp-success-600" />
+            <div className="flex items-center gap-[12px]">
+              <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-success-50">
+                <ClipboardTickIcon size={24} className="text-tp-success-600" />
               </div>
-              <h3 className="font-sans text-[16px] font-bold text-tp-slate-900">Completed</h3>
+              <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">Completed</h3>
             </div>
           </div>
           {/* Empty state inside cluster */}
@@ -267,16 +271,16 @@ export function CompletedTab() {
       <div className="rounded-[16px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
         {/* Cluster header — clipboard-tick icon, green */}
         <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100">
-          <div className="flex items-center gap-[10px]">
-            <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-success-50">
-              <ClipboardTickIcon size={18} className="text-tp-success-600" />
+          <div className="flex items-center gap-[12px]">
+            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-success-50">
+              <ClipboardTickIcon size={24} className="text-tp-success-600" />
             </div>
             <div>
-              <h3 className="font-sans text-[16px] font-bold text-tp-slate-900">
+              <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">
                 Completed
               </h3>
-              <p className="font-sans text-[12px] text-tp-slate-400">
-                {completedPlans.length} plan{completedPlans.length !== 1 ? "s" : ""} · Grand Total: {formatINR(grandTotal)}
+              <p className="font-sans text-[13px] text-tp-slate-500 mt-[2px]">
+                {completedPlans.length} plan{completedPlans.length !== 1 ? "s" : ""} · Total <span className="font-semibold text-tp-slate-700">{formatINR(grandTotal)}</span>
               </p>
             </div>
           </div>

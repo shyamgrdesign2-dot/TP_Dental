@@ -1,21 +1,24 @@
 "use client"
 
-import type { ToothDef, ViewMode } from './types'
-import { TEETH, DIAGNOSIS_COLORS } from './types'
+import type { ToothDef, ViewMode, PatientType } from './types'
+import { TEETH, PEDIATRIC_TEETH, DIAGNOSIS_COLORS } from './types'
 
 interface ToothSelectorProps {
   selectedTooth: ToothDef
+  patientType?: PatientType
   onSelectTooth: (tooth: ToothDef) => void
   toothDiagnoses?: Record<string, Set<string>>
   viewMode?: ViewMode
   onBackToDentition?: () => void
 }
 
-export function ToothSelector({ selectedTooth, onSelectTooth, toothDiagnoses, viewMode, onBackToDentition }: ToothSelectorProps) {
-  const upperRight = TEETH.filter(t => t.quadrant === 'upper-right').sort((a, b) => b.position - a.position)
-  const upperLeft = TEETH.filter(t => t.quadrant === 'upper-left').sort((a, b) => a.position - b.position)
-  const lowerLeft = TEETH.filter(t => t.quadrant === 'lower-left').sort((a, b) => a.position - b.position)
-  const lowerRight = TEETH.filter(t => t.quadrant === 'lower-right').sort((a, b) => b.position - a.position)
+export function ToothSelector({ selectedTooth, patientType = 'adult', onSelectTooth, toothDiagnoses, viewMode, onBackToDentition }: ToothSelectorProps) {
+  const activeTeeth = patientType === 'adult' ? TEETH : PEDIATRIC_TEETH
+  
+  const upperRight = activeTeeth.filter(t => t.quadrant === 'upper-right').sort((a, b) => b.position - a.position)
+  const upperLeft = activeTeeth.filter(t => t.quadrant === 'upper-left').sort((a, b) => a.position - b.position)
+  const lowerLeft = activeTeeth.filter(t => t.quadrant === 'lower-left').sort((a, b) => a.position - b.position)
+  const lowerRight = activeTeeth.filter(t => t.quadrant === 'lower-right').sort((a, b) => b.position - a.position)
 
   return (
     <div className="tooth-selector">

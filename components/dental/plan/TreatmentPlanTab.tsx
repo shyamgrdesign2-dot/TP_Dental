@@ -76,9 +76,10 @@ function TreatmentPlanInner({ activeTab, setActiveTab }: { activeTab: PlanTabId;
 
 interface TreatmentPlanTabProps {
   patientId: string
+  patientAge?: number
 }
 
-export function TreatmentPlanTab({ patientId }: TreatmentPlanTabProps) {
+export function TreatmentPlanTab({ patientId, patientAge = 30 }: TreatmentPlanTabProps) {
   const [activeTab, setActiveTab] = useState<PlanTabId>("estimates")
 
   const handleNavigateTab = useCallback((tab: string) => {

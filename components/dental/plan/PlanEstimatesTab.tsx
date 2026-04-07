@@ -73,25 +73,21 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
       {/* Sub-card header */}
       <div className="flex items-center gap-[10px] border-b border-tp-slate-100 bg-[linear-gradient(180deg,rgba(75,74,213,0.06),rgba(75,74,213,0))] px-[14px] py-[14px]">
         {/* Number counting badge */}
-        <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[6px] bg-tp-blue-50 shrink-0">
-          <span className="font-sans text-[12px] font-bold text-tp-blue-600">{index + 1}</span>
+        <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-blue-50 shrink-0">
+          <span className="font-sans text-[14px] font-bold text-tp-blue-600">{index + 1}</span>
         </div>
 
         {/* Plan info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-sans text-[14px] font-semibold text-tp-slate-900 truncate">
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-[12px]">
+          <p className="font-sans text-[16px] font-bold text-tp-slate-900 truncate shrink-0">
             {plan.name}
           </p>
-          <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
-            <span className="inline-flex h-[24px] items-center rounded-[999px] bg-tp-blue-50 px-[8px] font-sans text-[12px] font-bold text-tp-blue-700">
-              {formatINR(total)}
-            </span>
-            <span className="inline-flex h-[24px] items-center rounded-[999px] bg-tp-slate-100 px-[8px] font-sans text-[12px] font-medium text-tp-slate-600">
-              {plan.services.length} service{plan.services.length !== 1 ? "s" : ""}
-            </span>
-            <span className="inline-flex h-[24px] items-center rounded-[999px] bg-white px-[8px] font-sans text-[12px] text-tp-slate-400 ring-1 ring-tp-slate-200">
-              {plan.createdAt}
-            </span>
+          <div className="flex flex-wrap items-center gap-[6px] font-sans text-[13px] font-medium text-tp-slate-500">
+            <span className="text-tp-blue-600 font-semibold">{formatINR(total)}</span>
+            <span className="text-tp-slate-300">•</span>
+            <span>{plan.services.length} service{plan.services.length !== 1 ? "s" : ""}</span>
+            <span className="text-tp-slate-300">•</span>
+            <span>{plan.createdAt}</span>
           </div>
         </div>
 
@@ -283,11 +279,11 @@ export function PlanEstimatesTab() {
         <div className="rounded-[16px] bg-white">
           {/* Cluster header — no CTA when empty */}
           <div className="flex items-center px-[16px] py-[14px] border-b border-tp-slate-100">
-            <div className="flex items-center gap-[10px]">
-              <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-blue-50">
-                <DocumentText size={18} variant="Bulk" className="text-tp-blue-600" />
+            <div className="flex items-center gap-[12px]">
+              <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-blue-50">
+                <DocumentText size={24} variant="Bulk" className="text-tp-blue-600" />
               </div>
-              <h3 className="font-sans text-[16px] font-bold text-tp-slate-900">Plan Estimates</h3>
+              <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">Plan Estimates</h3>
             </div>
           </div>
           {/* Empty state with CTA below */}
@@ -324,17 +320,17 @@ export function PlanEstimatesTab() {
       {/* ── Outer Shell Card — white stroke ── */}
       <div className="rounded-[16px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
         {/* Cluster header */}
-        <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100">
-          <div className="flex items-center gap-[10px]">
-            <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-blue-50">
-              <DocumentText size={18} variant="Bulk" className="text-tp-blue-600" />
+        <div className="flex items-center justify-between px-[16px] py-[16px] border-b border-tp-slate-100">
+          <div className="flex items-center gap-[12px]">
+            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-blue-50">
+              <DocumentText size={24} variant="Bulk" className="text-tp-blue-600" />
             </div>
             <div>
-              <h3 className="font-sans text-[16px] font-bold text-tp-slate-900">
+              <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">
                 Plan Estimates
               </h3>
-              <p className="font-sans text-[12px] text-tp-slate-400">
-                {estimatePlans.length} plan{estimatePlans.length !== 1 ? "s" : ""} · Total: {formatINR(grandTotal)}
+              <p className="font-sans text-[13px] text-tp-slate-500 mt-[2px]">
+                {estimatePlans.length} plan{estimatePlans.length !== 1 ? "s" : ""} · Total <span className="font-semibold text-tp-slate-700">{formatINR(grandTotal)}</span>
               </p>
             </div>
           </div>
