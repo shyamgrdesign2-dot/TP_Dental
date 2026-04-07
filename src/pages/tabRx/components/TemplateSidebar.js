@@ -43,13 +43,15 @@ const TemplateSidebar = ({
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
-    // If templates are provided from parent, use them; otherwise load
-    if (templates.length > 0) {
+    // Parent-driven mode: when parent manages templates state, avoid local refetch loops.
+    if (onTemplatesUpdate) {
       setLoading(false);
-    } else {
-      loadTemplates();
+      return;
     }
-  }, [templates]);
+    loadTemplates();
+    // Run once for local-only mode.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadTemplates = async () => {
     setLoading(true);
