@@ -25,6 +25,7 @@ const {
   tutorial,
   tubeIcon: playIcons,
   textLogo: logoIcom,
+  qrIcon,
 } = ASSETS.images;
 
 const AppointmentSuccess = () => {
