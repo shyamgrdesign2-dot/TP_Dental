@@ -10,30 +10,6 @@ import { useSelector } from "react-redux";
 import api from "../api/services/axiosService";
 import PrescriptionSkeleton from "./mobile/PrescriptionSkeleton";
 
-import Symptomsicon from "../assets/images/Symptoms.svg";
-import surgeryIcon from "../assets/images/surgery.svg";
-import Examinationsicon from "../assets/images/Examination.svg";
-import Diagnosisicon from "../assets/images/Diagnosis.svg";
-import Medicationicon from "../assets/images/Medication.svg";
-import Frameicon from "../assets/images/Frame.svg";
-import Investigationicon from "../assets/images/Lab.svg";
-import notesicon from "../assets/images/notes.svg";
-import calenderBlank from "../assets/images/calenderBlank.svg";
-import followUp from "../assets/images/followup.svg";
-import smartPadGrey from "../assets/images/smartPadGrey.svg";
-import successIcon from "../assets/images/success-icon.svg";
-import vitalsIcon from "../assets/images/Vitals.svg";
-import medicalHistoryIcon from "../assets/images/Medical-History.svg";
-import vaccinationIcon from "../assets/images/Vaccination.svg";
-import customModuleIcon from "../assets/images/custom-module.svg";
-import videoIcon from "../assets/images/video_icon.svg";
-import visualAcuityIcon from "../assets/images/visual-acuity-test.svg";
-import autoRefractionIcon from "../assets/images/auto-refraction-test.svg";
-import lensometerIcon from "../assets/images/lensometer-values.svg";
-import glassPrescriptionIcon from "../assets/images/glass-prescription.svg";
-import iopIcon from "../assets/images/intra-ocular-pressure.svg";
-import slitLampIcon from "../assets/images/slit-lamp-examination.svg";
-import fundusIcon from "../assets/images/fundus-examination.svg";
 import {
   getClinic,
   getTokenData,
@@ -80,7 +56,7 @@ import { getModules } from "../redux/customModuleSlice";
 import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
-import draftIcon from "../assets/images/draft-document.svg";
+
 import { uploadDocsToAzure } from "../pages/medicalRecords/service";
 import { getTabRxFiles } from "../pages/tabRx/services/tabRxService";
 
@@ -98,6 +74,34 @@ import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } 
 import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
+import { ASSETS } from "../assets";
+const {
+  symptoms: Symptomsicon,
+  surgery: surgeryIcon,
+  examination: Examinationsicon,
+  diagnosis: Diagnosisicon,
+  medication: Medicationicon,
+  frame: Frameicon,
+  lab: Investigationicon,
+  notes: notesicon,
+  calenderblank: calenderBlank,
+  followup: followUp,
+  smartpadgrey: smartPadGrey,
+  successIcon,
+  vitals: vitalsIcon,
+  medicalHistory: medicalHistoryIcon,
+  vaccination: vaccinationIcon,
+  customModule: customModuleIcon,
+  videoIcon,
+  visualAcuityTest: visualAcuityIcon,
+  autoRefractionTest: autoRefractionIcon,
+  lensometerValues: lensometerIcon,
+  glassPrescription: glassPrescriptionIcon,
+  intraOcularPressure: iopIcon,
+  slitLampExamination: slitLampIcon,
+  fundusExamination: fundusIcon,
+  draftDocument: draftIcon,
+} = ASSETS.images;
 
 const pdfWorker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -936,7 +940,6 @@ function Cardiology(props) {
     );
     setSnapRxFile(response?.uploaded_files || []);
   };
-
 
   const isSymptomCollectorJSON = useCallback((text) => {
     if (typeof text !== "string") return false;
@@ -3281,9 +3284,6 @@ function Cardiology(props) {
       </div>
     );
   };
-
-
-
 
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">

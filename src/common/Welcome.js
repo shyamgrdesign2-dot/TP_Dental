@@ -6,7 +6,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { userCredit } from "../redux/bulkMessagesSlice";
 
 import { getDecodedToken } from "../utils/localStorage";
-import CreditImg from "../assets/images/credit_icon.svg"
 import config from "../config";
 import AvailableCredits from "../components/bulk_messages/AvailableCredits";
 import { getClinicCity } from "../utils/utils";
@@ -15,6 +14,8 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import useTabletViewport from "../hooks/useTabletViewport";
+import { ASSETS } from "../assets";
+const CreditImg = ASSETS.images.creditIcon;
 
 function Welcome(props) {
 

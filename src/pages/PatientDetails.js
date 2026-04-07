@@ -11,8 +11,6 @@ import MedicalHistory from '../components/MedicalHistory';
 import CarePlanBox from '../components/CarePlanBox';
 // import Vaccination from '../components/Vaccination';
 import Cardiology from '../components/Cardiology';
-import variables from '../assets/scss/variables.scss'
-import alertIcon from "../assets/images/alertIcon.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -45,6 +43,10 @@ import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingS
 import { useConsultationNavigation } from "../hooks/useConsultationNavigation";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
+import { ASSETS } from "../assets";
+const variables = ASSETS.scss.variables;
+const alertIcon = ASSETS.images.alerticon;
+
 const BillingDashboard = React.lazy(() =>
     import("./opdBilling/components/billingDashboard/BillingDashboard")
   );

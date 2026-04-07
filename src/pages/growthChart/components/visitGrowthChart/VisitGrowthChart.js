@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { getAllGrowthChartParams } from "../../service";
 import { useLocation, useNavigate } from "react-router-dom";
-import growthChartImg from "../../../../assets/images/growth-chart-dark.svg";
+
 import { Card } from "react-bootstrap";
 import { Button } from "antd";
 import "./VisitGrowthChart.scss";
 import moment from "moment";
 import { UNITS, getAge } from "../../growthChartHelper";
 import { useSelector } from "react-redux";
+import { ASSETS } from "../../../../assets";
+const growthChartImg = ASSETS.images.growthChartDark;
 
 export default function VisitGrowthChart() {
   const navigate = useNavigate();

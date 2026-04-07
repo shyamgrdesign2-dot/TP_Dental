@@ -9,10 +9,8 @@ import { isMobile } from 'react-device-detect';
 import CashManagerContext from '../../context/CashManagerContext';
 import { errorMessage, getFormattedDate, onlyNumberFormat, capitalizeAfterSentence, removeBeforeWhiteSpace } from "../../utils/utils";
 import dayjs from "dayjs";
-import Notes from "../../assets/images/notes.svg";
-import followUp from "../../assets/images/followup.svg";
+
 import CommonModal from '../../common/CommonModal';
-import alertIcon from '../../assets/images/alertIcon.svg';
 
 import {
     addFollowupTemplate,
@@ -20,6 +18,12 @@ import {
     deleteFollowupTemplate,
     listFollowupTemplate,
 } from "../../redux/followUpSlice";
+import { ASSETS } from "../../assets";
+const {
+  notes: Notes,
+  followup: followUp,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const dateFormat = 'YYYY-MM-DD'
 
@@ -726,6 +730,5 @@ function TabFollowUpBox() {
         </>
     );
 }
-
 
 export default React.memo(TabFollowUpBox);

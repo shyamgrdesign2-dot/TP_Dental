@@ -4,7 +4,7 @@ import { Row, Col, Spin } from "antd";
 import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
-import documentIcon from "../../assets/images/document-normal.svg";
+
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD } from "../../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
 import { getInvestigationAndMedicine, addCaseManager, editCaseManager, viewCaseManager } from "../../redux/caseManagerSlice";
@@ -28,6 +28,8 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
+import { ASSETS } from "../../assets";
+const documentIcon = ASSETS.images.documentNormal;
 
 function SnapRxDigitise({isTabRx = false}) {
   const divRef = useRef(null);

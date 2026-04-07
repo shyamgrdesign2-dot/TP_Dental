@@ -7,15 +7,18 @@ import React, {
 } from "react";
 import Carousel from "react-multi-carousel";
 import "react-multi-carousel/lib/styles.css";
-import tipIcon from "../assets/images/tip.svg";
+
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { isMobile } from "react-device-detect";
-import genRxMentionHeadings from "../assets/lotties/genRxMentionHeadingsTip.lottie";
-import genRxFocused from "../assets/lotties/genRxStayFocusedTip.lottie";
-import genRxConcise from "../assets/lotties/genRxBeConciseTip.json";
-import genRxType from "../assets/lotties/genRxTypeTip.json";
+
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import Lottie from "lottie-react";
+import { ASSETS } from "../assets";
+const tipIcon = ASSETS.images.tip;
+const genRxMentionHeadings = ASSETS.lotties.genrxmentionheadingstip;
+const genRxFocused = ASSETS.lotties.genrxstayfocusedtip;
+const genRxConcise = ASSETS.lotties.genrxbeconcisetip;
+const genRxType = ASSETS.lotties.genrxtypetip;
 
 const carouselItemStyle = {
   display: "flex",

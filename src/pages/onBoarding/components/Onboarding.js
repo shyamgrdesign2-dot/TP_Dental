@@ -4,14 +4,17 @@ import SetPassword from "./SetPassword";
 import VerifyOTP from "./VerifyOTP";
 import VerifyPassword from "./VerifyPassword.js";
 // Below-the-fold sections are lazy-loaded to keep the login bundle small.
-import Hook from "../../../assets/images/website-images/Hook.webp";
-import Hook2 from "../../../assets/images/website-images/Hook2.webp";
-import Logo from "../../../assets/images/website-images/logo.webp";
-import WebStructureBg from "../../../assets/images/webStructure.svg";
+
 import "./Onboarding.scss";
 import "./FeatureTabCard/FeatureTabCard.scss";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService.js";
 import { Spin } from "antd";
+import { ASSETS } from "../../../assets";
+const Hook = ASSETS.images.websiteImages.hook;
+const Hook2 = ASSETS.images.websiteImages.hook2;
+const Logo = ASSETS.images.websiteImages.logo;
+const WebStructureBg = ASSETS.images.webstructure;
+
 const Carousel = React.lazy(() => import("./OnboardCarousel"));
 const FeatureTabCard = React.lazy(() => import("./FeatureTabCard/FeatureTabCard.js"));
 const TrustBy = React.lazy(() => import("./TrustBy/TrustedBy.js"));

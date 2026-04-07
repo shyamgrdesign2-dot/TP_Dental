@@ -3,7 +3,6 @@ import Card from "react-bootstrap/Card";
 import { Button, Spin } from "antd";
 import "./VisitVaccination.scss";
 
-import Vaccination from "../../../../assets/images/Vaccination.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getOverridenDueDate, getTvtAgeBySection } from "../../service";
 import {
@@ -16,6 +15,8 @@ import {
   VaccinationCategoryEnum,
 } from "../../VaccinationHelper";
 import moment from "moment";
+import { ASSETS } from "../../../../assets";
+const Vaccination = ASSETS.images.vaccination;
 
 function VisitVaccination() {
   const navigate = useNavigate();

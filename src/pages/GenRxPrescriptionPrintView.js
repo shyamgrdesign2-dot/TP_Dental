@@ -16,8 +16,6 @@ import {
 } from "../utils/utils";
 import api from "../api/services/axiosService";
 
-import wtsp from "../assets/images/wtsp.svg";
-import loadingImg from "../assets/images/loading.webp";
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
 import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
@@ -31,6 +29,12 @@ import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../ap
 import { pdfjs, Document, Page } from "react-pdf";
 import { env } from "../EnvironmentConfig";
 import { EVENTS } from "../utils/events";
+import { ASSETS } from "../assets";
+const {
+  wtsp,
+  loading_3: loadingImg,
+} = ASSETS.images;
+
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 
@@ -101,7 +105,6 @@ function GenRxPrescriptionPrintView() {
       }
     }
   }, []);
-
 
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);

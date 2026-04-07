@@ -4,22 +4,28 @@ import { message, Drawer } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import VoiceWaveVisualizer from '../../../components/WaveVisualizer';
 import ExpiredSubModal from '../../monetization/components/ExpiredSubModal';
-import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
-import userGrayIcon from '../../../assets/mobile/user_gray.svg';
-import imageBackground from '../../../assets/mobile/Image Background.svg';
-import ddxIcon from '../../../assets/mobile/ddx.svg';
-import close2Icon from '../../../assets/mobile/close_2.svg';
-import muteIcon from '../../../assets/mobile/microphone-3.svg';
-import mutedMicrophoneIcon from '../../../assets/images/muted-microphone-icon.svg';
-import frame2Icon from '../../../assets/mobile/Frame_2.svg';
-import dictateActiveIcon from '../../../assets/images/dictate-active.svg';
-import ambientActiveIcon from '../../../assets/images/ambient-mode-active.svg';
+
 import { getClinic, getSupportedMimeType, isVoiceRxFree, errorMessage } from '../../../utils/utils';
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION } from '../../../utils/constants';
 import { checkCredits } from '../../../redux/monetizationSlice';
 import { services } from '../../../redux/doctorsSlice';
 import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
 import './MobileVoiceRecording.scss';
+import { ASSETS } from "../../../assets";
+const {
+  arrowLeft: arrowLeftIcon,
+  userGray: userGrayIcon,
+  imageBackground,
+  ddx: ddxIcon,
+  close2_2: close2Icon,
+  microphone3: muteIcon,
+} = ASSETS.mobile;
+const mutedMicrophoneIcon = ASSETS.images.mutedMicrophoneIcon;
+const frame2Icon = ASSETS.mobile.frame2;
+const {
+  dictateActive: dictateActiveIcon,
+  ambientModeActive: ambientActiveIcon,
+} = ASSETS.images;
 
 function MobileVoiceRecording() {
   const location = useLocation();

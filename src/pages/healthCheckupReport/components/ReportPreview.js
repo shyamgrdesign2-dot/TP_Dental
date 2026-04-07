@@ -2,13 +2,14 @@ import React, { useCallback, useRef, useState } from "react";
 import { Drawer, Button } from "antd";
 import dayjs from "dayjs";
 
-import ZydusLogo from "../../../assets/images/website-images/ZydusLogo.webp";
 import HealthCheckupDocument from "./HealthCheckupDocument";
 import { printReportWithIframe } from "../utils/printReportWithIframe";
 import "./HealthCheckupReportEditor.scss";
 
 import "./ReportPreview.scss";
-import editIconWhite from "../../../assets/images/edit-white.webp";
+import { ASSETS } from "../../../assets";
+const ZydusLogo = ASSETS.images.websiteImages.zyduslogo;
+const editIconWhite = ASSETS.images.editWhite;
 
 function ReportPreview({
   open,
@@ -114,7 +115,6 @@ function ReportPreview({
             >
               <i className="icon-download" />
             </button>
-
 
             <button
               type="button"

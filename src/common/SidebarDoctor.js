@@ -9,7 +9,7 @@ import axios from "axios";
 import config from "../config";
 import { useLocalStorage } from "../utils/localStorage";
 import { FREE, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_ASK_TATVA, S_IPD, S_PHARMACY, S_OPD_BILLING, S_BILLING, TRIAL, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_EXTRA, FAILED_VERIFICATION, GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
-import LockIcon from "../assets/images/lock-icon.svg";
+
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, sendMessageToParent, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import FullPageLoader from "../pages/vaccination/components/Loader";
@@ -22,50 +22,34 @@ import IPDKnowMore from "../pages/monetization/components/IPDKnowMore";
 import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore";
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
-import {
-  Calendar,
-  CalendarPrimary,
-  Profile2User,
-  Profile2UserPrimary,
-  Chart,
-  ChartPrimary,
-  PieChart,
-  PieChartPrimary,
-  Shop,
-  ShopPrimary,
-  ReceiptText,
-  ReceiptTextPrimary,
-  CalendarTick,
-  CalendarTickPrimary,
-  HospitalBed,
-  HospitalBedPrimary,
-  Message2,
-  Message2Primary,
-  MessageProgramming,
-  MessageProgrammingPrimary
-} from "../assets/images/navbar-icons";
+import { ASSETS } from "../assets";
 
-// Icon mapping constants - using icons from navbar-icons
+const {
+  lockIcon: LockIcon,
+  navbarIcons: ni,
+} = ASSETS.images;
+
+// Icon mapping constants — URLs from ASSETS (Azure)
 const ICON_MAP = {
   inactive: {
-    ipd: HospitalBed,
-    all_patients: Profile2User,
-    data_analytics: PieChart,
-    apollo_analytics: Chart,
-    pharmacy: Shop,
-    opd_billing: ReceiptText,
-    dr_followup_appointment: CalendarTick,
-    tatva_ai: Message2,
+    ipd: ni.hospitalBed,
+    all_patients: ni.profile2user,
+    data_analytics: ni.pieChart,
+    apollo_analytics: ni.chart,
+    pharmacy: ni.shop,
+    opd_billing: ni.receiptText,
+    dr_followup_appointment: ni.calendarTick,
+    tatva_ai: ni.message2,
   },
   active: {
-    ipd: HospitalBedPrimary,
-    all_patients: Profile2UserPrimary,
-    data_analytics: PieChartPrimary,
-    apollo_analytics: ChartPrimary,
-    pharmacy: ShopPrimary,
-    opd_billing: ReceiptTextPrimary,
-    dr_followup_appointment: CalendarTickPrimary,
-    tatva_ai: Message2Primary,
+    ipd: ni.hospitalBedPrimary,
+    all_patients: ni.profile2userPrimary,
+    data_analytics: ni.pieChartPrimary,
+    apollo_analytics: ni.chartPrimary,
+    pharmacy: ni.shopPrimary,
+    opd_billing: ni.receiptTextPrimary,
+    dr_followup_appointment: ni.calendarTickPrimary,
+    tatva_ai: ni.message2Primary,
   },
 };
 
@@ -253,7 +237,6 @@ function SidebarDoctor() {
     //   check_SSO(moduleName);
     // }
 
-
     // if (tp_monetization_enable && (moduleName === S_PHARMACY || moduleName === S_IPD)) {
     //   setSubModalData({ service_name: moduleName })
     //   if (moduleName === S_PHARMACY && EMR_planDetails?.plan_tier !== TRIAL && PHARMACY_planDetails?.plan_tier === TRIAL) {
@@ -400,7 +383,6 @@ function SidebarDoctor() {
     }
   };
 
-
   const checkTatvaAiPurchased = async () => {
     setSubModalData({ service_name: S_ASK_TATVA })
     if (ASK_TATVA_planDetails?.plan_tier === FREE && ASK_TATVA_planDetails?.credit_balance <= 0) {
@@ -501,8 +483,8 @@ function SidebarDoctor() {
                   location.pathname !== "/apollo-consultations" &&
                   location.pathname !== "/bulk_messages")) || 
                 isAppointmentHovered
-                  ? CalendarPrimary
-                  : Calendar
+                  ? ni.calendarPrimary
+                  : ni.calendar
               }
               alt="appointment"
             />
@@ -691,8 +673,8 @@ function SidebarDoctor() {
               <img
                 src={
                   location.pathname === "/bulk_messages" || isMessagesHovered
-                    ? MessageProgrammingPrimary
-                    : MessageProgramming
+                    ? ni.messageProgrammingPrimary
+                    : ni.messageProgramming
                 }
                 alt="messages"
               />

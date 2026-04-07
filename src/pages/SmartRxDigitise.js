@@ -5,7 +5,7 @@ import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
 import api from "../api/services/axiosService";
-import documentIcon from "../assets/images/document-normal.svg";
+
 import { FETCH_SMART_RX, GB_MANYA_DENTAL, S_RX_DIGITIZATION } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD } from "../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
@@ -30,6 +30,8 @@ import axios from "axios";
 import { updateCredits } from "../redux/monetizationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import { setDentalData, clearDentalData } from "../redux/dentalRxSlice";
+import { ASSETS } from "../assets";
+const documentIcon = ASSETS.images.documentNormal;
 
 function SmartRxDigitise() {
   const divRef = useRef(null);

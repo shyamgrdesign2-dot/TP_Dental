@@ -1,15 +1,19 @@
 import React, { useState, useRef } from 'react';
 import { CLINICAL_COLORS, HIGHLIGHTER_COLORS } from '../utils/constants';
-import LuPen from '../../../assets/images/lu-pen.svg';
-import LuHighlighter from '../../../assets/images/lu-highlighter.svg';
-import LuEraser from '../../../assets/images/lu-eraser.svg';
-import LuUndo2 from '../../../assets/images/lu-undo.svg';
-import LuRedo2 from '../../../assets/images/lu-redo.svg';
-import LuPlus from '../../../assets/images/lu-plus.svg';
-import LuMinus from '../../../assets/images/lu-minus.svg';
-import CgClose from '../../../assets/images/close-black.svg';
+
 import './Toolbar.scss';
 import RotateLeftIcon from '../../snapRx/components/RotateLeftIcon';
+import { ASSETS } from "../../../assets";
+const {
+  luPen: LuPen,
+  luHighlighter: LuHighlighter,
+  luEraser: LuEraser,
+  luUndo: LuUndo2,
+  luRedo: LuRedo2,
+  luPlus: LuPlus,
+  luMinus: LuMinus,
+  closeBlack: CgClose,
+} = ASSETS.images;
 
 const Toolbar = ({
   toolSettings,
@@ -307,7 +311,6 @@ const Toolbar = ({
         >
           <RotateLeftIcon />
         </button>
-
 
         <div className={`divider ${orientation}`} />
 

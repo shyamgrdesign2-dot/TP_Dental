@@ -3,7 +3,8 @@ import CommonModal from "../../../../common/CommonModal";
 import { Cropper } from "react-cropper";
 import React, { useCallback, useEffect, useState } from "react";
 import { dataUrlToFileUsingFetch, errorMessage } from "../../../../utils/utils";
-import defaultprofile from "./../../../../assets/images/default-profile.svg";
+import { ASSETS } from "../../../../assets";
+const defaultprofile = ASSETS.images.defaultProfile;
 
 const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
   const [fileFooter, setFileFooter] = useState(null);

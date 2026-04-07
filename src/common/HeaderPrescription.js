@@ -13,13 +13,10 @@ import CustomizeSetting from './CustomizeSetting';
 import CashManagerContext from "../context/CashManagerContext";
 import ProfilePopover from './ProfilePopover';
 import CommonModal from './CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
-import tutorial2 from '../assets/images/tutorial2.webp';
+
 // import videoimg1 from '../assets/images/tutorial-img1.webp';
 // import videoimg2 from '../assets/images/tutorial-img2.webp';
-import playIcons from '../assets/images/tube-icon.svg';
-import fullicon from '../assets/images/full-icon.svg';
-import settingsIcon from '../assets/images/settings-icon.svg';
+
 import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
@@ -28,9 +25,6 @@ import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWh
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
-
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -55,7 +49,7 @@ import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx } from '../api/services/ApiGenRx';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
-import videoSvg from '../assets/images/video.svg';
+
 import { EVENTS } from '../utils/events';
 import { OPHTHALMOLOGY_SECTIONS } from "../utils/ophthalmologyExamConstants";
 import { buildOpthalPayload } from "../utils/ophthalmologyPayload";
@@ -64,6 +58,17 @@ import {
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  tutorial2,
+  tubeIcon: playIcons,
+  fullIcon: fullicon,
+  settingsIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  video: videoSvg,
+} = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0
 
@@ -1701,7 +1706,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     isMedicineList: medicationData.length > 0 ? true : false
                 })
 
-
                 if (tokenData?.hospital_business_id == env.zydus_business_id
                     && isZydusUserAccessableFromGB
                     && patient_data?.mrno !== undefined
@@ -1939,7 +1943,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                 {isTablet ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isTablet) ? "Custom" : "Customize"}</span>
                             </button>
-
 
                             {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                <span><img height={42} src={tutorial} /></span>

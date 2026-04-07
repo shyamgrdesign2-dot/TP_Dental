@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Modal } from "antd";
 import Lottie from "lottie-react";
-import AadharIcon from "../../../assets/images/aadhaar-icon.svg";
-import BiometricAnimation from "../../../assets/images/Biometric.json";
+
 import { discoverDevice, captureFingerprint } from "./rdClient";
+import { ASSETS } from "../../../assets";
+const {
+  aadhaarIcon: AadharIcon,
+  biometric: BiometricAnimation,
+} = ASSETS.images;
 
 const BiometricCapturePopup = ({
   open = false,

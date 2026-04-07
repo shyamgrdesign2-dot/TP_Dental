@@ -4,7 +4,8 @@ import { loginWithPassword } from "../authService";
 import "../auth.scss";
 import { isMobile } from "react-device-detect";
 import { Spin } from "antd";
-import tavaPracticeLogo from "../../../assets/images/website-images/tatvacare_logo_with_tag.webp";
+import { ASSETS } from "../../../assets";
+const tavaPracticeLogo = ASSETS.images.websiteImages.tatvacareLogoWithTag;
 
 const LoginWithPassword = ({ handleView, number }) => {
   const [mobileNumber, setMobileNumber] = useState(number === "null" ? "" : number);

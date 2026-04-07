@@ -35,7 +35,9 @@ import { handleDownload } from "../../../utils/helper.js";
 import html2pdf from "html2pdf.js";
 import { getClinic, trackEvent } from "../../../../../utils/utils.js";
 import { MESSAGE_KEY } from "../../../../../utils/constants.js";
-import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
+import { ASSETS } from "../../../../../assets";
+const imgCloseVisit = ASSETS.images.closeVisit;
+
 const { RangePicker } = DatePicker;
 
 const { Option } = Select;

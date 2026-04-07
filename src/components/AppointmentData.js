@@ -90,33 +90,18 @@ import {
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import config from "../config";
-import visitEnd from "../assets/images/end-visit.svg";
-import ImgcancelEnd from "../assets/images/cancel-visit.svg";
-import imgCloseVisit from "../assets/images/close-visit.svg";
-import newTagWebm from "../assets/images/new-gif.webm";
-import newTagMp4 from "../assets/images/new-gif.mp4";
+
 import LoopingVideo from "../components/common/LoopingVideo";
-import alertIcon from "../assets/images/alertIcon.svg";
-import draftIconSecondary from "../assets/images/draft-secondary.svg";
-import draftIconPrimary from "../assets/images/draft-primary.svg";
+
 import { MESSAGE_KEY } from "../utils/constants";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import docimg from "../assets/images/docimg.webp";
-import welcomdoc from "../assets/images/welcom-doc.svg";
-import symptoms from "../assets/images/symptoms-green.svg";
+
 import PrimaryActionButton from "./PrimaryActionButton";
-import suporticon from "../assets/images/suport-icon.svg";
-import windoc from "../assets/images/win-doc.webp";
-import AbhaIcon from '../assets/images/abha-svg.svg';
-import videoIcon from "../assets/images/video_icon.svg";
-import videoSvg from "../assets/images/video.svg";
-import videoOngoingSvg from "../assets/images/video-ongoing.svg";
-import blinkingDotSvg from "../assets/images/blinking-dot.svg";
+
 import { saveAs } from "file-saver";
 
 import CommonModal from "../common/CommonModal";
 import { useSelector, useDispatch } from "react-redux";
-
 
 import {
   getCaseTypes,
@@ -188,6 +173,28 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
+import { ASSETS } from "../assets";
+const {
+  endVisit: visitEnd,
+  cancelVisit: ImgcancelEnd,
+  closeVisit: imgCloseVisit,
+  newGif_3: newTagWebm,
+  newGif_2: newTagMp4,
+  alerticon: alertIcon,
+  draftSecondary: draftIconSecondary,
+  draftPrimary: draftIconPrimary,
+  docimg,
+  welcomDoc: welcomdoc,
+  symptomsGreen: symptoms,
+  suportIcon: suporticon,
+  winDoc: windoc,
+  abhaSvg: AbhaIcon,
+  videoIcon,
+  video: videoSvg,
+  videoOngoing: videoOngoingSvg,
+  blinkingDot: blinkingDotSvg,
+} = ASSETS.images;
+
 const noData = `${process.env.PUBLIC_URL}/nodata-found.svg`;
 const { TextArea } = Input;
 
@@ -2724,7 +2731,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     setStatusFilters(filters.appointmentStatus || []);
   };
 
-
   const emptyText = (
     <div
       className="d-flex flex-column align-items-center justify-content-center"
@@ -3283,7 +3289,6 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       },
     });
   };
-
 
   return (
     <>

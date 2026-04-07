@@ -28,13 +28,10 @@ import CustomizeSetting from "../../../../common/CustomizeSetting";
 
 import ProfilePopover from "../../../../common/ProfilePopover";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "../../../../assets/images/alertIcon.svg";
-import tutorial2 from "../../../../assets/images/tutorial2.webp";
+
 // import videoimg1 from '../assets/images/tutorial-img1.png';
 // import videoimg2 from '../assets/images/tutorial-img2.png';
-import playIcons from "../../../../assets/images/tube-icon.svg";
-import fullicon from "../../../../assets/images/full-icon.svg";
-import settingsIcon from "../../../../assets/images/settings-icon.svg";
+
 import VideoModal from "../../../../common/VideoModal";
 import SaveDraft from "../../../../common/SaveDraft";
 import TabVoiceRxButton from "../../../../components/tab_design/TabVoiceRxButton";
@@ -64,9 +61,6 @@ import {
   updateCarePlanName,
   getCarePlanAssignments,
 } from "../../../../pages/smartSync/services/carePlanService";
-
-import visitEnd from "../../../../assets/images/end-visit.svg";
-import imgCloseVisit from "../../../../assets/images/close-visit.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -103,6 +97,16 @@ import {
 } from "../../../../redux/ophthalmologyExamSlice";
 import useTabletViewport from "../../../../hooks/useTabletViewport";
 import CashManagerContext from "../../../../context/CashManagerContext";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  tutorial2,
+  tubeIcon: playIcons,
+  fullIcon: fullicon,
+  settingsIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0;
 

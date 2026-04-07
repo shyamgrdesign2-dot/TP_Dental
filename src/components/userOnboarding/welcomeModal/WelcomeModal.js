@@ -1,14 +1,19 @@
 import React, { useState } from "react";
 import { Modal, useMediaQuery } from "antd";
-import welcomdoc from "../../../assets/images/welcom-doc.svg";
-import suporticon from "../../../assets/images/suport-icon.svg";
+
 import { isMobileOnly, isMobile, isTablet } from "react-device-detect";
 import "./WelcomeModal.scss";
-import copyIcon from "../../../assets/images/onboard-page-icons/copy.svg";
-import shareIcon from "../../../assets/images/onboard-page-icons/Share.svg";
-import desktopIcon from "../../../assets/images/onboard-page-icons/monitor-mobile.svg";
+
 import { CloseOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
+import { ASSETS } from "../../../assets";
+const {
+  welcomDoc: welcomdoc,
+  suportIcon: suporticon,
+} = ASSETS.images;
+const copyIcon = ASSETS.images.onboardPageIcons.copy;
+const shareIcon = ASSETS.images.onboardPageIcons.share;
+const desktopIcon = ASSETS.images.onboardPageIcons.monitorMobile;
 
 const VideoCarousel = () => {
   const [currentVideo, setCurrentVideo] = useState(0);

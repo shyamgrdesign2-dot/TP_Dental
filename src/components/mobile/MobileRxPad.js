@@ -35,12 +35,16 @@ import MobileEndVisitScreen from './MobileEndVisitScreen';
 import RxPadInfoBottomSheet from './RxPadInfoBottomSheet';
 import ExpiredSubModal from '../../pages/monetization/components/ExpiredSubModal';
 import FreeTrialButton from '../../pages/monetization/components/FreeTrialButton';
-import documentNormalSvg from '../../assets/mobile/document-normal.svg';
-import minimiseIcon from '../../assets/images/minimise.svg';
-import infoIcon from '../../assets/mobile/Icon (2).svg';
-import visitEndIcon from '../../assets/images/end-visit.svg';
-import closeVisitIcon from '../../assets/images/close-visit.svg';
+
 import './MobileRxPad.scss';
+import { ASSETS } from "../../assets";
+const documentNormalSvg = ASSETS.mobile.documentNormal;
+const minimiseIcon = ASSETS.images.minimise;
+const infoIcon = ASSETS.mobile.icon2;
+const {
+  endVisit: visitEndIcon,
+  closeVisit: closeVisitIcon,
+} = ASSETS.images;
 
 /** ensure voice BP (bloodPressure) populates Rx Pad by deriving Systolic/Diastolic when missing. */
 function normalizeVitalsBloodPressure(vitals) {

@@ -16,7 +16,6 @@ import { clearSearch, searchPatients } from "../redux/appointmentsSlice";
 import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
-import smartPad from "../assets/images/smartPad.svg";
 import { GB_ISCRIBE, GB_SNAP_RX, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX, PAID } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
@@ -26,9 +25,14 @@ import {
   getClinic,
   getTokenData
 } from "../utils/utils";
-import AbhaIcon from "../assets/images/abha-svg.svg";
+
 import AbhaDrawer from "../components/abha/AbhaDrawer";
 import PrimaryActionButton from "../components/PrimaryActionButton";
+import { ASSETS } from "../assets";
+const {
+  smartpad: smartPad,
+  abhaSvg: AbhaIcon,
+} = ASSETS.images;
 
 function WalkInConsultation() {
   const navigate = useNavigate();
@@ -154,7 +158,6 @@ function WalkInConsultation() {
   //   e.stopPropagation();
   //   // setOpenRowIndex(patient?.patient_unique_id);
   // };
-
 
   const onConsultClick = async (record) => {
     // window.Moengage.track_event("patient_search_consult", {
@@ -325,7 +328,6 @@ function WalkInConsultation() {
     return items;
   };
   
-
 
   const PatientPlank = (patient) => {
     return (
@@ -691,8 +693,6 @@ function WalkInConsultation() {
       navigate("/add_patient");
     }
   }
-
-
 
   const handleCreateAbhaDrawer = useCallback(() => {
     setCreateAbhaDrawer(!createAbhaDrawer);

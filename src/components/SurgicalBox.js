@@ -22,7 +22,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import CommonModal from "../common/CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
+
 import CashManagerContext from "../context/CashManagerContext";
 import {
   errorMessage,
@@ -30,7 +30,7 @@ import {
   capitalizeAfterSentence,
   getClinicName,
 } from "../utils/utils";
-import surgeryIcon from "../assets/images/surgery.svg";
+
 import { MenuOutlined } from "@ant-design/icons";
 import {
   addTemplate,
@@ -44,6 +44,11 @@ import {
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
 import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  surgery: surgeryIcon,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 

@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
 import { useSelector } from "react-redux";
 
-import playIcons from '../assets/images/tube-icon.svg';
-import tutorial from '../assets/images/tutorial-icon.svg';
 import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
@@ -24,9 +22,15 @@ import {
 } from "../utils/utils";
 import api from '../api/services/axiosService';
 import { env } from '../EnvironmentConfig';
-import draftIcon from '../assets/images/draft-primary.svg';
+
 import useTabletViewport from '../hooks/useTabletViewport';
 import PrimaryActionButton from '../components/PrimaryActionButton';
+import { ASSETS } from "../assets";
+const {
+  tubeIcon: playIcons,
+  tutorialIcon: tutorial,
+  draftPrimary: draftIcon,
+} = ASSETS.images;
 
 function Welcome1(props) {
 
@@ -179,7 +183,6 @@ function Welcome1(props) {
             },
         });
     };
-
 
     const handleRepeatVoiceAmbientRx = async () => {
         if (!voiceRxId || !patient_data) return;
@@ -384,7 +387,6 @@ function Welcome1(props) {
                                             onCancel={() => setVideoLink(null)}
                                         />
                                     )}
-
 
                                     {!!canResumeDraftRx && 
                                         <Button 
