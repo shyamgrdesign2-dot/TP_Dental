@@ -16,8 +16,9 @@
  */
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react"
+import type { CSSProperties } from "react"
 import { Search, Trash2 } from "lucide-react"
-import { Add, Grid5, Ram, Eraser } from "iconsax-reactjs"
+import { Add, Grid5, Ram, Eraser, ArrowDown2 } from "iconsax-reactjs"
 import { createPortal } from "react-dom"
 import {
   TPDrawer,
@@ -28,32 +29,10 @@ import { usePlanContext } from "./plan-context"
 import { DrawerHeader, formatINR } from "./plan-shared"
 import { genId } from "./plan-types"
 import type { PlanService, TreatmentPlan, SurfaceId } from "./plan-types"
-import { SURFACE_OPTIONS } from "./plan-types"
+import { SURFACE_OPTIONS, SURFACE_COLORS, SURFACE_ABBR, getDefaultPlanSurfaces } from "./plan-types"
 import { TREATMENT_CATALOG, getRate } from "./treatments"
 import { ToothPicker } from "./ToothPicker"
 import { INITIAL_TOOTH_STATE } from "../mock-data"
-
-// ─── Surface color map (matching examination ZONE_INFO) ─────
-
-const SURFACE_COLORS: Record<SurfaceId, string> = {
-  occlusal: "#14b8a6", // teal
-  buccal:   "#f97316", // orange
-  lingual:  "#8b5cf6", // violet
-  mesial:   "#eab308", // yellow
-  distal:   "#2563eb", // blue
-  cervical: "#ec4899", // pink
-  root:     "#65a30d", // olive-green
-}
-
-const SURFACE_ABBR: Record<SurfaceId, string> = {
-  occlusal: "O",
-  buccal:   "B",
-  lingual:  "L",
-  mesial:   "M",
-  distal:   "D",
-  cervical: "C",
-  root:     "R",
-}
 
 // ─── FDI → tooth label mapping ──────────────────────────────
 
@@ -101,7 +80,7 @@ function createRow(treatment: string, teeth: string[] = [], surfaces: SurfaceId[
     id: genId("row"),
     treatment,
     teeth,
-    surfaces,
+    surfaces: surfaces.length > 0 ? surfaces : getDefaultPlanSurfaces(treatment),
     rate: getRate(treatment),
     discount: 0,
     discountType: "flat",
@@ -133,7 +112,7 @@ function getExamSuggestions(patientId: string): ExamSuggestion[] {
             treatment: treatmentName,
             toothFdi: fdi,
             toothLabel: fdiToLabel(fdi),
-            surfaces: [],
+            surfaces: getDefaultPlanSurfaces(treatmentName),
             source: "examination",
           })
         }
@@ -223,7 +202,7 @@ function SurfacePicker({ value, onChange }: { value: SurfaceId[]; onChange: (v: 
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({})
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -231,7 +210,7 @@ function SurfacePicker({ value, onChange }: { value: SurfaceId[]; onChange: (v: 
   const openDropdown = useCallback(() => {
     if (!triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    const dropdownWidth = 220
+    const dropdownWidth = 260
     const viewportWidth = window.innerWidth
 
     let left = rect.left
@@ -262,70 +241,65 @@ function SurfacePicker({ value, onChange }: { value: SurfaceId[]; onChange: (v: 
 
   useEffect(() => {
     if (!open) return
-    const close = () => setOpen(false)
-    window.addEventListener("scroll", close, { capture: true, passive: true })
-    return () => window.removeEventListener("scroll", close, { capture: true })
-  }, [open])
+    const reposition = () => openDropdown()
+    window.addEventListener("scroll", reposition, true)
+    window.addEventListener("resize", reposition)
+    return () => {
+      window.removeEventListener("scroll", reposition, true)
+      window.removeEventListener("resize", reposition)
+    }
+  }, [open, openDropdown])
 
   const toggle = (id: SurfaceId) => {
-    onChange(value.includes(id) ? value.filter((s) => s !== id) : [...value, id])
-  }
-
-  const allSelected = SURFACE_OPTIONS.every((o) => value.includes(o.id))
-
-  const toggleAll = () => {
-    if (allSelected) onChange([])
-    else onChange(SURFACE_OPTIONS.map((o) => o.id))
+    if (id === "whole") {
+      onChange(value.includes("whole") ? [] : ["whole"])
+      return
+    }
+    const selected = new Set(value)
+    if (selected.has("whole")) selected.delete("whole")
+    if (selected.has(id)) selected.delete(id)
+    else selected.add(id)
+    onChange(Array.from(selected))
   }
 
   const dropdown = open ? (
-    <>
-      <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setOpen(false)} />
-      <div
-        ref={dropdownRef}
-        style={dropdownStyle}
-        className="rounded-[10px] border border-tp-slate-200 bg-white shadow-lg py-[6px]"
-      >
-        {/* Select All */}
-        <button
-          type="button"
-          onClick={toggleAll}
-          className={`w-full flex items-center gap-[10px] px-[12px] py-[8px] text-left font-sans text-[14px] transition-colors border-b border-tp-slate-100 mb-[2px] ${
-            allSelected ? "text-tp-blue-700 font-semibold" : "text-tp-slate-700 hover:bg-tp-slate-50"
-          }`}
-        >
-          <span className={`flex h-[18px] w-[18px] items-center justify-center rounded-[4px] border-[1.5px] shrink-0 ${
-            allSelected ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"
-          }`}>
-            {allSelected && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-          </span>
-          <span className="flex-1">Select All</span>
-        </button>
-
-        {SURFACE_OPTIONS.map((opt) => {
-          const selected = value.includes(opt.id)
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => toggle(opt.id)}
-              className={`w-full flex items-center gap-[10px] rounded-[6px] mx-auto px-[12px] py-[8px] text-left font-sans text-[14px] transition-colors ${
-                selected ? "text-tp-slate-800 font-medium" : "text-tp-slate-600 hover:bg-tp-slate-50"
-              }`}
-              style={{ width: "calc(100% - 4px)" }}
-            >
-              <span className={`flex h-[18px] w-[18px] items-center justify-center rounded-[4px] border-[1.5px] shrink-0 ${
-                selected ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"
-              }`}>
-                {selected && <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-              </span>
-              <span className="h-[12px] w-[12px] rounded-full flex-shrink-0" style={{ background: SURFACE_COLORS[opt.id] }} />
-              <span className="flex-1">{opt.label}</span>
-            </button>
-          )
-        })}
+    <div
+      ref={dropdownRef}
+      style={dropdownStyle}
+      className="rounded-[12px] border border-tp-slate-200 bg-white py-[6px] shadow-[0_18px_50px_-18px_rgba(15,23,42,0.28)]"
+    >
+      <div className="px-[10px] pb-[6px]">
+        <div className="flex items-center gap-[6px] rounded-[8px] bg-tp-amber-50 px-[10px] py-[7px]">
+          <span className="h-[8px] w-[8px] rounded-full bg-tp-amber-500" />
+          <span className="font-sans text-[12px] text-tp-amber-800">Select whole tooth or mix individual surfaces</span>
+        </div>
       </div>
-    </>
+      {SURFACE_OPTIONS.map((opt, index) => {
+        const selected = value.includes(opt.id)
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => toggle(opt.id)}
+            className={`mx-auto flex items-center gap-[10px] rounded-[8px] px-[12px] py-[8px] text-left font-sans text-[13px] transition-colors ${
+              selected ? "bg-tp-blue-50 text-tp-slate-800" : "text-tp-slate-600 hover:bg-tp-slate-50"
+            } ${index === 1 ? "mt-[2px] border-t border-tp-slate-100 pt-[10px]" : ""}`}
+            style={{ width: "calc(100% - 4px)" }}
+          >
+            <span className={`inline-flex h-[16px] w-[16px] items-center justify-center rounded-[4px] border ${
+              selected ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"
+            }`}>
+              {selected ? (
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              ) : null}
+            </span>
+            <span className="h-[10px] w-[10px] rounded-full flex-shrink-0" style={{ background: SURFACE_COLORS[opt.id] }} />
+            <span className="flex-1">{opt.label}</span>
+            <span className="font-sans text-[11px] font-semibold text-tp-slate-400">{opt.abbr}</span>
+          </button>
+        )
+      })}
+    </div>
   ) : null
 
   return (
@@ -334,9 +308,12 @@ function SurfacePicker({ value, onChange }: { value: SurfaceId[]; onChange: (v: 
         ref={triggerRef}
         type="button"
         onClick={(e) => { e.stopPropagation(); open ? setOpen(false) : openDropdown() }}
-        className="h-[46px] w-full text-left px-4 font-sans text-[14px] text-tp-slate-700 hover:bg-tp-blue-50/30 focus:bg-tp-blue-50/30 focus:outline-none transition-colors truncate"
+        className="flex h-[52px] w-full items-center justify-between gap-[8px] bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] transition-colors focus:outline-none"
       >
-        {value.length > 0 ? <SurfaceDots surfaces={value} /> : <span className="text-tp-slate-300">—</span>}
+        <span className="min-w-0 flex-1 text-left">
+          {value.length > 0 ? <SurfaceDots surfaces={value} /> : <span className="text-[12px] text-[#a2a2a8]">Select surface</span>}
+        </span>
+        <ArrowDown2 size={14} color="currentColor" variant="Linear" />
       </button>
       {mounted && typeof document !== "undefined" && dropdown
         ? createPortal(dropdown, document.body)
@@ -453,15 +430,16 @@ export function AddEditPlanDrawer() {
   }, [searchOpen])
 
   const addTreatmentRow = (treatmentName: string, teeth: string[] = [], surfaces: SurfaceId[] = []) => {
+    const nextSurfaces = surfaces.length > 0 ? surfaces : getDefaultPlanSurfaces(treatmentName)
     const exists = rows.find((r) => r.treatment === treatmentName)
     if (!exists) {
-      setRows((prev) => [...prev, createRow(treatmentName, teeth, surfaces)])
+      setRows((prev) => [...prev, createRow(treatmentName, teeth, nextSurfaces)])
     } else if (teeth.length > 0) {
       setRows((prev) =>
         prev.map((r) => {
           if (r.treatment !== treatmentName) return r
           const mergedTeeth = [...new Set([...r.teeth, ...teeth])]
-          const mergedSurfaces = [...new Set([...r.surfaces, ...surfaces])]
+          const mergedSurfaces = [...new Set([...r.surfaces, ...nextSurfaces])]
           return { ...r, teeth: mergedTeeth, surfaces: mergedSurfaces }
         }),
       )
@@ -684,8 +662,8 @@ export function AddEditPlanDrawer() {
             {/* Table — padded, rounded, with stroke */}
             {rows.length > 0 && (
               <div className="px-[14px] py-[12px]">
-                <div className="rounded-[10px] border border-tp-slate-200 overflow-hidden">
-                  <table className="w-full table-fixed font-['Inter',sans-serif] text-[14px]">
+                <div className="rounded-[10px] border border-tp-slate-200 overflow-hidden w-full overflow-x-auto min-w-0">
+                  <table className="w-full min-w-[780px] table-fixed font-['Inter',sans-serif] text-[14px]">
                     <colgroup>
                       <col style={{ width: 42, minWidth: 42 }} />
                       <col style={{ minWidth: 180 }} />

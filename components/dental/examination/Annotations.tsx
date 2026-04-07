@@ -24,6 +24,7 @@ interface AnnotationsProps {
   quadrant: string
   selectedZone: ZoneId | null
   onSelectZone: (zone: ZoneId) => void
+  onClearSelectedZone?: () => void
   zoneDirs: Record<string, THREE.Vector3> | null
   meshBounds: {
     center: THREE.Vector3
@@ -43,6 +44,7 @@ export function Annotations({
   quadrant,
   selectedZone,
   onSelectZone,
+  onClearSelectedZone,
   zoneDirs,
   meshBounds,
 }: AnnotationsProps) {
@@ -78,34 +80,19 @@ export function Annotations({
     prevFindingsRef.current = currentFingerprint
   }, [findings, selectedZone, zoneNotes])
 
-  // Dismiss tooltip only on a true click (not drag/orbit) on canvas
   useEffect(() => {
     if (!expandedAnnotation) return
-    let downPos: { x: number; y: number } | null = null
-    const handleDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'CANVAS') {
-        downPos = { x: e.clientX, y: e.clientY }
-      }
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('[data-dental-annotation-ui="true"]')) return
+      setExpandedAnnotation(null)
+      if (selectedZone === 'whole') onClearSelectedZone?.()
     }
-    const handleUp = (e: PointerEvent) => {
-      if (!downPos) return
-      const dx = e.clientX - downPos.x
-      const dy = e.clientY - downPos.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      downPos = null
-      // Only dismiss if pointer barely moved (true click, not orbit/drag)
-      if (dist < 5) {
-        setExpandedAnnotation(null)
-      }
-    }
-    document.addEventListener('pointerdown', handleDown)
-    document.addEventListener('pointerup', handleUp)
+    document.addEventListener('pointerdown', handlePointerDown, true)
     return () => {
-      document.removeEventListener('pointerdown', handleDown)
-      document.removeEventListener('pointerup', handleUp)
+      document.removeEventListener('pointerdown', handlePointerDown, true)
     }
-  }, [expandedAnnotation])
+  }, [expandedAnnotation, onClearSelectedZone, selectedZone])
 
   const handleOcclude = useCallback((pointId: string, hidden: boolean) => {
     setOccludedAnnotations(prev => {
@@ -148,6 +135,17 @@ export function Annotations({
       let rayY: number
 
       switch (zoneId) {
+        case 'whole':
+          outwardDir = new THREE.Vector3(0, 1, 0)
+          rayY = bb.max.y + size.y * 0.18
+          points.push({
+            id: `annot-${zoneId}`,
+            zoneId,
+            position: new THREE.Vector3(center.x, rayY, center.z),
+            normal: outwardDir,
+            findings: zoneFindingsList,
+          })
+          continue
         case 'occlusal':
           outwardDir = new THREE.Vector3(0, arch === 'maxillary' ? -1 : 1, 0)
           rayY = arch === 'maxillary' ? bb.min.y - 1 : bb.max.y + 1
@@ -234,7 +232,7 @@ export function Annotations({
         const zoneColor = ZONE_INFO[point.zoneId]?.color || '#666'
         const zoneLabel = getZoneLabel(point.zoneId, arch, toothPosition)
         const diagnoses = point.findings.map(f => f.type)
-        const notes = zoneNotes[point.zoneId] || ''
+        const notes = zoneNotes[point.zoneId] || point.findings.map((f) => f.notes?.trim()).filter(Boolean).join(' · ')
         const abbr = getZoneAbbr(point.zoneId, arch, toothPosition)
 
         const baseOpacity = isOccluded ? 0.15 : (isSelected ? 1 : 0.75)
@@ -254,6 +252,7 @@ export function Annotations({
               zIndexRange={[100, 0]}
             >
               <div
+                data-dental-annotation-ui="true"
                 style={{
                   position: 'relative',
                   display: 'flex',
@@ -299,6 +298,7 @@ export function Annotations({
                 {/* Side tooltip with dotted connector */}
                 {isExpanded && !isOccluded && (
                   <div
+                    data-dental-annotation-ui="true"
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -320,6 +320,7 @@ export function Annotations({
                     />
                     {/* Tooltip card */}
                     <div
+                      data-dental-annotation-ui="true"
                       style={{
                         minWidth: 150,
                         maxWidth: 200,
@@ -355,8 +356,11 @@ export function Annotations({
                       </div>
 
                       {(() => {
+                        const historyList = diagnoses
+                          .filter((d) => d.startsWith('Hx:') || d.startsWith('Dx:'))
+                          .map((d) => d.slice(3).trim())
                         const findingsList = diagnoses
-                          .filter((d) => d.startsWith('Fn:') || (!d.startsWith('Pr:') && !d.startsWith('Dx:')))
+                          .filter((d) => d.startsWith('Fn:') || (!d.startsWith('Pr:') && !d.startsWith('Dx:') && !d.startsWith('Hx:')))
                           .map((d) => (d.startsWith('Fn:') ? d.slice(3).trim() : d))
                         const proceduresList = diagnoses
                           .filter((d) => d.startsWith('Pr:'))
@@ -385,6 +389,16 @@ export function Annotations({
                         }
                         return (
                           <>
+                            {historyList.length > 0 && (
+                              <div style={{ marginBottom: findingsList.length > 0 || proceduresList.length > 0 || notes ? 7 : 0 }}>
+                                <div style={sectionLabelStyle}>Treatment History</div>
+                                <div style={tagRowStyle}>
+                                  {historyList.map((d, i) => (
+                                    <span key={`h-${i}`} style={tagStyle}>{d}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             {findingsList.length > 0 && (
                               <div style={{ marginBottom: proceduresList.length > 0 || notes ? 7 : 0 }}>
                                 <div style={sectionLabelStyle}>Findings</div>

@@ -2,9 +2,9 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, memo } from 'react'
 import * as THREE from 'three'
-import { useGLTF, Center } from '@react-three/drei'
+import { useGLTF, Center, Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import type { Quadrant, ZoneId, Finding, ToothDef } from './types'
+import type { Quadrant, ZoneId, Finding, ToothDef, TreatmentHistoryDetail } from './types'
 import { ZONE_INFO, ALL_ZONES, isPatientRightQuadrant, TEETH } from './types'
 import { Annotations } from './Annotations'
 
@@ -15,41 +15,41 @@ import { Annotations } from './Annotations'
  */
 const FRONT_VIEWS: Record<string, { az: number; pol: number }> = {
   // Upper Right (Quadrant 1) — anterior pol=80°, posterior pol=90°
-  '11': { az:    0, pol:  80 },
-  '12': { az:    0, pol:  80 },
-  '13': { az:  -45, pol:  80 },
-  '14': { az:  -70, pol:  90 },
-  '15': { az:  -70, pol:  90 },
-  '16': { az:  -70, pol:  90 },
-  '17': { az:  -80, pol:  90 },
-  '18': { az:  -70, pol:  90 },
+  '11': { az: 0, pol: 80 },
+  '12': { az: 0, pol: 80 },
+  '13': { az: -45, pol: 80 },
+  '14': { az: -70, pol: 90 },
+  '15': { az: -70, pol: 90 },
+  '16': { az: -70, pol: 90 },
+  '17': { az: -80, pol: 90 },
+  '18': { az: -70, pol: 90 },
   // Upper Left (Quadrant 2) — anterior pol=80°, posterior pol=90°
-  '21': { az:    0, pol:  80 },
-  '22': { az:    0, pol:  80 },
-  '23': { az:   45, pol:  80 },
-  '24': { az:   70, pol:  90 },
-  '25': { az:   70, pol:  90 },
-  '26': { az:   70, pol:  90 },
-  '27': { az:   80, pol:  90 },
-  '28': { az:   70, pol:  90 },
+  '21': { az: 0, pol: 80 },
+  '22': { az: 0, pol: 80 },
+  '23': { az: 45, pol: 80 },
+  '24': { az: 70, pol: 90 },
+  '25': { az: 70, pol: 90 },
+  '26': { az: 70, pol: 90 },
+  '27': { az: 80, pol: 90 },
+  '28': { az: 70, pol: 90 },
   // Lower Left (Quadrant 3) — all pol=90°
-  '31': { az:   20, pol:  90 },
-  '32': { az:    0, pol:  90 },
-  '33': { az:   30, pol:  90 },
-  '34': { az:   50, pol:  90 },
-  '35': { az:   50, pol:  90 },
-  '36': { az:   65, pol:  90 },
-  '37': { az:   90, pol:  90 },
-  '38': { az:   90, pol:  90 },
+  '31': { az: 20, pol: 90 },
+  '32': { az: 0, pol: 90 },
+  '33': { az: 30, pol: 90 },
+  '34': { az: 50, pol: 90 },
+  '35': { az: 50, pol: 90 },
+  '36': { az: 65, pol: 90 },
+  '37': { az: 90, pol: 90 },
+  '38': { az: 90, pol: 90 },
   // Lower Right (Quadrant 4) — all pol=90°
-  '41': { az:  -20, pol:  90 },
-  '42': { az:    0, pol:  90 },
-  '43': { az:  -30, pol:  90 },
-  '44': { az:  -50, pol:  90 },
-  '45': { az:  -50, pol:  90 },
-  '46': { az:  -65, pol:  90 },
-  '47': { az:  -90, pol:  90 },
-  '48': { az:  -90, pol:  90 },
+  '41': { az: -20, pol: 90 },
+  '42': { az: 0, pol: 90 },
+  '43': { az: -30, pol: 90 },
+  '44': { az: -50, pol: 90 },
+  '45': { az: -50, pol: 90 },
+  '46': { az: -65, pol: 90 },
+  '47': { az: -90, pol: 90 },
+  '48': { az: -90, pol: 90 },
 }
 
 // Convert degrees to radians for azimuth lookup
@@ -107,12 +107,12 @@ export function tintShader(
          gl_FragColor.rgb = mix(gl_FragColor.rgb, redTint, 0.45);
          gl_FragColor.a *= 0.55;
        }
-       // Crown: semi-transparent blue porcelain
+       // Crown: semi-transparent grayish porcelain
        if (uIsCrown > 0.5) {
          gl_FragColor.a = min(gl_FragColor.a, 0.72);
-         vec3 crownBlueTint = vec3(0.72, 0.85, 1.0);
+         vec3 crownGrayTint = vec3(0.85, 0.85, 0.87);
          float lumC = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
-         vec3 crownTinted = crownBlueTint * (lumC * 0.55 + 0.45);
+         vec3 crownTinted = crownGrayTint * (lumC * 0.55 + 0.45);
          gl_FragColor.rgb = mix(gl_FragColor.rgb, crownTinted, 0.55);
        }
        // RCT: desaturated warm
@@ -122,9 +122,9 @@ export function tintShader(
          vec3 rctTint = vec3(0.92, 0.90, 0.87) * (lumR * 0.7 + 0.3);
          gl_FragColor.rgb = mix(gl_FragColor.rgb, rctTint, 0.45);
        }
-       // Bridge: warm gold
+       // Bridge: grayish prosthetic
        if (uIsBridge > 0.5) {
-         vec3 bridgeTint = vec3(0.85, 0.72, 0.42);
+         vec3 bridgeTint = vec3(0.82, 0.83, 0.85);
          float lumB = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
          gl_FragColor.rgb = mix(gl_FragColor.rgb, bridgeTint * (lumB * 0.6 + 0.5), 0.5);
        }
@@ -283,13 +283,14 @@ function crownSideFromNormalAndPoint(
 }
 
 const ZONE_ORBIT: Record<ZoneId, { azimuth: number; polar: number }> = {
-  occlusal: { azimuth: 0,              polar: Math.PI * 0.88 },
-  buccal:   { azimuth: Math.PI,        polar: Math.PI * 0.55 },
-  lingual:  { azimuth: 0,              polar: Math.PI * 0.55 },
-  mesial:   { azimuth: Math.PI * 0.5,  polar: Math.PI * 0.55 },
-  distal:   { azimuth: -Math.PI * 0.5, polar: Math.PI * 0.55 },
-  cervical: { azimuth: Math.PI * 0.8,  polar: Math.PI * 0.48 },
-  root:     { azimuth: Math.PI * 0.15, polar: Math.PI * 0.28 },
+  occlusal: { azimuth: 0, polar: Math.PI * 0.88 },
+  buccal: { azimuth: Math.PI, polar: Math.PI * 0.55 },
+  lingual: { azimuth: 0, polar: Math.PI * 0.55 },
+  mesial: { azimuth: Math.PI * 0.5, polar: Math.PI * 0.55 },
+  distal: { azimuth: -Math.PI * 0.5, polar: Math.PI * 0.55 },
+  cervical: { azimuth: Math.PI * 0.8, polar: Math.PI * 0.48 },
+  root: { azimuth: Math.PI * 0.15, polar: Math.PI * 0.28 },
+  whole: { azimuth: 0, polar: Math.PI * 0.5 },
 }
 
 function smoothstep(t: number) { const c = Math.max(0, Math.min(1, t)); return c * c * (3 - 2 * c) }
@@ -303,6 +304,7 @@ function lerpAngle(a: number, b: number, t: number) { let d = b - a; while (d > 
 
 // Pre-compute zone color vectors once (avoids allocating 7 Vector3s per material per frame)
 const _cachedColorVecs = ALL_ZONES.map(z => new THREE.Vector3(...ZONE_INFO[z].colorVec))
+const WHOLE_TOOTH_COLOR = new THREE.Vector3(...ZONE_INFO.whole.colorVec)
 
 export function injectShader(
   material: THREE.Material,
@@ -352,6 +354,9 @@ export function injectShader(
     shader.uniforms.uIsRCT = { value: isRCT ? 1.0 : 0.0 }
     shader.uniforms.uIsBridge = { value: isBridge ? 1.0 : 0.0 }
     shader.uniforms.uIsDenture = { value: isDenture ? 1.0 : 0.0 }
+    shader.uniforms.uWholeToothSelected = { value: 0.0 }
+    shader.uniforms.uWholeToothMarked = { value: 0.0 }
+    shader.uniforms.uWholeToothColor = { value: WHOLE_TOOTH_COLOR }
     const zf = new Array(7).fill(0)
     for (let i = 0; i < Math.min(zonesWithFindings.length, 7); i++) zf[i] = zonesWithFindings[i] ? 1 : 0
     shader.uniforms.uZoneHasFinding = { value: zf }
@@ -377,7 +382,9 @@ export function injectShader(
        uniform float uIsCrown;
        uniform float uIsRCT;
        uniform float uIsBridge;
-       uniform float uIsDenture;`)
+       uniform float uIsDenture;
+       uniform float uWholeToothSelected;
+       uniform float uWholeToothMarked;`)
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
       `#include <begin_vertex>
        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
@@ -416,6 +423,7 @@ export function injectShader(
        // ── Displacement: push outward along normal when zone is active ──
        float bulge = 0.0;
        if (uIsImplant > 0.5 && (vZone == 5 || vZone == 6)) bulge = 0.0;
+       else if (uWholeToothSelected > 0.5) bulge = 0.008;
        else if (selectedZone == vZone) bulge = 0.012;
        else if (hoveredZone == vZone) bulge = 0.006;
 
@@ -477,6 +485,9 @@ export function injectShader(
        uniform float uIsRCT;
        uniform float uIsBridge;
        uniform float uIsDenture;
+       uniform float uWholeToothSelected;
+       uniform float uWholeToothMarked;
+       uniform vec3 uWholeToothColor;
        uniform int uZoneHasFinding[7];`)
 
     shader.fragmentShader = shader.fragmentShader.replace('#include <dithering_fragment>',
@@ -603,6 +614,13 @@ export function injectShader(
          }
        }
 
+       if (uWholeToothSelected > 0.5 || uWholeToothMarked > 0.5) {
+         float wholeMix = uWholeToothSelected > 0.5 ? 0.24 : 0.10;
+         float wholeLum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
+         vec3 wholeTint = uWholeToothColor * clamp(wholeLum * 0.45 + 0.55, 0.55, 1.0);
+         gl_FragColor.rgb = mix(gl_FragColor.rgb, wholeTint, wholeMix);
+       }
+
        // ══ TOOTH-LEVEL DIAGNOSIS VISUAL EFFECTS ══
 
        // Missing: keep texture visible with slight reddish tint, minimal X pattern
@@ -633,10 +651,10 @@ export function injectShader(
            // Semi-transparent crown — tooth texture visible, stump visible inside
            gl_FragColor.a = 0.46;
 
-           // Blue tint on the crown outer shell (porcelain/ceramic look)
-           vec3 crownBlueTint = vec3(0.72, 0.85, 1.0);
+           // Grayish tint on the crown outer shell (prosthetic look)
+           vec3 crownGrayTint = vec3(0.85, 0.85, 0.87);
            float lumCrown = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
-           vec3 crownTinted = crownBlueTint * (lumCrown * 0.55 + 0.45);
+           vec3 crownTinted = crownGrayTint * (lumCrown * 0.55 + 0.45);
            gl_FragColor.rgb = mix(gl_FragColor.rgb, crownTinted, 0.55);
 
            // Very subtle sparse grid pattern
@@ -660,10 +678,10 @@ export function injectShader(
            gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.40, 0.38, 0.35), edgeDist * 0.8);
            gl_FragColor.a = mix(gl_FragColor.a, 0.95, edgeDist);
 
-           // Back face: opaque to close the crown (solid top, not hollow) — blue-tinted
+           // Back face: opaque to close the crown (solid top, not hollow) — grayish-tinted
            if (!gl_FrontFacing) {
              float lum = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
-             gl_FragColor.rgb = vec3(0.78, 0.88, 0.98) * (lum * 0.3 + 0.7);
+             gl_FragColor.rgb = vec3(0.85, 0.85, 0.87) * (lum * 0.3 + 0.7);
              gl_FragColor.a = 0.92;
            }
          }
@@ -678,11 +696,16 @@ export function injectShader(
          gl_FragColor.rgb = mix(gl_FragColor.rgb, rctTint, 0.35);
        }
 
-       // Bridge: raw GLB texture for crown, discard roots, dark sealed bottom
+       // Bridge: grayish prosthetic for crown, discard roots, dark sealed bottom
        if (uIsBridge > 0.5) {
          bool isRootArea = (uYDir > 0.0) ? (vWorldPos.y >= uCervicalY) : (vWorldPos.y <= uCervicalY);
          if (isRootArea) {
            discard;
+         }
+         if (gl_FrontFacing) {
+           float lumBridge = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
+           vec3 bridgeTint = vec3(0.82, 0.83, 0.85) * (lumBridge * 0.55 + 0.45);
+           gl_FragColor.rgb = mix(gl_FragColor.rgb, bridgeTint, 0.55);
          }
          // Back face = hollow interior retaining the inner tooth texture
          if (!gl_FrontFacing) {
@@ -1511,6 +1534,7 @@ export const PreparedStump = memo(function PreparedStump({ toothMesh, meshBounds
 interface ToothProps {
   selectedZone: ZoneId | null
   onSelectZone: (zone: ZoneId, hitPoint?: [number, number, number], opts?: { multi?: boolean }) => void
+  onClearSelectedZone?: () => void
   onHoverZone: (zone: ZoneId | null) => void
   modelPath?: string
   arch?: 'maxillary' | 'mandibular'
@@ -1531,12 +1555,16 @@ interface ToothProps {
   multiSelectActive?: boolean
   /** Compact mode — used in MiniToothCanvas thumbnails; skips Annotations + interactive overlays */
   compact?: boolean
-  /** Tooth-entries (findings + procedures) — used to render per-surface labelled annotation tags */
-  toothEntries?: { kind: "finding" | "procedure"; name: string; surfaces: string[] }[]
+  /** Suppresses all floating HTML tags around the tooth */
+  hideTags?: boolean
+  /** Surface-aware treatment-history metadata used for whole-tooth annotations/tooltips. */
+  treatmentHistoryDetails?: Record<string, TreatmentHistoryDetail>
+  /** Tooth-entries (findings + procedures + planned) — used to render per-surface labelled annotation tags */
+  toothEntries?: { kind: "finding" | "procedure" | "planned" | "symptom"; name: string; surfaces: string[] }[]
 }
 
 export function Tooth({
-  selectedZone, onSelectZone, onHoverZone,
+  selectedZone, onSelectZone, onClearSelectedZone, onHoverZone,
   modelPath = '/models/tooth_16.glb',
   arch = 'maxillary',
   mirrorX = false,
@@ -1549,8 +1577,10 @@ export function Tooth({
   toothDiagnoses = new Set<string>(),
   multiSelectZones,
   multiSelectActive = false,
-  toothEntries,
   compact = false,
+  hideTags = false,
+  treatmentHistoryDetails = {},
+  toothEntries,
 }: ToothProps) {
   const gltf = useGLTF(modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
@@ -1657,7 +1687,7 @@ export function Tooth({
           shaderRefs.current = []
           for (const mat of materials) {
             shaderRefs.current.push(
-              injectShader(mat, cervicalY, cejY, crownBottomY, center.x, center.z, arch, quadrant, zoneYawRad, toothFdi, isImplant, toothDiagnoses.has('Missing'), toothDiagnoses.has('Crown'), toothDiagnoses.has('RCT'), toothDiagnoses.has('Bridge'), toothDiagnoses.has('Denture')),
+              injectShader(mat, cervicalY, cejY, crownBottomY, center.x, center.z, arch, quadrant, zoneYawRad, toothFdi, isImplant, toothDiagnoses.has('Missing') || toothDiagnoses.has('Extraction'), toothDiagnoses.has('Crown'), toothDiagnoses.has('RCT'), toothDiagnoses.has('Bridge'), toothDiagnoses.has('Denture')),
             )
           }
 
@@ -1724,6 +1754,7 @@ export function Tooth({
   // Store current zone indices + finding flags in a ref so useFrame always has latest values
   const zoneIndicesRef = useRef({ selected: -1, hovered: -1 })
   const zoneFindingsRef = useRef<number[]>([0, 0, 0, 0, 0, 0, 0])
+  const wholeToothStateRef = useRef({ selected: false, marked: false })
   useEffect(() => {
     zoneIndicesRef.current.selected = selectedZone ? ALL_ZONES.indexOf(selectedZone) : -1
   }, [selectedZone])
@@ -1736,6 +1767,10 @@ export function Tooth({
       findings.some(f => f.zoneId === z) || (multiSelectZones?.has(z) ?? false) ? 1 : 0
     )
   }, [findings, multiSelectZones])
+  useEffect(() => {
+    wholeToothStateRef.current.selected = selectedZone === 'whole' || (multiSelectZones?.has('whole') ?? false)
+    wholeToothStateRef.current.marked = false
+  }, [multiSelectZones, selectedZone, toothEntries, treatmentHistoryDetails])
 
   // Push zone uniforms every frame — guarantees highlighting even after shader recompile
   useFrame(() => {
@@ -1746,6 +1781,8 @@ export function Tooth({
       if (!s?.uniforms) continue
       s.uniforms.selectedZone.value = selected
       s.uniforms.hoveredZone.value = hovered
+      if (s.uniforms.uWholeToothSelected) s.uniforms.uWholeToothSelected.value = wholeToothStateRef.current.selected ? 1.0 : 0.0
+      if (s.uniforms.uWholeToothMarked) s.uniforms.uWholeToothMarked.value = wholeToothStateRef.current.marked ? 1.0 : 0.0
       if (s.uniforms.uZoneHasFinding) {
         const arr = s.uniforms.uZoneHasFinding.value
         arr[0] = zf[0]; arr[1] = zf[1]; arr[2] = zf[2]; arr[3] = zf[3]
@@ -1767,6 +1804,8 @@ export function Tooth({
 
     if (selectedZone === 'occlusal') {
       target = { azimuth: 0, polar: arch === 'mandibular' ? Math.PI * 0.12 : Math.PI * 0.88 }
+    } else if (selectedZone === 'whole') {
+      target = { azimuth: Math.atan2(dirs.buccal.x, dirs.buccal.z), polar: lateralPolar }
     } else if (selectedZone === 'root') {
       target = { azimuth: 0, polar: arch === 'mandibular' ? Math.PI * 0.72 : Math.PI * 0.28 }
     } else if (selectedZone === 'cervical') {
@@ -1774,9 +1813,9 @@ export function Tooth({
     } else {
       // Lateral zones: compute azimuth from the direction vector
       const dir = selectedZone === 'buccal' ? dirs.buccal
-               : selectedZone === 'lingual' ? dirs.lingual
-               : selectedZone === 'mesial' ? dirs.mesial
-               : dirs.distal
+        : selectedZone === 'lingual' ? dirs.lingual
+          : selectedZone === 'mesial' ? dirs.mesial
+            : dirs.distal
       // Camera position = in the direction the surface faces (to see it head-on)
       target = { azimuth: Math.atan2(dir.x, dir.z), polar: lateralPolar }
     }
@@ -1803,139 +1842,195 @@ export function Tooth({
 
   return (
     <group ref={outerGroupRef} scale={mirrorX ? [-1.0, 1.0, 1.0] : [1.0, 1.0, 1.0]}>
-        <Center ref={groupRef}>
-          <primitive
-            object={clonedScene}
-            onPointerMove={(e: any) => {
-              e.stopPropagation()
-              if (toothDiagnoses.has('Missing')) {
-                zoneIndicesRef.current.hovered = -1
-                setLocalHover(null); onHoverZone(null); document.body.style.cursor = 'default'; return
-              }
-              if (!boundsData.current) return
-              const b = boundsData.current
-              const z = classifyHit(e.point, getWorldNormal(e), b.cervicalY, b.cejY, b.occlusalTop, b.centerX, b.centerZ, arch, b.quadrant, b.zoneYawRad, toothFdi)
-              if (isImplant && z && (z === 'cervical' || z === 'root')) {
-                zoneIndicesRef.current.hovered = -1
-                setLocalHover(null); onHoverZone(null); document.body.style.cursor = 'default'; return
-              }
-              // Push to ref IMMEDIATELY so useFrame picks it up this frame, not after React commits
-              zoneIndicesRef.current.hovered = z ? ALL_ZONES.indexOf(z) : -1
-              setLocalHover(z); onHoverZone(z)
-              document.body.style.cursor = z ? 'pointer' : 'default'
-            }}
-            onPointerOut={(e: any) => {
-              e.stopPropagation()
+      <Center ref={groupRef}>
+        <primitive
+          object={clonedScene}
+          onPointerMove={(e: any) => {
+            e.stopPropagation()
+            if (toothDiagnoses.has('Missing') || toothDiagnoses.has('Extraction')) {
               zoneIndicesRef.current.hovered = -1
-              setLocalHover(null); onHoverZone(null); document.body.style.cursor = 'default'
-            }}
-            onClick={(e: any) => {
-              e.stopPropagation()
-              if (toothDiagnoses.has('Missing')) return
-              if (!boundsData.current) return
-              const b = boundsData.current
-              const z = classifyHit(e.point, getWorldNormal(e), b.cervicalY, b.cejY, b.occlusalTop, b.centerX, b.centerZ, arch, b.quadrant, b.zoneYawRad, toothFdi)
-              if (isImplant && z && (z === 'cervical' || z === 'root')) return
-              // Multi-select only when a Findings/Procedures row is actively editing its surfaces.
-              // Otherwise: normal single-select (replaces prior selection).
-              if (z) onSelectZone(z, [e.point.x, e.point.y, e.point.z], { multi: multiSelectActive })
-            }}
-          />
-        </Center>
-        {annotationData && !compact && (
-          <Annotations
-            toothMesh={toothMeshRef.current}
-            findings={(() => {
-              // Synthesize per-surface "findings" from toothEntries so the existing
-              // annotation tooltip surfaces multi-section labels (Dx:… / Fn:… / Pr:…).
-              const synth: Finding[] = []
-              let id = 0
-              if (toothDiagnoses.size > 0) {
-                // Tooth-level diagnoses aren't surface-bound, skip.
+              setLocalHover(null); onHoverZone(null); document.body.style.cursor = 'default'; return
+            }
+            if (!boundsData.current) return
+            const b = boundsData.current
+            const z = classifyHit(e.point, getWorldNormal(e), b.cervicalY, b.cejY, b.occlusalTop, b.centerX, b.centerZ, arch, b.quadrant, b.zoneYawRad, toothFdi)
+            if (isImplant && z && (z === 'cervical' || z === 'root')) {
+              zoneIndicesRef.current.hovered = -1
+              setLocalHover(null); onHoverZone(null); document.body.style.cursor = 'default'; return
+            }
+            // Push to ref IMMEDIATELY so useFrame picks it up this frame, not after React commits
+            zoneIndicesRef.current.hovered = z ? ALL_ZONES.indexOf(z) : -1
+            setLocalHover(z); onHoverZone(z)
+            document.body.style.cursor = z ? 'pointer' : 'default'
+          }}
+          onPointerOut={(e: any) => {
+            e.stopPropagation()
+            zoneIndicesRef.current.hovered = -1
+            setLocalHover(null); onHoverZone(null); document.body.style.cursor = 'default'
+          }}
+          onClick={(e: any) => {
+            e.stopPropagation()
+            if (toothDiagnoses.has('Missing') || toothDiagnoses.has('Extraction')) return
+            if (!boundsData.current) return
+            const b = boundsData.current
+            const z = classifyHit(e.point, getWorldNormal(e), b.cervicalY, b.cejY, b.occlusalTop, b.centerX, b.centerZ, arch, b.quadrant, b.zoneYawRad, toothFdi)
+            if (isImplant && z && (z === 'cervical' || z === 'root')) return
+            // Multi-select only when a Findings/Procedures row is actively editing its surfaces.
+            // Otherwise: normal single-select (replaces prior selection).
+            if (z) onSelectZone(z, [e.point.x, e.point.y, e.point.z], { multi: multiSelectActive })
+          }}
+        />
+      </Center>
+      {annotationData && !compact && (
+        <Annotations
+          toothMesh={toothMeshRef.current}
+          findings={(() => {
+            // Synthesize per-surface "findings" from toothEntries so the existing
+            // annotation tooltip surfaces multi-section labels (Dx:… / Fn:… / Pr:…).
+            const synth: Finding[] = []
+            let id = 0
+            for (const [name, detail] of Object.entries(treatmentHistoryDetails)) {
+              const surfaces = detail.surfaces ?? []
+              const labelParts = [name]
+              if (detail.since?.trim()) labelParts.push(detail.since.trim())
+              for (const z of surfaces) {
+                synth.push({ id: `hist-${id++}`, zoneId: z, type: `Hx: ${labelParts.join(' · ')}`, notes: detail.note ?? "" })
               }
-              for (const e of (toothEntries ?? [])) {
-                const label = `${e.kind === "finding" ? "Fn" : "Pr"}: ${e.name}`
-                for (const z of e.surfaces) {
-                  synth.push({ id: `ent-${id++}`, zoneId: z as ZoneId, type: label, notes: "" })
-                }
+            }
+            for (const e of (toothEntries ?? [])) {
+              const prefix = e.kind === "finding" ? "Fn" : e.kind === "planned" ? "Pr" : "Hx"
+              const label = `${prefix}: ${e.name}`
+              for (const z of e.surfaces) {
+                synth.push({ id: `ent-${id++}`, zoneId: z as ZoneId, type: label, notes: "" })
               }
-              return [...findings, ...synth]
-            })()}
-            zoneNotes={zoneNotes}
-            arch={arch}
-            toothPosition={toothPosition}
-            quadrant={quadrant}
-            selectedZone={selectedZone}
-            onSelectZone={onSelectZone}
-            zoneDirs={annotationData.zoneDirs}
-            meshBounds={annotationData.meshBounds}
-          />
-        )}
+            }
+            return [...findings, ...synth]
+          })()}
+          zoneNotes={zoneNotes}
+          arch={arch}
+          toothPosition={toothPosition}
+          quadrant={quadrant}
+          selectedZone={selectedZone}
+          onSelectZone={onSelectZone}
+          onClearSelectedZone={onClearSelectedZone}
+          zoneDirs={annotationData.zoneDirs}
+          meshBounds={annotationData.meshBounds}
+        />
+      )}
 
-        {toothDiagnoses.has('Crown') && annotationData && toothMeshRef.current && (
-          <PreparedStump
-            toothMesh={toothMeshRef.current}
-            meshBounds={{
-              center: annotationData.meshBounds.center,
-              size: annotationData.meshBounds.size,
-              cervicalY: annotationData.meshBounds.cervicalY,
-              bb: annotationData.meshBounds.bb,
-            }}
-            arch={arch}
-            parentGroup={outerGroupRef.current}
-          />
-        )}
-        {toothDiagnoses.has('RCT') && annotationData && (
-          <RootCanals
-            meshBounds={{
-              center: annotationData.meshBounds.center,
-              size: annotationData.meshBounds.size,
-              cervicalY: annotationData.meshBounds.cervicalY,
-              bb: annotationData.meshBounds.bb,
-            }}
-            arch={arch}
-            toothPosition={toothPosition}
-            dirs={annotationData.zoneDirs}
-            toothFdi={toothFdi}
-          />
-        )}
-        {isImplant && implantPlacement && (
-          <ImplantScrew
-            placement={implantPlacement}
-            arch={arch}
-            implantScene={implantGltf.scene}
-            toothMesh={toothMeshRef.current}
-            bb={boundsData.current?.bb || null}
-            parentGroup={outerGroupRef.current}
-          />
-        )}
-        {/* Bridge: show faded adjacent teeth in single-tooth view */}
-        {toothDiagnoses.has('Bridge') && boundsData.current && (() => {
-          const adj = getAdjacentTeeth(toothFdi)
-          return (
-            <>
-              {adj.mesial && (
-                <BridgeGhostTooth
-                  toothDef={adj.mesial}
-                  side="mesial"
-                  currentBB={boundsData.current!.bb}
-                  arch={arch}
-                  mirrorX={mirrorX}
-                />
-              )}
-              {adj.distal && (
-                <BridgeGhostTooth
-                  toothDef={adj.distal}
-                  side="distal"
-                  currentBB={boundsData.current!.bb}
-                  arch={arch}
-                  mirrorX={mirrorX}
-                />
-              )}
-            </>
-          )
-        })()}
-      </group>
+      {toothDiagnoses.has('Crown') && annotationData && toothMeshRef.current && (
+        <PreparedStump
+          toothMesh={toothMeshRef.current}
+          meshBounds={{
+            center: annotationData.meshBounds.center,
+            size: annotationData.meshBounds.size,
+            cervicalY: annotationData.meshBounds.cervicalY,
+            bb: annotationData.meshBounds.bb,
+          }}
+          arch={arch}
+          parentGroup={outerGroupRef.current}
+        />
+      )}
+      {toothDiagnoses.has('RCT') && annotationData && (
+        <RootCanals
+          meshBounds={{
+            center: annotationData.meshBounds.center,
+            size: annotationData.meshBounds.size,
+            cervicalY: annotationData.meshBounds.cervicalY,
+            bb: annotationData.meshBounds.bb,
+          }}
+          arch={arch}
+          toothPosition={toothPosition}
+          dirs={annotationData.zoneDirs}
+          toothFdi={toothFdi}
+        />
+      )}
+      {isImplant && implantPlacement && (
+        <ImplantScrew
+          placement={implantPlacement}
+          arch={arch}
+          implantScene={implantGltf.scene}
+          toothMesh={toothMeshRef.current}
+          bb={boundsData.current?.bb || null}
+          parentGroup={outerGroupRef.current}
+        />
+      )}
+      {/* Bridge: show faded adjacent teeth in single-tooth view */}
+      {toothDiagnoses.has('Bridge') && boundsData.current && (() => {
+        const adj = getAdjacentTeeth(toothFdi)
+        return (
+          <>
+            {adj.mesial && (
+              <BridgeGhostTooth
+                toothDef={adj.mesial}
+                side="mesial"
+                currentBB={boundsData.current!.bb}
+                arch={arch}
+                mirrorX={mirrorX}
+              />
+            )}
+            {adj.distal && (
+              <BridgeGhostTooth
+                toothDef={adj.distal}
+                side="distal"
+                currentBB={boundsData.current!.bb}
+                arch={arch}
+                mirrorX={mirrorX}
+              />
+            )}
+          </>
+        )
+      })()}
+
+      {/* Floating tags for single-tooth view (whole-tooth treatments) */}
+      {/* Floating tags for single-tooth and full dentition view (whole-tooth treatments) */}
+      {(() => {
+        const visualWholeTags = new Set(['Implant', 'Missing', 'Extraction', 'RCT', 'Crown', 'Bridge', 'Denture'])
+        const wholeTags: string[] = []
+        if (toothDiagnoses) {
+          for (const d of toothDiagnoses) {
+            if (visualWholeTags.has(d)) wholeTags.push(d)
+          }
+        }
+        if (isImplant && !wholeTags.includes('Implant')) wholeTags.push('Implant')
+        if (toothEntries) {
+          for (const e of toothEntries) {
+            if (e.surfaces?.includes('whole') && !wholeTags.includes(e.name)) {
+              wholeTags.push(e.name)
+            }
+          }
+        }
+        if (hideTags || wholeTags.length === 0) return null
+        
+        const occlusalOffsetY = arch === 'maxillary' ? -0.85 : 0.85
+        return (
+          <Html
+            position={[0, occlusalOffsetY, 0]}
+            center
+            transform={compact}
+            sprite={compact}
+            scale={compact ? 0.35 : 1}
+            style={{ pointerEvents: 'none', whiteSpace: 'nowrap' }}
+            zIndexRange={[80, 40]}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: compact ? '2px' : '4px' }}>
+              {wholeTags.map(tag => (
+                <span key={tag} style={{
+                  fontSize: compact ? '18px' : '11px', fontWeight: 600, padding: compact ? '2px 6px' : '3px 8px',
+                  borderRadius: '6px', fontFamily: 'Inter, system-ui, sans-serif',
+                  background: 'rgba(107, 114, 128, 0.85)', color: '#fff', lineHeight: '1.3',
+                  backdropFilter: 'blur(4px)', letterSpacing: '0.01em',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1)',
+                  maxWidth: compact ? '120px' : 'auto',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>{tag}</span>
+              ))}
+            </div>
+          </Html>
+        )
+      })()}
+    </group>
   )
 }
 

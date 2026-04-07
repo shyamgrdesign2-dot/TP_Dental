@@ -5,7 +5,7 @@
 // Base zone IDs used internally
 export type ZoneId =
   | 'occlusal' | 'buccal' | 'lingual' | 'mesial' | 'distal'
-  | 'cervical' | 'root'
+  | 'cervical' | 'root' | 'whole'
 
 export const ALL_ZONES: ZoneId[] = [
   'occlusal', 'buccal', 'lingual', 'mesial', 'distal', 'cervical', 'root'
@@ -36,6 +36,7 @@ export function getZoneAbbr(
     case 'Distal':   return 'D'
     case 'Cervical': return 'C'
     case 'Root':     return 'R'
+    case 'Whole Tooth': return 'WT'
     default:         return '?'
   }
 }
@@ -58,6 +59,7 @@ export function getZoneLabel(
     case 'distal': return 'Distal'
     case 'cervical': return 'Cervical'
     case 'root': return 'Root'
+    case 'whole': return 'Whole Tooth'
     default: return zoneId
   }
 }
@@ -73,6 +75,8 @@ export const ZONE_INFO: Record<ZoneId, { label: string; color: string; colorVec:
   distal:   { label: 'Distal',   color: '#2563eb', colorVec: [0.149, 0.388, 0.922], layer: 'crown' },    // blue
   cervical: { label: 'Cervical', color: '#ec4899', colorVec: [0.925, 0.282, 0.600], layer: 'cervical' }, // pink
   root:     { label: 'Root',     color: '#65a30d', colorVec: [0.396, 0.639, 0.051], layer: 'root' },     // muted olive-green
+  whole:    { label: 'Whole Tooth', color: '#34d399', colorVec: [0.204, 0.827, 0.600], layer: 'crown' },
+
 }
 
 export interface Finding {
@@ -100,11 +104,46 @@ export interface ToothEntry {
   notes?: string
 }
 
+export interface TreatmentHistoryDetail {
+  surfaces: ZoneId[]
+  since?: string
+  note?: string
+}
+
 export const PROCEDURE_CATALOG = [
   "RCT", "Restoration", "Extraction", "Scaling", "Polishing",
   "Crown Prep", "Bridge Prep", "Implant Placement", "Pulp Cap",
   "Root Planing", "Veneer", "Composite Filling",
 ] as const
+
+export const TREATMENT_SURFACE_RULES: Record<string, "whole-tooth" | "root" | "ask"> = {
+  Implant: "whole-tooth",
+  Missing: "whole-tooth",
+  RCT: "whole-tooth",
+  "Root Canal Treatment": "whole-tooth",
+  Crown: "whole-tooth",
+  "Crown Prep": "whole-tooth",
+  Bridge: "whole-tooth",
+  "Bridge Prep": "whole-tooth",
+  Extraction: "whole-tooth",
+  Veneer: "whole-tooth",
+  "Pulp Cap": "whole-tooth",
+  "Implant Placement": "whole-tooth",
+  Denture: "whole-tooth",
+  Scaling: "ask",
+  Polishing: "ask",
+  "Composite Filling": "ask",
+  Restoration: "ask",
+  "Root Planing": "ask",
+  "Fluoride Treatment": "ask",
+}
+
+export function getDefaultTreatmentSurfaces(name: string): ZoneId[] {
+  const rule = TREATMENT_SURFACE_RULES[name] ?? "ask"
+  if (rule === "whole-tooth") return ["whole"]
+  if (rule === "root") return ["root"]
+  return []
+}
 
 export const DIAGNOSES = [
   'Cavity/Caries', 'Crack', 'Fracture', 'Erosion', 'Abrasion',

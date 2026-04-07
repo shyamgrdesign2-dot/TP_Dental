@@ -301,8 +301,26 @@
 /* ── Quick Surface Selector — raw clickable SVG, no card ── */
 .dental-canvas-root .quick-surface-selector {
   position: relative;
-  width: 78px; padding: 0;
+  width: 82px; padding: 0;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.dental-canvas-root .quick-whole-selector {
+  width: 72px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  line-height: 0;
+}
+.dental-canvas-root .quick-whole-selector__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.06));
 }
 .dental-canvas-root .quick-surface-svg {
   width: 100%; height: auto; display: block;

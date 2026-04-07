@@ -14,7 +14,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import dynamic from "next/dynamic"
-import { InfoCircle, TickCircle, ArrowLeft2, Eye, Trash, ArrowRight2, Grid5, Ram, Eraser, More, Add, Edit2, Calendar, SearchNormal1, DocumentText, Mouse, Note1, Chart, Health } from "iconsax-reactjs"
+import { InfoCircle, TickCircle, ArrowLeft2, Eye, Trash, ArrowRight2, Grid5, Ram, Eraser, More, Add, Edit2, Calendar, SearchNormal1, DocumentText, Mouse, Note1, Chart, Health, ArrowDown2, SidebarRight } from "iconsax-reactjs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ExpandIcon, MinimizeIcon } from "./ui-icons"
 import type { DentalCanvasState } from "./DentalCanvas"
-import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PROCEDURE_CATALOG, QUADRANT_LABELS } from "./types"
+import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PROCEDURE_CATALOG, QUADRANT_LABELS, getDefaultTreatmentSurfaces } from "./types"
 import type { ZoneId, ToothEntry } from "./types"
 import { MiniToothCanvas } from "./MiniToothCanvas"
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons"
@@ -56,20 +56,20 @@ const DIAG_WEIGHT: Record<string, number> = {
 
 /** Accent colors per tooth-level diagnosis — makes each chip visually distinct */
 const PRIMARY_DIAG_COLOR: Record<string, string> = {
-  Implant:            "#0891b2",   // cyan
-  Missing:            "#dc2626",   // red
-  RCT:                "#ea580c",   // orange
-  Crown:              "#d4af37",   // gold
-  Bridge:             "#a16207",   // amber-brown
-  Denture:            "#ec4899",   // pink
-  Extraction:         "#b91c1c",   // dark red (similar to missing)
-  "Composite Filling":"#f5f5f4",   // off-white (filling material)
-  Scaling:            "#059669",   // emerald
-  Polishing:          "#10b981",   // green
-  Veneer:             "#e2e8f0",   // light porcelain
-  "Pulp Cap":         "#f97316",   // orange
-  "Root Planing":     "#0d9488",   // teal
-  "Fluoride Treatment":"#06b6d4", // cyan-light
+  Implant: "#0891b2",   // cyan
+  Missing: "#dc2626",   // red
+  RCT: "#ea580c",   // orange
+  Crown: "#d4af37",   // gold
+  Bridge: "#a16207",   // amber-brown
+  Denture: "#ec4899",   // pink
+  Extraction: "#b91c1c",   // dark red (similar to missing)
+  "Composite Filling": "#f5f5f4",   // off-white (filling material)
+  Scaling: "#059669",   // emerald
+  Polishing: "#10b981",   // green
+  Veneer: "#e2e8f0",   // light porcelain
+  "Pulp Cap": "#f97316",   // orange
+  "Root Planing": "#0d9488",   // teal
+  "Fluoride Treatment": "#06b6d4", // cyan-light
 }
 const FINDING_WEIGHT: Record<string, number> = {
   "Cavity/Caries": 3, "Crack": 2, "Fracture": 4, "Erosion": 2, "Abrasion": 1,
@@ -98,9 +98,9 @@ function computeDentalScore(state: DentalCanvasState | null): {
   const score = Math.max(0, 100 - totalDeduction)
   const rating =
     score >= 90 ? "Excellent" as const :
-    score >= 75 ? "Good" as const :
-    score >= 60 ? "Fair" as const :
-    score >= 40 ? "Needs attention" as const : "Poor" as const
+      score >= 75 ? "Good" as const :
+        score >= 60 ? "Fair" as const :
+          score >= 40 ? "Needs attention" as const : "Poor" as const
   return { score, rating, totalDeduction, affectedTeeth: affected.size, breakdown: { diag: Math.round(diag), findings: Math.round(findings) } }
 }
 
@@ -110,8 +110,8 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Separate persisted widths for dentition vs single-tooth. Both draggable 40-60.
   // Defer localStorage read to useEffect so SSR + first client render match.
-  // Default: dentition 30% (canvas takes 70%); single-tooth 65% content / 35% canvas.
-  const [dentitionAsidePct, setDentitionAsidePct] = useState<number>(30)
+  // Default: dentition 35% (canvas takes 65%); single-tooth 65% content / 35% canvas.
+  const [dentitionAsidePct, setDentitionAsidePct] = useState<number>(35)
   const [singleAsidePct, setSingleAsidePct] = useState<number>(65)
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -126,15 +126,11 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
 
   useEffect(() => {
     if (!dragging) return
-    const getClientX = (e: MouseEvent | TouchEvent): number | null => {
-      if ("touches" in e) return e.touches[0]?.clientX ?? null
-      return (e as MouseEvent).clientX
-    }
-    const onMove = (e: MouseEvent | TouchEvent) => {
+    const onMove = (e: PointerEvent) => {
+      e.preventDefault()
       const el = containerRef.current
       if (!el) return
-      const x = getClientX(e)
-      if (x == null) return
+      const x = e.clientX
       const r = el.getBoundingClientRect()
       const [min, max] = isSingle ? [50, 70] : [30, 40]
       // Panel is on the RIGHT now → measure from right edge.
@@ -143,17 +139,15 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
       else setDentitionAsidePct(pct)
     }
     const onUp = () => setDragging(false)
-    document.addEventListener("mousemove", onMove)
-    document.addEventListener("mouseup", onUp)
-    document.addEventListener("touchmove", onMove, { passive: false })
-    document.addEventListener("touchend", onUp)
+    window.addEventListener("pointermove", onMove, { passive: false })
+    window.addEventListener("pointerup", onUp)
+    window.addEventListener("pointercancel", onUp)
     document.body.style.cursor = "col-resize"
     document.body.style.userSelect = "none"
     return () => {
-      document.removeEventListener("mousemove", onMove)
-      document.removeEventListener("mouseup", onUp)
-      document.removeEventListener("touchmove", onMove)
-      document.removeEventListener("touchend", onUp)
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", onUp)
+      window.removeEventListener("pointercancel", onUp)
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
     }
@@ -172,15 +166,22 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
 
   const asidePct = isSingle ? singleAsidePct : dentitionAsidePct
   const canvasPct = 100 - asidePct
+  
+  const isGetStarted = !isSingle && !!canvasState &&
+    Object.values(canvasState.toothDiagnoses).every((s) => s.size === 0) &&
+    canvasState.implantTeeth.size === 0 &&
+    Object.values(canvasState.findingsByTooth).every((a) => a.length === 0) &&
+    canvasState.allEntries.length === 0
 
   return (
-    <div ref={containerRef} className="relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[18px]">
+    <div ref={containerRef} className={`relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[18px] ${isGetStarted ? 'gap-[18px]' : ''}`}>
       {/* Left: 3D canvas — plain white with subtle grid + minimal dots */}
       <div
         className="relative min-w-0 rounded-[20px] overflow-hidden bg-white"
         style={{
-          width: `${canvasPct}%`,
-          transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms",
+          width: isGetStarted ? undefined : `${canvasPct}%`,
+          flex: isGetStarted ? "1" : "none",
+          transition: dragging ? "none" : "width 350ms ease-out",
         }}
       >
         {/* Subtle graph-paper grid — medium squares, very light */}
@@ -214,29 +215,39 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
       </div>
 
       {/* Invisible drag handle — icon sticks to canvas right edge */}
-      <div
-        role="separator"
-        aria-label="Resize panel"
-        aria-orientation="vertical"
-        onPointerDown={(e) => e.stopPropagation()}
-        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); setDragging(true) }}
-        onTouchStart={(e) => { e.stopPropagation(); setDragging(true) }}
-        className="relative w-0 shrink-0 cursor-col-resize touch-none z-40"
-      >
-        <span className="absolute inset-y-0 -left-[20px] -right-[20px] touch-none" />
-        <img
-          src="/icons/ui/drag-handle.svg"
-          alt=""
-          draggable={false}
-          className="pointer-events-none absolute top-1/2 z-30 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
-          style={{ display: "block", width: "22px", height: "32px", maxWidth: "none", left: "-11px" }}
-        />
-      </div>
+      {!isGetStarted && (
+        <button
+          type="button"
+          role="separator"
+          aria-label="Resize panel"
+          aria-orientation="vertical"
+          onPointerDown={(e) => {
+            // Prevent pointer events so they don't trigger RxPad's swipe gesture or native swipe logic
+            e.preventDefault()
+            e.stopPropagation()
+            e.currentTarget.setPointerCapture(e.pointerId)
+            setDragging(true)
+          }}
+          className="relative w-0 shrink-0 cursor-col-resize touch-none z-40 focus:outline-none appearance-none bg-transparent border-none p-0"
+        >
+          <span className="absolute inset-y-0 -left-[20px] -right-[20px] touch-none" />
+          <img
+            src="/icons/ui/drag-handle.svg"
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute top-1/2 z-30 -translate-y-1/2 opacity-60 hover:opacity-100 transition-opacity"
+            style={{ display: "block", width: "22px", height: "32px", maxWidth: "none", left: "-11px" }}
+          />
+        </button>
+      )}
 
       {/* Right: Context-aware panel */}
       <aside
-        className="flex shrink-0 flex-col overflow-hidden bg-tp-slate-100"
-        style={{ width: `${asidePct}%`, transition: dragging ? "none" : "width 900ms cubic-bezier(0.4, 0, 0.2, 1) 100ms" }}
+        className={`flex shrink-0 flex-col overflow-hidden ${isGetStarted ? 'rounded-[16px] shadow-[0_1px_4px_rgba(0,0,0,0.06)] bg-white w-auto h-fit my-auto' : 'bg-tp-slate-100'}`}
+        style={{
+          width: isGetStarted ? "auto" : `${asidePct}%`,
+          transition: dragging ? "none" : "width 350ms ease-out"
+        }}
       >
         <div
           key={isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"}
@@ -284,7 +295,7 @@ export function ExaminationTab({ patientId }: ExaminationTabProps) {
 function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
   const scoreData = useMemo(() => computeDentalScore(state), [state])
   const [showFormula, setShowFormula] = useState(false)
-  const infoBtnRef = useRef<HTMLButtonElement>(null)
+  const infoBtnRef = useRef<HTMLDivElement>(null)
 
   const summary = useMemo(() => {
     if (!state) return []
@@ -342,87 +353,85 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
           </div>
 
           <div className="flex flex-col gap-[8px]">
-          {summary.map((entry) => {
-            const tooth = TEETH.find((t) => t.fdi === entry.fdi)
-            const toothName = tooth ? `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` : ""
-            const isMax = tooth?.arch === "maxillary"
-            // Determine thumbnail color by most-severe diagnosis
-            let crownColor = "#E8DDD5", rootColor = "#C4AD97"
-            if (entry.diagnoses.includes("Missing")) { crownColor = "#d1d5db"; rootColor = "#d1d5db" }
-            else if (entry.diagnoses.includes("Crown") || entry.diagnoses.includes("Bridge")) { crownColor = "#D4AF37"; rootColor = "#C4AD97" }
-            else if (entry.diagnoses.includes("RCT")) { crownColor = "#f87171"; rootColor = "#C4AD97" }
-            else if (entry.diagnoses.includes("Implant")) { crownColor = "#9ca3af"; rootColor = "#6B7280" }
-            return (
-              <button
-                key={entry.fdi}
-                type="button"
-                onClick={() => openTooth(entry.fdi)}
-                onMouseEnter={() => state?.onSetHoveredTooth(entry.fdi)}
-                onMouseLeave={() => state?.onSetHoveredTooth(null)}
-                className={`group flex items-center gap-[12px] rounded-[14px] p-[12px] text-left transition-all ring-1 ${
-                  state?.hoveredToothFdi === entry.fdi
-                    ? "bg-tp-blue-50/50 ring-tp-blue-400 shadow-[0_2px_12px_-4px_rgba(75,74,213,0.18)] -translate-y-[1px]"
-                    : "bg-white ring-transparent hover:bg-tp-blue-50/30 hover:ring-tp-blue-300 hover:shadow-[0_2px_10px_-4px_rgba(75,74,213,0.12)] hover:-translate-y-[1px]"
-                }`}
-              >
-                {/* Tooth thumbnail — real 3D GLB model rendered in mini canvas */}
-                <div
-                  className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[8px] bg-gradient-to-br from-tp-slate-50 to-tp-slate-100 overflow-hidden"
+            {summary.map((entry) => {
+              const tooth = TEETH.find((t) => t.fdi === entry.fdi)
+              const toothName = tooth ? `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` : ""
+              const isMax = tooth?.arch === "maxillary"
+              // Determine thumbnail color by most-severe diagnosis
+              let crownColor = "#E8DDD5", rootColor = "#C4AD97"
+              if (entry.diagnoses.includes("Missing")) { crownColor = "#d1d5db"; rootColor = "#d1d5db" }
+              else if (entry.diagnoses.includes("Crown") || entry.diagnoses.includes("Bridge")) { crownColor = "#d1d5db"; rootColor = "#C4AD97" }
+              else if (entry.diagnoses.includes("RCT")) { crownColor = "#f87171"; rootColor = "#C4AD97" }
+              else if (entry.diagnoses.includes("Implant")) { crownColor = "#9ca3af"; rootColor = "#6B7280" }
+              return (
+                <button
+                  key={entry.fdi}
+                  type="button"
+                  onClick={() => openTooth(entry.fdi)}
+                  onMouseEnter={() => state?.onSetHoveredTooth(entry.fdi)}
+                  onMouseLeave={() => state?.onSetHoveredTooth(null)}
+                  className={`group flex items-center gap-[12px] rounded-[14px] p-[12px] text-left transition-all ring-1 ${state?.hoveredToothFdi === entry.fdi
+                      ? "bg-tp-blue-50/50 ring-tp-blue-400 shadow-[0_2px_12px_-4px_rgba(75,74,213,0.18)] -translate-y-[1px]"
+                      : "bg-white ring-transparent hover:bg-tp-blue-50/30 hover:ring-tp-blue-300 hover:shadow-[0_2px_10px_-4px_rgba(75,74,213,0.12)] hover:-translate-y-[1px]"
+                    }`}
                 >
-                  {tooth && (
-                    <MiniToothCanvas
-                      tooth={tooth}
-                      size={52}
-                      diagnoses={new Set(entry.diagnoses)}
-                      isImplant={entry.diagnoses.includes("Implant")}
-                      findings={(state?.findingsByTooth?.[entry.fdi] ?? [])}
-                    />
-                  )}
-                </div>
-
-                {/* Middle: FDI + name + chips */}
-                <div className="flex-1 min-w-0 flex flex-col gap-[6px]">
-                  <div className="flex items-center gap-[8px]">
-                    <span className="font-sans text-[14px] font-semibold text-tp-slate-800 truncate">
-                      {toothName}
-                    </span>
-                    <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[7px] font-sans text-[12px] font-bold text-tp-slate-600 tabular-nums">
-                      T{entry.fdi}
-                    </span>
+                  {/* Tooth thumbnail — real 3D GLB model rendered in mini canvas */}
+                  <div
+                    className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[8px] bg-gradient-to-br from-tp-slate-50 to-tp-slate-100 overflow-hidden"
+                  >
+                    {tooth && (
+                      <MiniToothCanvas
+                        tooth={tooth}
+                        size={52}
+                        diagnoses={new Set(entry.diagnoses)}
+                        isImplant={entry.diagnoses.includes("Implant")}
+                        findings={(state?.findingsByTooth?.[entry.fdi] ?? [])}
+                      />
+                    )}
                   </div>
-                  {/* Section-level summary pills */}
-                  <div className="flex flex-wrap items-center gap-[4px]">
-                    {entry.diagnoses.length > 0 && (
-                      <SummaryPill icon="diagnosis" label={entry.diagnoses.join(" · ")} tone="violet" />
-                    )}
-                    {entry.findingCount > 0 && (
-                      <SummaryPill icon="virus" label={`${entry.findingCount} finding${entry.findingCount === 1 ? "" : "s"}`} tone="amber" />
-                    )}
-                    {entry.procedureCount > 0 && (
-                      <SummaryPill icon="surgical-scissors-02" label={`${entry.procedureCount} procedure${entry.procedureCount === 1 ? "" : "s"}`} tone="blue" />
-                    )}
-                    {entry.findings.length > 0 && entry.findingCount === 0 && entry.findings.map((f) => (
-                      <span key={f} className="inline-flex items-center rounded-[4px] bg-amber-50 px-[6px] py-[2px] font-sans text-[12px] font-medium text-amber-700">
-                        {f}
+
+                  {/* Middle: FDI + name + chips */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-[6px]">
+                    <div className="flex items-center gap-[8px]">
+                      <span className="font-sans text-[14px] font-semibold text-tp-slate-800 truncate">
+                        {toothName}
                       </span>
-                    ))}
+                      <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[7px] font-sans text-[12px] font-bold text-tp-slate-600 tabular-nums">
+                        T{entry.fdi}
+                      </span>
+                    </div>
+                    {/* Section-level summary pills */}
+                    <div className="flex flex-wrap items-center gap-[4px]">
+                      {entry.diagnoses.length > 0 && (
+                        <SummaryPill icon="diagnosis" label={entry.diagnoses.join(" · ")} tone="violet" />
+                      )}
+                      {entry.findingCount > 0 && (
+                        <SummaryPill icon="virus" label={`${entry.findingCount} finding${entry.findingCount === 1 ? "" : "s"}`} tone="amber" />
+                      )}
+                      {entry.procedureCount > 0 && (
+                        <SummaryPill icon="surgical-scissors-02" label={`${entry.procedureCount} procedure${entry.procedureCount === 1 ? "" : "s"}`} tone="blue" />
+                      )}
+                      {entry.findings.length > 0 && entry.findingCount === 0 && entry.findings.map((f) => (
+                        <span key={f} className="inline-flex items-center rounded-[4px] bg-amber-50 px-[6px] py-[2px] font-sans text-[12px] font-medium text-amber-700">
+                          {f}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* Expand (zoom-in) icon — blue on card hover / external hover */}
-                <span className={`flex-shrink-0 transition-colors group-hover:text-tp-blue-500 ${
-                  state?.hoveredToothFdi === entry.fdi ? "text-tp-blue-500" : "text-tp-slate-400"
-                }`}>
-                  <ExpandIcon size={16} />
-                </span>
-              </button>
-            )
-          })}
-        </div>
+                  {/* Expand (zoom-in) icon — blue on card hover / external hover */}
+                  <span className={`flex-shrink-0 transition-colors group-hover:text-tp-blue-500 ${state?.hoveredToothFdi === entry.fdi ? "text-tp-blue-500" : "text-tp-slate-400"
+                    }`}>
+                    <ExpandIcon size={16} />
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </>
       ) : (
         /* First-time user onboarding — polished educational panel */
-        <div className="flex flex-col gap-[14px]">
+        <div className="flex flex-col gap-[14px] mx-auto min-w-[300px] max-w-[400px] w-full">
 
           {/* Quick-start steps — clean white card with connected dotted lines */}
           <div className="rounded-[16px] bg-white p-[18px] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
@@ -514,9 +523,9 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
 // ──────────────────────────────────────────────────────────────
 function SummaryPill({ icon, label, tone }: { icon: string; label: string; tone: "violet" | "amber" | "blue" }) {
   const tones = {
-    violet: { bg: "bg-tp-violet-50",  text: "text-tp-violet-700", colour: "var(--tp-violet-600)" },
-    amber:  { bg: "bg-amber-50",      text: "text-amber-700",      colour: "#b45309" },
-    blue:   { bg: "bg-tp-blue-50",    text: "text-tp-blue-700",    colour: "var(--tp-blue-600)" },
+    violet: { bg: "bg-tp-violet-50", text: "text-tp-violet-700", colour: "var(--tp-violet-600)" },
+    amber: { bg: "bg-amber-50", text: "text-amber-700", colour: "#b45309" },
+    blue: { bg: "bg-tp-blue-50", text: "text-tp-blue-700", colour: "var(--tp-blue-600)" },
   } as const
   const t = tones[tone]
   return (
@@ -534,7 +543,7 @@ function ScoreCard({
   data, infoBtnRef, showFormula, setShowFormula,
 }: {
   data: ReturnType<typeof computeDentalScore>
-  infoBtnRef: React.RefObject<HTMLButtonElement | null>
+  infoBtnRef: React.RefObject<HTMLDivElement | null>
   showFormula: boolean
   setShowFormula: (v: boolean | ((p: boolean) => boolean)) => void
 }) {
@@ -806,10 +815,10 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
   // Dental charting sections — standard clinical workflow order
   const sections: { id: SectionId; label: string; icon: string; count: number }[] = [
-    { id: "procedures", label: "Treatment History",  icon: "clipboard-activity",   count: diagnosisCount + procedureCount },
-    { id: "findings",   label: "Findings",            icon: "diagnosis",            count: findingCount },
-    { id: "planned",    label: "Procedures",          icon: "surgical-scissors-02", count: plannedCount },
-    { id: "notes",      label: "Overall Tooth Notes", icon: "note-2",              count: notesFilled ? 1 : 0 },
+    { id: "procedures", label: "Treatment History", icon: "clipboard-activity", count: diagnosisCount + procedureCount },
+    { id: "findings", label: "Findings", icon: "diagnosis", count: findingCount },
+    { id: "planned", label: "Procedures", icon: "surgical-scissors-02", count: plannedCount },
+    { id: "notes", label: "Overall Tooth Notes", icon: "note-2", count: notesFilled ? 1 : 0 },
   ]
 
   const jumpTo = (id: SectionId) => {
@@ -827,39 +836,45 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Tooth identity header — pure white */}
-      <header className="shrink-0 bg-white">
-        <div className="flex items-center gap-[10px] px-[14px] py-[10px]">
-          <div className="flex h-[36px] w-[36px] flex-shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-tp-slate-50">
-            <MiniToothCanvas
-              tooth={state.selectedTooth}
-              size={36}
-              diagnoses={state.currentToothDiagnoses}
-              isImplant={state.isImplant}
-              findings={state.findings}
-            />
+      {/* Tooth identity header — RxPad style */}
+      <header className="shrink-0 border-b border-tp-slate-100 bg-white">
+        <div className="flex items-center justify-between gap-[16px] px-[18px] py-[18px]">
+          <div className="inline-flex items-center gap-[12px] min-w-0">
+            <div className="flex h-[40px] w-[40px] shrink-0 items-center justify-center relative rounded-[6px] bg-gradient-to-br from-tp-slate-50 to-tp-slate-100 overflow-hidden">
+              <MiniToothCanvas
+                tooth={state.selectedTooth}
+                size={40}
+                diagnoses={state.currentToothDiagnoses}
+                isImplant={state.isImplant}
+                findings={state.findings}
+              />
+            </div>
+            <div className="flex flex-col min-w-0 justify-center">
+              <div className="flex items-center gap-[6px] min-w-0">
+                <h3 className="text-[17px] font-semibold leading-[20px] text-tp-slate-800 font-['Inter',sans-serif] tracking-[0.1px] truncate">
+                  {QUADRANT_LABELS[state.selectedTooth.quadrant]} {state.selectedTooth.name}
+                </h3>
+                <span className="inline-flex h-[20px] shrink-0 items-center rounded-[4px] bg-tp-slate-100 px-[6px] font-sans text-[11px] font-bold text-tp-slate-600 tabular-nums">
+                  T{state.selectedTooth.fdi}
+                </span>
+              </div>
+            </div>
           </div>
-          <h2 className="font-sans text-[16px] font-semibold text-tp-slate-900 truncate">
-            {QUADRANT_LABELS[state.selectedTooth.quadrant]} {state.selectedTooth.name}
-          </h2>
-          <span className="inline-flex h-[22px] items-center rounded-[5px] bg-tp-slate-100 px-[8px] font-sans text-[13px] font-bold text-tp-slate-600 tabular-nums">
-            T{state.selectedTooth.fdi}
-          </span>
-          <div className="flex-1" />
-          <div className="flex items-center gap-[6px]">
+
+          <div className="inline-flex items-center gap-[10px] shrink-0">
             <button
               type="button"
-              title="Templates"
-              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 hover:bg-tp-slate-200 transition-colors"
+              title="Template"
             >
-              <Grid5 color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+              <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
             </button>
             <button
               type="button"
-              title="Save as template"
-              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 hover:bg-tp-slate-200 transition-colors"
+              title="Save"
             >
-              <Ram color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+              <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
             </button>
             <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
               <AlertDialogTrigger asChild>
@@ -867,9 +882,9 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                   type="button"
                   title="Clear all data for this tooth"
                   disabled={!hasAnyData}
-                  className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-500 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <Eraser color="currentColor" size={14} strokeWidth={1.5} variant="Linear" />
+                  <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
                 </button>
               </AlertDialogTrigger>
               <AlertDialogContent className="max-w-[400px] rounded-[16px] p-[24px]">
@@ -907,28 +922,25 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
             <button
               type="button"
               onClick={tryBack}
-              aria-label="Back to all teeth"
-              title="Back to all teeth"
-              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-900 hover:text-white"
+              className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[10px] bg-tp-slate-50 text-tp-slate-600 hover:bg-tp-slate-100 transition-colors"
+              title="Close panel"
             >
-              <MinimizeIcon size={14} />
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 256 256"><rect width="256" height="256" fill="none"/><polyline points="192 104 152 104 152 64" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/><line x1="208" y1="48" x2="152" y2="104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/><polyline points="64 152 104 152 104 192" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/><line x1="48" y1="208" x2="104" y2="152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/><polyline points="152 192 152 152 192 152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/><line x1="208" y1="208" x2="152" y2="152" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/><polyline points="104 64 104 104 64 104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/><line x1="48" y1="48" x2="104" y2="104" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="16"/></svg>
             </button>
           </div>
         </div>
-        {/* Jump-nav removed — users click directly on section accordions */}
       </header>
 
-      {/* SCROLLABLE BODY — neutral #F2F2F2 so white section cards stack visibly without borders */}
+      {/* SCROLLABLE BODY — neutral tp-slate-50/50 so white section cards stack visibly with shadows */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto px-[14px] py-[14px] flex flex-col gap-[10px]"
-        style={{ background: "#F2F2F2" }}
+        className="flex-1 min-h-0 px-[14px] py-[14px] flex flex-col gap-[10px] bg-[#F4F6F9]"
       >
         {/* Treatment History — tooth-level status chips (Crown/RCT/Implant) + past procedure entries */}
         <div ref={(el) => { sectionRefs.current.procedures = el }}>
           <AccordionWrap open={activeSection === "procedures"} onExpand={() => jumpTo("procedures")}
             header={<SectionHeader title="Treatment History" medicalIcon="clipboard-activity"
-              onTemplate={activeSection === "procedures" ? () => {} : undefined}
-              onSave={activeSection === "procedures" ? () => {} : undefined}
+              onTemplate={activeSection === "procedures" ? () => { } : undefined}
+              onSave={activeSection === "procedures" ? () => { } : undefined}
               onClear={activeSection === "procedures" ? () => {
                 state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d))
                 if (state.isImplant) state.onToggleImplant()
@@ -946,8 +958,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         <div ref={(el) => { sectionRefs.current.findings = el }}>
           <AccordionWrap open={activeSection === "findings"} onExpand={() => jumpTo("findings")}
             header={<SectionHeader title="Findings" medicalIcon="diagnosis"
-              onTemplate={activeSection === "findings" ? () => {} : undefined}
-              onSave={activeSection === "findings" ? () => {} : undefined}
+              onTemplate={activeSection === "findings" ? () => { } : undefined}
+              onSave={activeSection === "findings" ? () => { } : undefined}
               onClear={activeSection === "findings" ? () => {
                 state.currentToothEntries.filter((e) => e.kind === "finding").forEach((e) => state.onRemoveEntry(e.id))
               } : undefined}
@@ -963,8 +975,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         <div ref={(el) => { sectionRefs.current.planned = el }}>
           <AccordionWrap open={activeSection === "planned"} onExpand={() => jumpTo("planned")}
             header={<SectionHeader title="Procedures" medicalIcon="surgical-scissors-02"
-              onTemplate={activeSection === "planned" ? () => {} : undefined}
-              onSave={activeSection === "planned" ? () => {} : undefined}
+              onTemplate={activeSection === "planned" ? () => { } : undefined}
+              onSave={activeSection === "planned" ? () => { } : undefined}
               onClear={activeSection === "planned" ? () => {
                 state.currentToothEntries.filter((e) => e.kind === "planned").forEach((e) => state.onRemoveEntry(e.id))
               } : undefined}
@@ -980,8 +992,8 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
         <div ref={(el) => { sectionRefs.current.notes = el }}>
           <AccordionWrap open={activeSection === "notes"} onExpand={() => jumpTo("notes")}
             header={<SectionHeader title="Overall Tooth Notes" medicalIcon="note-2"
-              onTemplate={activeSection === "notes" ? () => {} : undefined}
-              onSave={activeSection === "notes" ? () => {} : undefined}
+              onTemplate={activeSection === "notes" ? () => { } : undefined}
+              onSave={activeSection === "notes" ? () => { } : undefined}
               onClear={activeSection === "notes" ? () => state.onUpdateToothNotes("") : undefined}
               chevron={activeSection === "notes" ? "up" : "down"}
               onClick={() => jumpTo("notes")}
@@ -1009,39 +1021,23 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
 function AccordionWrap({
   open, header, children, onExpand,
 }: { open: boolean; header: React.ReactNode; children: React.ReactNode; onExpand: () => void }) {
-  const bodyRef = useRef<HTMLDivElement>(null)
-  const [bodyHeight, setBodyHeight] = useState(0)
-
-  // Measure the natural height of the body content whenever it changes
-  useEffect(() => {
-    if (!open || !bodyRef.current) { setBodyHeight(0); return }
-    const measure = () => {
-      if (bodyRef.current) setBodyHeight(bodyRef.current.scrollHeight)
-    }
-    measure()
-    // Re-measure on resize or content change
-    const ro = new ResizeObserver(measure)
-    ro.observe(bodyRef.current)
-    return () => ro.disconnect()
-  }, [open, children])
-
   return (
     <div
-      className={`rounded-[14px] bg-white overflow-hidden transition-shadow duration-300 ${
-        open ? "shadow-[0_2px_10px_-2px_rgba(15,23,42,0.10)]" : ""
-      }`}
+      className={`flex flex-col rounded-[14px] bg-white overflow-hidden transition-[flex-grow,shadow] duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${open ? "flex-1 shadow-[0_6px_20px_-4px_rgba(15,23,42,0.12)] cursor-default" : "flex-none shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] cursor-pointer"}`}
       onClick={open ? undefined : onExpand}
     >
-      {header}
+      <div className="shrink-0">{header}</div>
       <div
+        className="grid transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]"
         style={{
-          height: open ? bodyHeight : 0,
+          gridTemplateRows: open ? '1fr' : '0fr',
           opacity: open ? 1 : 0,
-          overflow: "hidden",
-          transition: "height 380ms cubic-bezier(0.25, 0.8, 0.25, 1), opacity 280ms ease",
+          flex: open ? '1 1 0%' : '0 0 0px'
         }}
       >
-        <div ref={bodyRef}>{children}</div>
+        <div className="overflow-hidden min-h-0 flex flex-col">
+          <div className="flex-1 overflow-y-auto">{children}</div>
+        </div>
       </div>
     </div>
   )
@@ -1070,7 +1066,7 @@ function SectionHeader({
   return (
     <header
       onClick={onClick}
-      className={`flex items-center gap-[8px] px-[14px] pt-[10px] pb-[6px] ${onClick ? "cursor-pointer hover:bg-tp-slate-100/60" : ""}`}
+      className={`flex items-center gap-[8px] px-[14px] pt-[12px] pb-[8px] ${onClick ? "cursor-pointer" : ""}`}
     >
       {medicalIcon && (
         <span className="inline-flex h-[32px] w-[32px] items-center justify-center text-tp-violet-500 flex-shrink-0">
@@ -1122,13 +1118,59 @@ function SectionHeader({
 // EntryTab — shared builder + table for Findings and Procedures
 // ──────────────────────────────────────────────────────────────
 function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" | "procedure" | "symptom" | "planned" }) {
-  const [activeRowId, setActiveRowId] = useState<string | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: string } | null>(null)
   const [query, setQuery] = useState("")
+
+  // Portal Dropdown Search States
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchPopoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!searchOpen) { setPos(null); return }
+    const reposition = () => {
+      const el = searchInputRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    reposition()
+    window.addEventListener("scroll", reposition, true)
+    window.addEventListener("resize", reposition)
+    return () => {
+      window.removeEventListener("scroll", reposition, true)
+      window.removeEventListener("resize", reposition)
+    }
+  }, [searchOpen, query])
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (
+        searchInputRef.current && !searchInputRef.current.contains(e.target as Node) &&
+        searchPopoverRef.current && !searchPopoverRef.current.contains(e.target as Node)
+      ) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onDocClick)
+    return () => document.removeEventListener("mousedown", onDocClick)
+  }, [])
 
   const isMissing = state.currentToothDiagnoses.has("Missing") || state.currentToothDiagnoses.has("Extraction")
   const catalog = kind === "finding" ? (DIAGNOSES as readonly string[]) : kind === "symptom" ? (DENTAL_SYMPTOM_CATALOG as readonly string[]) : (kind === "planned" || kind === "procedure") ? (PROCEDURE_CATALOG as readonly string[]) : (PROCEDURE_CATALOG as readonly string[])
   const entries = state.currentToothEntries.filter((e) => e.kind === kind)
-  const activeRow = entries.find((e) => e.id === activeRowId) ?? null
+  const activeSurfaceRowId = activeCell?.colKey === "surfaces" ? activeCell.rowId : null
+  const activeRow = entries.find((e) => e.id === activeSurfaceRowId) ?? null
+  const setCellActive = useCallback((rowId: string, colKey: string) => {
+    setActiveCell({ rowId, colKey })
+  }, [])
+  const clearCellActive = useCallback((rowId: string, colKey: string) => {
+    window.setTimeout(() => {
+      setActiveCell((current) => current && current.rowId === rowId && current.colKey === colKey ? null : current)
+    }, 80)
+  }, [])
+  const isCellActive = useCallback((rowId: string, colKey: string) => activeCell?.rowId === rowId && activeCell?.colKey === colKey, [activeCell])
 
   // Push multiSelectZones → active row.
   useEffect(() => {
@@ -1137,7 +1179,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
     const same = zonesFromCanvas.length === activeRow.surfaces.length && zonesFromCanvas.every((z) => activeRow.surfaces.includes(z))
     if (!same) state.onUpdateEntry(activeRow.id, { surfaces: zonesFromCanvas })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.multiSelectZones, activeRowId])
+  }, [state.multiSelectZones, activeSurfaceRowId])
 
   // Seed multiSelectZones when active row changes + toggle multi-select mode.
   useEffect(() => {
@@ -1146,11 +1188,10 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
       state.onSetMultiSelectActive(false)
       return
     }
-    state.onClearMultiSelect()
-    activeRow.surfaces.forEach((z) => state.onToggleZoneMultiSelect(z))
+    state.onSetMultiSelectZones(activeRow.surfaces)
     state.onSetMultiSelectActive(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRowId])
+  }, [activeSurfaceRowId])
 
   // Deactivate multi-select mode on unmount (switching tabs away).
   useEffect(() => () => { state.onSetMultiSelectActive(false) }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1162,55 +1203,28 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
     return pool.filter((c) => !selected.has(c.toLowerCase())).slice(0, 12)
   }, [query, catalog, entries])
 
+  const quickSelectChips = useMemo(() => {
+    const defaults = kind === "finding"
+      ? ["Cavity/Caries", "Crack", "Fracture", "Sensitivity", "Plaque", "Calculus"]
+      : ["RCT", "Restoration", "Extraction", "Scaling", "Polishing", "Crown Prep", "Implant Placement", "Veneer"]
+    const selected = new Set(entries.map((e) => e.name.toLowerCase()))
+    return defaults.filter((name) => (catalog as readonly string[]).includes(name) && !selected.has(name.toLowerCase()))
+  }, [catalog, entries, kind])
+
   const pendingActivateRef = useRef(false)
   const prevCountRef = useRef(entries.length)
   useEffect(() => {
     if (pendingActivateRef.current && entries.length > prevCountRef.current) {
       const latest = entries[entries.length - 1]
-      if (latest) setActiveRowId(latest.id)
+      if (latest) setActiveCell({ rowId: latest.id, colKey: "surfaces" })
       pendingActivateRef.current = false
     }
     prevCountRef.current = entries.length
   }, [entries.length, entries])
 
-  // Surface auto-selection rules per treatment type:
-  // "whole-tooth" → selects ALL zones (Implant, Missing, RCT, Crown, Bridge, Extraction)
-  // "root" → selects only root zone (Denture)
-  // "ask" → asks user to pick surfaces (Scaling, Polishing, Composite Filling, etc.)
-  const TREATMENT_SURFACE_RULES: Record<string, "whole-tooth" | "root" | "ask"> = {
-    "Implant": "whole-tooth",
-    "Missing": "whole-tooth",
-    "RCT": "whole-tooth",
-    "Root Canal Treatment": "whole-tooth",
-    "Crown": "whole-tooth",
-    "Crown Prep": "whole-tooth",
-    "Bridge": "whole-tooth",
-    "Bridge Prep": "whole-tooth",
-    "Extraction": "whole-tooth",
-    "Veneer": "whole-tooth",
-    "Pulp Cap": "whole-tooth",
-    "Implant Placement": "whole-tooth",
-    "Denture": "root",
-    "Scaling": "ask",
-    "Polishing": "ask",
-    "Composite Filling": "ask",
-    "Restoration": "ask",
-    "Root Planing": "ask",
-    "Fluoride Treatment": "ask",
-  }
-
   const addEntryFromName = (name: string) => {
-    const rule = TREATMENT_SURFACE_RULES[name] ?? "ask"
     state.onClearMultiSelect()
-
-    let surfaces: ZoneId[] = []
-    if (rule === "whole-tooth") {
-      surfaces = [...ALL_ZONES]
-    } else if (rule === "root") {
-      surfaces = ["root" as ZoneId]
-      state.onToggleZoneMultiSelect("root" as ZoneId)
-    }
-    // "ask" → empty surfaces, user selects manually
+    const surfaces = getDefaultTreatmentSurfaces(name)
 
     pendingActivateRef.current = true
     state.onAddEntry({
@@ -1256,7 +1270,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
             <thead>
               <tr className="h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500">
                 <th className="border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" />
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">{primaryLabel}</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">NAME</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">SURFACES</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">{kind === "finding" ? "SINCE" : "DATE"}</th>
                 {hasStatus && <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">STATUS</th>}
@@ -1266,14 +1280,21 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
             </thead>
             <tbody>
               {entries.map((e) => {
-                const isActive = activeRowId === e.id
+                const isSurfaceActive = isCellActive(e.id, "surfaces")
+                const isDateActive = isCellActive(e.id, kind === "finding" || kind === "symptom" ? "since" : "date")
+                const isStatusActive = isCellActive(e.id, "status")
+                const isNoteActive = isCellActive(e.id, "note")
+                const activateSurfaceCell = () => {
+                  setCellActive(e.id, "surfaces")
+                  state.onSetMultiSelectZones(e.surfaces)
+                  state.onSetMultiSelectActive(true)
+                }
                 return (
                   <tr
                     key={e.id}
-                    onClick={() => setActiveRowId(isActive ? null : e.id)}
-                    onMouseEnter={() => { if (!isActive) state.onSetHighlightZones(e.surfaces) }}
-                    onMouseLeave={() => { if (!isActive) state.onSetHighlightZones([]) }}
-                    className="border-t border-tp-slate-100 cursor-pointer"
+                    onMouseEnter={() => { if (!isSurfaceActive) state.onSetHighlightZones(e.surfaces) }}
+                    onMouseLeave={() => { if (!isSurfaceActive) state.onSetHighlightZones([]) }}
+                    className="border-t border-tp-slate-100"
                   >
                     {/* Drag handle cell (display-only for now) */}
                     <td className="border-r border-tp-slate-100 p-0 text-center align-middle transition-colors hover:bg-tp-slate-100/60">
@@ -1290,43 +1311,67 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                         value={e.name}
                         catalog={catalog}
                         onCommit={(v) => { if (v.trim()) state.onUpdateEntry(e.id, { name: v.trim() }) }}
-                        onFocusActivate={() => setActiveRowId(e.id)}
+                        onFocusActivate={() => setCellActive(e.id, "name")}
                       />
                     </td>
                     {/* Surfaces dropdown — whole cell is the trigger */}
-                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
+                    <td className={`relative border-r border-tp-slate-100 p-0 align-middle transition-colors ${isSurfaceActive ? "bg-tp-blue-50/20" : "hover:bg-tp-slate-100/60"}`} onClick={(ev) => ev.stopPropagation()}>
+                      {isSurfaceActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
                       <SurfaceCellDropdown
                         entry={e}
                         arch={state.selectedTooth.arch}
                         toothPosition={state.selectedTooth.position}
-                        isActive={isActive}
-                        onActivate={() => setActiveRowId(e.id)}
+                        mode={kind === "finding" ? "finding" : kind === "symptom" ? "symptom" : "treatment"}
+                        isActive={isSurfaceActive}
+                        onActivate={activateSurfaceCell}
+                        onDeactivate={() => {
+                          if (state.selectedZone === "whole") state.onClearSelectedZone()
+                          clearCellActive(e.id, "surfaces")
+                        }}
                         onToggleZone={state.onToggleZoneMultiSelect}
-                        onClearZones={state.onClearMultiSelect}
                         onHover={state.onSetHighlightZones}
                         multiSelectZones={state.multiSelectZones}
                       />
                     </td>
                     {/* Since / Date — whole cell */}
-                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
-                      {kind === "finding" ? (
-                        <SinceDropdown value={e.since ?? ""} onChange={(v) => state.onUpdateEntry(e.id, { since: v || undefined })} />
-                      ) : (
-                        <input
-                          type="date"
-                          value={e.plannedDate ?? ""}
-                          onChange={(ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined })}
-                          className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                    <td className={`relative border-r border-tp-slate-100 p-0 align-middle transition-colors ${isDateActive ? "bg-tp-blue-50/20" : "hover:bg-tp-slate-100/60"}`} onClick={(ev) => ev.stopPropagation()}>
+                      {isDateActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
+                      {kind === "finding" || kind === "symptom" ? (
+                        <SinceDropdown
+                          value={e.since ?? ""}
+                          onChange={(v) => state.onUpdateEntry(e.id, { since: v || undefined })}
+                          onFocusActivate={() => setCellActive(e.id, "since")}
+                          onBlurDeactivate={() => clearCellActive(e.id, "since")}
                         />
+                      ) : (
+                        <div className="relative w-full h-[52px] cursor-pointer group">
+                          {!e.plannedDate && (
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-[12px]">
+                              <span className="font-['Inter',sans-serif] text-[12px] leading-[18px] text-[#a2a2a8]">DD/MM/YYYY</span>
+                              <Calendar size={14} color="#94a3b8" variant="Linear" />
+                            </div>
+                          )}
+                          <input
+                            type="date"
+                            value={e.plannedDate ?? ""}
+                            onChange={(ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined })}
+                            onFocus={() => setCellActive(e.id, "date")}
+                            onBlur={() => clearCellActive(e.id, "date")}
+                            className={`relative z-20 h-[52px] w-full rounded-none border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] ${e.plannedDate ? "text-[#454551]" : "text-transparent"} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer focus:bg-transparent focus:outline-none focus:ring-0 cursor-pointer`}
+                          />
+                        </div>
                       )}
                     </td>
                     {/* Status (procedures only) — matches cell design system */}
                     {hasStatus && (
-                      <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                      <td className={`relative border-r border-tp-slate-100 p-0 align-middle ${isStatusActive ? "bg-tp-blue-50/20" : ""}`} onClick={(ev) => ev.stopPropagation()}>
+                        {isStatusActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
                         <select
                           value={e.status ?? "planned"}
                           onChange={(ev) => state.onUpdateEntry(e.id, { status: ev.target.value as ToothEntry["status"] })}
-                          className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                          onFocus={() => setCellActive(e.id, "status")}
+                          onBlur={() => clearCellActive(e.id, "status")}
+                          className="relative z-20 h-[52px] w-full rounded-none border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] focus:bg-transparent focus:outline-none focus:ring-0 transition-all duration-200"
                         >
                           <option value="planned">Planned</option>
                           <option value="in-progress">In progress</option>
@@ -1335,13 +1380,16 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                       </td>
                     )}
                     {/* Note — whole cell */}
-                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60" onClick={(ev) => ev.stopPropagation()}>
+                    <td className={`relative border-r border-tp-slate-100 p-0 align-middle transition-colors ${isNoteActive ? "bg-tp-blue-50/20" : "hover:bg-tp-slate-100/60"}`} onClick={(ev) => ev.stopPropagation()}>
+                      {isNoteActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
                       <input
                         type="text"
                         value={e.notes ?? ""}
                         onChange={(ev) => state.onUpdateEntry(e.id, { notes: ev.target.value })}
+                        onFocus={() => setCellActive(e.id, "note")}
+                        onBlur={() => clearCellActive(e.id, "note")}
                         placeholder="e.g. Monitor at next visit"
-                        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                        className="relative z-20 h-[52px] w-full rounded-none border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] placeholder:text-[#a2a2a8] focus:bg-transparent focus:outline-none focus:ring-0 transition-all duration-200"
                       />
                     </td>
                     {/* Sticky delete */}
@@ -1351,7 +1399,7 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
                     >
                       <button
                         type="button"
-                        onClick={() => { if (activeRowId === e.id) setActiveRowId(null); state.onRemoveEntry(e.id) }}
+                        onClick={() => { if (activeSurfaceRowId === e.id) setActiveCell(null); state.onRemoveEntry(e.id) }}
                         title="Remove"
                         className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
                       >
@@ -1367,42 +1415,69 @@ function EntryTab({ state, kind }: { state: DentalCanvasState; kind: "finding" |
       )}
 
       {/* Search & Add input (+ quick-select chips) — always at bottom, RxPad-style */}
-      <div className="mt-[16px]">
+      <div className={entries.length > 0 ? "mt-[10px]" : "mt-0"}>
         <div className="relative">
           <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
             <SearchNormal1 size={14} color="currentColor" variant="Linear" />
           </span>
           <input
+            ref={searchInputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) addEntryFromName(query.trim()) }}
+            onChange={(e) => { setQuery(e.target.value); setSearchOpen(true) }}
+            onFocus={() => setSearchOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && query.trim()) {
+                const match = catalog.find((c) => c.toLowerCase() === query.toLowerCase().trim())
+                if (match) { addEntryFromName(match); setSearchOpen(false) }
+              }
+            }}
             placeholder={kind === "finding" ? "Search & Add Examination" : kind === "symptom" ? "Search & Add Symptom" : kind === "planned" ? "Search & Add Planned Procedure" : "Search & Add Procedure"}
             className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
           />
+          {searchOpen && pos && typeof document !== "undefined" && (filteredCatalog.length > 0 || query.trim()) && createPortal(
+            <div
+              ref={searchPopoverRef}
+              className="fixed z-[9999] flex flex-col rounded-[12px] border border-tp-slate-200 bg-white py-[6px] shadow-[0_8px_20px_-4px_rgba(15,23,42,0.12)] max-h-[260px] overflow-y-auto [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100"
+              style={{ top: pos.top, left: pos.left, width: pos.width }}
+            >
+              {filteredCatalog.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => addEntryFromName(c)}
+                  className="px-[14px] py-[10px] text-left font-sans text-[13px] text-tp-slate-700 hover:bg-tp-slate-50 transition-colors"
+                >
+                  {c}
+                </button>
+              ))}
+              {query.trim() && !filteredCatalog.some((c) => c.toLowerCase() === query.toLowerCase().trim()) && (
+                <button
+                  className="px-[14px] py-[10px] text-left font-sans text-[13px] font-medium text-tp-blue-600 hover:bg-tp-blue-50 transition-colors"
+                  onClick={() => addEntryFromName(query.trim())}
+                >
+                  <span className="flex items-center gap-[6px]">
+                    <Add size={14} color="currentColor" variant="Linear" /> Add "{query.trim()}"
+                  </span>
+                </button>
+              )}
+            </div>,
+            document.body
+          )}
         </div>
-        {filteredCatalog.length > 0 && (
-          <div className="mt-[8px] flex flex-wrap gap-[6px]">
-            {filteredCatalog.map((c) => (
+
+        {query.length === 0 && quickSelectChips.length > 0 && (
+          <div className="mt-[10px] flex flex-wrap gap-[6px]">
+            {quickSelectChips.map((chip) => (
               <button
-                key={c}
+                key={chip}
                 type="button"
-                onClick={() => addEntryFromName(c)}
+                onClick={() => addEntryFromName(chip)}
                 className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
               >
-                {c}
+                {chip}
               </button>
             ))}
-            {query.trim() && !filteredCatalog.some((c) => c.toLowerCase() === query.toLowerCase().trim()) && (
-              <button
-                type="button"
-                onClick={() => addEntryFromName(query.trim())}
-                className="inline-flex h-[30px] items-center gap-[4px] rounded-[10px] border border-dashed border-tp-blue-300 bg-tp-blue-50 px-[12px] font-sans text-[12px] font-medium text-tp-blue-700 transition-colors hover:bg-tp-blue-100"
-              >
-                <Add size={12} color="currentColor" variant="Linear" />
-                Add "{query.trim()}"
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -1429,14 +1504,32 @@ function DiagnosisNameCell({
 }) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) { setPos(null); return }
     const onDoc = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener("mousedown", onDoc)
     return () => document.removeEventListener("mousedown", onDoc)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) { setPos(null); return }
+    const reposition = () => {
+      const el = wrapRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 200) })
+    }
+    reposition()
+    window.addEventListener("scroll", reposition, true)
+    window.addEventListener("resize", reposition)
+    return () => {
+      window.removeEventListener("scroll", reposition, true)
+      window.removeEventListener("resize", reposition)
+    }
   }, [open])
 
   // Available diagnoses to swap to (exclude currently-active ones except self).
@@ -1448,7 +1541,14 @@ function DiagnosisNameCell({
 
   useEffect(() => { if (!editing) setDraft(name) }, [name, editing])
   useEffect(() => { setHighlightIdx(0) }, [draft])
-  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus()
+      setTimeout(() => {
+        if (inputRef.current) inputRef.current.setSelectionRange(draft.length, draft.length)
+      }, 0)
+    }
+  }, [editing, draft.length])
 
   const filtered = useMemo(() => {
     const q = draft.toLowerCase().trim()
@@ -1472,10 +1572,8 @@ function DiagnosisNameCell({
       {!editing ? (
         <button
           type="button"
-          onClick={() => { setEditing(true); setOpen(true); setDraft("") }}
-          className={`flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] transition-colors ${
-            open ? "bg-tp-slate-100" : "hover:bg-tp-slate-50/60"
-          }`}
+          onClick={() => { setEditing(true); setOpen(true); setDraft(name) }}
+          className={`flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] transition-colors rounded-[8px] ${open ? "bg-tp-slate-100" : "hover:bg-tp-slate-50/60"}`}
         >
           <span className="font-semibold text-tp-slate-800 truncate text-left">{name}</span>
         </button>
@@ -1489,24 +1587,26 @@ function DiagnosisNameCell({
             if (e.key === "Enter") {
               e.preventDefault()
               const pick = filtered[highlightIdx]
-              commit(pick ?? draft)
+              commit(pick ?? (draft.trim() || name))
             } else if (e.key === "Escape") {
               setEditing(false); setOpen(false); setDraft(name)
             } else if (e.key === "ArrowDown") {
               e.preventDefault()
-              setHighlightIdx((i) => Math.min(filtered.length - 1, i + 1))
+              const totalItems = filtered.length + ((draft.trim().length > 0 && !options.some((o) => o.toLowerCase() === draft.trim().toLowerCase())) ? 1 : 0)
+              setHighlightIdx((i) => Math.min(totalItems - 1, i + 1))
             } else if (e.key === "ArrowUp") {
               e.preventDefault()
               setHighlightIdx((i) => Math.max(0, i - 1))
             }
           }}
           onBlur={() => { /* close handled by outside click */ }}
-          placeholder={name}
-          className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-semibold focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+          placeholder="Search & Add Diagnosis..."
+          className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[8px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] transition-all duration-200"
         />
       )}
-      {open && (
-        <ul className="absolute left-0 top-[calc(100%+2px)] z-[9999] w-full min-w-[160px] max-h-[220px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+      {open && pos && typeof document !== "undefined" && createPortal(
+        <ul className="fixed z-[9999] max-h-[220px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full"
+            style={{ top: pos.top, left: pos.left, width: pos.width }}>
           {filtered.map((d, i) => {
             const isCurrent = d === name
             const highlighted = i === highlightIdx
@@ -1524,12 +1624,21 @@ function DiagnosisNameCell({
               </li>
             )
           })}
-          {filtered.length === 0 && (
-            <li>
-              <div className="px-[10px] py-[8px] font-sans text-[12px] text-tp-slate-400">No match</div>
-            </li>
+          {draft.trim().length > 0 && !options.some((o) => o.toLowerCase() === draft.trim().toLowerCase()) && (
+            <div className="m-[6px]">
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); commit(draft.trim()) }}
+                onMouseEnter={() => setHighlightIdx(filtered.length)}
+                className={`flex w-full items-center gap-[6px] rounded-[6px] border border-dashed border-tp-blue-300 px-[8px] py-[6px] font-sans text-[12px] font-medium text-tp-blue-700 transition-colors ${highlightIdx === filtered.length ? "bg-tp-blue-50" : "hover:bg-tp-blue-50"}`}
+              >
+                <Add size={12} color="currentColor" variant="Linear" />
+                Add custom: "{draft.trim()}"
+              </button>
+            </div>
           )}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   )
@@ -1548,6 +1657,8 @@ function EditableNameCell({
   const [highlightIdx, setHighlightIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   useEffect(() => { if (!editing) setDraft(value) }, [value, editing])
   useEffect(() => { setHighlightIdx(0) }, [draft])
@@ -1567,6 +1678,7 @@ function EditableNameCell({
 
   const commit = useCallback((next: string) => {
     setEditing(false)
+    setPos(null)
     const trimmed = next.trim()
     if (trimmed && trimmed !== value) onCommit(trimmed)
   }, [value, onCommit])
@@ -1574,7 +1686,7 @@ function EditableNameCell({
   useEffect(() => {
     if (!editing) return
     const onDoc = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node) && listRef.current && !listRef.current.contains(e.target as Node)) {
         commit(draft)
       }
     }
@@ -1582,16 +1694,34 @@ function EditableNameCell({
     return () => document.removeEventListener("mousedown", onDoc)
   }, [editing, draft, commit])
 
+  useEffect(() => {
+    if (!editing) { setPos(null); return }
+    const reposition = () => {
+      const el = wrapRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 200) })
+    }
+    reposition()
+    window.addEventListener("scroll", reposition, true)
+    window.addEventListener("resize", reposition)
+    return () => {
+      window.removeEventListener("scroll", reposition, true)
+      window.removeEventListener("resize", reposition)
+    }
+  }, [editing])
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setHighlightIdx((i) => Math.min(totalItems - 1, i + 1)) }
     else if (e.key === "ArrowUp") { e.preventDefault(); setHighlightIdx((i) => Math.max(0, i - 1)) }
     else if (e.key === "Enter") {
       e.preventDefault()
-      if (totalItems === 0) return
-      if (highlightIdx < filtered.length) commit(filtered[highlightIdx])
+      if (totalItems === 0 && !draft.trim()) return
+      if (totalItems === 0 && draft.trim()) commit(draft.trim())
+      else if (highlightIdx < filtered.length) commit(filtered[highlightIdx])
       else commit(draft.trim())  // custom row
     }
-    else if (e.key === "Escape") { setDraft(value); setEditing(false) }
+    else if (e.key === "Escape") { setDraft(value); setEditing(false); setPos(null) }
   }
 
   if (!editing) {
@@ -1599,9 +1729,9 @@ function EditableNameCell({
       <button
         type="button"
         onClick={() => { setEditing(true); setDraft(value); onFocusActivate?.(); setTimeout(() => inputRef.current?.focus(), 0) }}
-        className="flex h-[40px] w-full items-center px-[10px] text-left transition-colors hover:bg-tp-slate-100/60"
+        className="flex h-[42px] w-full items-center px-[10px] text-left transition-colors rounded-[8px] hover:bg-tp-slate-100/60"
       >
-        <span className="font-sans text-[12px] font-semibold text-tp-slate-800 truncate">{value}</span>
+        <span className="font-sans text-[14px] font-semibold text-tp-slate-800 truncate">{value}</span>
       </button>
     )
   }
@@ -1614,10 +1744,15 @@ function EditableNameCell({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKeyDown}
-        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+        placeholder="Search..."
+        className="h-[42px] w-full rounded-none border-0 bg-transparent px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-400 placeholder:font-normal focus:bg-white focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[8px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] transition-all duration-200"
       />
-      {(filtered.length > 0 || showCustom) && (
-        <div className="absolute left-0 top-[calc(100%+4px)] z-[9999] w-full min-w-[200px] max-h-[240px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100">
+      {(filtered.length > 0 || showCustom) && typeof document !== "undefined" && pos && createPortal(
+        <div
+          ref={listRef}
+          className="fixed z-[9999] flex flex-col w-full min-w-[200px] max-h-[240px] overflow-y-auto rounded-[8px] border border-tp-slate-200 bg-white py-[2px] shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100"
+          style={{ top: pos.top, left: pos.left, width: pos.width }}
+        >
           <ul>
             {filtered.map((c, i) => {
               const highlighted = i === highlightIdx
@@ -1648,34 +1783,38 @@ function EditableNameCell({
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
 }
 
 function SurfaceCellDropdown({
-  entry, arch, toothPosition, isActive, onActivate, onToggleZone, onClearZones, onHover, multiSelectZones,
+  entry, arch, toothPosition, isActive, mode, onActivate, onDeactivate, onToggleZone, onHover, multiSelectZones,
 }: {
   entry: ToothEntry
   arch: "maxillary" | "mandibular"
   toothPosition: number
   isActive: boolean
   onActivate: () => void
+  onDeactivate?: () => void
   onToggleZone: (z: ZoneId) => void
-  onClearZones: () => void
   onHover: (zones: ZoneId[]) => void
   multiSelectZones: Set<ZoneId>
+  mode?: "finding" | "treatment" | "symptom"
 }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const anchorRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
+  const wasActiveRef = useRef(false)
 
   // Auto-open when this row becomes active (user just clicked a search chip).
   useEffect(() => {
-    if (isActive) setOpen(true)
-    else setOpen(false)
+    if (isActive && !wasActiveRef.current) setOpen(true)
+    if (!isActive) setOpen(false)
+    wasActiveRef.current = isActive
   }, [isActive])
 
   // Compute portal position when opened / on scroll / resize.
@@ -1700,18 +1839,22 @@ function SurfaceCellDropdown({
     if (!open) return
     const onDoc = (e: MouseEvent) => {
       const a = anchorRef.current, p = popoverRef.current
-      const t = e.target as Node
-      if (a && !a.contains(t) && p && !p.contains(t)) setOpen(false)
+      const t = e.target as HTMLElement | null
+      if (t?.tagName === "CANVAS" || t?.closest("[data-dental-annotation-ui='true']")) return
+      if (a && !a.contains(t) && p && !p.contains(t)) {
+        setOpen(false)
+        onDeactivate?.()
+      }
     }
     document.addEventListener("mousedown", onDoc)
     return () => document.removeEventListener("mousedown", onDoc)
-  }, [open])
+  }, [open, onDeactivate])
 
   // When the dropdown is open AND this is the active row, what the user sees
   // mirrors multiSelectZones. When NOT active, show the entry's saved surfaces.
   const shown = isActive ? Array.from(multiSelectZones) : entry.surfaces
-  // Whole tooth = ALL 7 surfaces selected (so empty array = no selection yet).
-  const isWholeTooth = shown.length === ALL_ZONES.length
+  // Whole tooth = array containing 'whole'
+  const isWholeTooth = shown.includes("whole" as ZoneId)
 
   const toggle = (z: ZoneId) => {
     if (!isActive) { onActivate(); return }
@@ -1719,13 +1862,7 @@ function SurfaceCellDropdown({
   }
   const clickWholeTooth = () => {
     if (!isActive) onActivate()
-    if (isWholeTooth) {
-      onClearZones()
-    } else {
-      // Select all 7 surfaces (to differentiate from empty "no selection").
-      onClearZones()
-      ALL_ZONES.forEach((z) => onToggleZone(z))
-    }
+    onToggleZone("whole" as ZoneId)
   }
 
   return (
@@ -1733,26 +1870,26 @@ function SurfaceCellDropdown({
       <button
         ref={anchorRef}
         type="button"
-        onClick={() => { onActivate(); setOpen((o) => !o) }}
-        className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[12px] transition-colors ${
-          open ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : isActive ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : "bg-white"
-        }`}
+        onClick={() => {
+          onActivate()
+          setOpen((current) => !current)
+        }}
+        className="relative z-20 flex h-[52px] w-full min-w-0 items-center justify-between gap-[6px] bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] transition-colors focus:outline-none"
       >
         <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
           {shown.length === 0 ? (
-            <span className="font-normal text-tp-slate-400">Select surface</span>
-          ) : shown.length === ALL_ZONES.length ? (
+            <span className="font-normal text-[12px] text-[#a2a2a8]">Select surface</span>
+          ) : isWholeTooth ? (
             <span className="inline-flex items-center gap-[4px] font-medium text-tp-slate-700">
-              <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-400" />
+              <span className="h-[8px] w-[8px] rounded-full" style={{ background: ZONE_INFO.whole.color }} />
               Whole tooth
             </span>
           ) : (
             <SurfaceDots surfaces={shown} arch={arch} toothPosition={toothPosition} />
           )}
         </span>
-        {/* Chevron: down when collapsed, up when open */}
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
-          <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
@@ -1761,7 +1898,6 @@ function SurfaceCellDropdown({
           className="fixed z-[9999] rounded-[8px] border border-tp-slate-200 bg-white shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)]"
           style={{ top: pos.top, left: pos.left, width: pos.width }}
         >
-          {/* Informative hint — amber warning tone, tight icon-text gap, highlighted keywords */}
           <div className="p-[8px]">
             <div className="flex items-center gap-[6px] rounded-[6px] bg-tp-amber-50 px-[10px] py-[7px]">
               <InfoCircle size={13} color="var(--tp-amber-700)" variant="Bold" />
@@ -1780,10 +1916,10 @@ function SurfaceCellDropdown({
               >
                 <span className={`inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] border ${isWholeTooth ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"} flex-shrink-0`}>
                   {isWholeTooth && (
-                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   )}
                 </span>
-                <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-400 flex-shrink-0" />
+                <span className="h-[8px] w-[8px] rounded-full flex-shrink-0" style={{ background: ZONE_INFO.whole.color }} />
                 <span className="flex-1 text-left font-medium">Whole tooth</span>
               </button>
             </li>
@@ -1802,7 +1938,7 @@ function SurfaceCellDropdown({
                   >
                     <span className={`inline-flex h-[13px] w-[13px] items-center justify-center rounded-[3px] border ${checked ? "border-tp-blue-500 bg-tp-blue-500" : "border-tp-slate-300 bg-white"} flex-shrink-0`}>
                       {checked && (
-                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M2 5L4 7L8 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       )}
                     </span>
                     <span className="h-[8px] w-[8px] rounded-full flex-shrink-0" style={{ background: ZONE_INFO[z].color }} />
@@ -1819,22 +1955,36 @@ function SurfaceCellDropdown({
   )
 }
 
-// ──────────────────────────────────────────────────────────────
-// SurfaceMultiSelect — 7 chips, anatomy-aware labels
-// ──────────────────────────────────────────────────────────────
-// ──────────────────────────────────────────────────────────────
-// SinceDropdown — calendar icon + preset spans ("1 year ago", etc.) + custom date
-// ──────────────────────────────────────────────────────────────
-function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange: (v: string) => void; autoOpen?: boolean }) {
+function getDynamicSinceOptions(query: string) {
+  const match = query.match(/\d+/)
+  const n = match ? parseInt(match[0], 10) : 1
+  const plural = n > 1 ? "s" : ""
+  return [
+    `${n} hour${plural}`,
+    `${n} day${plural}`,
+    `${n} month${plural}`,
+    `${n} year${plural}`,
+  ]
+}
+
+function SinceDropdown({ value, onChange, autoOpen, onFocusActivate, onBlurDeactivate }: { value: string; onChange: (v: string) => void; autoOpen?: boolean; onFocusActivate?: () => void; onBlurDeactivate?: () => void }) {
   const [open, setOpen] = useState(false)
+  const [internalValue, setInternalValue] = useState(value)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
-  const anchorRef = useRef<HTMLButtonElement>(null)
+  const anchorRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
 
-  // Open automatically when autoOpen is true and no value is selected.
   useEffect(() => {
     if (autoOpen && !value) setOpen(true)
   }, [autoOpen, value])
+
+  useEffect(() => { setInternalValue(value) }, [value])
+
+  const options = useMemo(() => {
+    return internalValue && internalValue.match(/\d+/) ? getDynamicSinceOptions(internalValue) : [
+      "1 hour", "1 day", "1 week", "1 year"
+    ]
+  }, [internalValue])
 
   useEffect(() => {
     if (!open) { setPos(null); return }
@@ -1858,70 +2008,61 @@ function SinceDropdown({ value, onChange, autoOpen }: { value: string; onChange:
     const onDoc = (e: MouseEvent) => {
       const a = anchorRef.current, p = popoverRef.current
       const t = e.target as Node
-      if (a && !a.contains(t) && p && !p.contains(t)) setOpen(false)
+      if (a && !a.contains(t) && p && !p.contains(t)) {
+        setOpen(false)
+        onBlurDeactivate?.()
+      }
     }
     document.addEventListener("mousedown", onDoc)
     return () => document.removeEventListener("mousedown", onDoc)
-  }, [open])
-
-  const presets = [
-    { label: "1 week ago",   value: "1 week" },
-    { label: "2 weeks ago",  value: "2 weeks" },
-    { label: "1 month ago",  value: "1 month" },
-    { label: "3 months ago", value: "3 months" },
-    { label: "6 months ago", value: "6 months" },
-    { label: "1 year ago",   value: "1 year" },
-    { label: "2 years ago",  value: "2 years" },
-    { label: "3 years ago",  value: "3 years" },
-    { label: "5 years ago",  value: "5 years" },
-  ]
+  }, [open, onBlurDeactivate])
 
   return (
     <>
-      <button
-        ref={anchorRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[14px] transition-colors ${
-          open ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : "bg-white"
-        }`}
-      >
-        <span className={`flex-1 text-left truncate ${value ? "text-tp-slate-700" : "text-tp-slate-400"}`}>{value || "e.g. 2 weeks ago"}</span>
-        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }}>
-          <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <div className="relative w-full" ref={anchorRef}>
+        <input
+          type="text"
+          value={internalValue}
+          onFocus={() => { onFocusActivate?.(); setOpen(true) }}
+          onChange={(e) => {
+            setInternalValue(e.target.value)
+            setOpen(true)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onChange(internalValue)
+              setOpen(false)
+            }
+          }}
+          placeholder="e.g. 5 days"
+          className="relative z-20 h-[52px] w-full min-w-0 rounded-none border-0 bg-transparent px-[12px] pr-[30px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] placeholder:text-[#a2a2a8] focus:outline-none focus:ring-0"
+        />
+        <svg className="absolute right-[10px] top-1/2 -translate-y-1/2 pointer-events-none" width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }}>
+          <path d="M1 1L5 5L9 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-      </button>
-      {open && pos && typeof document !== "undefined" && createPortal(
+      </div>
+
+      {open && pos && createPortal(
         <div
           ref={popoverRef}
-          className="fixed z-[9999] rounded-[8px] border border-tp-slate-200 bg-white shadow-[0_6px_20px_-6px_rgba(15,23,42,0.18)]"
+          className="fixed z-50 flex flex-col rounded-[12px] bg-white py-[6px] shadow-lg border border-tp-slate-200"
           style={{ top: pos.top, left: pos.left, width: pos.width }}
         >
-          <ul className="max-h-[200px] overflow-y-auto py-[2px] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-thumb]:bg-tp-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-tp-slate-100 [mask-image:linear-gradient(to_bottom,transparent_0px,black_6px,black_calc(100%-6px),transparent_100%)]">
-            {presets.map((p) => (
-              <li key={p.value}>
-                <button
-                  type="button"
-                  onClick={() => { onChange(p.value); setOpen(false) }}
-                  className="flex w-full items-center px-[10px] py-[6px] font-sans text-[12px] text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
-                >
-                  {p.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-tp-slate-100 p-[6px]">
-            <label className="mb-[3px] block font-sans text-[12px] font-semibold uppercase tracking-[0.4px] text-tp-slate-400 px-[4px]">
-              Custom date
-            </label>
-            <input
-              type="date"
-              onChange={(e) => { if (e.target.value) { onChange(e.target.value); setOpen(false) } }}
-              className="h-[32px] w-full rounded-[6px] border border-tp-slate-200 bg-white px-[8px] font-sans text-[12px] text-tp-slate-700 focus:border-tp-blue-500 focus:outline-none"
-            />
-          </div>
+          {options.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              className="px-[14px] py-[10px] text-left font-sans text-[13px] text-tp-slate-700 hover:bg-tp-slate-50 transition-colors"
+              onClick={() => {
+                onChange(opt)
+                setOpen(false)
+              }}
+            >
+              {opt}
+            </button>
+          ))}
         </div>,
-        document.body,
+        document.body
       )}
     </>
   )
@@ -1949,11 +2090,10 @@ function SurfaceMultiSelect({
             onClick={() => onToggle(z)}
             onMouseEnter={() => onHover([z])}
             onMouseLeave={() => onHover(selected)}
-            className={`inline-flex h-[32px] items-center gap-[6px] rounded-[10px] border px-[12px] font-sans text-[12px] font-medium transition-all ${
-              isActive
+            className={`inline-flex h-[32px] items-center gap-[6px] rounded-[10px] border px-[12px] font-sans text-[12px] font-medium transition-all ${isActive
                 ? "border-tp-blue-300 bg-tp-blue-50 text-tp-blue-700"
                 : "border-transparent bg-tp-slate-100 text-tp-slate-600 hover:bg-tp-slate-200"
-            }`}
+              }`}
           >
             <span className="h-[8px] w-[8px] rounded-full" style={{ background: color }} />
             {label}
@@ -2035,10 +2175,11 @@ const DENTAL_SYMPTOM_CATALOG = [
 let _symId = 0
 const getSymId = () => `sym-${++_symId}`
 
-function SymptomSurfacePicker({ surfaces, arch, toothPosition, onChange }: {
+function SymptomSurfacePicker({ surfaces, arch, toothPosition, mode = "symptom", onChange }: {
   surfaces: ZoneId[]
   arch: "maxillary" | "mandibular"
   toothPosition: number
+  mode?: "finding" | "treatment" | "symptom"
   onChange: (next: ZoneId[]) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -2066,21 +2207,37 @@ function SymptomSurfacePicker({ surfaces, arch, toothPosition, onChange }: {
   }, [open])
 
   const toggle = (z: ZoneId) => {
+    if (z === "whole") {
+      onChange(selected.has(z) ? [] : ["whole"])
+      return
+    }
+
+    if (selected.has("whole")) {
+      onChange([z])
+      return
+    }
+
     onChange(selected.has(z) ? surfaces.filter((s) => s !== z) : [...surfaces, z])
   }
+
+  const optionsList = mode === "symptom" ? ALL_ZONES : ["whole" as ZoneId, ...ALL_ZONES]
 
   return (
     <>
       <button ref={anchorRef} type="button" onClick={() => setOpen((o) => !o)}
-        className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-none px-[10px] font-sans text-[14px] transition-colors ${
-          open ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 rounded-[4px] shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : "bg-white"
-        }`}
+        className={`flex h-[42px] w-full min-w-0 items-center justify-between gap-[6px] rounded-[4px] px-[10px] font-sans text-[14px] transition-colors ${open ? "bg-white ring-[1.5px] ring-inset ring-tp-blue-400 shadow-[0_0_0_3px_rgba(59,130,246,0.12)]" : "bg-white"
+          }`}
       >
-        <span className="flex-1 min-w-0 text-left truncate">
+        <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
           {surfaces.length === 0 ? (
             <span className="text-tp-slate-400">Select surface</span>
+          ) : surfaces.includes("whole") ? (
+            <span className="inline-flex items-center gap-[4px] font-medium text-tp-slate-700">
+              <span className="h-[8px] w-[8px] rounded-full bg-tp-slate-400" />
+              Whole tooth
+            </span>
           ) : (
-            <span className="text-tp-slate-700 font-medium">{surfaces.map((z) => getZoneLabel(z, arch, toothPosition)).join(", ")}</span>
+            <SurfaceDots surfaces={surfaces.filter(z => z !== "whole")} arch={arch} toothPosition={toothPosition} />
           )}
         </span>
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
@@ -2093,10 +2250,19 @@ function SymptomSurfacePicker({ surfaces, arch, toothPosition, onChange }: {
           style={{ top: pos.top, left: pos.left, width: pos.width }}
         >
           <ul className="max-h-[200px] overflow-y-auto py-[2px]">
-            {ALL_ZONES.map((z) => {
-              const checked = selected.has(z)
-              const label = getZoneLabel(z, arch, toothPosition)
-              const color = ZONE_INFO[z]?.color || "#888"
+            {optionsList.map((z) => {
+              let checked = selected.has(z)
+              let label = getZoneLabel(z, arch, toothPosition)
+              let color = ZONE_INFO[z]?.color || "#888"
+
+              if (z === "whole") {
+                label = "Whole Tooth"
+                color = "#64748b"
+                if (mode !== "treatment") {
+                  checked = ALL_ZONES.every(az => selected.has(az))
+                }
+              }
+
               return (
                 <li key={z}>
                   <button type="button" onMouseDown={(e) => { e.preventDefault(); toggle(z) }}
@@ -2122,6 +2288,22 @@ function SymptomSurfacePicker({ surfaces, arch, toothPosition, onChange }: {
 function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[]; onUpdateRows: (v: SymptomRow[]) => void; state: DentalCanvasState }) {
   const [query, setQuery] = useState("")
   const [activeRowId, setActiveRowId] = useState<string | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchPopoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!searchOpen) return
+    const onDoc = (e: MouseEvent) => {
+      const el = e.target as Node
+      if (searchInputRef.current && !searchInputRef.current.contains(el) && searchPopoverRef.current && !searchPopoverRef.current.contains(el)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onDoc)
+    return () => document.removeEventListener("mousedown", onDoc)
+  }, [searchOpen])
+
   const selectedNames = new Set(rows.map((r) => r.name.toLowerCase()))
 
   const filtered = useMemo(() => {
@@ -2133,6 +2315,7 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[];
   const addSymptom = (name: string) => {
     onUpdateRows([...rows, { id: getSymId(), name, surfaces: [], since: "", severity: "", note: "" }])
     setQuery("")
+    setSearchOpen(false)
   }
 
   const updateRow = (id: string, patch: Partial<SymptomRow>) => {
@@ -2157,7 +2340,7 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[];
             </colgroup>
             <thead>
               <tr className="h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500">
-                <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SYMPTOM</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">NAME</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SURFACES</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SINCE</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 font-semibold uppercase tracking-[0.5px]">SEVERITY</th>
@@ -2169,49 +2352,49 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[];
               {rows.map((r) => {
                 const isRowActive = activeRowId === r.id
                 return (
-                <tr key={r.id} className="border-t border-tp-slate-100 transition-colors"
-                  onClick={() => setActiveRowId(isRowActive ? null : r.id)}
-                >
-                  <td className="border-r border-tp-slate-100 p-0 align-middle">
-                    <span className="flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800">{r.name}</span>
-                  </td>
-                  <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
-                    <SymptomSurfacePicker
-                      key={r.id}
-                      surfaces={r.surfaces}
-                      arch={state.selectedTooth.arch}
-                      toothPosition={state.selectedTooth.position}
-                      onChange={(next) => updateRow(r.id, { surfaces: next })}
-                    />
-                  </td>
-                  <td className="border-r border-tp-slate-100 p-0 align-middle">
-                    <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="e.g. 5 days"
-                      className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
-                    />
-                  </td>
-                  <td className="border-r border-tp-slate-100 p-0 align-middle">
-                    <select value={r.severity} onChange={(e) => updateRow(r.id, { severity: e.target.value })}
-                      className={`h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] ${r.severity ? "text-tp-slate-700" : "text-tp-slate-400"}`}
-                    >
-                      <option value="" className="text-tp-slate-400">e.g. Moderate</option>
-                      <option value="Mild">Mild</option>
-                      <option value="Moderate">Moderate</option>
-                      <option value="Severe">Severe</option>
-                    </select>
-                  </td>
-                  <td className="border-r border-tp-slate-100 p-0 align-middle">
-                    <input type="text" value={r.note} onChange={(e) => updateRow(r.id, { note: e.target.value })} placeholder="e.g. Worsens at night"
-                      className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
-                    />
-                  </td>
-                  <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
-                    <button type="button" onClick={(ev) => { ev.stopPropagation(); removeRow(r.id) }} title="Remove"
-                      className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                    >
-                      <Trash size={14} color="currentColor" variant="Linear" />
-                    </button>
-                  </td>
-                </tr>
+                  <tr key={r.id} className="border-t border-tp-slate-100 transition-colors"
+                    onClick={() => setActiveRowId(isRowActive ? null : r.id)}
+                  >
+                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                      <span className="flex h-[42px] w-full items-center px-[10px] font-sans text-[14px] font-semibold text-tp-slate-800">{r.name}</span>
+                    </td>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle" onClick={(ev) => ev.stopPropagation()}>
+                      <SymptomSurfacePicker
+                        key={r.id}
+                        surfaces={r.surfaces}
+                        arch={state.selectedTooth.arch}
+                        toothPosition={state.selectedTooth.position}
+                        onChange={(next) => updateRow(r.id, { surfaces: next })}
+                      />
+                    </td>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                      <input type="text" value={r.since} onChange={(e) => updateRow(r.id, { since: e.target.value })} placeholder="e.g. 5 days"
+                        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                      />
+                    </td>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                      <select value={r.severity} onChange={(e) => updateRow(r.id, { severity: e.target.value })}
+                        className={`h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] ${r.severity ? "text-tp-slate-700" : "text-tp-slate-400"}`}
+                      >
+                        <option value="" className="text-tp-slate-400">e.g. Moderate</option>
+                        <option value="Mild">Mild</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Severe">Severe</option>
+                      </select>
+                    </td>
+                    <td className="border-r border-tp-slate-100 p-0 align-middle">
+                      <input type="text" value={r.note} onChange={(e) => updateRow(r.id, { note: e.target.value })} placeholder="e.g. Worsens at night"
+                        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                      />
+                    </td>
+                    <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
+                      <button type="button" onClick={(ev) => { ev.stopPropagation(); removeRow(r.id) }} title="Remove"
+                        className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[6px] text-tp-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                      >
+                        <Trash size={14} color="currentColor" variant="Linear" />
+                      </button>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
@@ -2220,38 +2403,68 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }: { rows: SymptomRow[];
       )}
 
       {/* Search & Add */}
-      <div className="mt-[16px]">
+      <div className="mt-[10px]">
         <div className="relative">
           <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
             <SearchNormal1 size={14} color="currentColor" variant="Linear" />
           </span>
           <input
+            ref={searchInputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSearchOpen(true)
+            }}
+            onFocus={() => setSearchOpen(true)}
             onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) addSymptom(query.trim()) }}
             placeholder="Search & Add Dental Symptom"
             className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
           />
+
+          {searchOpen && filtered.length > 0 && (
+            <div
+              ref={searchPopoverRef}
+              className="absolute left-0 top-full mt-[4px] w-full z-50 flex flex-col rounded-[12px] border border-tp-slate-200 bg-white py-[6px] shadow-[0_8px_20px_-4px_rgba(15,23,42,0.12)] max-h-[260px] overflow-y-auto"
+            >
+              {filtered.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => addSymptom(s)}
+                  className="px-[14px] py-[10px] text-left font-sans text-[13px] text-tp-slate-700 hover:bg-tp-slate-50 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {filtered.length > 0 && (
-          <div className="mt-[8px] flex flex-wrap gap-[6px]">
-            {filtered.map((s) => (
-              <button key={s} type="button" onClick={() => addSymptom(s)}
-                className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
-              >{s}</button>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )
 }
 
 function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
-  // Local per-diagnosis since/note — demo-only store.
-  const [details, setDetails] = useState<Record<string, { since: string; note: string }>>({})
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: string } | null>(null)
   const [query, setQuery] = useState("")
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchPopoverRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
+
+  // Auto-close search popover on outside click
+  useEffect(() => {
+    if (!searchOpen) { setPos(null); return }
+    const onDoc = (e: MouseEvent) => {
+      const el = e.target as Node
+      if (searchInputRef.current && !searchInputRef.current.contains(el) && searchPopoverRef.current && !searchPopoverRef.current.contains(el)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onDoc)
+    return () => document.removeEventListener("mousedown", onDoc)
+  }, [searchOpen])
 
   // Active diagnoses as "rows"
   const activeRows = useMemo(() => {
@@ -2268,23 +2481,71 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
     return pool.filter((c) => !activeSet.has(c.toLowerCase())).slice(0, 12)
   }, [query, activeRows])
 
+  useEffect(() => {
+    if (!searchOpen) return
+    const el = searchInputRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setPos({ top: r.bottom + 4, left: r.left, width: r.width })
+  }, [searchOpen, filteredCatalog])
+
   // Track most recently added diagnosis so we can auto-open its Since dropdown.
   const [lastAddedName, setLastAddedName] = useState<string | null>(null)
   const addDiagnosis = (name: string) => {
     if (name === "Implant") state.onToggleImplant()
     else state.onToggleToothDiagnosis(name)
+    const existing = state.currentTreatmentHistoryDetails[name]
+    state.onUpdateTreatmentHistoryDetail(name, {
+      surfaces: existing?.surfaces?.length ? existing.surfaces : getDefaultTreatmentSurfaces(name),
+      since: existing?.since,
+      note: existing?.note,
+    })
+    setActiveCell({ rowId: name, colKey: "surfaces" })
     setLastAddedName(name)
     setQuery("")
+    setSearchOpen(false)
   }
 
   const removeDiagnosis = (name: string) => {
     if (name === "Implant") state.onToggleImplant()
     else state.onToggleToothDiagnosis(name)
+    if (activeCell?.rowId === name) setActiveCell(null)
   }
 
-  const updateDetail = (name: string, patch: Partial<{ since: string; note: string }>) => {
-    setDetails((prev) => ({ ...prev, [name]: { since: "", note: "", ...(prev[name] ?? {}), ...patch } }))
-  }
+  useEffect(() => {
+    if (activeCell?.rowId && !activeRows.includes(activeCell.rowId)) setActiveCell(null)
+  }, [activeCell, activeRows])
+
+  const activeRowName = activeCell?.colKey === "surfaces" && activeCell.rowId && activeRows.includes(activeCell.rowId) ? activeCell.rowId : null
+  const activeRowSurfaces = activeRowName ? (state.currentTreatmentHistoryDetails[activeRowName]?.surfaces ?? []) : []
+  const clearCellActive = useCallback((rowId: string, colKey: string) => {
+    window.setTimeout(() => {
+      setActiveCell((current) => current && current.rowId === rowId && current.colKey === colKey ? null : current)
+    }, 80)
+  }, [])
+  const isCellActive = useCallback((rowId: string, colKey: string) => activeCell?.rowId === rowId && activeCell?.colKey === colKey, [activeCell])
+
+  useEffect(() => {
+    if (!activeRowName) {
+      state.onClearMultiSelect()
+      state.onSetMultiSelectActive(false)
+      return
+    }
+    state.onSetMultiSelectZones(activeRowSurfaces)
+    state.onSetMultiSelectActive(true)
+  }, [activeRowName]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!activeRowName) return
+    const zonesFromCanvas = Array.from(state.multiSelectZones)
+    const same = zonesFromCanvas.length === activeRowSurfaces.length
+      && zonesFromCanvas.every((zone) => activeRowSurfaces.includes(zone))
+    if (!same) {
+      state.onUpdateTreatmentHistoryDetail(activeRowName, { surfaces: zonesFromCanvas })
+    }
+  }, [activeRowName, activeRowSurfaces, state.multiSelectZones]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => { state.onSetMultiSelectActive(false) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div data-rx-module-root className="p-[12px]">
@@ -2296,13 +2557,15 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
               <col style={{ width: 36, minWidth: 36 }} />
               <col style={{ minWidth: 120 }} />
               <col style={{ width: 140, minWidth: 120 }} />
+              <col style={{ width: 140, minWidth: 120 }} />
               <col style={{ minWidth: 140 }} />
               <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
             </colgroup>
             <thead>
               <tr className="h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500">
                 <th className="border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" />
-                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">DIAGNOSIS</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">NAME</th>
+                <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">SURFACES</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">SINCE</th>
                 <th className="border-r border-tp-slate-100 px-3 py-2 text-left text-[12px] font-semibold">NOTE</th>
                 <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
@@ -2311,9 +2574,22 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
             <tbody>
               {activeRows.map((name) => {
                 const color = PRIMARY_DIAG_COLOR[name] ?? "#4b4ad5"
-                const d = details[name] ?? { since: "", note: "" }
+                const d = state.currentTreatmentHistoryDetails[name] ?? { since: "", note: "", surfaces: [] }
+                const isSurfaceActive = isCellActive(name, "surfaces")
+                const isSinceActive = isCellActive(name, "since")
+                const isNoteActive = isCellActive(name, "note")
+                const activateSurfaceCell = () => {
+                  setActiveCell({ rowId: name, colKey: "surfaces" })
+                  state.onSetMultiSelectZones(d.surfaces ?? [])
+                  state.onSetMultiSelectActive(true)
+                }
                 return (
-                  <tr key={name} className="border-t border-tp-slate-100">
+                  <tr
+                    key={name}
+                    onMouseEnter={() => { if (!isSurfaceActive) state.onSetHighlightZones(d.surfaces ?? []) }}
+                    onMouseLeave={() => { if (!isSurfaceActive) state.onSetHighlightZones([]) }}
+                    className="border-t border-tp-slate-100"
+                  >
                     <td className="border-r border-tp-slate-100 p-0 text-center align-middle transition-colors hover:bg-tp-slate-100/60">
                       <span className="inline-flex h-[42px] w-full items-center justify-center text-tp-slate-300">
                         <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
@@ -2322,35 +2598,67 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
                         </svg>
                       </span>
                     </td>
-                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60">
+                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors">
                       <DiagnosisNameCell
                         name={name}
                         color={color}
                         activeRows={activeRows}
                         onSwap={(next) => {
                           if (next === name) return
+                          const currentDetails = state.currentTreatmentHistoryDetails[name]
+                          const nextDetails = state.currentTreatmentHistoryDetails[next]
                           // Remove current, add next
                           if (name === "Implant") state.onToggleImplant()
                           else state.onToggleToothDiagnosis(name)
                           if (next === "Implant") state.onToggleImplant()
                           else state.onToggleToothDiagnosis(next)
+                          state.onUpdateTreatmentHistoryDetail(next, {
+                            surfaces: nextDetails?.surfaces?.length ? nextDetails.surfaces : (currentDetails?.surfaces ?? getDefaultTreatmentSurfaces(next)),
+                            since: nextDetails?.since ?? currentDetails?.since,
+                            note: nextDetails?.note ?? currentDetails?.note,
+                          })
+                          if (activeCell?.rowId === name) setActiveCell({ rowId: next, colKey: activeCell.colKey })
                         }}
                       />
                     </td>
-                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60">
-                      <SinceDropdown
-                        value={d.since}
-                        onChange={(v) => updateDetail(name, { since: v })}
-                        autoOpen={lastAddedName === name}
+                    <td className={`relative border-r border-tp-slate-100 p-0 align-middle transition-colors ${isSurfaceActive ? "bg-tp-blue-50/20" : ""}`} onClick={(ev) => ev.stopPropagation()}>
+                      {isSurfaceActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
+                      <SurfaceCellDropdown
+                        entry={{ id: name, toothFdi: state.selectedTooth.fdi, kind: "procedure", name, surfaces: d.surfaces ?? [] }}
+                        arch={state.selectedTooth.arch}
+                        toothPosition={state.selectedTooth.position}
+                        mode="treatment"
+                        isActive={isSurfaceActive}
+                        onActivate={activateSurfaceCell}
+                        onDeactivate={() => {
+                          if (state.selectedZone === "whole") state.onClearSelectedZone()
+                          clearCellActive(name, "surfaces")
+                        }}
+                        onToggleZone={state.onToggleZoneMultiSelect}
+                        onHover={state.onSetHighlightZones}
+                        multiSelectZones={state.multiSelectZones}
                       />
                     </td>
-                    <td className="border-r border-tp-slate-100 p-0 align-middle transition-colors hover:bg-tp-slate-100/60">
+                    <td className={`relative border-r border-tp-slate-100 p-0 align-middle transition-colors ${isSinceActive ? "bg-tp-blue-50/20" : ""}`}>
+                      {isSinceActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
+                      <SinceDropdown
+                        value={d.since ?? ""}
+                        onChange={(v) => state.onUpdateTreatmentHistoryDetail(name, { since: v })}
+                        autoOpen={lastAddedName === name}
+                        onFocusActivate={() => setActiveCell({ rowId: name, colKey: "since" })}
+                        onBlurDeactivate={() => clearCellActive(name, "since")}
+                      />
+                    </td>
+                    <td className={`relative border-r border-tp-slate-100 p-0 align-middle transition-colors ${isNoteActive ? "bg-tp-blue-50/20" : "hover:bg-tp-slate-100/60"}`}>
+                      {isNoteActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
                       <input
                         type="text"
-                        value={d.note}
-                        onChange={(e) => updateDetail(name, { note: e.target.value })}
+                        value={d.note ?? ""}
+                        onChange={(e) => state.onUpdateTreatmentHistoryDetail(name, { note: e.target.value })}
+                        onFocus={() => setActiveCell({ rowId: name, colKey: "note" })}
+                        onBlur={() => clearCellActive(name, "note")}
                         placeholder="e.g. Monitor at next visit"
-                        className="h-[42px] w-full rounded-none border-0 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:outline-none focus:ring-[1.5px] focus:ring-inset focus:ring-tp-blue-400 focus:rounded-[4px] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+                        className="relative z-20 h-[52px] w-full rounded-none border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] placeholder:text-[#a2a2a8] focus:outline-none focus:ring-0"
                       />
                     </td>
                     <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white px-0 py-2 text-center align-middle shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)] transition-colors hover:bg-tp-slate-100/60">
@@ -2372,37 +2680,65 @@ function PrimaryDiagnosisBody({ state }: { state: DentalCanvasState }) {
       )}
 
       {/* Search & Add */}
-      <div className="mt-[16px]">
+      <div className="mt-[10px]">
         <div className="relative">
           <span className="pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 text-tp-slate-400">
             <SearchNormal1 size={14} color="currentColor" variant="Linear" />
           </span>
           <input
+            ref={searchInputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSearchOpen(true)
+            }}
+            onFocus={() => setSearchOpen(true)}
             onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) { const match = TOOTH_DIAGNOSES.find((d) => d.toLowerCase() === query.toLowerCase().trim()); if (match) addDiagnosis(match) } }}
-            placeholder="Search & Add Diagnosis"
+            placeholder="Search & Add Treatment History"
             className="h-[36px] w-full rounded-[8px] border border-tp-slate-200 bg-white pl-[32px] pr-[12px] font-sans text-[12px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none"
           />
+
+          {searchOpen && pos && filteredCatalog.length > 0 && typeof document !== "undefined" && createPortal(
+            <div
+              ref={searchPopoverRef}
+              className="fixed z-[9999] flex flex-col rounded-[12px] border border-tp-slate-200 bg-white py-[6px] shadow-[0_8px_20px_-4px_rgba(15,23,42,0.12)] max-h-[260px] overflow-y-auto"
+              style={{ top: pos.top, left: pos.left, width: pos.width }}
+            >
+              {filteredCatalog.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => addDiagnosis(c)}
+                  className="px-[14px] py-[10px] text-left font-sans text-[13px] text-tp-slate-700 hover:bg-tp-slate-50 transition-colors"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )}
         </div>
-        {filteredCatalog.length > 0 && (
-          <div className="mt-[8px] flex flex-wrap gap-[6px]">
-            {filteredCatalog.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => addDiagnosis(c)}
-                className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
-              >
-                {c}
-              </button>
-            ))}
+        
+        {/* Quick Selective Chips */}
+        {query.length === 0 && (
+          <div className="mt-3 flex flex-wrap gap-[6px]">
+            {["Implant", "RCT", "Missing", "Crown", "Bridge", "Denture", "Extraction"].map(chip => {
+              if (activeRows.includes(chip)) return null;
+              return (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => addDiagnosis(chip)}
+                  className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200 hover:text-tp-slate-700"
+                >
+                  {chip}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
     </div>
   )
 }
-
-

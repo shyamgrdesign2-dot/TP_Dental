@@ -58,6 +58,7 @@ export function MiniToothCanvas({
                 isImplant={isImplant}
                 findings={findings}
                 toothDiagnoses={diag}
+                hideTags={true}
               />
             </group>
           </Center>

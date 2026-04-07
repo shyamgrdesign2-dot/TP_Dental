@@ -48,7 +48,7 @@ const SECTION_TITLES: Record<NavItemId, string> = {
 function SectionHeader({ title, onClose }: { title: string; onClose?: () => void }) {
   return (
     <div
-      className="h-[42px] shrink-0 w-full relative"
+      className="h-[46px] shrink-0 w-full relative"
       style={{ backgroundImage: "linear-gradient(101.381deg, rgb(55,54,166) 2.0111%, rgb(38,38,136) 83.764%)" }}
     >
       <div className="content-stretch flex gap-[24px] items-center px-[12px] py-[8px] relative size-full">
@@ -128,16 +128,7 @@ export function ContentPanel({ activeId, onClose }: Props) {
   return (
     <div
       className="bg-white content-stretch flex h-full w-[280px] min-w-[250px] max-w-[350px] shrink-0 flex-col items-center relative xl:w-[clamp(250px,28vw,350px)] xl:max-w-[350px]"
-      style={{
-        animation: "sidebarSlideIn 380ms cubic-bezier(0.25, 0.8, 0.25, 1) both",
-      }}
     >
-      <style>{`
-        @keyframes sidebarSlideIn {
-          from { opacity: 0; transform: translateX(-24px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
       <div aria-hidden="true" className={`absolute ${rxSidebarTokens.panelBorderClass} border-r border-solid inset-[0_-1px_0_0] pointer-events-none`} />
       <SectionHeader title={SECTION_TITLES[activeId]} onClose={onClose} />
       {/* flex-[1_0_0] + min-h-px → constrains height so inner overflow-y-auto works */}

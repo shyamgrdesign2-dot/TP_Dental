@@ -288,7 +288,7 @@ export function NavPanel({ active, onSelect }: Props) {
       <div
         ref={scrollRef}
         className="content-stretch flex flex-col gap-[4px] h-full items-center overflow-x-visible overflow-y-auto relative [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        style={{ ...NAV_BG, width: rxSidebarTokens.railWidth }}
+        style={{ ...NAV_BG, width: rxSidebarTokens.railWidth, touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
       >
         {NAV_ITEMS.map(({ id, label, icon, navigateTo }) => (
           <NavItem

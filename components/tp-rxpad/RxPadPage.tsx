@@ -221,13 +221,13 @@ function RxPadInner() {
           className="shrink-0 bg-white relative z-10"
           style={{ boxShadow: "0 2px 8px -2px rgba(0,0,0,0.08)" }}
         >
-          <div className="flex items-center justify-center gap-[40px] px-[20px] h-[42px]">
+          <div className="flex items-center justify-center gap-[40px] px-[20px] h-[46px]">
             {/* General Rx tab */}
             <button
               type="button"
               onClick={() => setActiveTab("base")}
               className={cn(
-                "group relative flex items-center gap-[8px] px-[6px] py-[10px] text-[14px] font-medium transition-colors",
+                "group relative flex items-center gap-[8px] px-[6px] py-[10px] text-[14px] font-medium transition-colors h-full",
                 activeTab === "base"
                   ? "text-tp-blue-600 font-semibold"
                   : "text-tp-slate-500 hover:text-tp-slate-700",
@@ -250,7 +250,7 @@ function RxPadInner() {
               type="button"
               onClick={() => setActiveTab("dental")}
               className={cn(
-                "group relative flex items-center gap-[8px] px-[6px] py-[10px] text-[14px] font-medium transition-colors",
+                "group relative flex items-center gap-[8px] px-[6px] py-[10px] text-[14px] font-medium transition-colors h-full",
                 activeTab === "dental"
                   ? "text-tp-blue-600 font-semibold"
                   : "text-tp-slate-500 hover:text-tp-slate-700",

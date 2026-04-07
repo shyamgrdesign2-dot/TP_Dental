@@ -42,6 +42,8 @@ export function QuickSurfaceSelector({
 
   const NEUTRAL_STROKE = '#94a3b8'  // slate-400
   const NEUTRAL_FINDING_FILL = '#cbd5e1'  // slate-300
+  const wholeSelected = selectedZones.has('whole')
+  const wholeHovered = hovered === 'whole'
   const zoneProps = (id: ZoneId) => {
     const baseColor = ZONE_INFO[id].color
     const isSel = selectedZones.has(id)
@@ -97,6 +99,34 @@ export function QuickSurfaceSelector({
       className="quick-surface-selector"
       style={disabled ? { opacity: 0.45, pointerEvents: 'none' } : undefined}
     >
+      <button
+        type="button"
+        onMouseEnter={() => setHovered('whole')}
+        onMouseLeave={() => setHovered(null)}
+        onClick={(e) => { e.stopPropagation(); if (!disabled) onToggleZone('whole') }}
+        className="quick-whole-selector"
+        aria-label="Select whole tooth"
+      >
+        <svg
+          viewBox="0 0 102 28"
+          className="quick-whole-selector__svg"
+          aria-hidden="true"
+        >
+          <rect
+            x="2"
+            y="2"
+            width="97.6523"
+            height="23.0654"
+            rx="10"
+            fill={wholeSelected ? ZONE_INFO.whole.color : NEUTRAL_STROKE}
+            fillOpacity={disabled ? 0 : wholeSelected ? 0.92 : wholeHovered ? 0.22 : 0}
+            stroke={wholeSelected ? ZONE_INFO.whole.color : NEUTRAL_STROKE}
+            strokeOpacity={disabled ? 0.4 : wholeSelected ? 1 : 0.85}
+            strokeWidth={wholeSelected ? 2.8 : 1.6}
+            style={{ transition: 'fill-opacity 0.15s, stroke-width 0.15s, stroke 0.15s, fill 0.15s' }}
+          />
+        </svg>
+      </button>
       <svg viewBox="0 0 113 180" className="quick-surface-svg">
         {/* Crown wedges */}
         <path d={PATH_TL} {...zoneProps('buccal')} />

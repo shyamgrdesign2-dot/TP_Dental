@@ -25,9 +25,10 @@ export interface SubProcedure {
   notes?: string
 }
 
-export type SurfaceId = "occlusal" | "buccal" | "lingual" | "mesial" | "distal" | "cervical" | "root"
+export type SurfaceId = "whole" | "occlusal" | "buccal" | "lingual" | "mesial" | "distal" | "cervical" | "root"
 
 export const SURFACE_OPTIONS: { id: SurfaceId; label: string; abbr: string }[] = [
+  { id: "whole", label: "Whole Tooth", abbr: "WT" },
   { id: "occlusal", label: "Occlusal", abbr: "O" },
   { id: "buccal", label: "Buccal", abbr: "B" },
   { id: "lingual", label: "Lingual", abbr: "L" },
@@ -36,6 +37,45 @@ export const SURFACE_OPTIONS: { id: SurfaceId; label: string; abbr: string }[] =
   { id: "cervical", label: "Cervical", abbr: "C" },
   { id: "root", label: "Root", abbr: "R" },
 ]
+
+export const SURFACE_COLORS: Record<SurfaceId, string> = {
+  whole: "#34d399",
+  occlusal: "#14b8a6",
+  buccal: "#f97316",
+  lingual: "#8b5cf6",
+  mesial: "#eab308",
+  distal: "#2563eb",
+  cervical: "#ec4899",
+  root: "#65a30d",
+}
+
+export const SURFACE_ABBR: Record<SurfaceId, string> = Object.fromEntries(
+  SURFACE_OPTIONS.map((option) => [option.id, option.abbr]),
+) as Record<SurfaceId, string>
+
+const WHOLE_TOOTH_TREATMENTS = new Set([
+  "Root Canal Treatment",
+  "Pulp Capping",
+  "Crown (PFM)",
+  "Crown (Zirconia)",
+  "Crown (All-Ceramic)",
+  "Bridge (per unit)",
+  "Complete Denture",
+  "Partial Denture",
+  "Veneers",
+  "Extraction",
+  "Surgical Extraction",
+  "Wisdom Tooth Removal",
+  "Implant (Single)",
+  "Implant Crown",
+  "Bone Grafting",
+  "Apicoectomy",
+  "Fluoride Application",
+])
+
+export function getDefaultPlanSurfaces(treatmentName: string): SurfaceId[] {
+  return WHOLE_TOOTH_TREATMENTS.has(treatmentName) ? ["whole"] : []
+}
 
 export interface PlanService {
   id: string

@@ -9,8 +9,8 @@ import DentitionView from './DentitionView'
 import { ToothSelector } from './ToothSelector'
 import { QuickSurfaceSelector } from './QuickSurfaceSelector'
 import { ExaminationPanel } from './ExaminationPanel'
-import type { ZoneId, Finding, ToothDef, ViewMode, ToothEntry } from './types'
-import { TEETH, QUADRANT_LABELS, ARCH_POSITIONS, ZONE_INFO } from './types'
+import type { ZoneId, Finding, ToothDef, ViewMode, ToothEntry, TreatmentHistoryDetail } from './types'
+import { TEETH, QUADRANT_LABELS, ARCH_POSITIONS, ZONE_INFO, getDefaultTreatmentSurfaces } from './types'
 import { applyDiagnosisSelection } from './DiagnosisMatrix'
 import './dental-canvas.css'
 import { LottieIcon } from '../LottieIcon'
@@ -30,6 +30,7 @@ export interface DentalCanvasState {
   isImplant: boolean
   /** Entity-centric entries (findings + procedures) for the currently selected tooth */
   currentToothEntries: ToothEntry[]
+  currentTreatmentHistoryDetails: Record<string, TreatmentHistoryDetail>
   /** Full entries store (all teeth) */
   allEntries: ToothEntry[]
   /** Surfaces to temporarily highlight on the 3D tooth (e.g. while hovering a table row) */
@@ -50,12 +51,15 @@ export interface DentalCanvasState {
   onBackToDentition: () => void
   onSelectTooth: (tooth: ToothDef) => void
   onSelectZone: (zoneId: ZoneId) => void
+  onClearSelectedZone: () => void
   /** Entity-centric entry handlers */
   onAddEntry: (entry: Omit<ToothEntry, "id" | "toothFdi">) => void
   onUpdateEntry: (id: string, patch: Partial<ToothEntry>) => void
   onRemoveEntry: (id: string) => void
+  onUpdateTreatmentHistoryDetail: (name: string, patch: Partial<TreatmentHistoryDetail>) => void
   onSetHighlightZones: (zones: ZoneId[]) => void
   onToggleZoneMultiSelect: (zone: ZoneId) => void
+  onSetMultiSelectZones: (zones: ZoneId[]) => void
   onClearMultiSelect: () => void
   onSetMultiSelectActive: (active: boolean) => void
   onSetHoveredTooth: (fdi: string | null) => void
@@ -277,6 +281,7 @@ export function DentalCanvas({
   const [toothDiagnoses, setToothDiagnoses] = useState<Record<string, Set<string>>>(initialToothDiagnoses)
   const [toothNotes, setToothNotes] = useState<Record<string, string>>({})
   const [allEntries, setAllEntries] = useState<ToothEntry[]>([])
+  const [treatmentHistoryDetailsByTooth, setTreatmentHistoryDetailsByTooth] = useState<Record<string, Record<string, TreatmentHistoryDetail>>>({})
   const [highlightZones, setHighlightZones] = useState<ZoneId[]>([])
   const [multiSelectZones, setMultiSelectZones] = useState<Set<ZoneId>>(() => new Set())
   const [multiSelectActive, setMultiSelectActive] = useState(false)
@@ -286,6 +291,7 @@ export function DentalCanvas({
   const isImplant = implantTeeth.has(selectedTooth.fdi)
   const currentToothDiagnoses = toothDiagnoses[selectedTooth.fdi] || EMPTY_DIAG_SET
   const currentToothNotes = toothNotes[selectedTooth.fdi] || ''
+  const currentTreatmentHistoryDetails = treatmentHistoryDetailsByTooth[selectedTooth.fdi] || {}
 
   // Implant toggle routes through the compatibility matrix (see toggleToothDiagnosis below).
   // The matrix sync-fires `setImplantTeeth` to keep the top-level set in step so the
@@ -356,6 +362,7 @@ export function DentalCanvas({
       setSelectedZone(zone)
       setMultiSelectZones((prev) => {
         const next = new Set(prev)
+        if (zone !== 'whole' && next.has('whole')) next.delete('whole')
         if (next.has(zone)) next.delete(zone)
         else next.add(zone)
         return next
@@ -368,12 +375,16 @@ export function DentalCanvas({
   const handleToggleZoneMultiSelect = useCallback((zone: ZoneId) => {
     // Always rotate the 3D camera to the picked surface — the 3D canvas
     // reacts to actions happening in the side panel (bi-directional link).
-    setSelectedZone(zone)
+    setSelectedZone((prev) => multiSelectActive ? zone : (prev === zone ? null : zone))
     // Multi-select mode is gated by multiSelectActive (enabled only when a
     // surface cell in the Findings/Procedures table is active).
     if (!multiSelectActive) return
     setMultiSelectZones((prev) => {
+      if (zone === 'whole') {
+        return prev.has('whole') ? new Set<ZoneId>() : new Set<ZoneId>(['whole'])
+      }
       const next = new Set(prev)
+      if (next.has('whole')) next.delete('whole')
       if (next.has(zone)) next.delete(zone)
       else next.add(zone)
       return next
@@ -381,7 +392,18 @@ export function DentalCanvas({
   }, [multiSelectActive])
 
   const handleClearMultiSelect = useCallback(() => {
-    setMultiSelectZones(new Set())
+    setMultiSelectZones((prev) => (prev.size === 0 ? prev : new Set()))
+  }, [])
+
+  const handleClearSelectedZone = useCallback(() => {
+    setSelectedZone(null)
+  }, [])
+
+  const handleSetMultiSelectZones = useCallback((zones: ZoneId[]) => {
+    setMultiSelectZones((prev) => {
+      if (prev.size === zones.length && zones.every((zone) => prev.has(zone))) return prev
+      return new Set(zones)
+    })
   }, [])
 
   const handleSetMultiSelectActive = useCallback((active: boolean) => {
@@ -441,6 +463,21 @@ export function DentalCanvas({
     setAllEntries((prev) => prev.filter((e) => e.id !== id))
   }, [])
 
+  const handleUpdateTreatmentHistoryDetail = useCallback((name: string, patch: Partial<TreatmentHistoryDetail>) => {
+    const fdi = selectedTooth.fdi
+    setTreatmentHistoryDetailsByTooth((prev) => {
+      const currentToothDetails = prev[fdi] || {}
+      const previous = currentToothDetails[name] || { surfaces: getDefaultTreatmentSurfaces(name) }
+      return {
+        ...prev,
+        [fdi]: {
+          ...currentToothDetails,
+          [name]: { ...previous, ...patch },
+        },
+      }
+    })
+  }, [selectedTooth.fdi])
+
   const handleSetHighlightZones = useCallback((zones: ZoneId[]) => {
     setHighlightZones(zones)
   }, [])
@@ -466,6 +503,7 @@ export function DentalCanvas({
       zoneNotes,
       isImplant,
       currentToothEntries,
+      currentTreatmentHistoryDetails,
       allEntries,
       highlightZones,
       multiSelectZones,
@@ -480,23 +518,26 @@ export function DentalCanvas({
       onBackToDentition: handleBackToDentition,
       onSelectTooth: handleSelectTooth,
       onSelectZone: handleSelectZone,
+      onClearSelectedZone: handleClearSelectedZone,
       onAddEntry: handleAddEntry,
       onUpdateEntry: handleUpdateEntry,
       onRemoveEntry: handleRemoveEntry,
+      onUpdateTreatmentHistoryDetail: handleUpdateTreatmentHistoryDetail,
       onSetHighlightZones: handleSetHighlightZones,
       onToggleZoneMultiSelect: handleToggleZoneMultiSelect,
+      onSetMultiSelectZones: handleSetMultiSelectZones,
       onClearMultiSelect: handleClearMultiSelect,
       onSetMultiSelectActive: handleSetMultiSelectActive,
       onSetHoveredTooth: handleSetHoveredTooth,
     })
   }, [
     viewMode, selectedTooth, selectedZone, findings, toothDiagnoses, implantTeeth, findingsByTooth,
-    currentToothDiagnoses, currentToothNotes, zoneNotes, isImplant, onStateChange,
+    currentToothDiagnoses, currentToothNotes, currentTreatmentHistoryDetails, zoneNotes, isImplant, onStateChange,
     currentToothEntries, allEntries, highlightZones, multiSelectZones, multiSelectActive, hoveredToothFdi,
     toggleToothDiagnosis, toggleImplant, handleAddFinding, handleRemoveFinding,
-    handleUpdateNotes, updateToothNotes, handleBackToDentition, handleSelectTooth, handleSelectZone,
-    handleAddEntry, handleUpdateEntry, handleRemoveEntry, handleSetHighlightZones,
-    handleToggleZoneMultiSelect, handleClearMultiSelect, handleSetMultiSelectActive, handleSetHoveredTooth,
+    handleUpdateNotes, updateToothNotes, handleBackToDentition, handleSelectTooth, handleSelectZone, handleClearSelectedZone,
+    handleAddEntry, handleUpdateEntry, handleRemoveEntry, handleUpdateTreatmentHistoryDetail, handleSetHighlightZones,
+    handleToggleZoneMultiSelect, handleSetMultiSelectZones, handleClearMultiSelect, handleSetMultiSelectActive, handleSetHoveredTooth,
   ])
 
   const isDentitionView = viewMode === 'dentition'
@@ -544,7 +585,7 @@ export function DentalCanvas({
             <LottieIcon name="arrow-up" size={26} color="#94a3b8" />
             <span
               style={{
-                fontSize: '14px',
+                fontSize: '16px',
                 color: '#64748b',
                 fontWeight: 500,
                 letterSpacing: '0.2px',
@@ -577,7 +618,7 @@ export function DentalCanvas({
               arch={selectedTooth.arch}
               toothPosition={selectedTooth.position}
               zonesWithFindings={new Set(findings.map(f => f.zoneId))}
-              disabled={currentToothDiagnoses.has('Missing')}
+              disabled={currentToothDiagnoses.has('Missing') || currentToothDiagnoses.has('Extraction')}
             />
           </div>
         )}
@@ -615,6 +656,7 @@ export function DentalCanvas({
                 key={`${selectedTooth.fdi}-${isImplant ? 'imp' : 'nat'}-${[...currentToothDiagnoses].sort().join(',')}`}
                 selectedZone={selectedZone}
                 onSelectZone={handleSelectZone}
+                onClearSelectedZone={handleClearSelectedZone}
                 onHoverZone={setHoveredZone}
                 modelPath={selectedTooth.modelPath}
                 arch={selectedTooth.arch}
@@ -628,6 +670,8 @@ export function DentalCanvas({
                 toothDiagnoses={currentToothDiagnoses}
                 multiSelectZones={multiSelectZones}
                 multiSelectActive={multiSelectActive}
+                hideTags={true}
+                treatmentHistoryDetails={currentTreatmentHistoryDetails}
                 toothEntries={currentToothEntries.map(e => ({ kind: e.kind, name: e.name, surfaces: e.surfaces }))}
               />
             )}

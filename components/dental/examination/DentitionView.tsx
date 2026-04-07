@@ -26,6 +26,7 @@ interface ArchToothProps {
   tooth: ToothDef
   diagnoses: Set<string> | undefined
   findings: Finding[]
+  treatmentHistoryTags: string[]
   isImplant: boolean
   isHovered: boolean
   isPinned: boolean
@@ -35,7 +36,7 @@ interface ArchToothProps {
 }
 
 const ArchTooth = memo(function ArchTooth({
-  tooth, diagnoses, findings, isImplant, isHovered, isPinned, onHover, onClick, onPin,
+  tooth, diagnoses, findings, treatmentHistoryTags, isImplant, isHovered, isPinned, onHover, onClick, onPin,
 }: ArchToothProps) {
   const gltf = useGLTF(tooth.modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
@@ -43,7 +44,7 @@ const ArchTooth = memo(function ArchTooth({
   const outerGroupRef = useRef<THREE.Group>(null) // mirrorX group (parentGroup for diagnosis visuals)
   const meshRef = useRef<THREE.Group>(null)
 
-  const isMissing = diagnoses?.has('Missing') || false
+  const isMissing = diagnoses?.has('Missing') || diagnoses?.has('Extraction') || false
   const isCrown = diagnoses?.has('Crown') || false
   const isRCT = diagnoses?.has('RCT') || false
   const isBridge = diagnoses?.has('Bridge') || false
@@ -268,9 +269,6 @@ const ArchTooth = memo(function ArchTooth({
   }, [tooth, onClick, onPin, isPinned])
 
   // Diagnosis labels for pill (only tooth-level primary diagnoses)
-  const diagLabels: string[] = []
-  if (diagnoses) { for (const d of diagnoses) diagLabels.push(d) }
-  if (isImplant && !diagLabels.includes('Implant')) diagLabels.push('Implant')
   const occlusalOffsetY = tooth.arch === 'maxillary' ? -0.75 : 0.75
 
   return (
@@ -324,7 +322,7 @@ const ArchTooth = memo(function ArchTooth({
       </group>
 
       {/* Primary diagnosis pill (grey chips, occlusal side). */}
-      {diagLabels.length > 0 && (
+      {treatmentHistoryTags.length > 0 && (
         <Html
           position={[0, occlusalOffsetY, 0]}
           center
@@ -334,7 +332,7 @@ const ArchTooth = memo(function ArchTooth({
           <div style={{
             display: 'flex', alignItems: 'center', gap: '3px',
           }}>
-            {diagLabels.map(d => (
+            {treatmentHistoryTags.map(d => (
               <span key={d} style={{
                 fontSize: '11px', fontWeight: 600, padding: '2px 7px',
                 borderRadius: '4px', fontFamily: 'Inter, system-ui, sans-serif',
@@ -411,12 +409,17 @@ export default function DentitionView({
     <group>
       {TEETH.map((tooth) => {
         const findings = findingsByTooth[tooth.fdi] || []
+        const treatmentHistoryTags = Array.from(new Set([
+          ...(toothDiagnoses[tooth.fdi] ? Array.from(toothDiagnoses[tooth.fdi]!) : []),
+          ...(implantTeeth.has(tooth.fdi) ? ['Implant'] : []),
+        ]))
         return (
           <ArchTooth
             key={`${tooth.fdi}-${[...(toothDiagnoses[tooth.fdi] || [])].join(',')}-${implantTeeth.has(tooth.fdi)}`}
             tooth={tooth}
             diagnoses={toothDiagnoses[tooth.fdi]}
             findings={findings}
+            treatmentHistoryTags={treatmentHistoryTags}
             isImplant={implantTeeth.has(tooth.fdi)}
             isHovered={effectiveHovered === tooth.fdi}
             isPinned={pinnedTooth === tooth.fdi}

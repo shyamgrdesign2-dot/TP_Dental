@@ -5,8 +5,9 @@
  * Follows the examination procedures pattern: search → select → table with doctor/date/notes.
  */
 
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { Search, Trash2 } from "lucide-react"
+import { Calendar } from "iconsax-reactjs"
 import {
   TPDrawer,
   TPDrawerContent,
@@ -59,6 +60,7 @@ export function AddProcedureDrawer() {
   const service = serviceId ? findService(serviceId) : undefined
 
   const [rows, setRows] = useState<ProcedureRow[]>([])
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchOpen, setSearchOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
@@ -68,6 +70,18 @@ export function AddProcedureDrawer() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
+
+  const setCellActive = useCallback((rowId: string, colKey: string) => {
+    setActiveCell({ rowId, colKey })
+  }, [])
+
+  const clearCellActive = useCallback((rowId: string, colKey: string) => {
+    window.setTimeout(() => {
+      setActiveCell((current) => current && current.rowId === rowId && current.colKey === colKey ? null : current)
+    }, 80)
+  }, [])
+
+  const isCellActive = useCallback((rowId: string, colKey: string) => activeCell?.rowId === rowId && activeCell?.colKey === colKey, [activeCell])
 
   useEffect(() => {
     if (isOpen) {
@@ -108,7 +122,7 @@ export function AddProcedureDrawer() {
         id: genId("proc-row"),
         name,
         doctor: DOCTORS[0],
-        date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+        date: "",
         notes: "",
       },
     ])
@@ -165,7 +179,7 @@ export function AddProcedureDrawer() {
 
   return (
     <TPDrawer open={isOpen} onOpenChange={(open) => !open && closeDrawer()}>
-      <TPDrawerContent side="right" size="md" className="!rounded-none" style={{ background: "#F4F5F7" }}>
+      <TPDrawerContent side="right" size="full" className="!rounded-none !sm:max-w-[65vw]" style={{ background: "#F4F5F7" }}>
         <DrawerHeader
           title="Add Procedures"
           onClose={closeDrawer}
@@ -198,57 +212,94 @@ export function AddProcedureDrawer() {
           <div className="rounded-[16px] border border-tp-slate-100 bg-white">
             {/* Table */}
             {rows.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full font-['Inter',sans-serif] text-[14px]">
+              <div className="px-[14px] py-[12px]">
+                <div className="overflow-x-auto rounded-[12px] border border-tp-slate-200">
+                <table className="w-full min-w-[760px] table-fixed font-['Inter',sans-serif] text-[14px]">
+                  <colgroup>
+                    <col style={{ width: 36, minWidth: 36 }} />
+                    <col style={{ minWidth: 180 }} />
+                    <col style={{ width: 170, minWidth: 150 }} />
+                    <col style={{ width: 130, minWidth: 120 }} />
+                    <col style={{ minWidth: 160 }} />
+                    <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
+                  </colgroup>
                   <thead>
-                    <tr className="h-[34px] bg-tp-slate-50">
-                      <th className="px-3 text-left font-sans text-[12px] font-semibold text-tp-slate-400 w-[36px] border-r border-tp-slate-100">#</th>
-                      <th className="px-3 text-left font-sans text-[12px] font-semibold text-tp-slate-400 border-r border-tp-slate-100">Procedure</th>
-                      <th className="px-3 text-left font-sans text-[12px] font-semibold text-tp-slate-400 w-[140px] border-r border-tp-slate-100">Doctor</th>
-                      <th className="px-3 text-left font-sans text-[12px] font-semibold text-tp-slate-400 w-[110px] border-r border-tp-slate-100">Date</th>
-                      <th className="px-3 text-left font-sans text-[12px] font-semibold text-tp-slate-400">Notes</th>
-                      <th className="w-[44px]" />
+                    <tr className="h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500">
+                      <th className="border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" />
+                      <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Procedure</th>
+                      <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Doctor</th>
+                      <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Date</th>
+                      <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Note</th>
+                      <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row, idx) => (
-                      <tr key={row.id} className="h-[42px] border-t border-tp-slate-100 bg-white align-middle">
-                        <td className="px-3 font-sans text-[12px] text-tp-slate-400 border-r border-tp-slate-100">{idx + 1}</td>
+                    {rows.map((row) => {
+                      const isDoctorActive = isCellActive(row.id, "doctor")
+                      const isDateActive = isCellActive(row.id, "date")
+                      const isNoteActive = isCellActive(row.id, "note")
+                      return (
+                      <tr key={row.id} className="border-t border-tp-slate-100 bg-white align-middle">
+                        <td className="border-r border-tp-slate-100 p-0 text-center align-middle transition-colors hover:bg-tp-slate-100/60">
+                          <span className="inline-flex h-[52px] w-full items-center justify-center text-tp-slate-300">
+                            <svg width="8" height="16" viewBox="0 0 8 16" fill="currentColor">
+                              <circle cx="2" cy="3" r="1.2" /><circle cx="2" cy="8" r="1.2" /><circle cx="2" cy="13" r="1.2" />
+                              <circle cx="6" cy="3" r="1.2" /><circle cx="6" cy="8" r="1.2" /><circle cx="6" cy="13" r="1.2" />
+                            </svg>
+                          </span>
+                        </td>
                         <td className="border-r border-tp-slate-100 p-0">
-                          <div className="h-[42px] flex items-center px-3">
+                          <div className="flex h-[52px] items-center px-[12px]">
                             <p className="font-['Inter',sans-serif] text-[14px] font-medium text-[#454551] truncate">{row.name}</p>
                           </div>
                         </td>
-                        <td className="border-r border-tp-slate-100 p-0">
+                        <td className={`relative border-r border-tp-slate-100 p-0 ${isDoctorActive ? "bg-tp-blue-50/20" : ""}`}>
+                          {isDoctorActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
                           <select
                             value={row.doctor}
                             onChange={(e) => updateRow(row.id, { doctor: e.target.value })}
-                            className="h-[42px] w-full border-0 bg-transparent px-3 font-['Inter',sans-serif] text-[12px] text-[#454551] focus:bg-tp-blue-50/30 focus:outline-none rounded-none"
+                            onFocus={() => setCellActive(row.id, "doctor")}
+                            onBlur={() => clearCellActive(row.id, "doctor")}
+                            className="relative z-20 h-[52px] w-full border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] focus:outline-none focus:ring-0 rounded-none"
                           >
                             {DOCTORS.map((d) => (
                               <option key={d} value={d}>{d}</option>
                             ))}
                           </select>
                         </td>
-                        <td className="border-r border-tp-slate-100 p-0">
+                        <td className={`relative border-r border-tp-slate-100 p-0 ${isDateActive ? "bg-tp-blue-50/20" : "hover:bg-tp-slate-100/60"}`}>
+                          {isDateActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
+                          <div className="relative h-[52px] w-full">
+                            {!row.date && (
+                              <div className="pointer-events-none absolute inset-0 flex items-center justify-between px-[12px]">
+                                <span className="font-['Inter',sans-serif] text-[12px] leading-[18px] text-[#a2a2a8]">DD/MM/YYYY</span>
+                                <Calendar size={14} color="#94a3b8" variant="Linear" />
+                              </div>
+                            )}
                           <input
-                            type="text"
+                            type="date"
                             value={row.date}
                             onChange={(e) => updateRow(row.id, { date: e.target.value })}
-                            className="h-[42px] w-full border-0 bg-transparent px-3 font-['Inter',sans-serif] text-[12px] text-[#454551] focus:bg-tp-blue-50/30 focus:outline-none rounded-none"
+                            onFocus={() => setCellActive(row.id, "date")}
+                            onBlur={() => clearCellActive(row.id, "date")}
+                            className={`relative z-20 h-[52px] w-full border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] ${row.date ? "text-[#454551]" : "text-transparent"} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer focus:outline-none focus:ring-0 rounded-none cursor-pointer`}
                           />
+                          </div>
                         </td>
-                        <td className="p-0">
+                        <td className={`relative p-0 ${isNoteActive ? "bg-tp-blue-50/20" : "hover:bg-tp-slate-100/60"}`}>
+                          {isNoteActive ? <span className="pointer-events-none absolute inset-[2px] z-10 rounded-[6px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)]" /> : null}
                           <input
                             type="text"
                             value={row.notes}
                             onChange={(e) => updateRow(row.id, { notes: e.target.value })}
-                            placeholder="Optional..."
-                            className="h-[42px] w-full border-0 bg-transparent px-3 font-['Inter',sans-serif] text-[12px] text-[#454551] placeholder:text-tp-slate-300 focus:bg-tp-blue-50/30 focus:outline-none rounded-none"
+                            onFocus={() => setCellActive(row.id, "note")}
+                            onBlur={() => clearCellActive(row.id, "note")}
+                            placeholder="e.g. Use RVG before obturation"
+                            className="relative z-20 h-[52px] w-full border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] placeholder:text-[#a2a2a8] focus:outline-none focus:ring-0 rounded-none"
                           />
                         </td>
-                        <td className="p-0">
-                          <div className="h-[42px] flex items-center justify-center">
+                        <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white p-0 shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
+                          <div className="flex h-[52px] items-center justify-center">
                             <button
                               type="button"
                               onClick={() => removeRow(row.id)}
@@ -259,9 +310,10 @@ export function AddProcedureDrawer() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 
@@ -291,13 +343,13 @@ export function AddProcedureDrawer() {
 
               {/* Suggestive pills */}
               {!searchOpen && (
-                <div className="mt-[8px] flex flex-wrap gap-[5px]">
-                  {PROCEDURE_CATALOG.slice(0, 6).map((p) => (
+                <div className="mt-[10px] flex flex-wrap gap-[6px]">
+                  {PROCEDURE_CATALOG.slice(0, 8).map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => addProcedure(p)}
-                      className="inline-flex h-[26px] items-center rounded-[6px] bg-tp-slate-100 px-[8px] font-sans text-[12px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors"
+                      className="inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors"
                     >
                       {p}
                     </button>

@@ -32,24 +32,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { usePlanContext } from "./plan-context"
 import { SectionFrame, EmptyState, formatINR, computePlanTotal } from "./plan-shared"
+import { SURFACE_ABBR, SURFACE_COLORS } from "./plan-types"
 import type { TreatmentPlan, SurfaceId } from "./plan-types"
-
-// ─── Surface color map (matching examination ZONE_INFO) ─────
-
-const SURFACE_COLORS: Record<SurfaceId, string> = {
-  occlusal: "#14b8a6",
-  buccal:   "#f97316",
-  lingual:  "#8b5cf6",
-  mesial:   "#eab308",
-  distal:   "#2563eb",
-  cervical: "#ec4899",
-  root:     "#65a30d",
-}
-
-const SURFACE_ABBR: Record<SurfaceId, string> = {
-  occlusal: "O", buccal: "B", lingual: "L", mesial: "M",
-  distal: "D", cervical: "C", root: "R",
-}
 
 // ─── Plan Sub-Card ────────────────────────────────────────────
 
@@ -85,9 +69,9 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
   const handleEdit = () => openDrawer({ type: "edit-plan", planId: plan.id })
 
   return (
-    <div className="rounded-[14px] bg-white overflow-hidden">
+    <div className="overflow-hidden rounded-[16px] border border-tp-slate-100 bg-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.22)]">
       {/* Sub-card header */}
-      <div className="flex items-center gap-[10px] px-[14px] py-[12px]">
+      <div className="flex items-center gap-[10px] border-b border-tp-slate-100 bg-[linear-gradient(180deg,rgba(75,74,213,0.06),rgba(75,74,213,0))] px-[14px] py-[14px]">
         {/* Number counting badge */}
         <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[6px] bg-tp-blue-50 shrink-0">
           <span className="font-sans text-[12px] font-bold text-tp-blue-600">{index + 1}</span>
@@ -98,9 +82,17 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
           <p className="font-sans text-[14px] font-semibold text-tp-slate-900 truncate">
             {plan.name}
           </p>
-          <p className="font-sans text-[12px] text-tp-slate-400 mt-[2px]">
-            {formatINR(total)} · {plan.services.length} service{plan.services.length !== 1 ? "s" : ""} · {plan.createdAt}
-          </p>
+          <div className="mt-[8px] flex flex-wrap items-center gap-[8px]">
+            <span className="inline-flex h-[24px] items-center rounded-[999px] bg-tp-blue-50 px-[8px] font-sans text-[12px] font-bold text-tp-blue-700">
+              {formatINR(total)}
+            </span>
+            <span className="inline-flex h-[24px] items-center rounded-[999px] bg-tp-slate-100 px-[8px] font-sans text-[12px] font-medium text-tp-slate-600">
+              {plan.services.length} service{plan.services.length !== 1 ? "s" : ""}
+            </span>
+            <span className="inline-flex h-[24px] items-center rounded-[999px] bg-white px-[8px] font-sans text-[12px] text-tp-slate-400 ring-1 ring-tp-slate-200">
+              {plan.createdAt}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-[6px] shrink-0">
@@ -150,8 +142,8 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
       {/* Services table — padded, rounded, with stroke */}
       {plan.services.length > 0 && (
         <div className="px-[10px] pb-[10px]">
-          <div className="rounded-[8px] border border-tp-slate-200 overflow-hidden">
-            <table className="w-full">
+          <div className="rounded-[12px] border border-tp-slate-200 overflow-hidden w-full overflow-x-auto min-w-0">
+            <table className="w-full min-w-[780px]">
               <thead>
                 <tr className="bg-tp-slate-50/80">
                   <th className="px-[14px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[36px]">#</th>
@@ -165,10 +157,13 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
               </thead>
               <tbody>
                 {plan.services.map((svc, idx) => (
-                  <tr key={svc.id} className="border-t border-tp-slate-100 bg-white hover:bg-tp-slate-50/50 transition-colors">
+                  <tr key={svc.id} className="border-t border-tp-slate-100 bg-white hover:bg-tp-slate-50/70 transition-colors">
                     <td className="px-[14px] py-[9px] font-sans text-[12px] text-tp-slate-400">{idx + 1}</td>
                     <td className="px-[8px] py-[9px]">
-                      <p className="font-sans text-[14px] font-medium text-tp-slate-800">{svc.treatment}</p>
+                      <div className="space-y-[2px]">
+                        <p className="font-sans text-[14px] font-medium text-tp-slate-800">{svc.treatment}</p>
+                        <p className="font-sans text-[11px] text-tp-slate-400">{svc.toothLabel}</p>
+                      </div>
                     </td>
                     <td className="px-[8px] py-[9px]">
                       <span className="inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[5px] py-[1px] font-sans text-[12px] font-bold text-tp-slate-600">
@@ -296,7 +291,7 @@ export function PlanEstimatesTab() {
             </div>
           </div>
           {/* Empty state with CTA below */}
-          <div className="p-[12px] rounded-b-[16px]" style={{ background: "#EEEEF6" }}>
+          <div className="p-[12px] rounded-b-[16px]" style={{ background: "#F3F4F8" }}>
             <EmptyState
               icon={
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -378,7 +373,7 @@ export function PlanEstimatesTab() {
         </div>
 
         {/* Plan sub-cards — neutral bg for differentiation from white cards */}
-        <div className="p-[12px] space-y-[8px] rounded-b-[16px]" style={{ background: "#EEEEF6" }}>
+        <div className="p-[12px] space-y-[8px] rounded-b-[16px]" style={{ background: "#F3F4F8" }}>
           {estimatePlans.map((plan, idx) => (
             <PlanSubCard key={plan.id} plan={plan} index={idx} />
           ))}

@@ -1916,41 +1916,41 @@ export function RxPadFunctional() {
     if (payload.symptoms?.length) {
       setSymptomRows((prev) => [
         ...prev,
-        ...payload.symptoms.map((item) => ({
+        ...(payload.symptoms?.map((item) => ({
           id: getRowId("symptoms"),
           name: item,
           since: "1 day",
           status: "Moderate",
           note: `From ${payload.sourceDateLabel}`,
-        })),
+        })) ?? []),
       ])
     }
     if (payload.examinations?.length) {
       setExaminationRows((prev) => [
         ...prev,
-        ...payload.examinations.map((item) => ({
+        ...(payload.examinations?.map((item) => ({
           id: getRowId("exam"),
           name: item,
           note: `From ${payload.sourceDateLabel}`,
-        })),
+        })) ?? []),
       ])
     }
     if (payload.diagnoses?.length) {
       setDiagnosisRows((prev) => [
         ...prev,
-        ...payload.diagnoses.map((item) => ({
+        ...(payload.diagnoses?.map((item) => ({
           id: getRowId("diagnosis"),
           name: item,
           since: "1 day",
           status: "Suspected",
           note: `From ${payload.sourceDateLabel}`,
-        })),
+        })) ?? []),
       ])
     }
     if (payload.medications?.length) {
       setMedicationRows((prev) => [
         ...prev,
-        ...payload.medications.map((item) => ({
+        ...(payload.medications?.map((item) => ({
           id: getRowId("med"),
           medicine: item.medicine,
           unitPerDose: item.unitPerDose,
@@ -1958,17 +1958,17 @@ export function RxPadFunctional() {
           when: item.when,
           duration: item.duration,
           note: item.note || `From ${payload.sourceDateLabel}`,
-        })),
+        })) ?? []),
       ])
     }
     if (payload.labInvestigations?.length) {
       setLabRows((prev) => [
         ...prev,
-        ...payload.labInvestigations.map((item) => ({
+        ...(payload.labInvestigations?.map((item) => ({
           id: getRowId("lab"),
           investigation: item,
           note: `From ${payload.sourceDateLabel}`,
-        })),
+        })) ?? []),
       ])
     }
     if (payload.advice) {
@@ -1976,7 +1976,7 @@ export function RxPadFunctional() {
         ...prev,
         {
           id: getRowId("advice"),
-          advice: payload.advice,
+          advice: payload.advice || "",
           note: `From ${payload.sourceDateLabel}`,
         },
       ])

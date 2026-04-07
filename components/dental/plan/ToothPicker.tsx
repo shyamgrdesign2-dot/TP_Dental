@@ -10,6 +10,7 @@
  *   - "inline": borderless cell-style button matching SurfacePicker (for table use)
  */
 import React, { useCallback, useEffect, useRef, useState } from "react"
+import type { CSSProperties } from "react"
 import { createPortal } from "react-dom"
 import { ArrowDown2 } from "iconsax-reactjs"
 
@@ -38,18 +39,26 @@ const PEDIATRIC_QUADRANTS = {
 
 export function ToothPicker({ value, onChange, isPediatric = false, disabled, variant = "default" }: ToothPickerProps) {
   const [open, setOpen] = useState(false)
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({})
+  const [mounted, setMounted] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const quadrants = isPediatric ? PEDIATRIC_QUADRANTS : ADULT_QUADRANTS
+  const allTeeth = [...quadrants.UR, ...quadrants.UL, ...quadrants.LR, ...quadrants.LL]
+
+  useEffect(() => { setMounted(true) }, [])
 
   const toggle = (fdi: string) => {
+    if (value.includes("full-mouth")) {
+      onChange([fdi])
+      return
+    }
     if (value.includes(fdi)) onChange(value.filter((v) => v !== fdi))
     else onChange([...value, fdi])
   }
 
   const selectAll = () => {
-    const all = [...quadrants.UR, ...quadrants.UL, ...quadrants.LR, ...quadrants.LL]
-    onChange(all)
+    onChange(allTeeth)
   }
 
   const clear = () => onChange([])
@@ -67,7 +76,7 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
   const openDropdown = useCallback(() => {
     if (!triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    const dropdownWidth = 460
+    const dropdownWidth = Math.min(520, window.innerWidth - 24)
     const viewportWidth = window.innerWidth
 
     let left = rect.left
@@ -81,112 +90,108 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
       top: rect.bottom + 4,
       left,
       zIndex: 9999,
-      minWidth: dropdownWidth,
+      width: dropdownWidth,
     })
     setOpen(true)
   }, [])
 
-  // Close on scroll to avoid stale position
   useEffect(() => {
     if (!open) return
-    const close = () => setOpen(false)
-    window.addEventListener("scroll", close, { capture: true, passive: true })
-    return () => window.removeEventListener("scroll", close, { capture: true })
+    const handleDocClick = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (triggerRef.current?.contains(target)) return
+      if (dropdownRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const reposition = () => openDropdown()
+    document.addEventListener("mousedown", handleDocClick)
+    window.addEventListener("scroll", reposition, true)
+    window.addEventListener("resize", reposition)
+    return () => {
+      document.removeEventListener("mousedown", handleDocClick)
+      window.removeEventListener("scroll", reposition, true)
+      window.removeEventListener("resize", reposition)
+    }
   }, [open])
 
   const dropdown = open ? (
-    <>
-      <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setOpen(false)} />
-      <div
-        style={dropdownStyle}
-        className="rounded-[12px] border border-tp-slate-200 bg-white p-[20px] shadow-lg"
-      >
-        <div className="mb-[14px] flex items-center justify-between">
+    <div
+      ref={dropdownRef}
+      style={dropdownStyle}
+      className="rounded-[16px] border border-tp-slate-200 bg-white p-[16px] shadow-[0_18px_50px_-18px_rgba(15,23,42,0.28)]"
+    >
+      <div className="mb-[12px] flex items-start justify-between gap-[12px]">
+        <div>
           <p className="font-sans text-[13px] font-semibold uppercase tracking-[0.5px] text-tp-slate-500">
-            {isPediatric ? "Pediatric Teeth (FDI)" : "Select Teeth (FDI)"}
+            {isPediatric ? "Pediatric Teeth" : "Select Teeth"}
           </p>
-          <div className="flex items-center gap-[12px] text-[13px]">
-            <button
-              type="button"
-              onClick={selectAll}
-              className="font-sans font-medium text-tp-blue-600 hover:underline"
-            >
-              Select all
-            </button>
-            <span className="text-tp-slate-300">·</span>
-            <button
-              type="button"
-              onClick={clear}
-              className="font-sans font-medium text-tp-slate-500 hover:underline"
-            >
-              Clear
-            </button>
-          </div>
+          <p className="mt-[3px] font-sans text-[12px] text-tp-slate-400">
+            Choose one, many, or switch to full-mouth mode.
+          </p>
         </div>
-
-        {/* Upper row */}
-        <div className="mb-[8px] flex items-center gap-[6px]">
-          <span className="w-[26px] font-sans text-[12px] font-bold text-tp-slate-400">UR</span>
-          <div className="flex flex-1 gap-[4px]">
-            {quadrants.UR.map((fdi) => (
-              <ToothPick key={fdi} fdi={fdi} selected={value.includes(fdi)} onClick={() => toggle(fdi)} />
-            ))}
-          </div>
-          <div className="mx-[8px] h-[32px] w-[1px] bg-tp-slate-200" />
-          <div className="flex flex-1 gap-[4px]">
-            {quadrants.UL.map((fdi) => (
-              <ToothPick key={fdi} fdi={fdi} selected={value.includes(fdi)} onClick={() => toggle(fdi)} />
-            ))}
-          </div>
-          <span className="w-[26px] text-right font-sans text-[12px] font-bold text-tp-slate-400">UL</span>
-        </div>
-
-        {/* Divider */}
-        <div className="my-[8px] h-[1px] bg-gradient-to-r from-transparent via-tp-slate-200 to-transparent" />
-
-        {/* Lower row */}
-        <div className="flex items-center gap-[6px]">
-          <span className="w-[26px] font-sans text-[12px] font-bold text-tp-slate-400">LR</span>
-          <div className="flex flex-1 gap-[4px]">
-            {quadrants.LR.map((fdi) => (
-              <ToothPick key={fdi} fdi={fdi} selected={value.includes(fdi)} onClick={() => toggle(fdi)} />
-            ))}
-          </div>
-          <div className="mx-[8px] h-[32px] w-[1px] bg-tp-slate-200" />
-          <div className="flex flex-1 gap-[4px]">
-            {quadrants.LL.map((fdi) => (
-              <ToothPick key={fdi} fdi={fdi} selected={value.includes(fdi)} onClick={() => toggle(fdi)} />
-            ))}
-          </div>
-          <span className="w-[26px] text-right font-sans text-[12px] font-bold text-tp-slate-400">LL</span>
-        </div>
-
-        {/* Full-mouth shortcut + Done */}
-        <div className="mt-[14px] flex justify-between border-t border-tp-slate-100 pt-[12px]">
-          <button
-            type="button"
-            onClick={() => {
-              if (value.includes("full-mouth")) onChange([])
-              else onChange(["full-mouth"])
-            }}
-            className={`inline-flex h-[32px] items-center gap-[6px] rounded-[8px] px-[12px] font-sans text-[13px] font-medium transition-colors ${
-              value.includes("full-mouth")
-                ? "bg-tp-blue-500 text-white"
-                : "bg-tp-slate-100 text-tp-slate-600 hover:bg-tp-slate-200"
-            }`}
-          >
-            Full mouth
-          </button>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="inline-flex h-[32px] items-center rounded-[8px] bg-tp-blue-500 px-[16px] font-sans text-[13px] font-semibold text-white hover:bg-tp-blue-600"
-          >
-            Done ({value.length})
-          </button>
+        <div className="inline-flex h-[24px] min-w-[24px] items-center justify-center rounded-full bg-tp-slate-100 px-[8px] font-sans text-[12px] font-bold text-tp-slate-600">
+          {value.includes("full-mouth") ? "FM" : value.length}
         </div>
       </div>
-    </>
+
+      <div className="mb-[12px] grid grid-cols-1 gap-[10px] sm:grid-cols-2">
+        {([
+          ["Upper Right", quadrants.UR],
+          ["Upper Left", quadrants.UL],
+          ["Lower Right", quadrants.LR],
+          ["Lower Left", quadrants.LL],
+        ] as const).map(([label, teeth]) => (
+          <div key={label} className="rounded-[12px] border border-tp-slate-100 bg-tp-slate-50/60 p-[10px]">
+            <div className="mb-[8px] flex items-center justify-between">
+              <span className="font-sans text-[12px] font-semibold text-tp-slate-500">{label}</span>
+              <span className="font-sans text-[11px] text-tp-slate-400">{teeth.length} teeth</span>
+            </div>
+            <div className="grid grid-cols-4 gap-[6px]">
+              {teeth.map((fdi) => (
+                <ToothPick key={fdi} fdi={fdi} selected={value.includes(fdi)} onClick={() => toggle(fdi)} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-[8px] border-t border-tp-slate-100 pt-[12px]">
+        <div className="flex flex-wrap items-center gap-[8px]">
+          <button
+            type="button"
+            onClick={() => onChange(value.includes("full-mouth") ? [] : ["full-mouth"])}
+            className={`inline-flex h-[34px] items-center rounded-[10px] px-[12px] font-sans text-[13px] font-semibold transition-colors ${
+              value.includes("full-mouth")
+                ? "bg-tp-blue-500 text-white"
+                : "bg-tp-blue-50 text-tp-blue-700 hover:bg-tp-blue-100"
+            }`}
+          >
+            Whole mouth
+          </button>
+          <button
+            type="button"
+            onClick={selectAll}
+            className="inline-flex h-[34px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[13px] font-medium text-tp-slate-700 transition-colors hover:bg-tp-slate-200"
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            onClick={clear}
+            className="inline-flex h-[34px] items-center rounded-[10px] bg-white px-[12px] font-sans text-[13px] font-medium text-tp-slate-500 transition-colors hover:bg-tp-slate-50"
+          >
+            Clear
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="inline-flex h-[34px] items-center rounded-[10px] bg-tp-blue-600 px-[14px] font-sans text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-700"
+        >
+          Done
+        </button>
+      </div>
+    </div>
   ) : null
 
   const isInline = variant === "inline"
@@ -200,18 +205,21 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
         onClick={(e) => { e.stopPropagation(); open ? setOpen(false) : openDropdown() }}
         className={
           isInline
-            ? "h-[46px] w-full text-left px-4 font-sans text-[14px] text-tp-slate-700 hover:bg-tp-blue-50/30 focus:bg-tp-blue-50/30 focus:outline-none transition-colors truncate"
+            ? "flex h-[52px] w-full items-center justify-between gap-[8px] bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] transition-colors focus:outline-none"
             : "inline-flex h-[42px] items-center justify-between gap-[6px] rounded-[10px] border border-tp-slate-200 bg-white px-[10px] font-sans text-[14px] text-tp-slate-700 transition-colors hover:border-tp-blue-300 disabled:opacity-50 min-w-[140px]"
         }
       >
         {value.length > 0 ? (
-          <span className="flex items-center gap-[4px] flex-wrap">
+          <span className="flex min-w-0 flex-1 items-center gap-[4px] flex-wrap">
             {isInline ? (
-              // Inline: show tooth pills like surface dots
-              value.length <= 3 ? (
+              value.includes("full-mouth") ? (
+                <span className="inline-flex h-[18px] items-center rounded-[4px] bg-tp-blue-50 px-[6px] font-sans text-[12px] font-bold text-tp-blue-700">
+                  Full mouth
+                </span>
+              ) : value.length <= 3 ? (
                 value.map((v) => (
                   <span key={v} className="inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-sans text-[12px] font-bold text-tp-slate-600">
-                    {v === "full-mouth" ? "Full" : `T${v}`}
+                    {`T${v}`}
                   </span>
                 ))
               ) : (
@@ -227,23 +235,22 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
             ) : (
               <>
                 <span>{displayValue}</span>
-                <ArrowDown2 size={14} color="currentColor" variant="Linear" />
               </>
             )}
           </span>
         ) : (
-          <span className={`text-tp-slate-400 flex items-center gap-[6px] ${isInline ? "" : "flex-1"}`}>
+          <span className={`flex items-center gap-[6px] ${isInline ? "flex-1 text-[12px] text-[#a2a2a8]" : "flex-1 text-tp-slate-400"}`}>
             {isInline ? "—" : (
               <>
                 <span>Select teeth</span>
-                <ArrowDown2 size={14} color="currentColor" variant="Linear" className="ml-auto" />
               </>
             )}
           </span>
         )}
+        <ArrowDown2 size={14} color="currentColor" variant="Linear" />
       </button>
 
-      {typeof document !== "undefined" && dropdown
+      {mounted && typeof document !== "undefined" && dropdown
         ? createPortal(dropdown, document.body)
         : null}
     </div>
@@ -255,7 +262,7 @@ function ToothPick({ fdi, selected, onClick }: { fdi: string; selected: boolean;
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-[32px] flex-1 min-w-0 items-center justify-center rounded-[6px] border font-sans text-[13px] font-semibold transition-colors ${
+      className={`flex h-[34px] min-w-0 items-center justify-center rounded-[10px] border font-sans text-[13px] font-semibold transition-colors ${
         selected
           ? "border-tp-blue-500 bg-tp-blue-500 text-white"
           : "border-tp-slate-200 bg-white text-tp-slate-600 hover:border-tp-blue-300 hover:bg-tp-blue-50 hover:text-tp-blue-700"

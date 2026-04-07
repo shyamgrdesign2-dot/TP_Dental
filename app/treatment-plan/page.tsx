@@ -15,7 +15,15 @@ export const metadata = {
 export default function TreatmentPlanRoute() {
   return (
     <div className={mulish.variable}>
-      <TreatmentPlanPage />
+      <div style={{ animation: "pageSlideInRight 400ms cubic-bezier(0.16, 1, 0.3, 1) both" }}>
+        <style>{`
+          @keyframes pageSlideInRight {
+            from { opacity: 0; transform: translateX(100px); }
+            to   { opacity: 1; transform: translateX(0); }
+          }
+        `}</style>
+        <TreatmentPlanPage />
+      </div>
     </div>
   )
 }

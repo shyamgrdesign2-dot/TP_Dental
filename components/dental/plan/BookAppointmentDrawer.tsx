@@ -84,15 +84,31 @@ export function BookAppointmentDrawer() {
           </div>
 
           <div>
-            <label className="block font-sans text-[12px] font-semibold text-tp-slate-600 mb-[4px]">
-              Time <span className="text-tp-error-500">*</span>
+            <label className="block font-sans text-[12px] font-semibold text-tp-slate-600 mb-[6px]">
+              Available Time Slots <span className="text-tp-error-500">*</span>
             </label>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="w-full h-[42px] rounded-[8px] border border-tp-slate-200 px-[12px] font-sans text-[14px] text-tp-slate-800 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/30 focus:border-tp-blue-400 transition-colors"
-            />
+            {!date ? (
+              <div className="flex h-[80px] w-full items-center justify-center rounded-[8px] border border-dashed border-tp-slate-200 bg-tp-slate-50">
+                <p className="font-sans text-[12px] text-tp-slate-400">Select a date to view available time slots.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-[8px]">
+                {["10:00 AM", "10:30 AM", "11:15 AM", "12:00 PM", "02:30 PM", "03:45 PM", "05:00 PM", "06:15 PM"].map(slot => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setTime(slot)}
+                    className={`h-[36px] rounded-[8px] font-sans text-[13px] font-medium transition-colors ${
+                      time === slot 
+                        ? "bg-tp-blue-600 text-white border-transparent" 
+                        : "bg-white text-tp-slate-600 border border-tp-slate-200 hover:border-tp-blue-400 hover:text-tp-blue-600"
+                    }`}
+                  >
+                    {slot}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

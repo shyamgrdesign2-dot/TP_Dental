@@ -76,7 +76,7 @@ export function AddSittingDrawer() {
           <div>
             <label className="block font-sans text-[12px] font-semibold text-tp-slate-600 mb-[4px]">Date</label>
             <input
-              type="text"
+              type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full h-[42px] rounded-[8px] border border-tp-slate-200 px-[12px] font-sans text-[14px] text-tp-slate-800 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/30 transition-colors"
