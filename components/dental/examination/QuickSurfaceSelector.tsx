@@ -197,9 +197,9 @@ export function QuickSurfaceSelector({
         >
           <rect
             x="2"
-            y="3"
+            y="5.54"
             width="68"
-            height="30"
+            height="24.92"
             rx="9.5"
             fill={wholeSelected ? ZONE_INFO.whole.color : NEUTRAL_STROKE}
             fillOpacity={disabled ? 0 : wholeSelected ? 0.92 : wholeHovered ? 0.22 : 0}
