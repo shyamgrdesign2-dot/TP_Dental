@@ -293,7 +293,7 @@ export function NavPanel({ active, onSelect }: Props) {
           if (navigateTo) {
             const patientId = searchParams?.get("patientId") ?? "apt-1"
             return (
-              <Link key={id} href={`${navigateTo}?patientId=${patientId}`} className="block">
+              <Link key={id} href={`${navigateTo}?patientId=${patientId}`} className="flex w-full">
                 {content}
               </Link>
             )

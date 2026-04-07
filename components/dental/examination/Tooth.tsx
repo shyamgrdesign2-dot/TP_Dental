@@ -53,7 +53,7 @@ const FRONT_VIEWS: Record<string, { az: number; pol: number }> = {
 }
 
 // Convert degrees to radians for azimuth lookup
-function getFrontAzimuth(fdi: string): number | undefined {
+export function getFrontAzimuth(fdi: string): number | undefined {
   const v = FRONT_VIEWS[fdi]
   return v ? v.az * Math.PI / 180 : undefined
 }
@@ -1621,9 +1621,6 @@ export function Tooth({
   } | null>(null)
   const [boundsReady, setBoundsReady] = useState(0)
   const { camera } = useThree()
-  const orbitAnim = useRef<{
-    startAz: number; startPol: number; endAz: number; endPol: number; t: number; active: boolean
-  }>({ startAz: 0, startPol: 0, endAz: 0, endPol: 0, t: 0, active: false })
 
   useLayoutEffect(() => {
     let cancelled = false
@@ -1791,49 +1788,6 @@ export function Tooth({
     }
   })
 
-  useEffect(() => {
-    if (!selectedZone) return
-
-    // Compute camera target from the ACTUAL zone direction vectors
-    // This ensures the camera always faces the correct surface
-    const yaw = zoneYawForTooth(toothPosition, quadrant)
-    const dirs = getDirsForTooth(toothFdi, quadrant, yaw)
-    const lateralPolar = getFrontPolar(toothFdi)
-
-    let target: { azimuth: number; polar: number }
-
-    if (selectedZone === 'occlusal') {
-      target = { azimuth: 0, polar: arch === 'mandibular' ? Math.PI * 0.12 : Math.PI * 0.88 }
-    } else if (selectedZone === 'whole') {
-      target = { azimuth: Math.atan2(dirs.buccal.x, dirs.buccal.z), polar: lateralPolar }
-    } else if (selectedZone === 'root') {
-      target = { azimuth: 0, polar: arch === 'mandibular' ? Math.PI * 0.72 : Math.PI * 0.28 }
-    } else if (selectedZone === 'cervical') {
-      target = { azimuth: Math.atan2(dirs.buccal.x, dirs.buccal.z), polar: lateralPolar }
-    } else {
-      // Lateral zones: compute azimuth from the direction vector
-      const dir = selectedZone === 'buccal' ? dirs.buccal
-        : selectedZone === 'lingual' ? dirs.lingual
-          : selectedZone === 'mesial' ? dirs.mesial
-            : dirs.distal
-      // Camera position = in the direction the surface faces (to see it head-on)
-      target = { azimuth: Math.atan2(dir.x, dir.z), polar: lateralPolar }
-    }
-
-    const sph = new THREE.Spherical().setFromVector3(camera.position)
-    orbitAnim.current = { startAz: sph.theta, startPol: sph.phi, endAz: target.azimuth, endPol: target.polar, t: 0, active: true }
-  }, [selectedZone, camera, arch, toothPosition, quadrant])
-
-  useFrame((_, delta) => {
-    const a = orbitAnim.current
-    if (!a.active) return
-    a.t += delta / 1.0
-    const t = smoothstep(Math.min(a.t, 1))
-    const sph = new THREE.Spherical().setFromVector3(camera.position)
-    camera.position.setFromSpherical(new THREE.Spherical(sph.radius, a.startPol + (a.endPol - a.startPol) * t, lerpAngle(a.startAz, a.endAz, t)))
-    camera.lookAt(0, 0, 0)
-    if (a.t >= 1) a.active = false
-  })
 
   const getWorldNormal = useCallback((e: any): THREE.Vector3 => {
     if (e.face) { const n = e.face.normal.clone(); n.transformDirection(e.object.matrixWorld); return n }

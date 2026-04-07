@@ -235,7 +235,7 @@ export function CompletedTab() {
   if (completedPlans.length === 0) {
     return (
       <SectionFrame>
-        <div className="rounded-[16px] bg-white">
+        <div className="rounded-[16px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
           {/* Cluster header — clipboard-tick icon, green */}
           <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100">
             <div className="flex items-center gap-[12px]">

@@ -4,11 +4,11 @@ import { Suspense, useState, useCallback, useRef, useEffect, useMemo } from 'rea
 import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { Tooth } from './Tooth'
+import { Tooth, getFrontAzimuth, getDirsForTooth } from './Tooth'
 import DentitionView from './DentitionView'
 import { ToothSelector } from './ToothSelector'
 import { QuickSurfaceSelector } from './QuickSurfaceSelector'
-import type { ZoneId, Finding, ToothDef, ViewMode, ToothEntry, TreatmentHistoryDetail, PatientType } from './types'
+import type { ZoneId, Finding, ToothDef, ViewMode, ToothEntry, TreatmentHistoryDetail, PatientType, Quadrant } from './types'
 import { TEETH, PEDIATRIC_TEETH, QUADRANT_LABELS, ARCH_POSITIONS, ZONE_INFO, getDefaultTreatmentSurfaces } from './types'
 import { applyDiagnosisSelection } from './DiagnosisMatrix'
 import './dental-canvas.css'
@@ -77,26 +77,36 @@ const EMPTY_FINDINGS: readonly Finding[] = []
 const DENTITION_CAMERA = { position: new THREE.Vector3(0, 2.5, 16.5), target: new THREE.Vector3(0, -0.9, -0.3), fov: 35 }
 const SINGLE_TOOTH_CAMERA = { position: new THREE.Vector3(0.5, -0.15, 7.5), target: new THREE.Vector3(0, -0.35, 0), fov: 32 }
 
-// Zone → spherical camera angle (azimuth, polar). Rotates the single-tooth
-// camera around the tooth to show the selected surface head-on.
-const ZONE_ANGLES: Record<string, { az: number; pol: number }> = {
-  buccal:   { az: Math.PI,             pol: Math.PI / 2 },
-  lingual:  { az: 0,                   pol: Math.PI / 2 },
-  mesial:   { az: Math.PI / 2,         pol: Math.PI / 2 },
-  distal:   { az: -Math.PI / 2,        pol: Math.PI / 2 },
-  occlusal: { az: Math.PI,             pol: 0.25 },
-  cervical: { az: Math.PI,             pol: Math.PI / 2.4 },
-  root:     { az: Math.PI,             pol: Math.PI - 0.35 },
-}
-
-function ZoneCameraRotator({ zone, controlsRef, radius = 7.5 }: { zone: ZoneId | null; controlsRef: React.RefObject<any>; radius?: number }) {
+function ZoneCameraRotator({ 
+  zone, toothFdi, quadrant, arch, controlsRef, radius = 7.5 
+}: { 
+  zone: ZoneId | null; toothFdi: string; quadrant: Quadrant; arch: 'maxillary' | 'mandibular'; controlsRef: React.RefObject<any>; radius?: number 
+}) {
   const { camera } = useThree()
   const target = useRef<THREE.Spherical | null>(null)
+  
   useEffect(() => {
-    if (!zone || !ZONE_ANGLES[zone]) return
-    const a = ZONE_ANGLES[zone]
-    target.current = new THREE.Spherical(radius, a.pol, a.az)
-  }, [zone, radius])
+    if (!zone) return
+    const frontAz = getFrontAzimuth(toothFdi) ?? 0
+    let az = frontAz
+    let pol = Math.PI / 2
+
+    const dirs = getDirsForTooth(toothFdi, quadrant, 0)
+
+    if (zone === 'buccal')   { az = frontAz;             pol = Math.PI / 2 }
+    if (zone === 'lingual')  { az = frontAz + Math.PI;   pol = Math.PI / 2 }
+    if (zone === 'mesial')   { az = Math.atan2(dirs.mesial.x, dirs.mesial.z); pol = Math.PI / 2 }
+    if (zone === 'distal')   { az = Math.atan2(dirs.distal.x, dirs.distal.z); pol = Math.PI / 2 }
+    if (zone === 'occlusal') { az = frontAz;             pol = arch === 'mandibular' ? 0.25 : Math.PI - 0.25 }
+    if (zone === 'cervical') { az = frontAz;             pol = arch === 'mandibular' ? Math.PI / 2.4 : Math.PI - (Math.PI / 2.4) }
+    if (zone === 'root')     { az = frontAz;             pol = arch === 'mandibular' ? Math.PI - 0.35 : 0.35 }
+    
+    if (controlsRef.current) {
+      controlsRef.current.enabled = false
+      controlsRef.current.enableDamping = false
+    }
+    target.current = new THREE.Spherical(radius, pol, az)
+  }, [zone, toothFdi, quadrant, arch, radius, controlsRef])
   useFrame(() => {
     if (!target.current || !controlsRef.current) return
     const controls = controlsRef.current
@@ -121,6 +131,10 @@ function ZoneCameraRotator({ zone, controlsRef, radius = 7.5 }: { zone: ZoneId |
       Math.abs(cur.radius - goal.radius) < 0.01
     ) {
       target.current = null
+      if (controls) {
+        controls.enabled = true
+        controls.enableDamping = true
+      }
     }
   })
   return null
@@ -238,6 +252,9 @@ function CameraController({ viewMode, controlsRef }: { viewMode: ViewMode; contr
 // App
 // ══════════════════════════════════════════════════════════════
 
+const EMPTY_DIAGNOSES = new Set<string>()
+const EMPTY_TREATMENTS = {}
+
 export function DentalCanvas({
   patientId,
   patientAge = 30,
@@ -292,10 +309,16 @@ export function DentalCanvas({
   const [hoveredToothFdi, setHoveredToothFdi] = useState<string | null>(null)
   const controlsRef = useRef<any>(null)
 
-  const isImplant = implantTeeth.has(selectedTooth.fdi)
-  const currentToothDiagnoses = toothDiagnoses[selectedTooth.fdi] || EMPTY_DIAG_SET
+  const currentToothDiagnoses = useMemo(
+    () => toothDiagnoses[selectedTooth.fdi] || EMPTY_DIAGNOSES,
+    [toothDiagnoses, selectedTooth.fdi]
+  )
+
+  const isImplant = currentToothDiagnoses.has('Implant') || implantTeeth.has(selectedTooth.fdi)
   const currentToothNotes = toothNotes[selectedTooth.fdi] || ''
-  const currentTreatmentHistoryDetails = treatmentHistoryDetailsByTooth[selectedTooth.fdi] || {}
+  const currentTreatmentHistoryDetails = useMemo(() => {
+    return treatmentHistoryDetailsByTooth[selectedTooth.fdi] || EMPTY_TREATMENTS
+  }, [treatmentHistoryDetailsByTooth, selectedTooth.fdi])
 
   // Implant toggle routes through the compatibility matrix (see toggleToothDiagnosis below).
   // The matrix sync-fires `setImplantTeeth` to keep the top-level set in step so the
@@ -572,16 +595,16 @@ export function DentalCanvas({
         {/* Top-Right Toggle (Adult vs Pediatric) */}
         {isDentitionView && (
           <div className="absolute top-4 right-4 z-20">
-            <div className="flex bg-slate-100/90 p-1 rounded-lg border border-slate-200 backdrop-blur-md">
+            <div className="flex bg-slate-100/90 p-1 rounded-lg backdrop-blur-md">
               <button 
                 onClick={() => setPatientType('adult')}
-                className={`relative px-6 py-2 text-[12px] font-bold rounded-md transition-colors uppercase tracking-widest ${patientType === 'adult' ? 'bg-white border text-slate-900 border-slate-200 pointer-events-none' : 'text-slate-500 border border-transparent hover:text-slate-700 hover:bg-slate-200/50'}`}
+                className={`relative px-6 py-2 text-[12px] font-bold rounded-md transition-colors uppercase tracking-widest ${patientType === 'adult' ? 'bg-white text-slate-900 pointer-events-none' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
               >
                 Adult
               </button>
               <button 
                 onClick={() => setPatientType('pediatric')}
-                className={`relative px-6 py-2 text-[12px] font-bold rounded-md transition-colors uppercase tracking-widest ${patientType === 'pediatric' ? 'bg-white border text-slate-900 border-slate-200 pointer-events-none' : 'text-slate-500 border border-transparent hover:text-slate-700 hover:bg-slate-200/50'}`}
+                className={`relative px-6 py-2 text-[12px] font-bold rounded-md transition-colors uppercase tracking-widest ${patientType === 'pediatric' ? 'bg-white text-slate-900 pointer-events-none' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
               >
                 Pediatric
               </button>
@@ -661,7 +684,7 @@ export function DentalCanvas({
 
           <CameraController viewMode={viewMode} controlsRef={controlsRef} />
           {!isDentitionView && (
-            <ZoneCameraRotator zone={selectedZone} controlsRef={controlsRef} />
+            <ZoneCameraRotator zone={selectedZone} toothFdi={selectedTooth.fdi} quadrant={selectedTooth.quadrant} arch={selectedTooth.arch} controlsRef={controlsRef} />
           )}
 
           <Suspense fallback={null}>
