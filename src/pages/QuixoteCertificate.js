@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { Spin } from "antd";
 
@@ -20,8 +20,23 @@ function QuixoteCertificate({ mode = NORMAL, ...props }) {
     const [pdfUrl, setPdfUrl] = useState(null)
     const [numPages, setNumPages] = useState();
     const [loadSuccess, setLoadSuccesss] = useState(false);
+    const pdfUrlRef = useRef(null);
+    const renderIdRef = useRef(0);
+    const isMountedRef = useRef(true);
 
     useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (pdfUrlRef.current) {
+                URL.revokeObjectURL(pdfUrlRef.current);
+                pdfUrlRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const renderId = ++renderIdRef.current;
         const makePDFUrl = async () => {
             const blob = await pdf(<ViewCertificatePDF
                 mode={mode}
@@ -35,7 +50,16 @@ function QuixoteCertificate({ mode = NORMAL, ...props }) {
                 fileWatermark={fileWatermark}
                 fileSignature={fileSignature}
             />).toBlob();
-            setPdfUrl(URL.createObjectURL(blob))
+            const url = URL.createObjectURL(blob);
+            if (!isMountedRef.current || renderId !== renderIdRef.current) {
+                URL.revokeObjectURL(url);
+                return;
+            }
+            if (pdfUrlRef.current) {
+                URL.revokeObjectURL(pdfUrlRef.current);
+            }
+            pdfUrlRef.current = url;
+            setPdfUrl(url);
         }
         certificateData && makePDFUrl()
         return () => {
@@ -73,7 +97,7 @@ function QuixoteCertificate({ mode = NORMAL, ...props }) {
                         .map((page) => {
                             return (
                                 <Page
-                                    key={Math.random()}
+                                    key={page}
                                     className={loadSuccess ? 'react-pdf__Page_afterload' : null}
                                     loading={null}
                                     width={divWidth}

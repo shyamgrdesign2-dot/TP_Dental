@@ -776,7 +776,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       return "6 Months";
     } else if ((weeks === 27 || weeks === 29) && remainingDays === 0) {
       return "7 Months";
-    } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48 && remainingDays === 0) {
+    } else if (
+      weeks % 4 === 0 &&
+      weeks >= 4 &&
+      weeks < 48 &&
+      remainingDays === 0
+    ) {
       const monthsValue = Math.floor(weeks / 4);
       return `${monthsValue} ${monthsValue <= 1 ? "Month" : "Months"}`;
     } else if (weeks > 0 && remainingDays > 0) {
@@ -1686,7 +1691,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     if (rxData) {
       const rxChecks = [
-        rxData.followUp,
         rxData.symptoms?.some((item) => item?.name || item?.lineItem),
         (rxData.examination || rxData.examinations)?.some(
           (item) => item?.name || item?.lineItem,
@@ -1697,6 +1701,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         ),
         rxData.advice?.length > 0,
         rxData.vaccinations?.some((item) => item?.name),
+        rxData.surgeries?.some((item) => item?.name),
       ];
 
       if (rxChecks.some((check) => check)) return true;
@@ -1722,7 +1727,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           ? df.some(hasNonEmptyDynField)
           : Object.entries(df).some(([key, values]) => values?.length > 0));
       const voiceRxChecks = [
-        voiceRxData.followUp,
         hasDynamicFields,
         voiceRxData.symptoms?.length > 0,
         (voiceRxData.examinations || voiceRxData.examination)?.some(
@@ -1737,6 +1741,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         voiceRxData.advice?.length > 0,
         voiceRxData.vaccinations?.length > 0,
         voiceRxData.others?.length > 0,
+        voiceRxData.surgeries?.length > 0,
       ];
 
       if (voiceRxChecks.some((check) => check)) return true;
@@ -1828,7 +1833,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         case 15: // Lab Parameters
           return labParamsPatchData && labParamsPatchData?.length > 0;
         case 16: // Surgeries
-          return caseManagerData?.surgeries?.length > 0;
+          return (
+            caseManagerData?.surgeries?.length > 0 ||
+            smartRxData?.rxDigitizeEditedData?.surgeries?.length > 0 ||
+            (
+              smartRxData?.voiceRxDigitizeEditedData ||
+              smartRxData?.ambientVoiceRxDigitizeEditedData
+            )?.surgeries?.length > 0
+          );
         case 17: // Patient Bills (already handled in hasAnyData)
           return patientBills?.length > 0 || advanceReceipts?.length > 0;
         case 19: // Care Plans
@@ -6972,6 +6984,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               (() => {
                                 const medList =
                                   digitizedData?.medications || [];
+                                const normalizeKey = (val) =>
+                                  (val || "").toString().trim().toLowerCase();
                                 const getMedName = (item) =>
                                   isAmbientVoiceRxDigitizeBool
                                     ? item?.metadata?.fuzzyCorrectedName &&
@@ -6984,6 +6998,30 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         ? item?.groundingMedicineName
                                         : item?.name
                                     : item?.name || item?.refinedName;
+                                const getGroundedKey = (item) => {
+                                  const grounded =
+                                    item?.groundedMedicineName ??
+                                    item?.groundingMedicineName ??
+                                    item?.metadata?.fuzzyCorrectedName ??
+                                    "";
+                                  return (
+                                    normalizeKey(grounded) ||
+                                    normalizeKey(getMedName(item))
+                                  );
+                                };
+                                const getGroundedDisplayName = (item) => {
+                                  const grounded =
+                                    item?.groundedMedicineName ??
+                                    item?.groundingMedicineName ??
+                                    item?.metadata?.fuzzyCorrectedName ??
+                                    "";
+                                  const groundedTrim = (grounded || "")
+                                    .toString()
+                                    .trim();
+                                  return groundedTrim !== ""
+                                    ? groundedTrim
+                                    : getMedName(item) || "";
+                                };
                                 const getMedMeta = (item) => {
                                   const parts = [];
                                   const freq = (item?.frequency || "")
@@ -7034,6 +7072,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
                                   return parts.join(", ");
                                 };
+                                const groupedMedications = (() => {
+                                  const map = new Map();
+                                  for (const item of medList) {
+                                    const key = getGroundedKey(item);
+                                    if (!key) continue;
+                                    if (!map.has(key)) {
+                                      map.set(key, {
+                                        key,
+                                        name: getGroundedDisplayName(item),
+                                        items: [],
+                                      });
+                                    }
+                                    map.get(key).items.push(item);
+                                  }
+                                  return Array.from(map.values());
+                                })();
                                 const showTable =
                                   option?.format === "table" ||
                                   (option?.format !== "listview" &&
@@ -7061,12 +7115,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         Medication:&nbsp;
                                       </Text>
-                                      {medList.map((item, i) => {
-                                        const name = getMedName(item);
-                                        const meta = getMedMeta(item);
+                                      {groupedMedications.map((group, i) => {
+                                        const name = group?.name;
+                                        const meta = (group?.items || [])
+                                          .map(getMedMeta)
+                                          .filter(Boolean)
+                                          .map((m) => `(${m})`)
+                                          .join(" then ");
                                         return name ? (
                                           <Text
-                                            key={i}
+                                            key={group?.key || i}
                                             style={{
                                               color: "#171725",
                                               fontFamily: digitizedFont,
@@ -7078,8 +7136,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             }}
                                           >
                                             {name}
-                                            {meta ? ` (${meta})` : ""}
-                                            {i < medList.length - 1 ? ", " : ""}
+                                            {meta ? ` ${meta}` : ""}
+                                            {i < groupedMedications.length - 1
+                                              ? ", "
+                                              : ""}
                                             &nbsp;
                                           </Text>
                                         ) : null;
@@ -7104,12 +7164,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         Medication:&nbsp;
                                       </Text>
-                                      {medList.map((item, i) => {
-                                        const name = getMedName(item);
-                                        const meta = getMedMeta(item);
+                                      {groupedMedications.map((group, i) => {
+                                        const name = group?.name;
+                                        const meta = (group?.items || [])
+                                          .map(getMedMeta)
+                                          .filter(Boolean)
+                                          .map((m) => `(${m})`)
+                                          .join(" then ");
                                         return name ? (
                                           <Text
-                                            key={i}
+                                            key={group?.key || i}
                                             style={{
                                               marginTop:
                                                 PX_TO_PT * (i === 0 ? 4 : 2),
@@ -7141,7 +7205,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                               }}
                                             >
                                               {name}
-                                              {meta ? ` (${meta})` : ""}
+                                              {meta ? ` ${meta}` : ""}
                                             </Text>
                                           </Text>
                                         ) : null;
@@ -7167,283 +7231,73 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       >
                                         Medication:&nbsp;
                                       </Text>
-                                      <View
-                                        style={[styles.table, { marginTop: 0 }]}
-                                      >
-                                        <View
-                                          style={[
-                                            styles.tableRow,
-                                            { borderTop: "1px solid #171725" },
-                                          ]}
-                                          fixed
-                                        >
-                                          <View
+                                      <View style={styles.table}>
+                                        <View style={styles.headerRow} fixed>
+                                          <Text
                                             style={[
-                                              styles.tableCell,
+                                              styles.headerCell,
                                               {
-                                                width: "5%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
+                                                flex: 0.18,
+                                                fontFamily: digitizedFont,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                                color: "#000",
                                               },
                                             ]}
                                           >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontFamily: digitizedFont,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                },
-                                              ]}
-                                            >
-                                              {medicineHeaderLang("S.NO")}
-                                            </Text>
-                                          </View>
-                                          <View
+                                            {medicineHeaderLang("S.NO")}
+                                          </Text>
+                                          <Text
                                             style={[
-                                              styles.tableCell,
+                                              styles.headerCell,
                                               {
-                                                width: "26%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
+                                                fontFamily: digitizedFont,
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                                color: "#000",
                                               },
                                             ]}
                                           >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontFamily: digitizedFont,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                },
-                                              ]}
-                                            >
-                                              {medicineHeaderLang("MEDICINE")}
-                                            </Text>
-                                          </View>
+                                            {medicineHeaderLang("MEDICINE")}
+                                          </Text>
                                           <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "13%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                              },
-                                            ]}
+                                            style={{
+                                              flex:
+                                                option?.medicine_option
+                                                  ?.length === 0
+                                                  ? 0.25
+                                                  : option?.medicine_option
+                                                        ?.length === 1
+                                                    ? 0.8
+                                                    : option?.medicine_option
+                                                          ?.length === 2
+                                                      ? 1.2
+                                                      : option?.medicine_option
+                                                            ?.length === 3
+                                                        ? 1.4
+                                                        : 2.4,
+                                            }}
                                           >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontFamily: digitizedFont,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                },
-                                              ]}
-                                            >
-                                              {medicineHeaderLang("DOSE")}
-                                            </Text>
-                                          </View>
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "13%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontFamily: digitizedFont,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                },
-                                              ]}
-                                            >
-                                              {medicineHeaderLang("FREQUENCY")}
-                                            </Text>
-                                          </View>
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "11%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontFamily: digitizedFont,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                },
-                                              ]}
-                                            >
-                                              {medicineHeaderLang("DURATION")}
-                                            </Text>
-                                          </View>
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "10%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontFamily: digitizedFont,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                },
-                                              ]}
-                                            >
-                                              {medicineHeaderLang("QTY")}
-                                            </Text>
-                                          </View>
-                                          <View
-                                            style={[
-                                              styles.tableCell,
-                                              {
-                                                width: "22%",
-                                                padding: PX_TO_PT * 3,
-                                                justifyContent: "center",
-                                                borderRight: "none",
-                                              },
-                                            ]}
-                                          >
-                                            <Text
-                                              style={[
-                                                styles.cellText,
-                                                {
-                                                  fontFamily: digitizedFont,
-                                                  fontSize:
-                                                    PX_TO_PT *
-                                                    printSettings?.page_format
-                                                      ?.font_size,
-                                                },
-                                              ]}
-                                            >
-                                              {medicineHeaderLang("NOTES")}
-                                            </Text>
-                                          </View>
-                                        </View>
-                                        {medList.map((item, i) => {
-                                          const unitPerDose = (
-                                            item?.unitPerDose ||
-                                            item?.dosage ||
-                                            item?.unit_per_dose ||
-                                            ""
-                                          )
-                                            .toString()
-                                            .trim();
-                                          const when = (
-                                            item?.when ||
-                                            item?.schedule ||
-                                            item?.timing ||
-                                            ""
-                                          )
-                                            .toString()
-                                            .trim();
-                                          const note = (
-                                            item?.note ||
-                                            item?.notes ||
-                                            ""
-                                          )
-                                            .toString()
-                                            .trim();
-                                          const rawQuantity =
-                                            item?.quantity ??
-                                            item?.qty ??
-                                            item?.quantityValue ??
-                                            item?.quantity_value ??
-                                            item?.quantityText ??
-                                            item?.quantity_text ??
-                                            item?.dispense_quantity ??
-                                            item?.dispenseQuantity ??
-                                            item?.quantityDispensed ??
-                                            item?.quantity_dispensed ??
-                                            null;
-                                          const quantity =
-                                            rawQuantity === null ||
-                                            rawQuantity === undefined
-                                              ? ""
-                                              : `${rawQuantity}`.trim();
-                                          const medicationName =
-                                            getMedName(item) || "N/A";
-                                          const freqRaw = (
-                                            item?.frequency || ""
-                                          )
-                                            .toString()
-                                            .trim();
-                                          const durationRaw = (
-                                            item?.duration || ""
-                                          )
-                                            .toString()
-                                            .trim();
-                                          const freqDisplay =
-                                            getDigitizedFrequencyDisplay(
-                                              freqRaw,
-                                            );
-                                          const durationDisplay =
-                                            getDigitizedDurationDisplay(
-                                              durationRaw,
-                                            );
-                                          const whenDisplay = when
-                                            ? getDigitizedTimingDisplay(when)
-                                            : "";
-
-                                          return (
                                             <View
-                                              key={i}
-                                              style={[
-                                                styles.tableRow,
-                                                {
-                                                  flexDirection: "row",
-                                                  minHeight: PX_TO_PT * 30,
-                                                },
-                                              ]}
+                                              style={{
+                                                flexGrow: 1,
+                                                flexDirection: "row",
+                                              }}
                                             >
-                                              <View
-                                                style={[
-                                                  styles.tableCell,
-                                                  {
-                                                    width: "5%",
-                                                    padding: PX_TO_PT * 3,
-                                                    justifyContent: "center",
-                                                  },
-                                                ]}
-                                              >
+                                              {option?.medicine_option?.includes(
+                                                "dose",
+                                              ) && (
                                                 <Text
                                                   style={[
-                                                    styles.cellText,
+                                                    styles.headerCell,
                                                     {
+                                                      flex: 0.45,
                                                       fontFamily: digitizedFont,
                                                       fontSize:
                                                         PX_TO_PT *
@@ -7451,27 +7305,142 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           ?.page_format
                                                           ?.font_size,
                                                       fontWeight: 500,
+                                                      color: "#000",
                                                     },
                                                   ]}
-                                                  wrap={true}
                                                 >
-                                                  {i + 1}
+                                                  {medicineHeaderLang("DOSE")}
                                                 </Text>
-                                              </View>
-                                              <View
+                                              )}
+                                              {option?.medicine_option?.includes(
+                                                "frequency",
+                                              ) && (
+                                                <Text
+                                                  style={[
+                                                    styles.headerCell,
+                                                    {
+                                                      flex: 0.6,
+                                                      fontFamily: digitizedFont,
+                                                      fontSize:
+                                                        PX_TO_PT *
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_size,
+                                                      fontWeight: 500,
+                                                      color: "#000",
+                                                    },
+                                                  ]}
+                                                >
+                                                  {medicineHeaderLang(
+                                                    "FREQUENCY",
+                                                  )}
+                                                </Text>
+                                              )}
+                                              {option?.medicine_option?.includes(
+                                                "duration",
+                                              ) && (
+                                                <Text
+                                                  style={[
+                                                    styles.headerCell,
+                                                    {
+                                                      flex: 0.53,
+                                                      fontSize:
+                                                        PX_TO_PT *
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_size,
+                                                      fontWeight: 500,
+                                                      color: "#000",
+                                                      fontFamily: digitizedFont,
+                                                    },
+                                                  ]}
+                                                >
+                                                  {medicineHeaderLang(
+                                                    "DURATION",
+                                                  )}
+                                                </Text>
+                                              )}
+                                              {option?.medicine_option?.includes(
+                                                "quantity",
+                                              ) && (
+                                                <Text
+                                                  style={[
+                                                    styles.headerCell,
+                                                    {
+                                                      flex: 0.18,
+                                                      fontFamily: digitizedFont,
+                                                      fontSize:
+                                                        PX_TO_PT *
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_size,
+                                                      fontWeight: 500,
+                                                      color: "#000",
+                                                    },
+                                                  ]}
+                                                >
+                                                  {medicineHeaderLang("QTY")}
+                                                </Text>
+                                              )}
+                                              {option?.medicine_option?.includes(
+                                                "note",
+                                              ) && (
+                                                <Text
+                                                  style={[
+                                                    styles.headerCell,
+                                                    {
+                                                      flex: 0.7,
+                                                      fontFamily: digitizedFont,
+                                                      fontSize:
+                                                        PX_TO_PT *
+                                                        printSettings
+                                                          ?.page_format
+                                                          ?.font_size,
+                                                      fontWeight: 500,
+                                                      color: "#000",
+                                                    },
+                                                  ]}
+                                                >
+                                                  {medicineHeaderLang("NOTES")}
+                                                </Text>
+                                              )}
+                                            </View>
+                                          </View>
+                                        </View>
+                                        {groupedMedications.map((group, i) => {
+                                          const items = group?.items || [];
+                                          const isTapered = items.length > 1;
+                                          const medicationName =
+                                            group?.name || "N/A";
+
+                                          return (
+                                            <View
+                                              style={styles.row}
+                                              key={group?.key || i}
+                                              wrap={false}
+                                            >
+                                              <Text
                                                 style={[
-                                                  styles.tableCell,
+                                                  styles.cell,
                                                   {
-                                                    width: "26%",
-                                                    padding: PX_TO_PT * 3,
-                                                    justifyContent: "center",
+                                                    flex: 0.18,
+                                                    color: "#171725",
+                                                    fontFamily: digitizedFont,
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size,
+                                                    fontWeight: 500,
                                                   },
                                                 ]}
                                               >
+                                                {i + 1}
+                                              </Text>
+                                              <View style={styles.cell}>
                                                 <Text
                                                   style={[
-                                                    styles.cellText,
                                                     {
+                                                      color: "#171725",
                                                       fontFamily:
                                                         getIndianLanguageFont(
                                                           medicationName,
@@ -7483,168 +7452,248 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                           ?.page_format
                                                           ?.font_size,
                                                       fontWeight: 500,
-                                                      lineHeight: 1.2,
                                                     },
                                                   ]}
-                                                  wrap={true}
                                                 >
                                                   {medicationName}
                                                 </Text>
                                               </View>
                                               <View
-                                                style={[
-                                                  styles.tableCell,
-                                                  {
-                                                    width: "13%",
-                                                    padding: PX_TO_PT * 3,
-                                                    justifyContent: "center",
-                                                  },
-                                                ]}
+                                                style={{
+                                                  flex:
+                                                    option?.medicine_option
+                                                      ?.length === 0
+                                                      ? 0.25
+                                                      : option?.medicine_option
+                                                            ?.length === 1
+                                                        ? 0.8
+                                                        : option
+                                                              ?.medicine_option
+                                                              ?.length === 2
+                                                          ? 1.2
+                                                          : option
+                                                                ?.medicine_option
+                                                                ?.length === 3
+                                                            ? 1.4
+                                                            : 2.4,
+                                                }}
                                               >
-                                                <Text
-                                                  style={[
-                                                    styles.cellText,
-                                                    {
-                                                      fontFamily: digitizedFont,
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 500,
-                                                      lineHeight: 1.2,
-                                                    },
-                                                  ]}
-                                                  wrap={true}
-                                                >
-                                                  {unitPerDose || "-"}
-                                                </Text>
-                                              </View>
-                                              <View
-                                                style={[
-                                                  styles.tableCell,
-                                                  {
-                                                    width: "13%",
-                                                    padding: PX_TO_PT * 3,
-                                                    justifyContent: "center",
-                                                  },
-                                                ]}
-                                              >
-                                                <Text
-                                                  style={[
-                                                    styles.cellText,
-                                                    {
-                                                      fontFamily: digitizedFont,
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 500,
-                                                      lineHeight: 1.2,
-                                                    },
-                                                  ]}
-                                                  wrap={true}
-                                                >
-                                                  {freqDisplay}
-                                                  {whenDisplay
-                                                    ? `\n${whenDisplay}`
-                                                    : ""}
-                                                </Text>
-                                              </View>
-                                              <View
-                                                style={[
-                                                  styles.tableCell,
-                                                  {
-                                                    width: "11%",
-                                                    padding: PX_TO_PT * 3,
-                                                    justifyContent: "center",
-                                                  },
-                                                ]}
-                                              >
-                                                <Text
-                                                  style={[
-                                                    styles.cellText,
-                                                    {
-                                                      fontFamily: digitizedFont,
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 500,
-                                                      lineHeight: 1.2,
-                                                    },
-                                                  ]}
-                                                  wrap={true}
-                                                >
-                                                  {durationDisplay}
-                                                </Text>
-                                              </View>
-                                              <View
-                                                style={[
-                                                  styles.tableCell,
-                                                  {
-                                                    width: "10%",
-                                                    padding: PX_TO_PT * 3,
-                                                    justifyContent: "center",
-                                                  },
-                                                ]}
-                                              >
-                                                <Text
-                                                  style={[
-                                                    styles.cellText,
-                                                    {
-                                                      fontFamily: digitizedFont,
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 500,
-                                                      lineHeight: 1.2,
-                                                    },
-                                                  ]}
-                                                  wrap={true}
-                                                >
-                                                  {Number(quantity)
-                                                    ? quantity
-                                                    : "-"}
-                                                </Text>
-                                              </View>
-                                              <View
-                                                style={[
-                                                  styles.tableCell,
-                                                  {
-                                                    width: "22%",
-                                                    padding: PX_TO_PT * 3,
-                                                    justifyContent: "center",
-                                                    borderRight: "none",
-                                                  },
-                                                ]}
-                                              >
-                                                <Text
-                                                  style={[
-                                                    styles.cellText,
-                                                    {
-                                                      fontFamily:
-                                                        getIndianLanguageFont(
-                                                          note,
-                                                          digitizedFont,
-                                                        ),
-                                                      fontSize:
-                                                        PX_TO_PT *
-                                                        printSettings
-                                                          ?.page_format
-                                                          ?.font_size,
-                                                      fontWeight: 500,
-                                                      lineHeight: 1.2,
-                                                    },
-                                                  ]}
-                                                  wrap={true}
-                                                >
-                                                  {note || "-"}
-                                                </Text>
+                                                {items.map((item, ii) => {
+                                                  const isLastItem =
+                                                    ii === items.length - 1;
+                                                  const unitPerDose = (
+                                                    item?.unitPerDose ||
+                                                    item?.dosage ||
+                                                    item?.unit_per_dose ||
+                                                    ""
+                                                  )
+                                                    .toString()
+                                                    .trim();
+                                                  const when = (
+                                                    item?.when ||
+                                                    item?.schedule ||
+                                                    item?.timing ||
+                                                    ""
+                                                  )
+                                                    .toString()
+                                                    .trim();
+                                                  const note = (
+                                                    item?.note ||
+                                                    item?.notes ||
+                                                    ""
+                                                  )
+                                                    .toString()
+                                                    .trim();
+                                                  const rawQuantity =
+                                                    item?.quantity ??
+                                                    item?.qty ??
+                                                    item?.quantityValue ??
+                                                    item?.quantity_value ??
+                                                    item?.quantityText ??
+                                                    item?.quantity_text ??
+                                                    item?.dispense_quantity ??
+                                                    item?.dispenseQuantity ??
+                                                    item?.quantityDispensed ??
+                                                    item?.quantity_dispensed ??
+                                                    null;
+                                                  const quantity =
+                                                    rawQuantity === null ||
+                                                    rawQuantity === undefined
+                                                      ? ""
+                                                      : `${rawQuantity}`.trim();
+                                                  const freqRaw = (
+                                                    item?.frequency || ""
+                                                  )
+                                                    .toString()
+                                                    .trim();
+                                                  const durationRaw = (
+                                                    item?.duration || ""
+                                                  )
+                                                    .toString()
+                                                    .trim();
+                                                  const freqDisplay =
+                                                    getDigitizedFrequencyDisplay(
+                                                      freqRaw,
+                                                    );
+                                                  const durationDisplay =
+                                                    getDigitizedDurationDisplay(
+                                                      durationRaw,
+                                                    );
+                                                  const whenDisplay = when
+                                                    ? getDigitizedTimingDisplay(
+                                                        when,
+                                                      )
+                                                    : "";
+
+                                                  return (
+                                                    <View
+                                                      style={{
+                                                        flexGrow: 1,
+                                                        flexDirection: "row",
+                                                        borderBottom:
+                                                          ii != items.length - 1
+                                                            ? "1px solid #171725"
+                                                            : "0px",
+                                                      }}
+                                                      key={ii}
+                                                    >
+                                                      {option?.medicine_option
+                                                        ?.length &&
+                                                        isTapered &&
+                                                        !isLastItem && (
+                                                          <ThenConnector
+                                                            printSettings={
+                                                              printSettings
+                                                            }
+                                                          />
+                                                        )}
+                                                      {option?.medicine_option?.includes(
+                                                        "dose",
+                                                      ) && (
+                                                        <Text
+                                                          style={[
+                                                            styles.cell,
+                                                            {
+                                                              flex: 0.45,
+                                                              color: "#171725",
+                                                              fontFamily:
+                                                                digitizedFont,
+                                                              fontSize:
+                                                                PX_TO_PT *
+                                                                printSettings
+                                                                  ?.page_format
+                                                                  ?.font_size,
+                                                              fontWeight: 500,
+                                                            },
+                                                          ]}
+                                                        >
+                                                          {unitPerDose || "-"}
+                                                        </Text>
+                                                      )}
+                                                      {option?.medicine_option?.includes(
+                                                        "frequency",
+                                                      ) && (
+                                                        <Text
+                                                          style={[
+                                                            styles.cell,
+                                                            {
+                                                              flex: 0.6,
+                                                              color: "#171725",
+                                                              fontFamily:
+                                                                digitizedFont,
+                                                              fontSize:
+                                                                PX_TO_PT *
+                                                                printSettings
+                                                                  ?.page_format
+                                                                  ?.font_size,
+                                                              fontWeight: 400,
+                                                            },
+                                                          ]}
+                                                        >
+                                                          {freqDisplay || "-"}
+                                                          {whenDisplay
+                                                            ? `\n${whenDisplay}`
+                                                            : ""}
+                                                        </Text>
+                                                      )}
+                                                      {option?.medicine_option?.includes(
+                                                        "duration",
+                                                      ) && (
+                                                        <Text
+                                                          style={[
+                                                            styles.cell,
+                                                            {
+                                                              flex: 0.53,
+                                                              color: "#171725",
+                                                              fontFamily:
+                                                                digitizedFont,
+                                                              fontSize:
+                                                                PX_TO_PT *
+                                                                printSettings
+                                                                  ?.page_format
+                                                                  ?.font_size,
+                                                              fontWeight: 400,
+                                                            },
+                                                          ]}
+                                                        >
+                                                          {durationDisplay ||
+                                                            "-"}
+                                                        </Text>
+                                                      )}
+                                                      {option?.medicine_option?.includes(
+                                                        "quantity",
+                                                      ) && (
+                                                        <Text
+                                                          style={[
+                                                            styles.cell,
+                                                            {
+                                                              flex: 0.18,
+                                                              color: "#171725",
+                                                              fontFamily:
+                                                                digitizedFont,
+                                                              fontSize:
+                                                                PX_TO_PT *
+                                                                printSettings
+                                                                  ?.page_format
+                                                                  ?.font_size,
+                                                              fontWeight: 400,
+                                                            },
+                                                          ]}
+                                                        >
+                                                          {Number(quantity)
+                                                            ? quantity
+                                                            : "-"}
+                                                        </Text>
+                                                      )}
+                                                      {option?.medicine_option?.includes(
+                                                        "note",
+                                                      ) && (
+                                                        <Text
+                                                          style={[
+                                                            styles.cell,
+                                                            {
+                                                              flex: 0.7,
+                                                              color: "#171725",
+                                                              fontFamily:
+                                                                getIndianLanguageFont(
+                                                                  note,
+                                                                  digitizedFont,
+                                                                ),
+                                                              fontSize:
+                                                                PX_TO_PT *
+                                                                printSettings
+                                                                  ?.page_format
+                                                                  ?.font_size,
+                                                              fontWeight: 400,
+                                                            },
+                                                          ]}
+                                                        >
+                                                          {note || "-"}&nbsp;
+                                                        </Text>
+                                                      )}
+                                                    </View>
+                                                  );
+                                                })}
                                               </View>
                                             </View>
                                           );
@@ -7668,12 +7717,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     >
                                       Medication:&nbsp;
                                     </Text>
-                                    {medList.map((item, i) => {
-                                      const name = getMedName(item);
-                                      const meta = getMedMeta(item);
+                                    {groupedMedications.map((group, i) => {
+                                      const name = group?.name;
+                                      const meta = (group?.items || [])
+                                        .map(getMedMeta)
+                                        .filter(Boolean)
+                                        .map((m) => `(${m})`)
+                                        .join(" then ");
                                       return name ? (
                                         <Text
-                                          key={i}
+                                          key={group?.key || i}
                                           style={{
                                             marginTop:
                                               PX_TO_PT * (i === 0 ? 4 : 2),
@@ -7705,7 +7758,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             }}
                                           >
                                             {name}
-                                            {meta ? ` (${meta})` : ""}
+                                            {meta ? ` ${meta}` : ""}
                                           </Text>
                                         </Text>
                                       ) : null;
@@ -8140,7 +8193,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 700,
                                     }}
                                   >
-                                    Lab Investigation:&nbsp;
+                                    Investigation:&nbsp;
                                   </Text>
                                   {caseManagerData?.investigation?.map(
                                     (item, i) => {
@@ -8231,7 +8284,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 700,
                                     }}
                                   >
-                                    Lab Investigation:&nbsp;
+                                    Investigation:&nbsp;
                                   </Text>
                                   {caseManagerData?.investigation?.map(
                                     (item, i) => {
@@ -8316,7 +8369,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       marginBottom: PX_TO_PT * 6,
                                     }}
                                   >
-                                    Lab Investigation:&nbsp;
+                                    Investigation:&nbsp;
                                   </Text>
                                   <View style={styles.table}>
                                     <View style={styles.headerRow} fixed>
@@ -8436,7 +8489,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 700,
                                     }}
                                   >
-                                    Lab Investigation:&nbsp;
+                                    Investigation:&nbsp;
                                   </Text>
                                   {(
                                     digitizedData?.labInvestigation ||
@@ -8499,7 +8552,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       fontWeight: 700,
                                     }}
                                   >
-                                    Lab Investigation:&nbsp;
+                                    Investigation:&nbsp;
                                   </Text>
                                   {(
                                     digitizedData?.labInvestigation ||
@@ -8561,7 +8614,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       marginBottom: PX_TO_PT * 6,
                                     }}
                                   >
-                                    Lab Investigation:&nbsp;
+                                    Investigation:&nbsp;
                                   </Text>
                                   <View style={styles.table}>
                                     <View style={styles.headerRow} fixed>
@@ -10547,137 +10600,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
                           <>
-                            {/* Check for digitized follow-up first (skip if option 11 already shows it) */}
-                            {isDigitizedFlow() &&
-                            shouldRenderSection(9) &&
-                            digitizedData?.followUp ? (
-                              option?.format === "inline" ? (
-                                <Text style={{ marginTop: PX_TO_PT * 15 }}>
-                                  <Text
-                                    fixed
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 700,
-                                      lineHeight: 2,
-                                    }}
-                                  >
-                                    Follow-up:&nbsp;
-                                  </Text>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 400,
-                                    }}
-                                  >
-                                    {digitizedData?.followUp}
-                                  </Text>
-                                </Text>
-                              ) : option?.format === "listview" ? (
-                                <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                  <Text
-                                    fixed
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 700,
-                                      lineHeight: 2,
-                                    }}
-                                  >
-                                    Follow-up:&nbsp;
-                                  </Text>
-                                  <Text
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 400,
-                                      marginTop: PX_TO_PT * 4,
-                                    }}
-                                  >
-                                    {digitizedData?.followUp}
-                                  </Text>
-                                </View>
-                              ) : (
-                                <View style={{ marginTop: PX_TO_PT * 15 }}>
-                                  <Text
-                                    fixed
-                                    style={{
-                                      color: "#171725",
-                                      fontFamily:
-                                        printSettings?.page_format?.font_family,
-                                      fontSize:
-                                        PX_TO_PT *
-                                        printSettings?.page_format?.font_size,
-                                      fontWeight: 700,
-                                      lineHeight: 2,
-                                    }}
-                                  >
-                                    Follow-up:&nbsp;
-                                  </Text>
-                                  <View style={styles.table}>
-                                    <View style={styles.headerRow} fixed>
-                                      <Text
-                                        style={[
-                                          styles.headerCell,
-                                          {
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 500,
-                                            color: "#000",
-                                          },
-                                        ]}
-                                      >
-                                        FOLLOW UP
-                                      </Text>
-                                    </View>
-                                    <View style={styles.row} wrap={false}>
-                                      <Text
-                                        style={[
-                                          styles.cell,
-                                          {
-                                            color: "#171725",
-                                            fontFamily:
-                                              printSettings?.page_format
-                                                ?.font_family,
-                                            fontSize:
-                                              PX_TO_PT *
-                                              printSettings?.page_format
-                                                ?.font_size,
-                                            fontWeight: 400,
-                                          },
-                                        ]}
-                                      >
-                                        {digitizedData?.followUp}&nbsp;
-                                      </Text>
-                                    </View>
-                                  </View>
-                                </View>
-                              )
-                            ) : (
-                              !isDigitizedFlow() &&
-                              !rx &&
+                            {showConsultSectionsWhenRx &&
                               caseManagerData?.follow_up_date &&
                               (option?.format === "inline" ? (
                                 <Text style={{ marginTop: PX_TO_PT * 15 }}>
@@ -10820,8 +10743,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </Text>
                                   </View>
                                 </View>
-                              ))
-                            )}
+                              ))}
                           </>
                         ) : option?.id === 91 &&
                           option?.enable === "Y" &&
@@ -14525,6 +14447,275 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   </View>
                                 </View>
                               ))}
+                            {option?.id === 16 &&
+                              (!rx || showConsultSectionsWhenRx) &&
+                              isDigitizedFlow() &&
+                              digitizedData?.surgeries?.length > 0 &&
+                              (option?.format === "inline" ? (
+                                <Text
+                                  style={{
+                                    marginTop: PX_TO_PT * 15,
+                                    lineHeight: 1.4,
+                                  }}
+                                >
+                                  <Text
+                                    fixed
+                                    style={{
+                                      color: "#171725",
+                                      fontFamily: digitizedFont,
+                                      fontSize:
+                                        PX_TO_PT *
+                                        printSettings?.page_format?.font_size,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Surgeries/Procedures:&nbsp;
+                                  </Text>
+                                  {digitizedData?.surgeries?.map((item, i) => (
+                                    <Text key={i}>
+                                      <Text
+                                        style={{
+                                          color: "#171725",
+                                          fontFamily: getIndianLanguageFont(
+                                            item?.name,
+                                            digitizedFont,
+                                          ),
+                                          fontSize:
+                                            PX_TO_PT *
+                                            printSettings?.page_format
+                                              ?.font_size,
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {item?.name || item?.lineItem || ""}
+                                        &nbsp;
+                                      </Text>
+                                      {item?.notes ? (
+                                        <Text
+                                          style={{
+                                            color: "#171725",
+                                            fontFamily: getIndianLanguageFont(
+                                              item?.notes,
+                                              digitizedFont,
+                                            ),
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 400,
+                                          }}
+                                        >
+                                          {`(${item?.notes})`}
+                                          {digitizedData?.surgeries?.length -
+                                            1 !==
+                                          i
+                                            ? ","
+                                            : ""}
+                                          &nbsp;
+                                        </Text>
+                                      ) : (
+                                        <Text
+                                          style={{
+                                            color: "#171725",
+                                            fontFamily: digitizedFont,
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 400,
+                                          }}
+                                        >
+                                          {digitizedData?.surgeries?.length -
+                                            1 !==
+                                          i
+                                            ? ","
+                                            : ""}
+                                          &nbsp;
+                                        </Text>
+                                      )}
+                                    </Text>
+                                  ))}
+                                </Text>
+                              ) : option?.format === "listview" ? (
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text
+                                    fixed
+                                    style={{
+                                      color: "#171725",
+                                      fontFamily: digitizedFont,
+                                      fontSize:
+                                        PX_TO_PT *
+                                        printSettings?.page_format?.font_size,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Surgeries/Procedures:&nbsp;
+                                  </Text>
+                                  {digitizedData?.surgeries?.map((item, i) => (
+                                    <Text
+                                      key={i}
+                                      style={{
+                                        marginTop: PX_TO_PT * (i === 0 ? 4 : 2),
+                                        lineHeight: 1.4,
+                                      }}
+                                    >
+                                      <Text
+                                        style={{
+                                          color: "#171725",
+                                          fontFamily: digitizedFont,
+                                          fontSize:
+                                            PX_TO_PT *
+                                            printSettings?.page_format
+                                              ?.font_size,
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        &nbsp;{i + 1}.&nbsp;
+                                      </Text>
+                                      <Text
+                                        style={{
+                                          color: "#171725",
+                                          fontFamily: getIndianLanguageFont(
+                                            item?.name,
+                                            digitizedFont,
+                                          ),
+                                          fontSize:
+                                            PX_TO_PT *
+                                            printSettings?.page_format
+                                              ?.font_size,
+                                          fontWeight: 400,
+                                        }}
+                                      >
+                                        {item?.name || item?.lineItem || ""}
+                                        &nbsp;
+                                      </Text>
+                                      {item?.notes && (
+                                        <Text
+                                          style={{
+                                            color: "#171725",
+                                            fontFamily: getIndianLanguageFont(
+                                              item?.notes,
+                                              digitizedFont,
+                                            ),
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 400,
+                                          }}
+                                        >{`(${item?.notes})\n`}</Text>
+                                      )}
+                                    </Text>
+                                  ))}
+                                </View>
+                              ) : (
+                                <View style={{ marginTop: PX_TO_PT * 15 }}>
+                                  <Text
+                                    fixed
+                                    style={{
+                                      color: "#171725",
+                                      fontFamily: digitizedFont,
+                                      fontSize:
+                                        PX_TO_PT *
+                                        printSettings?.page_format?.font_size,
+                                      fontWeight: 700,
+                                      marginBottom: PX_TO_PT * 6,
+                                    }}
+                                  >
+                                    Surgeries/Procedures:&nbsp;
+                                  </Text>
+                                  <View style={styles.table}>
+                                    <View style={styles.headerRow} fixed>
+                                      <Text
+                                        style={[
+                                          styles.headerCell,
+                                          {
+                                            fontFamily: digitizedFont,
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 500,
+                                            color: "#000",
+                                          },
+                                        ]}
+                                      >
+                                        NAME
+                                      </Text>
+                                      <Text
+                                        style={[
+                                          styles.headerCell,
+                                          {
+                                            fontFamily: digitizedFont,
+                                            fontSize:
+                                              PX_TO_PT *
+                                              printSettings?.page_format
+                                                ?.font_size,
+                                            fontWeight: 500,
+                                            color: "#000",
+                                          },
+                                        ]}
+                                      >
+                                        NOTE
+                                      </Text>
+                                    </View>
+                                    {digitizedData?.surgeries?.map(
+                                      (item, i) => (
+                                        <View
+                                          style={styles.row}
+                                          key={i}
+                                          wrap={false}
+                                        >
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                color: "#171725",
+                                                fontFamily:
+                                                  getIndianLanguageFont(
+                                                    item?.name,
+                                                    digitizedFont,
+                                                  ),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 500,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.name ||
+                                              item?.lineItem ||
+                                              "-"}
+                                            &nbsp;
+                                          </Text>
+                                          <Text
+                                            style={[
+                                              styles.cell,
+                                              {
+                                                color: "#171725",
+                                                fontFamily:
+                                                  getIndianLanguageFont(
+                                                    item?.notes,
+                                                    digitizedFont,
+                                                  ),
+                                                fontSize:
+                                                  PX_TO_PT *
+                                                  printSettings?.page_format
+                                                    ?.font_size,
+                                                fontWeight: 400,
+                                              },
+                                            ]}
+                                          >
+                                            {item?.notes ? item?.notes : "-"}
+                                            &nbsp;
+                                          </Text>
+                                        </View>
+                                      ),
+                                    )}
+                                  </View>
+                                </View>
+                              ))}
                           </>
                         ) : option?.is_custom_module === true &&
                           option?.enable === "Y" &&
@@ -16198,27 +16389,27 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
           {/* </View> */}
           {/* <View
-                        fixed
-                        render={({ pageNumber }) => {
-                            const isFirstPage = pageNumber === 1;
-                            const isOwnLetterheadFirstPageOnly = printSettings?.letterhead_format === 2 && showMode === 'first';
-                            
-                            if (isOwnLetterheadFirstPageOnly && isFirstPage) {
-                                // On first page, add bottom spacer to match user's intended letterhead margins
-                                const userBottomMargin = getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "bottom", 0.5);
-                                const standardMargin = 0.5 * 25; // 0.5 inches in points
-                                const extraBottomSpace = Math.max(0, userBottomMargin - standardMargin);
+                            fixed
+                            render={({ pageNumber }) => {
+                                const isFirstPage = pageNumber === 1;
+                                const isOwnLetterheadFirstPageOnly = printSettings?.letterhead_format === 2 && showMode === 'first';
                                 
-                                return (
-                                    <View style={{
-                                        marginBottom: extraBottomSpace,
-                                        height: 0,
-                                    }} />
-                                );
-                            }
-                            return null;
-                        }}
-                    /> */}
+                                if (isOwnLetterheadFirstPageOnly && isFirstPage) {
+                                    // On first page, add bottom spacer to match user's intended letterhead margins
+                                    const userBottomMargin = getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "bottom", 0.5);
+                                    const standardMargin = 0.5 * 25; // 0.5 inches in points
+                                    const extraBottomSpace = Math.max(0, userBottomMargin - standardMargin);
+                                    
+                                    return (
+                                        <View style={{
+                                            marginBottom: extraBottomSpace,
+                                            height: 0,
+                                        }} />
+                                    );
+                                }
+                                return null;
+                            }}
+                        /> */}
           {
             <View
               style={{

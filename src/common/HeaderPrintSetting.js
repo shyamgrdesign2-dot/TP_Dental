@@ -220,7 +220,8 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         selectedLang: selectedLang,
                         print_url: print_url,
                         isAmbientRx: isAmbientRx,
-                        rxId: rxId
+                        rxId: rxId,
+                        currentSessionRx: null
                     } 
                 });
             } else if (previousPage === "/snap-rx/preview") {
@@ -229,7 +230,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: { 
                         ...state, 
                         selectedLang: selectedLang,
-                        currentSessionRx: currentSessionRx,
+                        currentSessionRx: null,
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files,
                         files: state?.files || state?.smartRxFile
@@ -241,7 +242,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: { 
                         ...state, 
                         selectedLang: selectedLang,
-                        currentSessionRx: currentSessionRx,
+                        currentSessionRx: null,
                         from: "/configure_print_setting",
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files
