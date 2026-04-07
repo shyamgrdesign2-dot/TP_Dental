@@ -495,16 +495,6 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
               <div className="absolute inset-0 rounded-[12px] bg-black/0 group-hover:bg-black/10 transition-colors duration-300 pointer-events-none" />
             </div>
 
-            {/* Pro tip — info icon (linear), highlighted text, no bg on icon */}
-            <div className="mt-[12px] flex items-start gap-[8px] rounded-[10px] bg-amber-50/50 px-[12px] py-[10px]">
-              <InfoCircle size={16} color="#d97706" variant="Linear" className="shrink-0 mt-[1px]" />
-              <p className="font-sans text-[12px] text-amber-700/80 leading-[1.5]">
-                <span className="font-semibold text-amber-800">Pro tip:</span>{" "}
-                <span className="text-amber-700/70">Right-click on any tooth in the </span>
-                <span className="font-semibold text-amber-800">3D model</span>
-                <span className="text-amber-700/70"> to start recording findings instantly.</span>
-              </p>
-            </div>
           </div>
         </div>
       )}

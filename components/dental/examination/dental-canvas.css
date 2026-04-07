@@ -66,7 +66,7 @@
   bottom: 6px;
   width: 4px;
   border-radius: 8px 0 0 8px;
-  background: var(--tp-blue-500);
+  background: #8b5cf6;
 }
 .dental-canvas-root .tooth-name-text {
   display: inline-block;

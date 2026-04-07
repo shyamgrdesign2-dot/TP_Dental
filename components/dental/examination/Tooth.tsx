@@ -305,6 +305,50 @@ function lerpAngle(a: number, b: number, t: number) { let d = b - a; while (d > 
 // Pre-compute zone color vectors once (avoids allocating 7 Vector3s per material per frame)
 const _cachedColorVecs = ALL_ZONES.map(z => new THREE.Vector3(...ZONE_INFO[z].colorVec))
 const WHOLE_TOOTH_COLOR = new THREE.Vector3(...ZONE_INFO.whole.colorVec)
+const _warmedShaderVariants = new Set<string>()
+
+export function getDentalShaderVariantKey(flags: {
+  isImplant?: boolean
+  isMissing?: boolean
+  isCrown?: boolean
+  isRCT?: boolean
+  isBridge?: boolean
+  isDenture?: boolean
+}) {
+  return [
+    flags.isImplant ? 'i1' : 'i0',
+    flags.isMissing ? 'm1' : 'm0',
+    flags.isCrown ? 'c1' : 'c0',
+    flags.isRCT ? 'r1' : 'r0',
+    flags.isBridge ? 'b1' : 'b0',
+    flags.isDenture ? 'd1' : 'd0',
+  ].join('|')
+}
+
+export function prewarmDentalShaderProgram({
+  gl,
+  camera,
+  source,
+  variantKey,
+}: {
+  gl: THREE.WebGLRenderer
+  camera: THREE.Camera
+  source: THREE.Object3D
+  variantKey: string
+}) {
+  if (_warmedShaderVariants.has(variantKey)) return
+  try {
+    const warmupScene = new THREE.Scene()
+    // Clone keeps material refs so we compile the same shader programs.
+    const warmupRoot = source.clone(true)
+    warmupScene.add(warmupRoot)
+    gl.compile(warmupScene, camera)
+    warmupScene.remove(warmupRoot)
+    _warmedShaderVariants.add(variantKey)
+  } catch {
+    // Best-effort optimization only; normal render path remains valid.
+  }
+}
 
 export function injectShader(
   material: THREE.Material,
@@ -1631,7 +1675,7 @@ export function Tooth({
     }
   } | null>(null)
   const [boundsReady, setBoundsReady] = useState(0)
-  const { camera } = useThree()
+  const { camera, gl } = useThree()
 
   useLayoutEffect(() => {
     let cancelled = false
@@ -1692,12 +1736,26 @@ export function Tooth({
           }
           setBoundsReady(v => v + 1)
 
+          const isMissingOrExtraction = toothDiagnoses.has('Missing') || toothDiagnoses.has('Extraction')
           shaderRefs.current = []
           for (const mat of materials) {
             shaderRefs.current.push(
-              injectShader(mat, cervicalY, cejY, crownBottomY, center.x, center.z, arch, quadrant, zoneYawRad, toothFdi, isImplant, toothDiagnoses.has('Missing') || toothDiagnoses.has('Extraction'), toothDiagnoses.has('Crown'), toothDiagnoses.has('RCT'), toothDiagnoses.has('Bridge'), toothDiagnoses.has('Denture')),
+              injectShader(mat, cervicalY, cejY, crownBottomY, center.x, center.z, arch, quadrant, zoneYawRad, toothFdi, isImplant, isMissingOrExtraction, toothDiagnoses.has('Crown'), toothDiagnoses.has('RCT'), toothDiagnoses.has('Bridge'), toothDiagnoses.has('Denture')),
             )
           }
+          prewarmDentalShaderProgram({
+            gl,
+            camera,
+            source: clonedScene,
+            variantKey: getDentalShaderVariantKey({
+              isImplant,
+              isMissing: isMissingOrExtraction,
+              isCrown: toothDiagnoses.has('Crown'),
+              isRCT: toothDiagnoses.has('RCT'),
+              isBridge: toothDiagnoses.has('Bridge'),
+              isDenture: toothDiagnoses.has('Denture'),
+            }),
+          })
 
           if (isImplant) {
             // Scale implant to fit proportionally within the tooth

@@ -8,7 +8,9 @@ import { TEETH, PEDIATRIC_TEETH, ARCH_POSITIONS, PEDIATRIC_ARCH_POSITIONS, ZONE_
 import {
   cloneSceneWithUniqueMaterials,
   injectShader,
+  getDentalShaderVariantKey,
   ImplantScrew,
+  prewarmDentalShaderProgram,
   PreparedStump,
   RootCanals,
   getDirsForTooth,
@@ -40,6 +42,7 @@ interface ArchToothProps {
 const ArchTooth = memo(function ArchTooth({
   tooth, archPose, toothScale = 1, diagnoses, findings, treatmentHistoryTags, isImplant, isHovered, isPinned, onHover, onClick, onPin,
 }: ArchToothProps) {
+  const { gl, camera } = useThree()
   const gltf = useGLTF(tooth.modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
   const groupRef = useRef<THREE.Group>(null)   // Center ref (for bounding box)
@@ -70,7 +73,6 @@ const ArchTooth = memo(function ArchTooth({
   const implantBB = useRef<THREE.Box3 | null>(null)
   const shaderRefs = useRef<Array<{ shader: any }>>([])
   const zoneFindingsRef = useRef<number[]>([0, 0, 0, 0, 0, 0, 0])
-  const [shaderReady, setShaderReady] = useState(false)
 
   // Update findings ref whenever findings change — picked up next frame
   useEffect(() => {
@@ -105,7 +107,6 @@ const ArchTooth = memo(function ArchTooth({
   // No guard ref — always re-inject when diagnosis flags change.
   // Uses requestAnimationFrame to wait for <Center> layout.
   useEffect(() => {
-    setShaderReady(false)
     const applyToCurrentScene = () => {
       if (!groupRef.current) return false
       groupRef.current.updateMatrixWorld(true)
@@ -135,7 +136,7 @@ const ArchTooth = memo(function ArchTooth({
         ? -Math.PI * (tooth.position - 1) / 14
         : Math.PI * (tooth.position - 1) / 14
 
-      // Collect materials and inject the identical shader
+      // Collect materials and inject the same shader as single-tooth view.
       const materials: THREE.Material[] = []
       clonedScene.traverse((obj: THREE.Object3D) => {
         const m = obj as THREE.Mesh
@@ -154,9 +155,21 @@ const ArchTooth = memo(function ArchTooth({
             isImplant, isMissing, isCrown, isRCT, isBridge, isDenture,
           )
         )
-        // Force immediate recompilation so we don't show partially-updated tooth colors.
         mat.needsUpdate = true
       }
+      prewarmDentalShaderProgram({
+        gl,
+        camera,
+        source: clonedScene,
+        variantKey: getDentalShaderVariantKey({
+          isImplant,
+          isMissing,
+          isCrown,
+          isRCT,
+          isBridge,
+          isDenture,
+        }),
+      })
 
       // Compute implant placement + store bb
       implantBB.current = bb
@@ -203,7 +216,6 @@ const ArchTooth = memo(function ArchTooth({
           distal: transformDir(dirs.distal),
         })
       }
-      setShaderReady(true)
       return true
     }
 
@@ -218,30 +230,26 @@ const ArchTooth = memo(function ArchTooth({
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [clonedScene, tooth, isImplant, isMissing, isCrown, isRCT, isBridge, isDenture])
+  }, [clonedScene, tooth, isImplant, isMissing, isCrown, isRCT, isBridge, isDenture, gl, camera])
 
-  // Hover glow via useFrame — no React re-renders
-  const hoverRef = useRef(false)
-  hoverRef.current = isHovered
-
-  useFrame(() => {
+  // Hover glow on state change (avoid per-frame traversals across all teeth).
+  useEffect(() => {
     if (!meshRef.current) return
     meshRef.current.traverse((obj) => {
       const m = obj as THREE.Mesh
       if (m.isMesh && m.material && !Array.isArray(m.material)) {
         const mat = m.material as THREE.MeshStandardMaterial
-        // Skip metallic implant materials — only glow the tooth itself
         if (mat.metalness > 0.5) return
-        if (hoverRef.current) {
-          mat.emissiveIntensity = Math.min(mat.emissiveIntensity + 0.08, 0.35)
+        if (isHovered) {
+          mat.emissiveIntensity = 0.32
           mat.emissive.set('#4a9eff')
         } else {
-          mat.emissiveIntensity = Math.max(mat.emissiveIntensity - 0.06, 0)
-          if (mat.emissiveIntensity < 0.01) mat.emissive.set('#000000')
+          mat.emissiveIntensity = 0
+          mat.emissive.set('#000000')
         }
       }
     })
-  })
+  }, [isHovered])
 
   if (!archPose) return null
 
@@ -288,7 +296,6 @@ const ArchTooth = memo(function ArchTooth({
         <Center ref={groupRef}>
           <primitive
             object={clonedScene}
-            visible={shaderReady}
             onPointerEnter={handlePointerEnter}
             onPointerLeave={handlePointerLeave}
             onClick={handleClick}
@@ -644,48 +651,84 @@ function DentitionTooltip({
   allEntries?: ToothEntry[]
   toothNotes?: Record<string, string>
 }) {
-  const tooltipGroupRef = useRef<THREE.Group>(null!)
-  const lineRef = useRef<any>(null)
-  const { camera } = useThree()
+  const tooltipRef = useRef<HTMLDivElement | null>(null)
+  const connectorRef = useRef<HTMLDivElement | null>(null)
+  const { camera, gl, size } = useThree()
+  const violetAccent = {
+    stroke: '#8B5CF6',
+    badgeBg: '#8B5CF6',
+    badgeText: '#ffffff',
+  } as const
 
   // With the narrow side panel and wider 3D canvas, horizontal space on either
   // side of the arch is limited. Place tooltip ABOVE maxillary teeth and BELOW
   // mandibular teeth so it always lands in the whitespace outside the arch —
   // never behind a tooth.
   const isMax = tooth.arch === 'maxillary'
-  const toothOnScreenRight = tooth.quadrant === 'upper-left' || tooth.quadrant === 'lower-left'
-  // Small horizontal nudge toward the tooth's side so the leader line stays short
-  const offsetX = toothOnScreenRight ? 1.1 : -1.1
-  // Keep tooltip closer to tooth so it stays inside the visible canvas area.
-  const offsetY = isMax ? 1.18 : -1.18
-  const offsetZ = -8.2
-  // Anchor tooltip horizontally on the tooth's side; keep it below/above vertically
-  const tooltipTransform = "translate(-50%, " + (isMax ? "0%" : "-100%") + ")"
-  const tooltipOrigin = isMax ? "center top" : "center bottom"
-
-  const toothWorldPos = useMemo(() => {
+  // Anchor near the outer edge of the tooth rather than its center, then keep
+  // a consistent visual gap in screen-space via dynamic transform.
+  const tooltipAnchorWorld = useMemo(() => {
     if (!archPose) return new THREE.Vector3()
-    return new THREE.Vector3(archPose.position[0], archPose.position[1], archPose.position[2])
-  }, [archPose])
+    return new THREE.Vector3(
+      archPose.position[0],
+      archPose.position[1] + (isMax ? 0.72 : -0.72),
+      archPose.position[2],
+    )
+  }, [archPose, isMax])
 
   useFrame(() => {
-    if (!tooltipGroupRef.current) return
-    // Place tooltip at a fixed offset in CAMERA space — so it stays put on
-    // screen even as the user rotates the camera around the dentition.
-    const localPos = new THREE.Vector3(offsetX, offsetY, offsetZ)
-    localPos.applyMatrix4(camera.matrixWorld)
-    tooltipGroupRef.current.position.copy(localPos)
+    const el = tooltipRef.current
+    if (!el) return
+    const canvasRect = gl.domElement.getBoundingClientRect()
+    const projected = tooltipAnchorWorld.clone().project(camera)
+    // Hide if clipped behind camera/frustum.
+    if (projected.z < -1 || projected.z > 1) {
+      el.style.opacity = "0"
+      return
+    }
+    el.style.opacity = "1"
 
-    // Update the leader line endpoints: tooth center → tooltip anchor
-    if (lineRef.current?.geometry) {
-      const geo = lineRef.current.geometry
-      const pts = geo.attributes.position
-      pts.setXYZ(0, toothWorldPos.x, toothWorldPos.y, toothWorldPos.z)
-      pts.setXYZ(1, localPos.x, localPos.y, localPos.z)
-      pts.needsUpdate = true
-      geo.computeBoundingSphere()
-      // Recompute line distances for dashed rendering
-      if (lineRef.current.computeLineDistances) lineRef.current.computeLineDistances()
+    const anchorX = canvasRect.left + (projected.x * 0.5 + 0.5) * size.width
+    const anchorY = canvasRect.top + (-projected.y * 0.5 + 0.5) * size.height
+    const gapPx = 30
+    const edgePad = 10
+    const rect = el.getBoundingClientRect()
+
+    // Prefer above for maxillary, below for mandibular; auto-flip if out of bounds.
+    let placeTop = isMax
+    const topY = anchorY - gapPx - rect.height
+    const bottomY = anchorY + gapPx
+    if (placeTop && topY < canvasRect.top + edgePad) placeTop = false
+    if (!placeTop && bottomY + rect.height > canvasRect.bottom - edgePad) placeTop = true
+
+    // Keep tooltip inside canvas horizontally, while staying close to anchor.
+    const naturalLeft = anchorX - rect.width / 2
+    const clampedLeft = Math.min(
+      Math.max(naturalLeft, canvasRect.left + edgePad),
+      canvasRect.right - edgePad - rect.width,
+    )
+    const dx = clampedLeft - naturalLeft
+
+    el.style.transform = placeTop
+      ? `translate(calc(-50% + ${dx}px), calc(-100% - ${gapPx}px))`
+      : `translate(calc(-50% + ${dx}px), ${gapPx}px)`
+    el.style.transformOrigin = placeTop ? "center bottom" : "center top"
+
+    // Screen-space dashed connector:
+    // - angle adapts with tooltip clamp/placement
+    // - extends slightly behind the card for a "connected" look
+    const connector = connectorRef.current
+    if (connector) {
+      const cardW = rect.width
+      const cardH = rect.height
+      const targetX = dx
+      const targetY = placeTop ? (-gapPx - 12) : (gapPx + 12)
+      const len = Math.hypot(targetX, targetY)
+      const angle = Math.atan2(targetY, targetX)
+      // Keep at least a minimal visible connector length.
+      const width = Math.max(18, len)
+      connector.style.width = `${width}px`
+      connector.style.transform = `translateY(-50%) rotate(${angle}rad)`
     }
   })
 
@@ -722,33 +765,41 @@ function DentitionTooltip({
 
   return (
     <>
-      {/* Leader line: updates endpoints every frame */}
-      <line ref={lineRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            args={[new Float32Array([0, 0, 0, 0, 0, 0]), 3]}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color="#64748b" transparent opacity={0.6} />
-      </line>
-
-      <group ref={tooltipGroupRef}>
-        <Html
-          style={{ pointerEvents: 'none' }}
-          zIndexRange={[500, 300]}
-        >
-          <div style={{
-            transform: tooltipTransform,
-            transformOrigin: tooltipOrigin,
-            background: 'rgba(15, 23, 42, 0.88)', color: '#fff',
-            backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
-            padding: hasContent ? '12px 14px' : '10px 13px', borderRadius: '10px', fontSize: '12px',
+      <Html
+        position={[tooltipAnchorWorld.x, tooltipAnchorWorld.y, tooltipAnchorWorld.z]}
+        style={{ pointerEvents: 'none' }}
+        zIndexRange={[500, 300]}
+      >
+        <div
+          ref={connectorRef}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: 0,
+            borderTop: '1px dashed rgba(148, 163, 184, 0.45)',
+            transformOrigin: '0 50%',
+            zIndex: 0,
+          }}
+        />
+        <div
+          ref={tooltipRef}
+          style={{
+            transform: isMax ? "translate(-50%, calc(-100% - 12px))" : "translate(-50%, 12px)",
+            transformOrigin: isMax ? "center bottom" : "center top",
+            background: 'rgba(0, 0, 0, 0.78)', color: '#fff',
+            backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+            padding: '10px 13px', borderRadius: '8px', fontSize: '12px',
+            borderLeft: `3px solid ${violetAccent.stroke}`,
             fontFamily: "'Inter', sans-serif",
             minWidth: '240px', maxWidth: '320px', whiteSpace: 'normal',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.45)',
             textAlign: 'left',
-          }}>
+            position: 'relative',
+            zIndex: 1,
+            transition: 'transform 120ms ease-out, opacity 120ms ease-out',
+          }}
+        >
             {/* Heading: T{fdi} · Full Name */}
             <div style={{
               fontWeight: 700, fontSize: '13px',
@@ -759,7 +810,7 @@ function DentitionTooltip({
               whiteSpace: 'nowrap',
             }}>
               <span style={{
-                color: '#475569', background: '#f1f5f9', borderRadius: '4px',
+                color: violetAccent.badgeText, background: violetAccent.badgeBg, borderRadius: '4px',
                 padding: '1px 6px', fontSize: '12px', fontWeight: 700, flexShrink: 0,
               }}>T{tooth.fdi}</span>
               <span style={{ fontWeight: 600, color: '#f1f5f9', flexShrink: 0 }}>{QUADRANT_LABELS[tooth.quadrant]} {tooth.name}</span>
@@ -840,9 +891,8 @@ function DentitionTooltip({
                 Click on the tooth to start adding details
               </div>
             )}
-          </div>
-        </Html>
-      </group>
+        </div>
+      </Html>
     </>
   )
 }
