@@ -87,6 +87,50 @@ Sentry.init({
   },
 });
 
+// fix for stale lazy-loaded chunks after a new deployment.
+// If an old tab tries to load a removed chunk, do a one-time hard reload.
+
+if (typeof window !== "undefined") {
+  const CHUNK_RELOAD_KEY = "chunk-reload-v1";
+
+  const isChunkLoadError = (message = "") =>
+    /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module/i.test(
+      message
+    );
+
+  const reloadOnce = () => {
+    const alreadyReloaded =
+      sessionStorage.getItem(CHUNK_RELOAD_KEY) === "1";
+
+    if (alreadyReloaded) return;
+
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+    window.location.reload();
+  };
+
+  window.addEventListener("error", (event) => {
+    const message = event?.message || event?.error?.message || "";
+
+    if (isChunkLoadError(message)) {
+      reloadOnce();
+    }
+  });
+
+  window.addEventListener("unhandledrejection", (event) => {
+    const message = event?.reason?.message || "";
+
+    if (isChunkLoadError(message)) {
+      reloadOnce();
+    }
+  });
+
+  // Reset the flag after a successful fresh load,
+  // so future deployments can trigger one reload again.
+  window.addEventListener("load", () => {
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+  });
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <BrowserRouter basename={"/"}>
