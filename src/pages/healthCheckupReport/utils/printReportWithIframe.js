@@ -54,10 +54,8 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
   const repeatingHeaderHtml = `
     <div class="print-repeating-header">
       <div class="print-repeating-header-left">
-        <strong>Patient Name:</strong> ${escapeHtml(patientName)}
-      </div>
-      <div class="print-repeating-header-right">
-        <strong>MRN:</strong> ${escapeHtml(patientMrn)}
+        <div><strong>Patient Name:</strong> ${escapeHtml(patientName)}</div>
+        <div><strong>MRN:</strong> ${escapeHtml(patientMrn)}</div>
       </div>
     </div>
   `;
@@ -125,8 +123,12 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       background: white !important;
     }
     
+    @page {
+      margin: 0 !important;
+    }
+
     .print-padding-wrapper {
-      padding: 14px !important;
+      padding: 14px 1cm 3cm 2cm !important;
       box-sizing: border-box !important;
       width: 100% !important;
     }
@@ -163,41 +165,36 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       padding: 0;
     }
     
+    .report-doc-header {
+      margin-top: -2.4cm !important; /* Pull up to overlap the thead gap on Page 1 only */
+      background: white !important;
+      position: relative !important;
+      z-index: 1000 !important;
+      padding-top: 0.5cm !important;
+      padding-bottom: 0.6cm !important;
+      border-bottom: none !important; /* Remove the main header's border on the first page since the repeating one's border will be visible instead */
+    }
+
     .print-repeating-header {
       display: flex;
       justify-content: space-between;
       border-bottom: 1px solid #e2e2ea;
       padding-bottom: 8px;
       margin-bottom: 12px;
-      margin-top: 12px;
+      margin-top: 2cm;
       font-family: 'Poppins', sans-serif;
-      font-size: 10px;
+      font-size: 14px;
       line-height: 18px;
       color: #171725;
     }
     
     /* Ensure the body actually takes up A4 width for printing and add document margins */
     
-    /* --- First Page Header Hiding --- */
-    /* Many browsers refuse to hide a <thead> natively on the first page.
-       Instead, we use a clever CSS trick: an absolute positioned white box 
-       placed at the very top of the document that covers the first occurrence 
-       of the header, but since absolute positioning doesn't repeat across pages, 
-       it only covers the first page. */
-    .first-page-header-cover {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 60px; /* Covers the repeating header height */
-      background-color: white;
-      z-index: 999;
-    }
     
     /* Critical table layout */
     .smart-editor-editable .tableWrapper:not(:first-of-type) > table,
     .smart-editor-editable > table:not(:first-of-type) {
-      table-layout: fixed !important;
+      table-layout: auto !important; /* using auto instead of fixed to avoid overlapping headers when content is long */
       border-collapse: collapse !important;
       width: 100% !important;
       border: 1px solid #d1d5db !important;
@@ -218,7 +215,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(documentTitle)}</title>` +
     `<style>${criticalTableCss}</style>` +
     `<link rel="stylesheet" href="${escapeHtml(cssHref)}" />` +
-    `</head><body><div class="first-page-header-cover"></div>${sanitizedHtmlStructure}</body></html>`
+    `</head><body>${sanitizedHtmlStructure}</body></html>`
   );
   doc.close();
 

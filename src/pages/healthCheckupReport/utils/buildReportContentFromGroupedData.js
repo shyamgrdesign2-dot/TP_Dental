@@ -43,7 +43,7 @@ const CONSULTATIONS_DEPARTMENT_ROW_NAMES = [
 ];
 
 const GENERAL_RECOMMENDATIONS_TEXT =
-  "Regular health check ups can identify any early warning signs of major health issues. When you have a health check up, your doctor will talk to you about your and your family's medical history, enlisting your lifestyle and conditions including your diet, weight, physical activity, alcohol use and smoking habits etc. Your doctor may include health check up as an advice even if you are here for any other illnesses. Team of Zydus hospitals is grateful to you for your trust in us and we shall do our best to assure your complete well being.";
+  "Regular health check ups can identify any early warning signs of major health issues.\nWhen you have a health check up, you doctor will talk to you about your and your family’s medical history, enlisting your lifestyle and conditions including your diet, weight, physical activity, alcohol use and smoking habits etc.\nYour doctor may advise relevant vaccines as they are a part of preventive medicine.They lower the chances of <b>acquiring</b> and <b>spreading</b> of vaccine preventable disease and <b>reduces its severity</b>.\nYour doctor may include health check up as an advice even if you are here for any other illnesses.\n\nTeam of Zydus hospitals is grateful to you for your trust in us and we shall do our best to assure your complete well being.";
 
 function escapeHtml(str) {
   if (str == null) return "";
@@ -53,6 +53,21 @@ function escapeHtml(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** Converts \n to <br/> and supports basic markdown bold (**text**) and allows <b> tags. */
+function formatReportText(str) {
+  if (!str) return "";
+  const escaped = escapeHtml(str);
+  return escaped
+    .replace(/\n/g, "<br>")
+    // Support **bold**
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    // Support __bold__
+    .replace(/__(.*?)__/g, "<strong>$1</strong>")
+    // Re-allow <b> tags if they were escaped
+    .replace(/&lt;b&gt;(.*?)&lt;\/b&gt;/g, "<b>$1</b>")
+    .replace(/&lt;strong&gt;(.*?)&lt;\/strong&gt;/g, "<strong>$1</strong>");
 }
 
 function formatDate(d) {
@@ -635,7 +650,7 @@ ${consultationRows}
 
   // Impression
   const impressionSection = `
-<h2 class="report-section-title">${impressionText}</h2>
+<h2 class="report-section-title print-page-break">${impressionText}</h2>
 <div class="report-section-box"><p>&nbsp;</p></div>`;
 
   // Advice
@@ -650,7 +665,7 @@ ${consultationRows}
   // General Recommendations (fixed text)
   const generalRecSection = `
 <h2 class="report-section-title print-page-break">General Recommendations</h2>
-<div class="report-section-box"><p>${escapeHtml(GENERAL_RECOMMENDATIONS_TEXT)}</p></div>`;
+<div class="report-section-box"><p>${formatReportText(GENERAL_RECOMMENDATIONS_TEXT)}</p></div>`;
 
 
   // Prepared By / Verified By
@@ -667,7 +682,6 @@ ${consultationRows}
 </table>`;
 
   const headerSection = `<div class="report-doc-header">
-  <img src="/ZydusLogo.png" alt="Hospital Logo" class="report-doc-header-logo" />
   <p class="report-doc-header-title">HEALTH CHECK-UP SUMMARY</p>
 </div>`;
 
