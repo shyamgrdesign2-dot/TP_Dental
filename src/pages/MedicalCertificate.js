@@ -31,6 +31,7 @@ function MedicalCertificate() {
     const { certificate_data, patient_data } = state != null && state;
 
     const editor = useRef(null);
+    const joditInstanceRef = useRef(null);
     // Stable ids for placeholder-generated inline chips (prevents DOM churn in editor value).
     const placeholderInputIdsRef = useRef({ startDate: [], endDate: [], joinDate: [], customDate: [] });
 
@@ -302,6 +303,7 @@ function MedicalCertificate() {
         },
         events: {
             afterInit: (jodit) => {
+                joditInstanceRef.current = jodit;
                 const doc = jodit?.editorDocument || jodit?.od || null;
                 if (!doc || typeof doc.addEventListener !== "function") return;
 
@@ -350,11 +352,12 @@ function MedicalCertificate() {
                 const shield = jodit?.__tpCertInlineShield;
                 if (!shield) return;
                 try {
-                    shield.eventTypes.forEach((evt) => shield.doc.removeEventListener(evt, shield.handler, true));
+                    shield.eventTypes.forEach((evt) => {
+                        shield.doc?.removeEventListener?.(evt, shield.handler, true);
+                    });
+                    delete jodit.__tpCertInlineShield;
                 } catch (_) {
                     // ignore
-                } finally {
-                    jodit.__tpCertInlineShield = null;
                 }
             },
             processPaste: (event, html) => {
@@ -424,6 +427,23 @@ function MedicalCertificate() {
         //     }
         // }
     }), [TOOLBAR]);
+
+    useEffect(() => {
+        // Fallback cleanup: in some Android WebViews the editor may unmount without firing `beforeDestruct`.
+        return () => {
+            const j = joditInstanceRef.current;
+            const shield = j?.__tpCertInlineShield;
+            if (!j || !shield) return;
+            try {
+                shield.eventTypes.forEach((evt) => {
+                    shield.doc?.removeEventListener?.(evt, shield.handler, true);
+                });
+                delete j.__tpCertInlineShield;
+            } catch (_) {
+                // ignore
+            }
+        };
+    }, []);
 
     // No global document listeners; chip taps are handled inside Jodit's own document (afterInit) for Android stability.
 
