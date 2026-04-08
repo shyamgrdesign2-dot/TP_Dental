@@ -1496,9 +1496,8 @@ export const isZydus = () => env?.ZYDUS_BUSINESS_ID === getTokenData()?.hospital
 
 export const isVoiceRxFree = (isVoiceRxFreeFromGB = false) => {
   return (
-    isVoiceRxFreeFromGB ||
     (isZydus() && new Date(env?.zydus_voice_rx_expiry_date) > new Date()) ||
-    env?.FREE_VOICE_RX_APOLLO_USER_IDS?.includes(getTokenData()?.user_id)
+    isVoiceRxFreeFromGB
   );
 };
 
