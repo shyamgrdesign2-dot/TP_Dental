@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -594,7 +594,8 @@ function Prescription() {
   const [showShimmer, setShowShimmer] = useState(false);
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isGroundingAccessableForZydus =

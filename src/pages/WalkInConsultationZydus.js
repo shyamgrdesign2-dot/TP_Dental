@@ -18,7 +18,7 @@ import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharect
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
-import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX } from "../utils/constants";
+import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX, GB_VOICE_RX_FREE } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import moment from "moment";
@@ -52,7 +52,8 @@ function WalkInConsultationZydus() {
         GB_ISCRIBE
     );
     const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
-    const isFreeVoiceRxUser = isVoiceRxFree();
+    const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+    const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
 
     const [keyboardOpen, setKeyboardOpen] = useState(false);

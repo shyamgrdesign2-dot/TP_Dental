@@ -1,5 +1,6 @@
 import { Button, Checkbox, Divider, message, Modal } from "antd";
 import { useContext, useState } from "react";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import scHeaderBg from "../assets/images/sc-header-bg.webp";
 import autoFillRx from "../assets/images/sc-rx.svg";
 import scBg from "../assets/images/sc-bg.svg";
@@ -17,6 +18,7 @@ import {
   setSelectAutofill,
   setSelectedSymptomsCollector,
 } from "../redux/ddxSlice";
+import { GB_VOICE_RX_FREE } from "../utils/constants";
 import { getClinicName, getTokenData, isVoiceRxFree, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import dayjs from "dayjs";
 import CashManagerContext from "../context/CashManagerContext";
@@ -170,7 +172,8 @@ const SCPopup = ({
   onAmbientAutofill,
 }) => {
   const dispatch = useDispatch();
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isSmartPrescription =
     window.location.href.includes("smart-prescription");
