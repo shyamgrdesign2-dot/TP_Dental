@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Button, Drawer, Input, message, Modal, DatePicker } from 'antd';
+import { Button, Drawer, Input, message } from 'antd';
 import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import CommonModal from '../common/CommonModal';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -31,8 +31,7 @@ function MedicalCertificate() {
     const { certificate_data, patient_data } = state != null && state;
 
     const editor = useRef(null);
-    const joditInstanceRef = useRef(null);
-    // Stable ids for placeholder-generated inline chips (prevents DOM churn in editor value).
+    // Stable ids for template date inputs (avoids new ids every render / DOM churn).
     const placeholderInputIdsRef = useRef({ startDate: [], endDate: [], joinDate: [], customDate: [] });
 
     // (Intentionally no debug logs here; keep this file lean.)
@@ -44,23 +43,11 @@ function MedicalCertificate() {
 
     const [createCertificateDrawer, setCreateCertificateDrawer] = useState(false);
     const [isBackModalOpen, setIsBackModalOpen] = useState(false);
-    const [inlineEdit, setInlineEdit] = useState({ open: false, type: null, id: null, value: "" });
 
     // Function to generate a random ID
     const generateRandomId = () => {
         return 'id-' + Math.random().toString(36).substring(2, 9);
     };
-
-    const wrapInputHtml = useCallback((innerHtml) => {
-        // Prevent Jodit/contenteditable from stealing focus and instantly blurring inputs.
-        return `<span class="tp-cert-input" contenteditable="false">${innerHtml}</span>`;
-    }, []);
-
-    // Android-safe inline input: render as a chip and edit via modal (avoids focusing <input> inside contenteditable).
-    const buildInlineChipHtml = useCallback((type, id) => {
-        const placeholder = type === "date" ? "Tap to select date" : "Tap to enter text";
-        return `<span class="tp-cert-chip" contenteditable="false" data-tp-inline-type="${type}" data-tp-inline-id="${id}" data-tp-inline-value="">${placeholder}</span>`;
-    }, []);
 
     const editorValue = useMemo(() => {
         const ids = placeholderInputIdsRef.current;
@@ -101,10 +88,10 @@ function MedicalCertificate() {
             .replace(/{Admission Diagnosis}/g, `<label class="admission_diagnosis">Enter Admission Diagnosis</label>`)
             .replace(/{Discharge Diagnosis}/g, `<label class="discharge_diagnosis">Enter Discharge Diagnosis</label>`)
             .replace(/{Resident of}/g, `<label class="resident_of">Enter Resident of</label>`)
-            .replace(/{Start Date}/g, () => wrapInputHtml(buildInlineChipHtml("date", ensureId(ids.startDate, startIdx++))))
-            .replace(/{End Date}/g, () => wrapInputHtml(buildInlineChipHtml("date", ensureId(ids.endDate, endIdx++))))
-            .replace(/{Join Date}/g, () => wrapInputHtml(buildInlineChipHtml("date", ensureId(ids.joinDate, joinIdx++))))
-            .replace(/{Custom Date}/g, () => wrapInputHtml(buildInlineChipHtml("date", ensureId(ids.customDate, customIdx++))))
+            .replace(/{Start Date}/g, () => `<input type="date" id="${ensureId(ids.startDate, startIdx++)}" value="" class="start_date">`)
+            .replace(/{End Date}/g, () => `<input type="date" id="${ensureId(ids.endDate, endIdx++)}" value="" class="end_date">`)
+            .replace(/{Join Date}/g, () => `<input type="date" id="${ensureId(ids.joinDate, joinIdx++)}" value="" class="join_date">`)
+            .replace(/{Custom Date}/g, () => `<input type="date" id="${ensureId(ids.customDate, customIdx++)}" value="" class="custom_date">`)
             .replace(/{Diagnosis}/g, `<label class="diagnosis">Enter Diagnosis</label>`)
             .replace(/{Time}/g, `<label class="time">Enter Time</label>`)
             .replace(/{Travel From}/g, `<label class="travel_from">Enter Travel From</label>`)
@@ -114,30 +101,7 @@ function MedicalCertificate() {
             .replace(/{Passport Number}/g, `<label class="passport_number">Enter Passport Number</label>`)
             .replace(/{Procedure}/g, `<label class="procedure">Enter Procedure</label>`)
             .replace(/{Number of Months}/g, `<label class="number_of_months">Enter Number of Months</label>`);
-    }, [content, profile?.um_name, profile?.dp_name, patient_data, wrapInputHtml, buildInlineChipHtml]);
-
-    const applyInlineEditToDom = useCallback((type, id, value) => {
-        const finalValue =
-            type === "date"
-                ? (value ? (moment(value).isValid() ? moment(value).format("DD/MM/YYYY") : String(value)) : "")
-                : String(value ?? "");
-
-        const updateInDoc = (doc) => {
-            try {
-                const chip = doc.querySelector?.(`.tp-cert-chip[data-tp-inline-id="${id}"]`);
-                if (!chip) return;
-                chip.setAttribute("data-tp-inline-value", finalValue);
-                chip.textContent = finalValue || (type === "date" ? "Tap to select date" : "Tap to enter text");
-            } catch (_) {
-                // no-op
-            }
-        };
-
-        updateInDoc(document);
-        const inst = editor.current;
-        const editorDoc = inst?.editorDocument || inst?.od;
-        if (editorDoc) updateInDoc(editorDoc);
-    }, []);
+    }, [content, profile?.um_name, profile?.dp_name, patient_data]);
 
     const TOOLBAR = useMemo(() => ([
         'undo', 'redo',
@@ -207,18 +171,10 @@ function MedicalCertificate() {
                         insertHTMLContent(`<label class="today_date">${moment().format('DD-MM-YYYY')}</label>`);
                         break;
                     case 'option7':
-                        insertHTMLContent(
-                            wrapInputHtml(
-                                buildInlineChipHtml("date", randomId)
-                            )
-                        );
+                        insertHTMLContent(`<input type="date" id="${randomId}" value="" class="custom_date">`);
                         break;
                     case 'option8':
-                        insertHTMLContent(
-                            wrapInputHtml(
-                                buildInlineChipHtml("text", randomId)
-                            )
-                        );
+                        insertHTMLContent(`<input type="search" id="${randomId}" value=""/>`);
                         break;
                     case 'option9':
                         insertHTMLContent(`<label class="email">${content}</label>`);
@@ -268,14 +224,14 @@ function MedicalCertificate() {
                 // }
             }
         }
-    ]), [wrapInputHtml, buildInlineChipHtml, profile?.um_name, patient_data?.pm_fullname, patient_data?.ageYears, patient_data?.ageMonths, patient_data?.pm_contact_no, patient_data?.pm_gender]);
+    ]), [profile?.um_name, patient_data?.pm_fullname, patient_data?.ageYears, patient_data?.ageMonths, patient_data?.pm_contact_no, patient_data?.pm_gender]);
 
     const config = useMemo(() => ({
         statusbar: false,
         // Force non-iframe mode when possible; if Jodit still uses iframe internally on some devices,
         // we also attach shields to the editor's own document in afterInit.
         iframe: false,
-        placeholder: 'Write Description...',
+        placeholder: '',
         buttons: TOOLBAR,
         buttonsSM: TOOLBAR,
         buttonsMD: TOOLBAR,
@@ -302,64 +258,6 @@ function MedicalCertificate() {
             },
         },
         events: {
-            afterInit: (jodit) => {
-                joditInstanceRef.current = jodit;
-                const doc = jodit?.editorDocument || jodit?.od || null;
-                if (!doc || typeof doc.addEventListener !== "function") return;
-
-                // Avoid duplicate attachment if Jodit re-inits.
-                if (jodit.__tpCertInlineShield) return;
-
-                const shieldInsideEditor = (e) => {
-                    const t = e.target;
-                    if (!(t instanceof doc.defaultView.Element)) return;
-
-                    const wrapper = t.closest ? t.closest(".tp-cert-input") : null;
-                    const chip = t.closest ? t.closest(".tp-cert-chip") : null;
-
-                    if (chip) {
-                        const type = chip.getAttribute("data-tp-inline-type") || "text";
-                        const id = chip.getAttribute("data-tp-inline-id");
-                        const value = chip.getAttribute("data-tp-inline-value") || chip.textContent || "";
-                        e.stopPropagation();
-                        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
-                        e.preventDefault();
-                        setInlineEdit({
-                            open: true,
-                            type,
-                            id,
-                            value: value === "Tap to select date" || value === "Tap to enter text" ? "" : value,
-                        });
-                        return;
-                    }
-
-                    if (wrapper) {
-                        e.stopPropagation();
-                        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
-                        e.preventDefault();
-                        // wrapper may contain chips; clicks are handled above via `.tp-cert-chip`.
-                    }
-                };
-
-                // Attach in capture phase inside the editor document (iframe-safe).
-                const eventTypes = ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "click", "focusin", "focusout"];
-                eventTypes.forEach((evt) => doc.addEventListener(evt, shieldInsideEditor, true));
-
-                // Store references for cleanup.
-                jodit.__tpCertInlineShield = { doc, eventTypes, handler: shieldInsideEditor };
-            },
-            beforeDestruct: (jodit) => {
-                const shield = jodit?.__tpCertInlineShield;
-                if (!shield) return;
-                try {
-                    shield.eventTypes.forEach((evt) => {
-                        shield.doc?.removeEventListener?.(evt, shield.handler, true);
-                    });
-                    delete jodit.__tpCertInlineShield;
-                } catch (_) {
-                    // ignore
-                }
-            },
             processPaste: (event, html) => {
                 // const cleanedHtml = html.replace(/(^|;)\s*font-family[^;]+/g, "");
                 // return cleanedHtml;
@@ -428,24 +326,71 @@ function MedicalCertificate() {
         // }
     }), [TOOLBAR]);
 
-    useEffect(() => {
-        // Fallback cleanup: in some Android WebViews the editor may unmount without firing `beforeDestruct`.
-        return () => {
-            const j = joditInstanceRef.current;
-            const shield = j?.__tpCertInlineShield;
-            if (!j || !shield) return;
-            try {
-                shield.eventTypes.forEach((evt) => {
-                    shield.doc?.removeEventListener?.(evt, shield.handler, true);
-                });
-                delete j.__tpCertInlineShield;
-            } catch (_) {
-                // ignore
+    const handleInputChange = useCallback((event) => {
+        const inputElement = event.target;
+        if (inputElement.type === "date" || inputElement.type === "search") {
+            const elementId = inputElement.id;
+            const valueToUpdate = document.getElementById(elementId);
+            if (valueToUpdate) {
+                valueToUpdate.removeAttribute("value");
+                if (inputElement.type === "date") {
+                    const raw = inputElement.value;
+                    const newDateValue =
+                        raw && moment(raw).isValid() ? moment(raw).format("DD/MM/YYYY") : "";
+                    valueToUpdate.setAttribute("value", newDateValue);
+                } else if (inputElement.type === "search") {
+                    valueToUpdate.setAttribute("value", inputElement.value);
+                }
             }
-        };
+        }
     }, []);
 
-    // No global document listeners; chip taps are handled inside Jodit's own document (afterInit) for Android stability.
+    const handleAddEventListener = useCallback(() => {
+        const dateInputs = document.querySelectorAll('input[type="date"][id]');
+        const searchInputs = document.querySelectorAll('input[type="search"][id]');
+        dateInputs.forEach((input) => {
+            input.removeEventListener("change", handleInputChange);
+            input.removeEventListener("input", handleInputChange);
+            input.addEventListener("change", handleInputChange);
+            input.addEventListener("input", handleInputChange);
+        });
+        searchInputs.forEach((input) => {
+            input.removeEventListener("keyup", handleInputChange);
+            input.addEventListener("keyup", handleInputChange);
+        });
+    }, [handleInputChange]);
+
+    const handleRemoveEventListener = useCallback(() => {
+        const dateInputs = document.querySelectorAll('input[type="date"][id]');
+        const searchInputs = document.querySelectorAll('input[type="search"][id]');
+        dateInputs.forEach((input) => {
+            input.removeEventListener("change", handleInputChange);
+            input.removeEventListener("input", handleInputChange);
+        });
+        searchInputs.forEach((input) => {
+            input.removeEventListener("keyup", handleInputChange);
+        });
+    }, [handleInputChange]);
+
+    useEffect(() => {
+        handleAddEventListener();
+        return () => handleRemoveEventListener();
+    }, [content, handleAddEventListener, handleRemoveEventListener]);
+
+    const onEditorChange = useCallback(() => {
+        const allInputs = document.querySelectorAll('input[type="date"][id], input[type="search"][id]');
+        allInputs.forEach((input) => {
+            if (input.type === "date") {
+                input.removeEventListener("change", handleInputChange);
+                input.removeEventListener("input", handleInputChange);
+                input.addEventListener("change", handleInputChange);
+                input.addEventListener("input", handleInputChange);
+            } else {
+                input.removeEventListener("keyup", handleInputChange);
+                input.addEventListener("keyup", handleInputChange);
+            }
+        });
+    }, [handleInputChange]);
 
     useEffect(() => {
         if (certificate_data !== undefined) {
@@ -590,7 +535,7 @@ function MedicalCertificate() {
                                 {certificate_data !== undefined ? (
                                     <div className="d-flex align-items-center py-3 cursor-pointer">
                                         <div className="bg-fitness me-3">
-                                            {certificate_data?.icon_image ? <img src={certificate_data?.icon_image} alt="" /> : title}
+                                            {certificate_data?.icon_image ? <img src={certificate_data?.icon_image} alt="" /> : title?.length > 0 ? title?.[0] : ""}
                                         </div>
                                         <div>
                                             <div className="title-common">
@@ -626,33 +571,8 @@ function MedicalCertificate() {
                     // onBlur={newContent => setContent(newContent)} // preferred to use only this option to update the content for performance reasons
                     // onChange={newContent => onChange(newContent)}
                     onBlur={(newContent) => setContent(newContent || "")}
+                    onChange={onEditorChange}
                 />
-                <Modal
-                    open={inlineEdit.open}
-                    title={inlineEdit.type === "date" ? "Select date" : "Enter text"}
-                    onCancel={() => setInlineEdit({ open: false, type: null, id: null, value: "" })}
-                    onOk={() => {
-                        applyInlineEditToDom(inlineEdit.type, inlineEdit.id, inlineEdit.value);
-                        setInlineEdit({ open: false, type: null, id: null, value: "" });
-                    }}
-                    destroyOnClose
-                >
-                    {inlineEdit.type === "date" ? (
-                        <DatePicker
-                            format="DD/MM/YYYY"
-                            style={{ width: "100%" }}
-                            value={inlineEdit.value ? moment(inlineEdit.value, ["DD/MM/YYYY", moment.ISO_8601], true) : null}
-                            onChange={(d) => setInlineEdit((s) => ({ ...s, value: d ? d.toISOString() : "" }))}
-                        />
-                    ) : (
-                        <Input
-                            autoFocus
-                            value={inlineEdit.value}
-                            onChange={(e) => setInlineEdit((s) => ({ ...s, value: e.target.value }))}
-                            placeholder="Type here…"
-                        />
-                    )}
-                </Modal>
                 <div>
                     {/* <h3>Editor Content:{content}</h3>
 
