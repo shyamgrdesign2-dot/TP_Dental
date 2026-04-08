@@ -305,12 +305,15 @@ function MedicalCertificate() {
                 const doc = jodit?.editorDocument || jodit?.od || null;
                 if (!doc || typeof doc.addEventListener !== "function") return;
 
+                // Avoid duplicate attachment if Jodit re-inits.
+                if (jodit.__tpCertInlineShield) return;
+
                 const shieldInsideEditor = (e) => {
                     const t = e.target;
                     if (!(t instanceof doc.defaultView.Element)) return;
 
-                    const wrapper = t.closest?.(".tp-cert-input");
-                    const chip = t.closest?.(".tp-cert-chip");
+                    const wrapper = t.closest ? t.closest(".tp-cert-input") : null;
+                    const chip = t.closest ? t.closest(".tp-cert-chip") : null;
 
                     if (chip) {
                         const type = chip.getAttribute("data-tp-inline-type") || "text";
@@ -337,9 +340,22 @@ function MedicalCertificate() {
                 };
 
                 // Attach in capture phase inside the editor document (iframe-safe).
-                ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "click", "focusin", "focusout"].forEach((evt) => {
-                    doc.addEventListener(evt, shieldInsideEditor, true);
-                });
+                const eventTypes = ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "click", "focusin", "focusout"];
+                eventTypes.forEach((evt) => doc.addEventListener(evt, shieldInsideEditor, true));
+
+                // Store references for cleanup.
+                jodit.__tpCertInlineShield = { doc, eventTypes, handler: shieldInsideEditor };
+            },
+            beforeDestruct: (jodit) => {
+                const shield = jodit?.__tpCertInlineShield;
+                if (!shield) return;
+                try {
+                    shield.eventTypes.forEach((evt) => shield.doc.removeEventListener(evt, shield.handler, true));
+                } catch (_) {
+                    // ignore
+                } finally {
+                    jodit.__tpCertInlineShield = null;
+                }
             },
             processPaste: (event, html) => {
                 // const cleanedHtml = html.replace(/(^|;)\s*font-family[^;]+/g, "");
@@ -603,6 +619,7 @@ function MedicalCertificate() {
                 >
                     {inlineEdit.type === "date" ? (
                         <DatePicker
+                            format="DD/MM/YYYY"
                             style={{ width: "100%" }}
                             value={inlineEdit.value ? moment(inlineEdit.value, ["DD/MM/YYYY", moment.ISO_8601], true) : null}
                             onChange={(d) => setInlineEdit((s) => ({ ...s, value: d ? d.toISOString() : "" }))}
