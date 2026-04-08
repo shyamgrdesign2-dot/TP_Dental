@@ -68,9 +68,10 @@ export const usePrintPayloadPdf = ({
       }
     };
 
-    fetchPayload();
+    const timeoutId = setTimeout(fetchPayload, 0);
     return () => {
       isCancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [printUrl, payloadOverride, skipFetch]);
 
