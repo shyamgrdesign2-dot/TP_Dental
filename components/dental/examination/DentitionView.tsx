@@ -732,34 +732,55 @@ function DentitionTooltip({
     }
   })
 
-  // Group findings by zone — one row per surface with all its diagnoses comma-separated
-  const grouped = useMemo(() => {
-    const m = new Map<string, string[]>()
-    for (const f of findings) {
-      const list = m.get(f.zoneId) || []
-      if (!list.includes(f.type)) list.push(f.type)
-      m.set(f.zoneId, list)
-    }
-    return Array.from(m.entries())
-  }, [findings])
+  // Responsive sizing for smaller canvases.
+  const isCompact = size.width < 980
+  const isTiny = size.width < 760
+  const cardMinW = isTiny ? 200 : (isCompact ? 220 : 240)
+  const cardMaxW = isTiny ? 260 : (isCompact ? 290 : 320)
+  const cardPadding = isTiny ? '8px 10px' : '10px 13px'
+  const titleSize = isTiny ? 12 : 13
+  const bodySize = isTiny ? 9 : 10
+  const sectionPad = isTiny ? '6px 8px' : '7px 9px'
 
-  // Derive data for 4-section tooltip
+  // Derive data for full overview sections.
   const diagLabels: string[] = []
   if (diagnoses) { for (const d of diagnoses) diagLabels.push(d) }
   if (isImplant && !diagLabels.includes('Implant')) diagLabels.push('Implant')
 
   const toothEntries = useMemo(() => (allEntries ?? []).filter(e => e.toothFdi === tooth.fdi), [allEntries, tooth.fdi])
-  const procedures = toothEntries.filter(e => e.kind === 'procedure')
-  const planned = toothEntries.filter(e => e.kind === 'planned')
+  const findingEntries = toothEntries.filter((e) => e.kind === 'finding')
+  const procedureEntries = toothEntries.filter((e) => e.kind === 'procedure')
+  const plannedEntries = toothEntries.filter((e) => e.kind === 'planned')
+  const symptomEntries = toothEntries.filter((e) => e.kind === 'symptom')
   const noteText = toothNotes?.[tooth.fdi] ?? ''
 
-  // Treatment History = diagnoses + procedures
-  const treatmentHistory = [...diagLabels, ...procedures.map(p => p.name)].filter(Boolean)
+  // Findings summary = legacy findings + entity-centric finding entries.
+  const groupedFindings = useMemo(() => {
+    const m = new Map<string, string[]>()
+    const push = (zoneId: string, label: string) => {
+      const list = m.get(zoneId) || []
+      if (!list.includes(label)) list.push(label)
+      m.set(zoneId, list)
+    }
+    for (const f of findings) push(f.zoneId, f.type)
+    for (const entry of findingEntries) {
+      const surfaces = entry.surfaces.length > 0 ? entry.surfaces : ['whole']
+      for (const surface of surfaces) push(surface, entry.name)
+    }
+    return Array.from(m.entries())
+  }, [findings, findingEntries])
+
+  const treatmentHistory = [...diagLabels].filter(Boolean)
+  const procedureSummary = [...procedureEntries, ...plannedEntries, ...symptomEntries]
   // Has any content across all 4 sections?
-  const hasContent = treatmentHistory.length > 0 || grouped.length > 0 || planned.length > 0 || noteText.length > 0
+  const hasContent =
+    treatmentHistory.length > 0 ||
+    groupedFindings.length > 0 ||
+    procedureSummary.length > 0 ||
+    noteText.length > 0
 
   const sectionHeadingStyle: React.CSSProperties = {
-    fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.6px',
+    fontSize: isTiny ? '8px' : '9px', textTransform: 'uppercase', letterSpacing: '0.6px',
     color: '#cbd5e1', marginBottom: '4px', fontWeight: 600,
   }
 
@@ -789,10 +810,10 @@ function DentitionTooltip({
             transformOrigin: isMax ? "center bottom" : "center top",
             background: 'rgba(0, 0, 0, 0.78)', color: '#fff',
             backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-            padding: '10px 13px', borderRadius: '8px', fontSize: '12px',
+            padding: cardPadding, borderRadius: '8px', fontSize: isTiny ? '11px' : '12px',
             borderLeft: `3px solid ${violetAccent.stroke}`,
             fontFamily: "'Inter', sans-serif",
-            minWidth: '240px', maxWidth: '320px', whiteSpace: 'normal',
+            minWidth: `${cardMinW}px`, maxWidth: `${cardMaxW}px`, whiteSpace: 'normal',
             boxShadow: '0 4px 18px rgba(0,0,0,0.45)',
             textAlign: 'left',
             position: 'relative',
@@ -802,7 +823,7 @@ function DentitionTooltip({
         >
             {/* Heading: T{fdi} · Full Name */}
             <div style={{
-              fontWeight: 700, fontSize: '13px',
+              fontWeight: 700, fontSize: `${titleSize}px`,
               paddingBottom: hasContent ? '8px' : 0,
               marginBottom: hasContent ? '10px' : 0,
               borderBottom: hasContent ? '1px solid rgba(255,255,255,0.1)' : 'none',
@@ -811,7 +832,7 @@ function DentitionTooltip({
             }}>
               <span style={{
                 color: violetAccent.badgeText, background: violetAccent.badgeBg, borderRadius: '4px',
-                padding: '1px 6px', fontSize: '12px', fontWeight: 700, flexShrink: 0,
+                padding: isTiny ? '1px 5px' : '1px 6px', fontSize: isTiny ? '11px' : '12px', fontWeight: 700, flexShrink: 0,
               }}>T{tooth.fdi}</span>
               <span style={{ fontWeight: 600, color: '#f1f5f9', flexShrink: 0 }}>{QUADRANT_LABELS[tooth.quadrant]} {tooth.name}</span>
             </div>
@@ -819,14 +840,14 @@ function DentitionTooltip({
             {/* Section 1: Treatment History */}
             {treatmentHistory.length > 0 && (
               <div style={{
-                marginBottom: (grouped.length > 0 || planned.length > 0 || noteText) ? '8px' : 0,
-                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+                marginBottom: (groupedFindings.length > 0 || procedureSummary.length > 0 || noteText) ? '8px' : 0,
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
               }}>
                 <div style={sectionHeadingStyle}>Treatment History</div>
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                   {treatmentHistory.map(d => (
                     <span key={d} style={{
-                      fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px',
+                      fontSize: `${bodySize}px`, fontWeight: 600, padding: isTiny ? '2px 6px' : '2px 8px', borderRadius: '10px',
                       background: 'rgba(148,163,184,0.3)', color: '#f1f5f9',
                     }}>{d}</span>
                   ))}
@@ -835,18 +856,18 @@ function DentitionTooltip({
             )}
 
             {/* Section 2: Findings (surface findings) */}
-            {grouped.length > 0 && (
+            {groupedFindings.length > 0 && (
               <div style={{
-                marginBottom: (planned.length > 0 || noteText) ? '8px' : 0,
-                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+                marginBottom: (procedureSummary.length > 0 || noteText) ? '8px' : 0,
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
               }}>
                 <div style={sectionHeadingStyle}>Findings</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {grouped.map(([zid, types]) => {
+                  {groupedFindings.map(([zid, types]) => {
                     const zc = ZONE_INFO[zid as keyof typeof ZONE_INFO]?.color || '#888'
-                    const zl = getZoneLabel(zid as any, tooth.arch, tooth.position)
+                    const zl = zid === 'whole' ? 'Whole Tooth' : getZoneLabel(zid as any, tooth.arch, tooth.position)
                     return (
-                      <div key={zid} style={{ fontSize: '10px', display: 'flex', gap: '8px', alignItems: 'baseline', lineHeight: 1.35 }}>
+                      <div key={zid} style={{ fontSize: `${bodySize}px`, display: 'flex', gap: '8px', alignItems: 'baseline', lineHeight: 1.35 }}>
                         <span style={{
                           width: '7px', height: '7px', borderRadius: '50%', background: zc,
                           flexShrink: 0, marginTop: '3px',
@@ -860,15 +881,29 @@ function DentitionTooltip({
               </div>
             )}
 
-            {/* Section 3: Procedures */}
-            {planned.length > 0 && (
+            {/* Section 3: Procedures / Plan / Symptoms */}
+            {procedureSummary.length > 0 && (
               <div style={{
                 marginBottom: noteText ? '8px' : 0,
-                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
               }}>
                 <div style={sectionHeadingStyle}>Procedures</div>
-                <div style={{ fontSize: '10px', color: '#e2e8f0', lineHeight: 1.4 }}>
-                  {planned.map(p => p.name).join(', ')}
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {procedureSummary.map((entry) => (
+                    <span
+                      key={entry.id}
+                      style={{
+                        fontSize: `${bodySize}px`,
+                        fontWeight: 600,
+                        padding: isTiny ? '2px 6px' : '2px 8px',
+                        borderRadius: '10px',
+                        background: entry.kind === 'planned' ? 'rgba(59,130,246,0.22)' : entry.kind === 'symptom' ? 'rgba(236,72,153,0.22)' : 'rgba(148,163,184,0.3)',
+                        color: '#f1f5f9',
+                      }}
+                    >
+                      {entry.name}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
@@ -876,11 +911,11 @@ function DentitionTooltip({
             {/* Section 4: Notes */}
             {noteText && (
               <div style={{
-                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: '7px 9px',
+                background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
               }}>
                 <div style={sectionHeadingStyle}>Notes</div>
-                <div style={{ fontSize: '10px', color: '#e2e8f0', fontStyle: 'italic', lineHeight: 1.4 }}>
-                  &ldquo;{noteText.length > 80 ? noteText.slice(0, 80) + '…' : noteText}&rdquo;
+                <div style={{ fontSize: `${bodySize}px`, color: '#e2e8f0', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  &ldquo;{noteText.length > (isTiny ? 64 : 80) ? noteText.slice(0, isTiny ? 64 : 80) + '…' : noteText}&rdquo;
                 </div>
               </div>
             )}

@@ -347,6 +347,8 @@ function computeArchPositions(): Record<string, ArchPose> {
 
   // Tooth widths (approximate mesiodistal widths in scene units)
   const widths: Record<number, number> = {
+    // Note: position 2 reuses the same GLB as position 1 (central incisor),
+    // so keep similar width to prevent center-anterior overlap.
     1: 0.55, 2: 0.45, 3: 0.52, 4: 0.48, 5: 0.48, 6: 0.68, 7: 0.65, 8: 0.60,
   }
 
@@ -473,7 +475,10 @@ function computePediatricArchPositions(): Record<string, ArchPose> {
   const result: Record<string, ArchPose> = {}
   
   // Widths based on adult positions reused
-  const widths: Record<number, number> = { 1: 0.55, 2: 0.45, 3: 0.52, 4: 0.68, 5: 0.65 }
+  const widths: Record<number, number> = {
+    // Pediatric pos2 also reuses the same incisor model scale in this setup.
+    1: 0.55, 2: 0.45, 3: 0.52, 4: 0.68, 5: 0.65,
+  }
   
   // Scale down curve variables slightly for smaller jaws
   const kUpper = 0.16
