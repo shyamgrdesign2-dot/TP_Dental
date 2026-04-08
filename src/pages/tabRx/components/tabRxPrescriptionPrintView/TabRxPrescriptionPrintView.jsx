@@ -132,6 +132,7 @@ const progressStyle = {
   transition: "width 0.1s ease-in-out",
 };
 
+let tabRxMountCount = 0;
 function TabRxPrescriptionPrintView() {
   const divRef = useRef(null);
   const printRef = useRef();
@@ -172,14 +173,34 @@ function TabRxPrescriptionPrintView() {
   const [isRxDigitiseComplete, setRxDigitiseComplete] = useState(false);
   const [showProgressbar, setShowProgressbar] = useState(false);
   const progressRef = useRef(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-
   const [printUrl, setPrintUrl] = useState(
     state !== undefined
       ? `${state?.print_url}&pam_id=${pam_id}&lg=${encodedData}`
       : null,
   );
+
+  // Detect a hard refresh on the first mount after document load.
+  const isFirstMountAfterLoad = tabRxMountCount === 0;
+  useEffect(() => {
+    tabRxMountCount += 1;
+  }, []);
+  const navigationEntry =
+    window?.performance?.getEntriesByType?.("navigation")?.[0];
+  const didHardReload = navigationEntry?.type === "reload";
+  const treatAsReload = didHardReload && isFirstMountAfterLoad;
+
+  // If the page was reloaded, treat it as not coming from Configure Print Setting
+  const fromConfigurePrintSetting =
+    state?.from === "/configure_print_setting" &&
+    Boolean(state?.currentSessionRx) &&
+    !treatAsReload;
+
+  const [useSessionRx, setUseSessionRx] = useState(fromConfigurePrintSetting);
+
   const [currentSessionRx, setCurrentSessionRx] = useState(() => {
+    if (!fromConfigurePrintSetting) {
+      return null;
+    }
     if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
     if (
       typeof state?.currentSessionRx === "string" &&
@@ -189,18 +210,6 @@ function TabRxPrescriptionPrintView() {
     }
     return null;
   });
-
-  // Detect a hard refresh so we don't reuse a stale object URL and skip the PDF fetch.
-  const navigationEntry =
-    window?.performance?.getEntriesByType?.("navigation")?.[0];
-  const isPageReload = useRef(
-    navigationEntry?.type === "reload" ||
-    window?.performance?.navigation?.type === 1,
-  ).current;
-
-  // If the page was reloaded, treat it as not coming from Configure Print Setting
-  const fromConfigurePrintSetting =
-    Boolean(state?.fromConfigurePrintSetting) && !isPageReload;
 
   const [divWidth, setDivWidth] = useState(0);
   const [numPages, setNumPages] = useState();
@@ -267,18 +276,54 @@ function TabRxPrescriptionPrintView() {
     }
   };
 
+  const hasToggledRef = useRef(false);
+  const skipNextToggleResetRef = useRef(false);
+
   useEffect(() => {
     const fetchData = async () => {
       if (state?.tcm_id && patient_data?.patient_unique_id) {
         const viewCaseManagerData = await getCaseManagerData();
-        setShowDigitalRx(
-          viewCaseManagerData?.isRxDigitize && state?.page === "digitise"
-        );
         setViewCaseManagerData(viewCaseManagerData);
+
+        if (state?.from === "/configure_print_setting") {
+          skipNextToggleResetRef.current = true;
+          setShowDigitalRx(state?.page === "digitise");
+        } else if (state?.page === "digitise") {
+          skipNextToggleResetRef.current = true;
+          setShowDigitalRx(true);
+        } else {
+          const shouldShowDigital =
+            viewCaseManagerData?.isRxDigitize && state?.page === "digitise";
+          skipNextToggleResetRef.current = true;
+          setShowDigitalRx(shouldShowDigital);
+        }
       }
     };
     fetchData();
-  }, [state?.tcm_id, patient_data?.patient_unique_id]);
+  }, [state?.tcm_id, patient_data?.patient_unique_id, selectedLang]);
+
+  // When returning from Configure Print Setting with "No, Apply on This Rx Only", use the PDF blob
+  useEffect(() => {
+    if (fromConfigurePrintSetting && state?.currentSessionRx) {
+      setCurrentSessionRx(state.currentSessionRx);
+    }
+  }, [fromConfigurePrintSetting, state?.currentSessionRx]);
+
+  useEffect(() => {
+    // Switching between Digital/Written should force a fresh fetch/render
+    if (skipNextToggleResetRef.current) {
+      skipNextToggleResetRef.current = false;
+      return;
+    }
+    if (!hasToggledRef.current) {
+      hasToggledRef.current = true;
+      return;
+    }
+    setUseSessionRx(false);
+    setCurrentSessionRx(null);
+    setPrintBlob(null);
+    setNumPages(undefined);
+  }, [showDigitalRx]);
 
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
@@ -313,18 +358,6 @@ function TabRxPrescriptionPrintView() {
     } catch (error) {
       console.error("Error fetching gynec history:", error);
     }
-  };
-
-  const updateRxDigitizeInUrl = (url, showDigitalRx) => {
-    const urlObj = new URL(url);
-
-    if (showDigitalRx) {
-      urlObj.searchParams.set("rxDigitize", "true");
-    } else {
-      urlObj.searchParams.delete("rxDigitize");
-    }
-
-    return urlObj.toString();
   };
 
   const getLabParams = async () => {
@@ -372,15 +405,33 @@ function TabRxPrescriptionPrintView() {
       return;
     }
     const encodedData = btoa(selectedLang.toString());
-    const langUrl = `${state.print_url}&pam_id=${pam_id}&lg=${encodedData}`;
-    const nextUrl = updateRxDigitizeInUrl(langUrl, showDigitalRx);
-    if (nextUrl !== printUrl) {
-      setPrintUrl(nextUrl);
-      setPreviewUrl(nextUrl);
+    const baseUrl = state.print_url;
+
+    try {
+      const urlObj = new URL(baseUrl);
+      urlObj.searchParams.set("pam_id", pam_id.toString());
+      urlObj.searchParams.set("lg", encodedData);
+      urlObj.searchParams.delete("rxDigitize");
+      if (showDigitalRx) {
+        urlObj.searchParams.set("rxDigitize", "true");
+      }
+      const nextUrl = urlObj.toString();
+      if (nextUrl !== printUrl) {
+        setPrintUrl(nextUrl);
+      }
+    } catch (error) {
+      let url = `${baseUrl}&pam_id=${pam_id}&lg=${encodedData}`;
+      url = url.replace(/[?&]rxDigitize=[^&]*/g, "");
+      if (showDigitalRx) {
+        url += (url.includes("?") ? "&" : "?") + "rxDigitize=true";
+      }
+      if (url !== printUrl) {
+        setPrintUrl(url);
+      }
     }
   }, [selectedLang, state?.print_url, pam_id, printUrl, showDigitalRx]);
 
-  const shouldSkipAutoFetch = Boolean(currentSessionRx) && !isPageReload;
+  const shouldSkipAutoFetch = Boolean(currentSessionRx) && useSessionRx;
 
   const {
     printBlob: generatedPrintBlob,
@@ -394,30 +445,22 @@ function TabRxPrescriptionPrintView() {
     skipFetch: shouldSkipAutoFetch,
   });
 
-  useEffect(() => {
-    if (!isPageReload) return;
-    if (currentSessionRx) {
-      if (typeof currentSessionRx === "string") {
-        URL.revokeObjectURL(currentSessionRx);
-      }
-      setCurrentSessionRx(null);
-    }
-  }, [isPageReload, currentSessionRx]);
 
   useEffect(() => {
-    if (fromConfigurePrintSetting) return;
     if (generatedPrintBlob) {
-      setPrintBlob(generatedPrintBlob);
-      setCurrentSessionRx(generatedPrintBlob);
+      if (!useSessionRx) {
+        setPrintBlob(generatedPrintBlob);
+        setCurrentSessionRx(generatedPrintBlob);
+      }
     }
-  }, [generatedPrintBlob, fromConfigurePrintSetting]);
+  }, [generatedPrintBlob, useSessionRx]);
 
   useEffect(() => {
-    if (fromConfigurePrintSetting) return;
+    if (useSessionRx && currentSessionRx) return;
     if (printPayloadError) {
       message.error("Failed to load prescription data.");
     }
-  }, [printPayloadError, fromConfigurePrintSetting]);
+  }, [printPayloadError, useSessionRx, currentSessionRx]);
 
   useEffect(() => {
     if (!isOpdBillChecked) {
@@ -512,7 +555,7 @@ function TabRxPrescriptionPrintView() {
 
   const printContent = async () => {
     const isMobileDevice = isMobile || isTablet || isIPad();
-    const sourceFile = showDigitalRx ? previewUrl : (printBlob || currentSessionRx);
+    const sourceFile = printBlob || currentSessionRx;
     if (!sourceFile) {
       message.error("PDF is not ready yet.");
       return;
@@ -549,7 +592,7 @@ function TabRxPrescriptionPrintView() {
   const printInAppContent = async () => {
     // navigate(`/prescription_print_view/?url=${currentSessionRx || printUrl}&key=print`, { replace: true, state: state })
     // navigate(0, { replace: true });
-    const sourceFile = showDigitalRx ? previewUrl : (printBlob || currentSessionRx);
+    const sourceFile = printBlob || currentSessionRx;
     if (!sourceFile) {
       message.error("PDF is not ready yet.");
       return;
@@ -590,17 +633,15 @@ function TabRxPrescriptionPrintView() {
         patientId: patient_data?.patient_unique_id,
         default_language: data,
       });
-      // Keep the configured PDF intact when returning from Configure Print Settings
-      if (!fromConfigurePrintSetting) {
-        setCurrentSessionRx(null);
-      }
+      setUseSessionRx(false);
+      setCurrentSessionRx(null);
     },
-    [selectedLang, printUrl, fromConfigurePrintSetting],
+    [patient_data?.patient_unique_id],
   );
 
   const handleDownload = async () => {
     try {
-      const sourceFile = showDigitalRx ? previewUrl : (printBlob || currentSessionRx);
+      const sourceFile = printBlob || currentSessionRx;
       const pdfBlob = await asBlob(sourceFile);
       if (pdfBlob instanceof Blob) {
         saveAs(pdfBlob, `${Date.now()}.pdf`);
@@ -616,7 +657,7 @@ function TabRxPrescriptionPrintView() {
   const handleInAppDownload = async () => {
     // navigate(`/prescription_print_view/?url=${currentSessionRx || printUrl}&key=download`, { replace: true, state: state })
     // navigate(0, { replace: true });
-    const sourceFile = showDigitalRx ? previewUrl : (printBlob || currentSessionRx);
+    const sourceFile = printBlob || currentSessionRx;
     if (!sourceFile) {
       message.error("PDF is not ready yet.");
       return;
@@ -840,6 +881,7 @@ function TabRxPrescriptionPrintView() {
         state: {
           ...state,
           selectedLang: selectedLang,
+          currentSessionRx: currentSessionRx,
           caseManagerData: {
             ...action.payload,
             patient_data: {
@@ -865,6 +907,7 @@ function TabRxPrescriptionPrintView() {
     (pdfFile instanceof Blob && pdfFile.size > 0) ||
     (typeof pdfFile === "string" && pdfFile.length > 0),
   );
+  const documentFile = pdfFile;
 
   const handleDrawerCvtKnowMore = useCallback(() => {
     setCvtDrawer(!cvtDrawer);
@@ -1187,7 +1230,7 @@ function TabRxPrescriptionPrintView() {
                   >
                     {hasPdfBlob ? (
                       <Document
-                        key={`${currentSessionRx ? "session" : "generated"}-${billsUpdateKey}`}
+                        key={`${showDigitalRx ? "digital" : "written"}-${currentSessionRx ? "session" : "generated"}-${billsUpdateKey}`}
                         loading={
                           <Spin
                             style={{
@@ -1210,7 +1253,7 @@ function TabRxPrescriptionPrintView() {
                             {"Failed to load PDF file."}
                           </div>
                         }
-                        file={previewUrl}
+                        file={documentFile}
                         onLoadError={(err) => {
                           console.error("PDF load error:", err);
                           setCurrentSessionRx(null);
