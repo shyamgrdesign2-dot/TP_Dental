@@ -1372,18 +1372,9 @@ function Cardiology(props) {
     window.open(blobURL, "_blank");
   };
 
-  const isPrintPayloadNeeded =
-    showDigitalGenRx &&
-    !isSmartRxFile &&
-    !isSnapRx &&
-    !isTabRx &&
-    !(
-      genRxData &&
-      isValidMongoId(viewCaseManagerData?.smart_prescription_filename)
-    );
-
   const isPrintDisabled =
-    isPrintPayloadNeeded &&
+    (isChrome || isSafari) &&
+    !!printUrlWithLang &&
     (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob));
 
   const printDisabledTooltip = isPrintDisabled
