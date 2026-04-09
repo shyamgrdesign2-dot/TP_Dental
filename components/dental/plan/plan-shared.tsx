@@ -57,7 +57,7 @@ interface SectionFrameProps {
 
 export function SectionFrame({ children, className }: SectionFrameProps) {
   return (
-    <div className={cn("flex-1 min-h-0 overflow-y-auto px-[20px] py-[16px]", className)}>
+    <div className={cn("h-full flex-1 min-h-0 overflow-y-auto px-[20px] py-[16px]", className)}>
       {children}
     </div>
   )
@@ -123,7 +123,7 @@ interface DrawerHeaderProps {
 
 export function DrawerHeader({ title, onClose, action }: DrawerHeaderProps) {
   return (
-    <div className="shrink-0 flex items-center border-b border-tp-slate-100 px-4 gap-0 h-[56px] bg-white">
+    <div className="shrink-0 flex items-center border-b border-tp-slate-100/70 px-4 gap-0 h-[56px] bg-white">
       {/* Close icon */}
       <button
         type="button"
@@ -133,7 +133,7 @@ export function DrawerHeader({ title, onClose, action }: DrawerHeaderProps) {
         <CloseSquareIcon size={24} color="var(--tp-slate-700)" />
       </button>
       {/* Divider — full header height */}
-      <div className="w-px self-stretch bg-tp-slate-200 mx-3 shrink-0" />
+      <div className="w-px self-stretch bg-tp-slate-200/60 mx-3 shrink-0" />
       {/* Title */}
       <h2 className="text-[16px] font-semibold text-tp-slate-900 flex-1 min-w-0 truncate">{title}</h2>
       {/* Action area */}
@@ -148,4 +148,28 @@ export function computePlanTotal(services: PlanService[]): number {
 
 export function computePlanDiscount(services: PlanService[]): number {
   return services.reduce((sum, s) => sum + s.discount, 0)
+}
+
+export type ServiceWorkflowStatus = "not-started" | "in-progress" | "completed" | "no-show" | "not-interested"
+export type PlanCompletionStatus = "not-completed" | "partially-completed" | "completed"
+
+export function getServiceWorkflowStatus(service: PlanService): ServiceWorkflowStatus {
+  if (service.status === "completed") return "completed"
+  if (service.status === "no-show") return "no-show"
+  if (service.status === "not-interested") return "not-interested"
+
+  const hasActivity =
+    service.sittings.length > 0 ||
+    service.procedures.length > 0 ||
+    (service.appointments?.length ?? 0) > 0
+
+  return hasActivity ? "in-progress" : "not-started"
+}
+
+export function getPlanCompletionStatus(services: PlanService[]): PlanCompletionStatus {
+  if (services.length === 0) return "not-completed"
+  const completedCount = services.filter((s) => s.status === "completed").length
+  if (completedCount === 0) return "not-completed"
+  if (completedCount === services.length) return "completed"
+  return "partially-completed"
 }

@@ -16,6 +16,7 @@ import {
 import { usePlanContext } from "./plan-context"
 import { DrawerHeader } from "./plan-shared"
 import { genId } from "./plan-types"
+import type { ProcedureStatus } from "./plan-types"
 import { createPortal } from "react-dom"
 
 const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"]
@@ -50,6 +51,7 @@ interface ProcedureRow {
   doctor: string
   date: string
   notes: string
+  status: ProcedureStatus
 }
 
 export function AddProcedureDrawer() {
@@ -57,9 +59,13 @@ export function AddProcedureDrawer() {
   const { state, dispatch, closeDrawer, findService } = usePlanContext()
   const drawer = state.drawer
 
-  const isOpen = drawer.type === "add-procedure"
+  const isAdd = drawer.type === "add-procedure"
+  const isEdit = drawer.type === "edit-procedure"
+  const isOpen = isAdd || isEdit
   const serviceId = isOpen ? (drawer as { serviceId: string }).serviceId : undefined
+  const procedureId = isEdit ? (drawer as { procedureId: string }).procedureId : undefined
   const service = serviceId ? findService(serviceId) : undefined
+  const editingProcedure = procedureId ? service?.procedures.find((p) => p.id === procedureId) : undefined
 
   const [rows, setRows] = useState<ProcedureRow[]>([])
   const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: string } | null>(null)
@@ -87,11 +93,24 @@ export function AddProcedureDrawer() {
 
   useEffect(() => {
     if (isOpen) {
-      setRows([])
+      if (isEdit && editingProcedure) {
+        setRows([
+          {
+            id: editingProcedure.id,
+            name: editingProcedure.name,
+            doctor: editingProcedure.doctor,
+            date: editingProcedure.date,
+            notes: editingProcedure.notes ?? "",
+            status: editingProcedure.status ?? "in-progress",
+          },
+        ])
+      } else {
+        setRows([])
+      }
       setSearchQuery("")
       setSearchOpen(false)
     }
-  }, [isOpen])
+  }, [isOpen, isEdit, editingProcedure])
 
   useEffect(() => {
     if (!isOpen) return
@@ -135,6 +154,7 @@ export function AddProcedureDrawer() {
         doctor: DOCTORS[0],
         date: "",
         notes: "",
+        status: "not-started",
       },
     ])
     setSearchQuery("")
@@ -171,18 +191,35 @@ export function AddProcedureDrawer() {
 
   const handleSave = () => {
     if (!serviceId || rows.length === 0) return
-    for (const row of rows) {
+    if (isEdit && procedureId) {
+      const row = rows[0]
       dispatch({
-        type: "ADD_SUB_PROCEDURE",
+        type: "UPDATE_SUB_PROCEDURE",
         serviceId,
-        procedure: {
-          id: genId("proc"),
+        procedureId,
+        patch: {
           name: row.name,
           date: row.date,
           doctor: row.doctor,
           notes: row.notes.trim() || undefined,
+          status: row.status,
         },
       })
+    } else {
+      for (const row of rows) {
+        dispatch({
+          type: "ADD_SUB_PROCEDURE",
+          serviceId,
+          procedure: {
+            id: genId("proc"),
+            name: row.name,
+            date: row.date,
+            doctor: row.doctor,
+            notes: row.notes.trim() || undefined,
+            status: row.status,
+          },
+        })
+      }
     }
     closeDrawer()
     setRows([])
@@ -192,7 +229,7 @@ export function AddProcedureDrawer() {
     <TPDrawer open={isOpen} onOpenChange={(open) => !open && closeDrawer()}>
       <TPDrawerContent side="right" size="full" className="!rounded-none !sm:max-w-[65vw]" style={{ background: "#F4F5F7" }}>
         <DrawerHeader
-          title="Add Procedures"
+          title={isEdit ? "Edit Procedure" : "Add Procedures"}
           onClose={closeDrawer}
           action={
             <button
@@ -201,7 +238,7 @@ export function AddProcedureDrawer() {
               disabled={rows.length === 0}
               className="h-[42px] min-w-[120px] rounded-[10px] px-[20px] font-sans text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
-              Add Procedures
+              {isEdit ? "Save Procedure" : "Add Procedures"}
             </button>
           }
         />
@@ -231,7 +268,8 @@ export function AddProcedureDrawer() {
                     <col style={{ minWidth: 180 }} />
                     <col style={{ width: 170, minWidth: 150 }} />
                     <col style={{ width: 130, minWidth: 120 }} />
-                    <col style={{ minWidth: 160 }} />
+                    <col style={{ minWidth: 140 }} />
+                    <col style={{ width: 130, minWidth: 120 }} />
                     <col style={{ width: 44, minWidth: 44, maxWidth: 44 }} />
                   </colgroup>
                   <thead>
@@ -241,6 +279,7 @@ export function AddProcedureDrawer() {
                       <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Doctor</th>
                       <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Date</th>
                       <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Note</th>
+                      <th className="border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]">Status</th>
                       <th className="sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" />
                     </tr>
                   </thead>
@@ -309,6 +348,19 @@ export function AddProcedureDrawer() {
                             className="relative z-20 h-[52px] w-full border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] placeholder:text-[#a2a2a8] focus:outline-none focus:ring-0 rounded-none"
                           />
                         </td>
+                        <td className="border-r border-tp-slate-100 p-0">
+                          <select
+                            value={row.status}
+                            onChange={(e) => updateRow(row.id, { status: e.target.value as ProcedureStatus })}
+                            className="h-[52px] w-full border-0 bg-transparent px-[12px] font-['Inter',sans-serif] text-[13px] leading-[20px] text-[#454551] focus:outline-none focus:ring-0 rounded-none"
+                          >
+                            <option value="not-started">Not Started</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                            <option value="no-show">Patient No Show</option>
+                            <option value="not-interested">Patient Not Interested</option>
+                          </select>
+                        </td>
                         <td className="sticky right-0 z-30 border-l border-tp-slate-200/80 bg-white p-0 shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]">
                           <div className="flex h-[52px] items-center justify-center">
                             <button
@@ -329,6 +381,7 @@ export function AddProcedureDrawer() {
             )}
 
             {/* Search below table */}
+            {!isEdit && (
             <div className={`px-[14px] py-[12px] ${rows.length > 0 ? "border-t border-tp-slate-100" : ""}`}>
               <div className="relative">
                 <Search
@@ -368,12 +421,13 @@ export function AddProcedureDrawer() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </TPDrawerContent>
 
       {/* Search dropdown portal */}
-      {searchOpen && mounted && filteredProcedures.length > 0 && createPortal(
+      {!isEdit && searchOpen && mounted && filteredProcedures.length > 0 && createPortal(
         <div
           ref={dropdownRef}
           style={{

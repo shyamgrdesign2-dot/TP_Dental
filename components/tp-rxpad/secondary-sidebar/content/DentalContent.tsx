@@ -1,178 +1,237 @@
 /**
- * Dental History content panel — secondary sidebar.
- * Matches the design pattern of VitalsContent / PastVisitsContent:
- * ActionButton at top, expandable section cards for each historical entry.
+ * Dental History content panel — tooth-first historical format.
+ *
+ * Main heading per card = tooth name.
+ * Inside each card: Treatment History, Findings, Procedures, Overall Tooth Notes.
  */
 "use client"
 
 import React, { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import clsx from "clsx"
-import { ArrowSquareDown, ArrowSquareUp } from "iconsax-reactjs"
-import { DENTAL_HISTORY, type DentalHistoryEntry } from "@/components/dental/mock-data"
-import { ActionButton, useStickyHeaderState } from "../detail-shared"
+import { useSearchParams } from "next/navigation"
+import { ToothIcon } from "@/components/dental/ToothIcon"
+import { DENTAL_TOOTH_HISTORY, type DentalToothHistoryEntry } from "@/components/dental/mock-data"
+import { TPMedicalIcon } from "@/components/tp-ui"
+import { ActionButton, SectionScrollArea, useStickyHeaderState } from "../detail-shared"
 import { tpSectionCardStyle } from "../tokens"
 
-function DentalHistoryCard({
-  entry,
-  expanded,
-  onToggle,
+function ToothHistorySection({
+  title,
+  medicalIcon,
+  children,
 }: {
-  entry: DentalHistoryEntry
-  expanded: boolean
-  onToggle: () => void
+  title: string
+  medicalIcon: string
+  children: React.ReactNode
 }) {
+  return (
+    <div>
+      <div className="group flex items-center gap-[6px]">
+        <span className="flex h-[16px] w-[16px] shrink-0 items-center justify-center">
+          <TPMedicalIcon name={medicalIcon} variant="bulk" size={16} color="var(--tp-violet-400)" className="block h-[16px] w-[16px]" />
+        </span>
+        <p className="font-sans font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px]">{title}</p>
+      </div>
+      <div className="mt-[4px] space-y-[4px]">{children}</div>
+    </div>
+  )
+}
+
+function renderMeta(parts: Array<string | undefined>) {
+  const cleanParts = parts.filter(Boolean) as string[]
+  return (
+    <span className="text-tp-slate-400">
+      {"("}
+      {cleanParts.map((part, idx) => (
+        <React.Fragment key={`${part}-${idx}`}>
+          {idx > 0 ? <span className="text-tp-slate-300"> | </span> : null}
+          {part}
+        </React.Fragment>
+      ))}
+      {")"}
+    </span>
+  )
+}
+
+function formatHistoryDate(value: string): string {
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim())
+  if (!isoMatch) return value
+  const [, y, m, d] = isoMatch
+  const dt = new Date(Number(y), Number(m) - 1, Number(d))
+  if (Number.isNaN(dt.getTime())) return value
+  const day = dt.getDate().toString().padStart(2, "0")
+  const month = dt.toLocaleString("en-IN", { month: "short" })
+  const year = dt.getFullYear().toString().slice(-2)
+  return `${day} ${month}'${year}`
+}
+
+function ToothHistoryCard({ entry }: { entry: DentalToothHistoryEntry }) {
   const { headerRef, isStuck } = useStickyHeaderState()
-  const statusTone =
-    entry.status === "Active"
-      ? "bg-[#fef2f2] text-[#dc2626]"
-      : entry.status === "Resolved"
-      ? "bg-[#f0fdf4] text-[#16a34a]"
-      : "bg-tp-slate-100 text-tp-slate-600"
+
   return (
     <div className="relative shrink-0 w-full" style={tpSectionCardStyle}>
-      <button
-        type="button"
-        ref={headerRef as React.Ref<HTMLButtonElement>}
-        onClick={onToggle}
-        className={clsx(
-          "bg-tp-slate-100 sticky top-0 z-[2] shrink-0 w-full text-left",
-          expanded
-            ? isStuck
-              ? "rounded-tl-none rounded-tr-none"
-              : "rounded-tl-[10px] rounded-tr-[10px]"
-            : "rounded-[10px]",
-        )}
+      <div
+        ref={headerRef as React.Ref<HTMLDivElement>}
+        className={`group bg-tp-slate-100 shrink-0 w-full sticky top-0 z-[2] ${
+          isStuck ? "rounded-tl-none rounded-tr-none" : "rounded-tl-[10px] rounded-tr-[10px]"
+        }`}
       >
-        <div className="flex items-center justify-between gap-[8px] px-[10px] py-[8px]">
-          <div className="flex min-w-0 flex-1 items-center gap-[8px]">
-            <p className="font-['Inter',sans-serif] font-semibold leading-[20px] text-tp-slate-700 text-[14px] tracking-[0.012px] truncate">
-              {entry.condition}
-            </p>
-            <span
-              className={clsx(
-                "inline-flex shrink-0 items-center rounded-[4px] px-[6px] py-[1px] text-[10px] font-sans font-medium",
-                statusTone,
-              )}
-            >
-              {entry.status}
-            </span>
-          </div>
-          <div className="flex items-center gap-[6px]">
-            <span className="font-sans text-[11px] text-tp-slate-400 whitespace-nowrap">{entry.since}</span>
-            <div className="shrink-0 size-[18px]">
-              {expanded ? (
-                <ArrowSquareUp color="var(--tp-slate-500)" size={18} strokeWidth={1.5} variant="Linear" />
-              ) : (
-                <ArrowSquareDown color="var(--tp-slate-500)" size={18} strokeWidth={1.5} variant="Linear" />
-              )}
-            </div>
-          </div>
+        <div className="flex items-center justify-between px-[10px] py-[8px] w-full">
+          <p className="font-['Inter',sans-serif] font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px] whitespace-nowrap">
+            {entry.toothCode === "full-mouth" ? "Full Mouth" : `${entry.toothLabel} (T${entry.toothCode})`}
+          </p>
         </div>
-      </button>
+      </div>
 
-      {expanded && (
-        <div className="flex flex-col gap-[6px] bg-white px-[12px] py-[10px]">
-          {entry.medication && (
-            <div className="flex items-center justify-between">
-              <span className="font-sans text-[13px] leading-[20px] text-tp-slate-700">Medication</span>
-              <span className="inline-flex items-center rounded-[4px] bg-[#eff6ff] px-[6px] py-[1px] text-[10px] font-sans font-medium text-[#2563eb]">
-                On medication
-              </span>
-            </div>
+      <div className="space-y-[8px] bg-white px-[10px] py-[10px] rounded-bl-[10px] rounded-br-[10px]">
+        <ToothHistorySection
+          title="Treatment History"
+          medicalIcon="clipboard-activity"
+        >
+          {entry.treatmentHistory.length > 0 ? (
+            <ul className="space-y-[6px] pl-[18px]">
+              {entry.treatmentHistory.map((item) => (
+                <li key={item.id} className="list-disc marker:text-tp-slate-500 font-sans text-[12px] text-tp-slate-500 leading-[18px]">
+                  <span className="font-medium text-tp-slate-700">{item.name}</span>
+                  {" "}
+                  {renderMeta([
+                    item.surface,
+                    formatHistoryDate(item.since),
+                    item.notes,
+                  ])}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-sans text-[12px] text-tp-slate-400">No treatment history documented.</p>
           )}
-          {entry.notes && (
-            <p className="font-sans text-[13px] leading-[19px] text-tp-slate-600">{entry.notes}</p>
+        </ToothHistorySection>
+
+        <ToothHistorySection
+          title="Findings"
+          medicalIcon="diagnosis"
+        >
+          {entry.findings.length > 0 ? (
+            <ul className="space-y-[4px] pl-[18px]">
+              {entry.findings.map((finding) => (
+                <li key={finding.id} className="list-disc marker:text-tp-slate-500 font-sans text-[12px] text-tp-slate-500 leading-[18px]">
+                  <span className="font-medium text-tp-slate-700">{finding.name}</span>
+                  {" "}
+                  {renderMeta([
+                    finding.surface,
+                    formatHistoryDate(finding.since),
+                    finding.notes,
+                  ])}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-sans text-[12px] text-tp-slate-400">No findings added.</p>
           )}
-          {!entry.medication && !entry.notes && (
-            <p className="font-sans text-[12px] text-tp-slate-400 italic">No additional notes.</p>
+        </ToothHistorySection>
+
+        <ToothHistorySection
+          title="Procedures"
+          medicalIcon="surgical-scissors-02"
+        >
+          {entry.procedures.length > 0 ? (
+            <ul className="space-y-[6px] pl-[18px]">
+              {entry.procedures.map((procedure) => (
+                <li key={procedure.id} className="list-disc marker:text-tp-slate-500 font-sans text-[12px] text-tp-slate-500 leading-[18px]">
+                  <span className="font-medium text-tp-slate-700">{procedure.name}</span>
+                  {" "}
+                  {renderMeta([
+                    procedure.surface,
+                    formatHistoryDate(procedure.date),
+                    procedure.status,
+                    procedure.notes,
+                  ])}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="font-sans text-[12px] text-tp-slate-400">No procedures recorded.</p>
           )}
-        </div>
-      )}
+        </ToothHistorySection>
+
+        <ToothHistorySection
+          title="Overall Tooth Notes"
+          medicalIcon="note-2"
+        >
+          <ul className="pl-[18px]">
+            <li className="list-disc marker:text-tp-slate-500 font-sans text-[12px] text-tp-slate-500 leading-[18px]">
+              {entry.overallNotes ?? "No additional notes."}
+            </li>
+          </ul>
+        </ToothHistorySection>
+      </div>
     </div>
   )
 }
 
 export function DentalContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const patientId = searchParams?.get("patientId") ?? "PAT-001"
-  const entries: DentalHistoryEntry[] = DENTAL_HISTORY[patientId] ?? []
-  const [expandedById, setExpandedById] = useState<Record<string, boolean>>(() =>
-    entries.length > 0 ? { [entries[0].id]: true } : {},
-  )
+  const patientId = searchParams?.get("patientId") ?? "apt-1"
+  const entries: DentalToothHistoryEntry[] = DENTAL_TOOTH_HISTORY[patientId] ?? []
+  const [infoMessage, setInfoMessage] = useState<string>("")
 
-  const openDentalModule = () => {
-    router.push(`/dental?patientId=${patientId}`)
+  const openDentalExamination = () => {
+    if (typeof window === "undefined") return
+    const activeTab = window.localStorage.getItem("rxpad.active-tab")
+    if (activeTab === "dental") {
+      setInfoMessage("You are already in Dental Examination. Add tooth findings/procedures to build history.")
+      return
+    }
+    window.dispatchEvent(new CustomEvent("tp:open-dental-exam"))
+    setInfoMessage("Switched to Dental Examination. Add tooth details to populate Dental History.")
   }
 
   if (entries.length === 0) {
-    // Empty state — CTA sits BELOW the message (no sticky top button)
     return (
       <div className="content-stretch flex flex-col items-center relative size-full">
         <div className="flex flex-col items-center justify-center size-full gap-[16px] px-[20px] py-[32px]">
-          <div className="flex items-center justify-center w-[72px] h-[72px] rounded-full bg-tp-slate-100">
-            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-              <path
-                d="M20 5c-4 0-6.5 1.5-9 1.5S7 5 5 7c-2 3-1 9 1 14s2 10 4 12c1.5 1.5 3 0 3.5-2s1.5-6 3-8 3-2 3.5-2 2 0 3.5 2 2.5 6 3 8 2 3.5 3.5 2c2-2 2-7 4-12s3-11 1-14c-2-2-4-.5-6-.5S24 5 20 5Z"
-                fill="var(--tp-slate-200)"
-              />
-              <path
-                d="M20 5c-4 0-6.5 1.5-9 1.5S7 5 5 7c-2 3-1 9 1 14s2 10 4 12c1.5 1.5 3 0 3.5-2s1.5-6 3-8 3-2 3.5-2 2 0 3.5 2 2.5 6 3 8 2 3.5 3.5 2c2-2 2-7 4-12s3-11 1-14c-2-2-4-.5-6-.5S24 5 20 5Z"
-                stroke="var(--tp-blue-400)"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-              />
-            </svg>
+          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-tp-slate-100">
+            <ToothIcon size={38} color="var(--tp-blue-500)" variant="Linear" />
           </div>
           <div className="flex flex-col items-center gap-[4px]">
             <p className="font-sans font-semibold text-[13px] text-tp-slate-700 text-center leading-[20px]">
               No dental history yet
             </p>
             <p className="font-sans text-[12px] text-tp-slate-400 text-center leading-[18px] max-w-[220px]">
-              Open the dental module to examine, mark findings, and plan treatments for this patient.
+              Open Dental Examination to add treatment history, findings, procedures, and tooth notes.
             </p>
           </div>
           <button
             type="button"
-            onClick={openDentalModule}
+            onClick={openDentalExamination}
             className="inline-flex items-center gap-[6px] rounded-[8px] border border-tp-blue-500 bg-white px-[14px] py-[8px] font-sans text-[13px] font-medium text-tp-blue-500 transition-colors hover:bg-tp-blue-50"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M6 12H18" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
               <path d="M12 18V6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
             </svg>
-            Open dental module
+            Open Dental Examination
           </button>
+          {infoMessage ? (
+            <p className="font-sans text-[12px] text-tp-slate-500 text-center leading-[18px] max-w-[240px]">{infoMessage}</p>
+          ) : null}
         </div>
       </div>
     )
   }
 
-  // Populated state — sticky ActionButton at top + history cards
   return (
     <div className="content-stretch flex flex-col items-center relative size-full">
-      <ActionButton label="Open dental module" icon="plus" onClick={openDentalModule} />
-      <div
-        className="flex-[1_0_0] min-h-px min-w-px relative w-full overflow-y-auto"
-        data-sticky-scroll-root="true"
-      >
-        <div className="content-stretch flex flex-col gap-[12px] items-start p-[12px] w-full">
-          {entries.map((entry) => (
-            <DentalHistoryCard
-              key={entry.id}
-              entry={entry}
-              expanded={Boolean(expandedById[entry.id])}
-              onToggle={() =>
-                setExpandedById((prev) => ({
-                  ...prev,
-                  [entry.id]: !prev[entry.id],
-                }))
-              }
-            />
-          ))}
+      <ActionButton label="Open Dental Examination" icon="plus" onClick={openDentalExamination} />
+      {infoMessage ? (
+        <div className="w-full px-[12px] pt-[8px]">
+          <p className="font-sans text-[12px] text-tp-slate-500">{infoMessage}</p>
         </div>
-      </div>
+      ) : null}
+      <SectionScrollArea>
+        {entries.map((entry) => (
+          <ToothHistoryCard key={entry.id} entry={entry} />
+        ))}
+      </SectionScrollArea>
     </div>
   )
 }

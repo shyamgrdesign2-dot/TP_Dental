@@ -18,6 +18,7 @@ import {
 } from "iconsax-reactjs"
 import { ChevronLeft, MoreVertical } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer"
 import { TPSplitButton } from "@/components/tp-ui/button-system"
 import svgPaths from "./svg-gb0jbe9ifm";
 
@@ -26,9 +27,17 @@ type RxpadHeaderProps = {
   onBack?: () => void
 }
 
+const RX_PREVIEW_IMAGE = "https://www.figma.com/api/mcp/asset/959a3623-63f1-4a6f-ae03-324d9f5a4af3"
+
 export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const openEndVisit = () => {
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
+    const pid = params.get("patientId") ?? "apt-1"
+    router.push(`/rxpad/end-visit?patientId=${pid}&snackbar=visit-ended`)
+  }
 
   return (
     <div className={`bg-white relative h-[62px] w-full overflow-x-auto ${className ?? ""}`} data-name="Rxpad_Header">
@@ -182,21 +191,22 @@ export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
             <button
               type="button"
               aria-label="Preview"
-              className="bg-[#f1f1f5] content-stretch flex gap-[6.3px] items-center justify-center px-[16px] py-[8px] relative rounded-[10.5px] shrink-0 transition-colors hover:bg-[#e9e9ef]"
+              onClick={() => setIsPreviewOpen(true)}
+              className="bg-white border border-tp-blue-500 content-stretch flex gap-[6.3px] items-center justify-center px-[16px] py-[8px] relative rounded-[10.5px] shrink-0 transition-colors hover:bg-tp-blue-50/40"
               data-name="Preview"
             >
-              <Eye color="#454551" size={24} strokeWidth={1.5} variant="Linear" />
-              <p className="font-['Inter:Semi_Bold',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-[#454551] text-[14.7px] text-center whitespace-nowrap">Preview</p>
+              <Eye color="var(--tp-blue-500)" size={24} strokeWidth={1.5} variant="Linear" />
+              <p className="font-['Inter:Semi_Bold',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-tp-blue-500 text-[14.7px] text-center whitespace-nowrap">Preview</p>
             </button>
             {/* Primary action: End Visit (split) → dropdown also offers Save as Draft */}
             <TPSplitButton
               primaryAction={{
                 label: "End Visit",
                 icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M8.9 7.56c.31-3.6 2.16-5.07 6.21-5.07h.13c4.47 0 6.26 1.79 6.26 6.26v6.52c0 4.47-1.79 6.26-6.26 6.26h-.13c-4.02 0-5.87-1.45-6.2-4.99" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12h12.88" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M12.65 8.65L16 12l-3.35 3.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>,
-                onClick: () => {},
+                onClick: openEndVisit,
               }}
               secondaryActions={[
-                { id: "end-visit", label: "End Visit", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M8.9 7.56c.31-3.6 2.16-5.07 6.21-5.07h.13c4.47 0 6.26 1.79 6.26 6.26v6.52c0 4.47-1.79 6.26-6.26 6.26h-.13c-4.02 0-5.87-1.45-6.2-4.99" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12h12.88" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M12.65 8.65L16 12l-3.35 3.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>, onClick: () => {} },
+                { id: "end-visit", label: "End Visit", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M8.9 7.56c.31-3.6 2.16-5.07 6.21-5.07h.13c4.47 0 6.26 1.79 6.26 6.26v6.52c0 4.47-1.79 6.26-6.26 6.26h-.13c-4.02 0-5.87-1.45-6.2-4.99" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M2 12h12.88" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /><path d="M12.65 8.65L16 12l-3.35 3.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>, onClick: openEndVisit },
                 { id: "draft", label: "Save as Draft", icon: <DocumentSketch color="currentColor" size={14} variant="Linear" />, onClick: () => {} },
               ]}
               variant="solid"
@@ -215,6 +225,35 @@ export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
         </div>
       </div>
       <div aria-hidden="true" className="absolute bottom-0 left-0 right-0 h-px bg-tp-slate-100 pointer-events-none" />
+
+      <TPDrawer open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+        <TPDrawerContent side="right" size="xl" className="!rounded-none !sm:max-w-[min(90vw,760px)] !p-0 !bg-tp-slate-100">
+          <div className="shrink-0 flex items-center border-b border-tp-slate-100/70 px-4 gap-0 h-[56px] bg-white">
+            <button
+              type="button"
+              onClick={() => setIsPreviewOpen(false)}
+              className="flex items-center justify-center transition-opacity hover:opacity-70 shrink-0"
+              aria-label="Close preview"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--tp-slate-700)" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.19 2H7.81C4.17 2 2 4.17 2 7.81V16.18C2 19.83 4.17 22 7.81 22H16.18C19.82 22 21.99 19.83 21.99 16.19V7.81C22 4.17 19.83 2 16.19 2ZM15.36 14.3C15.65 14.59 15.65 15.07 15.36 15.36C15.21 15.51 15.02 15.58 14.83 15.58C14.64 15.58 14.45 15.51 14.3 15.36L12 13.06L9.7 15.36C9.55 15.51 9.36 15.58 9.17 15.58C8.98 15.58 8.79 15.51 8.64 15.36C8.35 15.07 8.35 14.59 8.64 14.3L10.94 12L8.64 9.7C8.35 9.41 8.35 8.93 8.64 8.64C8.93 8.35 9.41 8.35 9.7 8.64L12 10.94L14.3 8.64C14.59 8.35 15.07 8.35 15.36 8.64C15.65 8.93 15.65 9.41 15.36 9.7L13.06 12L15.36 14.3Z"/>
+              </svg>
+            </button>
+            <div className="w-px self-stretch bg-tp-slate-200/60 mx-3 shrink-0" />
+            <h2 className="text-[16px] font-semibold text-tp-slate-900 flex-1 min-w-0 truncate">Preview Rx</h2>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="mx-auto w-full max-w-[590px] rounded-[16px] shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
+              <img
+                src={RX_PREVIEW_IMAGE}
+                alt="Digital Rx preview"
+                className="block h-auto w-full rounded-[16px] object-cover"
+              />
+            </div>
+          </div>
+        </TPDrawerContent>
+      </TPDrawer>
     </div>
   );
 }

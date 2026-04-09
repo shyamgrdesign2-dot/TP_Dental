@@ -39,7 +39,7 @@ function TreatmentPlanInner({ activeTab, setActiveTab }: { activeTab: PlanTabId;
           />
           <TabPill
             id="progress"
-            label="In Progress"
+            label="Active Plans"
             count={inProgressPlans.length}
             active={activeTab === "progress"}
             onClick={() => setActiveTab("progress")}

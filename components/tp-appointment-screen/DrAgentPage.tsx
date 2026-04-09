@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createPortal } from "react-dom"
 import {
   Calendar2,
@@ -31,8 +31,10 @@ import { Check, ChevronDown, ListFilter, MoreVertical, Plus, Search, Star, X } f
 import { cn } from "@/lib/utils"
 import { TPButton as Button, TPSplitButton } from "@/components/tp-ui/button-system"
 import { TPSecondaryNavPanel, type TPSecondaryNavItem, TPTag } from "@/components/tp-ui"
+import { TPSnackbar } from "@/components/tp-ui"
 import { AppointmentBanner } from "@/components/appointments/AppointmentBanner"
 import { DateRangePicker, type DatePresetId } from "@/components/ui/date-range-picker"
+import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm"
 
 const REF_LOGO = "/assets/b38df11ad80d11b9c1d530142443a18c2f53d406.png"
 const REF_AVATAR = "/assets/52cb18088c5b8a5db6a7711c9900d7d08a1bac42.png"
@@ -263,6 +265,7 @@ const TAB_EMPTY_ICONS: Record<AppointmentStatus, React.ComponentType<any>> = {
 
 export function DrAgentPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeRailItem, setActiveRailItem] = useState(navItems[0].id)
   const [activeTab, setActiveTab] = useState<AppointmentStatus>("queue")
   const [query, setQuery] = useState("")
@@ -293,7 +296,15 @@ export function DrAgentPage() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterStyle, setFilterStyle] = useState<React.CSSProperties>({})
   const [filterMounted, setFilterMounted] = useState(false)
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null)
   useEffect(() => { setFilterMounted(true) }, [])
+
+  useEffect(() => {
+    const snackbarType = searchParams?.get("snackbar")
+    if (snackbarType !== "appointment-completed") return
+    setSnackbarMessage("Appointment completed successfully")
+    router.replace("/appointments")
+  }, [router, searchParams])
 
   function handleFilterBtnClick() {
     if (filterOpen) { setFilterOpen(false); return }
@@ -756,13 +767,13 @@ export function DrAgentPage() {
                                       <TPSplitButton
                                         primaryAction={{
                                           label: "TypeRx",
-                                          onClick: () => router.push(`/rxpad?patientId=${row.id}`),
+                                          onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`),
                                         }}
                                         secondaryActions={[
-                                          { id: "voice-rx", label: "VoiceRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
-                                          { id: "tab-rx", label: "TabRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
-                                          { id: "snap-rx", label: "SnapRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
-                                          { id: "smart-sync", label: "SmartSync", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
+                                          { id: "voice-rx", label: "VoiceRx", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
+                                          { id: "tab-rx", label: "TabRx", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
+                                          { id: "snap-rx", label: "SnapRx", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
+                                          { id: "smart-sync", label: "SmartSync", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
                                         ]}
                                         variant="outline"
                                         theme="primary"
@@ -816,6 +827,18 @@ export function DrAgentPage() {
           onApply={(consult, vtf) => { setSlotConsult(consult); setVtFilter(vtf); setFilterOpen(false) }}
         />
       )}
+
+      <TPSnackbar
+        open={Boolean(snackbarMessage)}
+        message={snackbarMessage ?? ""}
+        severity="success"
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        autoHideDuration={1800}
+        onClose={(_, reason) => {
+          if (reason === "clickaway") return
+          setSnackbarMessage(null)
+        }}
+      />
     </div>
   )
 }
@@ -1113,32 +1136,6 @@ function VideoConsultTooltip({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── Hexagonal play-button icon (VideoTutorialIcon) ───────────────────────────
-
-function VideoTutorialIcon({
-  size = 24,
-  color = "#000000",
-}: {
-  size?: number
-  color?: string
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={color}
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M19.5099 5.85L13.5699 2.42C12.5999 1.86 11.3999 1.86 10.4199 2.42L4.48992 5.85C3.51992 6.41 2.91992 7.45 2.91992 8.58V15.42C2.91992 16.54 3.51992 17.58 4.48992 18.15L10.4299 21.58C11.3999 22.14 12.5999 22.14 13.5799 21.58L19.5199 18.15C20.4899 17.59 21.0899 16.55 21.0899 15.42V8.58C21.0799 7.45 20.4799 6.42 19.5099 5.85ZM14.2499 13.4L13.2099 14L12.1699 14.6C10.8399 15.37 9.74992 14.74 9.74992 13.2V12V10.8C9.74992 9.26 10.8399 8.63 12.1699 9.4L13.2099 10L14.2499 10.6C15.5799 11.37 15.5799 12.63 14.2499 13.4Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
-
 // ─── Clinic data ──────────────────────────────────────────────────────────────
 
 const DUMMY_CLINICS = [
@@ -1211,13 +1208,20 @@ function TopHeader() {
       </div>
 
       <div className="flex items-center gap-3.5">
-        {/* Tutorial icon — hexagonal play button */}
+        {/* Tutorial icon — same as RxPad */}
         <button
           type="button"
-          className="flex size-[42px] items-center justify-center rounded-[10px] bg-tp-slate-100 transition-colors hover:bg-tp-slate-200"
+          className="relative inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[10.5px] transition-colors hover:bg-tp-slate-50"
           aria-label="Play tutorial"
         >
-          <VideoTutorialIcon size={20} color="#BA7DE9" />
+          <svg className="block h-[42px] w-[42px]" fill="none" preserveAspectRatio="none" viewBox="0 0 42 42">
+            <g id="Tutorial">
+              <g id="Union" opacity="0.8">
+                <path clipRule="evenodd" d={svgPaths.p3172ac80} fill="var(--fill-0, #8A4DBB)" fillRule="evenodd" />
+                <path clipRule="evenodd" d={svgPaths.p2ee5cec0} fill="var(--fill-0, #8A4DBB)" fillRule="evenodd" />
+              </g>
+            </g>
+          </svg>
         </button>
 
         <button
@@ -1229,7 +1233,7 @@ function TopHeader() {
           <span className="absolute -top-0.5 right-1 size-2.5 rounded-full border-2 border-white bg-red-500" />
         </button>
 
-        <div className="h-[42px] w-px bg-tp-slate-300 opacity-80" />
+        <div className="bg-gradient-to-b from-[rgba(208,213,221,0.2)] h-[42px] opacity-80 shrink-0 to-[rgba(208,213,221,0.2)] via-1/2 via-[#d0d5dd] w-[1.05px]" />
 
         {/* Clinic selector with search + scrollable list */}
         <div className="relative hidden sm:block" ref={clinicMenuRef}>

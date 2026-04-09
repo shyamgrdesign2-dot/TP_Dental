@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   TPDrawer,
   TPDrawerContent,
@@ -15,37 +15,70 @@ export function AddSittingDrawer() {
   const { state, dispatch, closeDrawer, findService } = usePlanContext()
   const drawer = state.drawer
 
-  const isOpen = drawer.type === "add-sitting"
+  const isAdd = drawer.type === "add-sitting"
+  const isEdit = drawer.type === "edit-sitting"
+  const isOpen = isAdd || isEdit
   const serviceId = isOpen ? (drawer as { serviceId: string }).serviceId : undefined
+  const sittingId = isEdit ? (drawer as { sittingId: string }).sittingId : undefined
   const service = serviceId ? findService(serviceId) : undefined
+  const editingSitting = sittingId ? service?.sittings.find((s) => s.id === sittingId) : undefined
 
   const [date, setDate] = useState(new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }))
   const [doctor, setDoctor] = useState(DOCTORS[0])
   const [notes, setNotes] = useState("")
 
-  const handleAdd = () => {
-    if (!serviceId) return
-    dispatch({
-      type: "ADD_SITTING",
-      serviceId,
-      sitting: {
-        id: genId("sit"),
-        date: date || new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-        doctor,
-        notes: notes.trim() || undefined,
-      },
-    })
-    closeDrawer()
+  const resetForm = () => {
     setDate(new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }))
     setDoctor(DOCTORS[0])
     setNotes("")
+  }
+
+  // Prefill values for edit mode or clear for add mode
+  useEffect(() => {
+    if (!isOpen) return
+    if (isEdit && editingSitting) {
+      setDate(editingSitting.date)
+      setDoctor(editingSitting.doctor)
+      setNotes(editingSitting.notes ?? "")
+      return
+    }
+    resetForm()
+  }, [isOpen, isEdit, editingSitting])
+
+  const handleAdd = () => {
+    if (!serviceId) return
+    if (isEdit && sittingId) {
+      dispatch({
+        type: "UPDATE_SITTING",
+        serviceId,
+        sittingId,
+        patch: {
+          date,
+          doctor,
+          notes: notes.trim() || undefined,
+        },
+      })
+    } else {
+      dispatch({
+        type: "ADD_SITTING",
+        serviceId,
+        sitting: {
+          id: genId("sit"),
+          date: date || new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+          doctor,
+          notes: notes.trim() || undefined,
+        },
+      })
+    }
+    closeDrawer()
+    resetForm()
   }
 
   return (
     <TPDrawer open={isOpen} onOpenChange={(open) => !open && closeDrawer()}>
       <TPDrawerContent side="right" size="md" className="!rounded-none" style={{ background: "#F4F5F7" }}>
         <DrawerHeader
-          title="Add Sitting"
+          title={isEdit ? "Edit Sitting" : "Add Sitting"}
           onClose={closeDrawer}
           action={
             <button
@@ -53,7 +86,7 @@ export function AddSittingDrawer() {
               onClick={handleAdd}
               className="h-[42px] min-w-[120px] rounded-[10px] px-[20px] font-sans text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 transition-colors shadow-sm"
             >
-              Add Sitting
+              {isEdit ? "Save Sitting" : "Add Sitting"}
             </button>
           }
         />
@@ -76,9 +109,10 @@ export function AddSittingDrawer() {
           <div>
             <label className="block font-sans text-[12px] font-semibold text-tp-slate-600 mb-[4px]">Date</label>
             <input
-              type="date"
+              type="text"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              placeholder="e.g. 14 Apr 2026"
               className="w-full h-[42px] rounded-[8px] border border-tp-slate-200 px-[12px] font-sans text-[14px] text-tp-slate-800 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/30 transition-colors"
             />
           </div>

@@ -57,6 +57,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
           surfaces: [...s.surfaces],
           sittings: [],
           procedures: [],
+            appointments: [],
           startedAt: undefined,
           completedAt: undefined,
         })),
@@ -114,6 +115,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
               completedAt: undefined,
               sittings: [],
               procedures: [],
+              appointments: [],
             })),
           }
         }),
@@ -192,7 +194,7 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
 
     case "MARK_SERVICE_COMPLETED": {
       const now = new Date().toISOString().slice(0, 10)
-      let newPlans = state.plans.map((p) => ({
+      const newPlans = state.plans.map((p) => ({
         ...p,
         services: p.services.map((s) =>
           s.id === action.serviceId
@@ -200,13 +202,6 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
             : s,
         ),
       }))
-      // Auto-promote plan to completed if all services are now completed
-      newPlans = newPlans.map((p) => {
-        if (p.status !== "in-progress") return p
-        const allDone = p.services.length > 0 && p.services.every((s) => s.status === "completed")
-        if (allDone) return { ...p, status: "completed" as const, updatedAt: now }
-        return p
-      })
       return { ...state, plans: newPlans }
     }
 
@@ -232,7 +227,42 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
           ...p,
           services: p.services.map((s) =>
             s.id === action.serviceId
-              ? { ...s, sittings: [...s.sittings, action.sitting] }
+              ? {
+                  ...s,
+                  status: s.status === "planned" ? "in-progress" : s.status,
+                  sittings: [...s.sittings, action.sitting],
+                }
+              : s,
+          ),
+        })),
+      }
+
+    case "UPDATE_SITTING":
+      return {
+        ...state,
+        plans: state.plans.map((p) => ({
+          ...p,
+          services: p.services.map((s) =>
+            s.id === action.serviceId
+              ? {
+                  ...s,
+                  sittings: s.sittings.map((sit) =>
+                    sit.id === action.sittingId ? { ...sit, ...action.patch } : sit,
+                  ),
+                }
+              : s,
+          ),
+        })),
+      }
+
+    case "REMOVE_SITTING":
+      return {
+        ...state,
+        plans: state.plans.map((p) => ({
+          ...p,
+          services: p.services.map((s) =>
+            s.id === action.serviceId
+              ? { ...s, sittings: s.sittings.filter((sit) => sit.id !== action.sittingId) }
               : s,
           ),
         })),
@@ -245,7 +275,90 @@ function planReducer(state: PlanState, action: PlanAction): PlanState {
           ...p,
           services: p.services.map((s) =>
             s.id === action.serviceId
-              ? { ...s, procedures: [...s.procedures, action.procedure] }
+              ? {
+                  ...s,
+                  status: s.status === "planned" ? "in-progress" : s.status,
+                  procedures: [...s.procedures, action.procedure],
+                }
+              : s,
+          ),
+        })),
+      }
+
+    case "UPDATE_SUB_PROCEDURE":
+      return {
+        ...state,
+        plans: state.plans.map((p) => ({
+          ...p,
+          services: p.services.map((s) =>
+            s.id === action.serviceId
+              ? {
+                  ...s,
+                  procedures: s.procedures.map((proc) =>
+                    proc.id === action.procedureId ? { ...proc, ...action.patch } : proc,
+                  ),
+                }
+              : s,
+          ),
+        })),
+      }
+
+    case "REMOVE_SUB_PROCEDURE":
+      return {
+        ...state,
+        plans: state.plans.map((p) => ({
+          ...p,
+          services: p.services.map((s) =>
+            s.id === action.serviceId
+              ? { ...s, procedures: s.procedures.filter((proc) => proc.id !== action.procedureId) }
+              : s,
+          ),
+        })),
+      }
+
+    case "ADD_APPOINTMENT":
+      return {
+        ...state,
+        plans: state.plans.map((p) => ({
+          ...p,
+          services: p.services.map((s) =>
+            s.id === action.serviceId
+              ? {
+                  ...s,
+                  status: s.status === "planned" ? "in-progress" : s.status,
+                  appointments: [...(s.appointments ?? []), action.appointment],
+                }
+              : s,
+          ),
+        })),
+      }
+
+    case "UPDATE_APPOINTMENT":
+      return {
+        ...state,
+        plans: state.plans.map((p) => ({
+          ...p,
+          services: p.services.map((s) =>
+            s.id === action.serviceId
+              ? {
+                  ...s,
+                  appointments: (s.appointments ?? []).map((appt) =>
+                    appt.id === action.appointmentId ? { ...appt, ...action.patch } : appt,
+                  ),
+                }
+              : s,
+          ),
+        })),
+      }
+
+    case "REMOVE_APPOINTMENT":
+      return {
+        ...state,
+        plans: state.plans.map((p) => ({
+          ...p,
+          services: p.services.map((s) =>
+            s.id === action.serviceId
+              ? { ...s, appointments: (s.appointments ?? []).filter((appt) => appt.id !== action.appointmentId) }
               : s,
           ),
         })),

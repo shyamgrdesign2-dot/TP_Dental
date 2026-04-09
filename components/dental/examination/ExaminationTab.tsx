@@ -371,7 +371,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
                 >
                   {/* Tooth thumbnail — real 3D GLB model rendered in mini canvas */}
                   <div
-                    className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[8px] bg-gradient-to-br from-tp-slate-50 to-tp-slate-100 overflow-hidden"
+                    className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-[8px] bg-[linear-gradient(180deg,#FAFAFB_0%,#F1F1F5_100%)] overflow-hidden"
                   >
                     {tooth && (
                       <MiniToothCanvas
@@ -454,7 +454,7 @@ function DentitionPanel({ state }: { state: DentalCanvasState | null }) {
                       className="flex items-center justify-center rounded-full relative z-10"
                       style={{ width: 34, height: 34, background: "#7c3aed14" }}
                     >
-                      <TPMedicalIcon name={item.icon} variant="bulk" size={16} color="#7c3aed" />
+                      <TPMedicalIcon name={item.icon} variant="bulk" size={16} color="#8b5cf6" />
                     </div>
                   </div>
 

@@ -11,6 +11,7 @@ import {
   TPRxPadSecondarySidebar,
   TPRxPadShell,
   TPRxPadTopNav,
+  TPSnackbar,
 } from "@/components/tp-ui"
 
 type RxTabId = "base" | "dental"
@@ -69,6 +70,7 @@ function RxPadInner() {
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "apt-1"
   const [activeTab, setActiveTab] = useState<RxTabId>("base")
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -82,6 +84,23 @@ function RxPadInner() {
     if (typeof window === "undefined") return
     window.localStorage.setItem("rxpad.active-tab", activeTab)
   }, [activeTab])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const openDentalExam = () => setActiveTab("dental")
+    window.addEventListener("tp:open-dental-exam", openDentalExam as EventListener)
+    return () => window.removeEventListener("tp:open-dental-exam", openDentalExam as EventListener)
+  }, [])
+
+  useEffect(() => {
+    const snackbarType = searchParams?.get("snackbar")
+    if (snackbarType !== "iscribe-connected") return
+    setSnackbarMessage("iScribe Pad connected successfully.")
+    const params = new URLSearchParams(searchParams?.toString() ?? "")
+    params.delete("snackbar")
+    const next = params.toString()
+    router.replace(next ? `/rxpad?${next}` : "/rxpad")
+  }, [router, searchParams])
 
   // ── Carousel swipe state ──
   const containerRef = useRef<HTMLDivElement>(null)
@@ -317,6 +336,17 @@ function RxPadInner() {
           </div>
         </div>
       </TPRxPadShell>
+      <TPSnackbar
+        open={Boolean(snackbarMessage)}
+        message={snackbarMessage ?? ""}
+        severity="success"
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        autoHideDuration={1800}
+        onClose={(_, reason) => {
+          if (reason === "clickaway") return
+          setSnackbarMessage(null)
+        }}
+      />
     </RxPadSyncProvider>
   )
 }

@@ -32,22 +32,90 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { usePlanContext } from "./plan-context"
-import { SectionFrame, EmptyState, ClipboardTickIcon, formatINR, computePlanTotal, computePlanDiscount } from "./plan-shared"
-import type { TreatmentPlan, PlanService } from "./plan-types"
+import {
+  SectionFrame,
+  EmptyState,
+  ClipboardTickIcon,
+  formatINR,
+  computePlanTotal,
+  getPlanCompletionStatus,
+  getServiceWorkflowStatus,
+} from "./plan-shared"
+import type { TreatmentPlan, PlanService, SurfaceId } from "./plan-types"
+
+const dropdownContentClass = "w-[220px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1"
+const dropdownItemClass = "rounded-[8px] focus:bg-tp-slate-100 focus:text-tp-slate-700 data-[highlighted]:bg-tp-slate-100 data-[highlighted]:text-tp-slate-700"
+
+function renderStatusChip(status: "not-started" | "in-progress" | "completed" | "no-show" | "not-interested") {
+  const cls =
+    status === "completed"
+      ? "bg-tp-success-50 text-tp-success-700"
+      : status === "in-progress"
+        ? "bg-tp-warning-50 text-tp-warning-700"
+        : status === "no-show"
+          ? "bg-tp-violet-50 text-tp-violet-700"
+          : status === "not-interested"
+            ? "bg-tp-error-50 text-tp-error-700"
+        : "bg-tp-slate-100 text-tp-slate-500"
+  const label =
+    status === "completed"
+      ? "Completed"
+      : status === "in-progress"
+        ? "In Progress"
+        : status === "no-show"
+          ? "No Show"
+          : status === "not-interested"
+            ? "Not Interested"
+          : "Not Started"
+  return <span className={`inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-sans text-[11px] font-semibold ${cls}`}>{label}</span>
+}
+
+function renderPlanCompletionChip(status: "not-completed" | "partially-completed" | "completed") {
+  const cls =
+    status === "completed"
+      ? "bg-tp-success-50 text-tp-success-700"
+      : status === "partially-completed"
+        ? "bg-tp-warning-50 text-tp-warning-700"
+        : "bg-tp-slate-100 text-tp-slate-500"
+  const label =
+    status === "completed"
+      ? "Completed"
+      : status === "partially-completed"
+        ? "Partially Completed"
+        : "Not Completed"
+  return <span className={`inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-sans text-[12px] font-semibold ${cls}`}>{label}</span>
+}
+
+function formatSurfaceLabel(surface: SurfaceId): string {
+  return surface.charAt(0).toUpperCase() + surface.slice(1)
+}
+
+function buildServiceDescription(service: PlanService): string {
+  const toothLabel = service.toothFdi === "full-mouth" ? "the full mouth" : service.toothLabel
+  if (service.surfaces.length === 0) {
+    return `Completed for ${toothLabel}.`
+  }
+  const surfaceText = service.surfaces.map((surface) => formatSurfaceLabel(surface)).join(", ")
+  return `Completed for ${toothLabel} on ${surfaceText} surface${service.surfaces.length > 1 ? "s" : ""}.`
+}
 
 // ─── Service row ───────────────────────────────────────────
 
 function CompletedServiceRow({ service, plan, index }: { service: PlanService; plan: TreatmentPlan; index: number }) {
   const { openDrawer } = usePlanContext()
-  const [revertOpen, setRevertOpen] = useState(false)
-  const { dispatch } = usePlanContext()
+
+  const serviceDescription = buildServiceDescription(service)
+  const workflowStatus = getServiceWorkflowStatus(service)
 
   return (
     <>
-      <tr className="border-t border-tp-slate-100 hover:bg-tp-slate-50/50 transition-colors">
+      <tr className="border-t border-tp-slate-100/70 hover:bg-tp-slate-50/50 transition-colors">
         <td className="px-[14px] py-[9px] font-sans text-[12px] text-tp-slate-400">{index + 1}</td>
         <td className="px-[8px] py-[9px]">
-          <p className="font-sans text-[14px] font-medium text-tp-slate-800">{service.treatment}</p>
+          <div className="space-y-[2px]">
+            <p className="font-sans text-[14px] font-medium text-tp-slate-800">{service.treatment}</p>
+            <p className="font-sans text-[11px] text-tp-slate-400">{serviceDescription}</p>
+          </div>
         </td>
         <td className="px-[8px] py-[9px]">
           <span className="inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[5px] py-[1px] font-sans text-[12px] font-bold text-tp-slate-600">
@@ -56,6 +124,9 @@ function CompletedServiceRow({ service, plan, index }: { service: PlanService; p
         </td>
         <td className="px-[8px] py-[9px] font-sans text-[12px] text-tp-slate-500">
           {service.completedAt ?? "—"}
+        </td>
+        <td className="px-[8px] py-[9px]">
+          {renderStatusChip(workflowStatus)}
         </td>
         <td className="px-[14px] py-[9px] text-right font-sans text-[14px] font-semibold text-tp-slate-800">
           {formatINR(service.amount)}
@@ -70,47 +141,19 @@ function CompletedServiceRow({ service, plan, index }: { service: PlanService; p
                 <MoreVertical size={20} color="var(--tp-slate-500)" strokeWidth={2} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[200px]">
-              <DropdownMenuItem onClick={() => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id })}>
+            <DropdownMenuContent align="end" className="w-[200px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1">
+              <DropdownMenuItem onClick={() => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id })} className={dropdownItemClass}>
                 <Receipt1 size={16} variant="Linear" className="mr-2" />
                 View Bill Preview
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openDrawer({ type: "rx-preview", planId: plan.id, serviceId: service.id })}>
+              <DropdownMenuItem onClick={() => openDrawer({ type: "rx-preview", planId: plan.id, serviceId: service.id })} className={dropdownItemClass}>
                 <DocumentText size={16} variant="Linear" className="mr-2" />
                 View / Print RX
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setRevertOpen(true)}>
-                <ArrowRotateLeft size={16} variant="Linear" className="mr-2 text-tp-warning-600" />
-                <span className="text-tp-warning-600">Revert to In Progress</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </td>
       </tr>
-
-      <AlertDialog open={revertOpen} onOpenChange={setRevertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revert to In Progress</AlertDialogTitle>
-            <AlertDialogDescription>
-              Revert <strong>{service.treatment}</strong> ({service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`}) back to in-progress status?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                dispatch({ type: "REVERT_SERVICE_TO_PROGRESS", serviceId: service.id })
-                setRevertOpen(false)
-              }}
-              className="bg-tp-warning-600 text-white hover:bg-tp-warning-700"
-            >
-              Revert
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
@@ -122,28 +165,24 @@ function CompletedPlanCluster({ plan, index }: { plan: TreatmentPlan; index: num
   const [revertPlanOpen, setRevertPlanOpen] = useState(false)
 
   const total = computePlanTotal(plan.services)
-  const discount = computePlanDiscount(plan.services)
-
+  const planStatus = getPlanCompletionStatus(plan.services)
   return (
     <div className="rounded-[14px] bg-white overflow-hidden">
       {/* Plan sub-card header — number badge instead of icon */}
-      <div className="flex items-center justify-between px-[14px] py-[10px]">
+      <div className="sticky top-0 z-[2] shrink-0 flex items-center justify-between px-[14px] py-[10px] bg-[linear-gradient(180deg,rgba(34,197,94,0.05),rgba(34,197,94,0))]">
         <div className="flex items-center gap-[12px]">
-          <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-success-50 shrink-0">
-            <span className="font-sans text-[14px] font-bold text-tp-success-600">{index + 1}</span>
+          <div className="flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-tp-success-50 shrink-0">
+            <span className="font-sans text-[16px] font-bold text-tp-success-700">{index + 1}</span>
           </div>
           <div className="flex-1 min-w-0 flex flex-wrap items-center gap-[12px]">
-            <h4 className="font-sans text-[16px] font-bold text-tp-slate-900 shrink-0">{plan.name}</h4>
-            <div className="flex flex-wrap items-center gap-[6px] font-sans text-[13px] font-medium text-tp-slate-500">
-              <span className="text-tp-success-600 font-semibold">{formatINR(total)}</span>
-              <span className="text-tp-slate-300">•</span>
-              <span>{plan.services.length} service{plan.services.length !== 1 ? "s" : ""}</span>
-              {discount > 0 && (
-                <>
-                  <span className="text-tp-slate-300">•</span>
-                  <span>Discount: -{formatINR(discount)}</span>
-                </>
-              )}
+            <div>
+              <h4 className="font-sans text-[16px] font-bold text-tp-slate-900 shrink-0">{plan.name}</h4>
+              <div className="mt-[2px] flex items-center gap-[6px]">
+                <span className="inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-500">
+                  {formatINR(total)}
+                </span>
+                {renderPlanCompletionChip(planStatus)}
+              </div>
             </div>
           </div>
         </div>
@@ -158,19 +197,19 @@ function CompletedPlanCluster({ plan, index }: { plan: TreatmentPlan; index: num
                 <MoreVertical size={20} color="var(--tp-slate-500)" strokeWidth={2} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[220px]">
-              <DropdownMenuItem onClick={() => openDrawer({ type: "bill-preview", planId: plan.id })}>
+            <DropdownMenuContent align="end" className={dropdownContentClass}>
+              <DropdownMenuItem onClick={() => openDrawer({ type: "bill-preview", planId: plan.id })} className={dropdownItemClass}>
                 <Receipt1 size={16} variant="Linear" className="mr-2" />
                 View Plan Bill
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openDrawer({ type: "rx-preview", planId: plan.id })}>
+              <DropdownMenuItem onClick={() => openDrawer({ type: "rx-preview", planId: plan.id })} className={dropdownItemClass}>
                 <Printer size={16} variant="Linear" className="mr-2" />
                 Print Plan RX
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setRevertPlanOpen(true)}>
+              <DropdownMenuItem onClick={() => setRevertPlanOpen(true)} className="rounded-[8px] focus:bg-tp-warning-50 data-[highlighted]:bg-tp-warning-50">
                 <ArrowRotateLeft size={16} variant="Linear" className="mr-2 text-tp-warning-600" />
-                <span className="text-tp-warning-600">Revert to In Progress</span>
+                <span className="text-tp-warning-600">Move to Active Plans</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -178,8 +217,8 @@ function CompletedPlanCluster({ plan, index }: { plan: TreatmentPlan; index: num
       </div>
 
       {/* Services table — padded, rounded, with stroke */}
-      <div className="px-[10px] pb-[10px]">
-        <div className="rounded-[8px] border border-tp-slate-200 overflow-hidden">
+      <div className="px-[10px] pb-[10px] pt-[8px]">
+        <div className="rounded-[8px] border border-tp-slate-100/80 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="bg-tp-slate-50/60">
@@ -187,6 +226,7 @@ function CompletedPlanCluster({ plan, index }: { plan: TreatmentPlan; index: num
                 <th className="px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400">Service</th>
                 <th className="px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]">Tooth</th>
                 <th className="px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]">Completed</th>
+                <th className="px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[110px]">Status</th>
                 <th className="px-[14px] py-[7px] text-right font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]">Amount</th>
                 <th className="px-[8px] py-[7px] w-[40px]" />
               </tr>
@@ -204,9 +244,9 @@ function CompletedPlanCluster({ plan, index }: { plan: TreatmentPlan; index: num
       <AlertDialog open={revertPlanOpen} onOpenChange={setRevertPlanOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revert Plan to In Progress</AlertDialogTitle>
+            <AlertDialogTitle>Move Plan to Active Plans</AlertDialogTitle>
             <AlertDialogDescription>
-              This will revert <strong>{plan.name}</strong> and all its services back to in-progress status.
+              This will move <strong>{plan.name}</strong> and all its services back to active status.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -237,16 +277,16 @@ export function CompletedTab() {
       <SectionFrame>
         <div className="rounded-[16px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
           {/* Cluster header — clipboard-tick icon, green */}
-          <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100">
+          <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100/70">
             <div className="flex items-center gap-[12px]">
               <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-success-50">
                 <ClipboardTickIcon size={24} className="text-tp-success-600" />
               </div>
-              <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">Completed</h3>
+              <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">Completed Plans</h3>
             </div>
           </div>
           {/* Empty state inside cluster */}
-          <div className="p-[12px] rounded-b-[16px]" style={{ background: "#EEEEF6" }}>
+          <div className="p-[12px] rounded-b-[16px]" style={{ background: "#E7E8EE" }}>
             <EmptyState
               icon={
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -268,20 +308,20 @@ export function CompletedTab() {
   return (
     <SectionFrame>
       {/* ── Outer Shell Card — white stroke ──────────── */}
-      <div className="rounded-[16px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+      <div className="rounded-[16px] overflow-hidden bg-white h-full min-h-0 flex flex-col" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
         {/* Cluster header — clipboard-tick icon, green */}
-        <div className="flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100">
+        <div className="sticky top-0 z-[3] shrink-0 flex items-center justify-between px-[16px] py-[14px] border-b border-tp-slate-100/70 bg-white">
           <div className="flex items-center gap-[12px]">
             <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-success-50">
               <ClipboardTickIcon size={24} className="text-tp-success-600" />
             </div>
             <div>
               <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">
-                Completed
+                Completed Plans
               </h3>
-              <p className="font-sans text-[13px] text-tp-slate-500 mt-[2px]">
-                {completedPlans.length} plan{completedPlans.length !== 1 ? "s" : ""} · Total <span className="font-semibold text-tp-slate-700">{formatINR(grandTotal)}</span>
-              </p>
+              <div className="mt-[2px] inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-500">
+                {formatINR(grandTotal)}
+              </div>
             </div>
           </div>
 
@@ -295,12 +335,12 @@ export function CompletedTab() {
                 <MoreVertical size={20} color="var(--tp-slate-500)" strokeWidth={2} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[220px]">
-              <DropdownMenuItem onClick={() => window.print()}>
+            <DropdownMenuContent align="end" className={dropdownContentClass}>
+              <DropdownMenuItem onClick={() => window.print()} className={dropdownItemClass}>
                 <Printer size={16} variant="Linear" className="mr-2" />
                 Print All Completed
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem className={dropdownItemClass}>
                 <Receipt1 size={16} variant="Linear" className="mr-2" />
                 Export Billing Summary
               </DropdownMenuItem>
@@ -309,7 +349,7 @@ export function CompletedTab() {
         </div>
 
         {/* Plan sub-cards */}
-        <div className="p-[12px] space-y-[8px] rounded-b-[16px]" style={{ background: "#EEEEF6" }}>
+        <div className="flex-1 min-h-0 overflow-y-auto p-[12px] space-y-[8px] rounded-b-[16px]" style={{ background: "#E7E8EE" }}>
           {completedPlans.map((plan, idx) => (
             <CompletedPlanCluster key={plan.id} plan={plan} index={idx} />
           ))}

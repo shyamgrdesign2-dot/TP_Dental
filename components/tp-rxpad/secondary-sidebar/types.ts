@@ -19,8 +19,8 @@ export type NavItemId =
 export const SECTIONS_WITH_DATA: NavItemId[] = [
   "drAgent", "pastVisits", "vitals", "history",
   "gynec", "obstetric", "vaccine", "growth",
-  "medicalRecords", "labResults", "personalNotes",
+  "medicalRecords", "labResults", "personalNotes", "dental",
 ];
 
 /** Sections that show an empty state */
-export const SECTIONS_EMPTY: NavItemId[] = ["ophthal", "dental"];
+export const SECTIONS_EMPTY: NavItemId[] = ["ophthal"];

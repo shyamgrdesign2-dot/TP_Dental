@@ -35,6 +35,9 @@ import { SectionFrame, EmptyState, formatINR, computePlanTotal } from "./plan-sh
 import { SURFACE_ABBR, SURFACE_COLORS } from "./plan-types"
 import type { TreatmentPlan, SurfaceId } from "./plan-types"
 
+const dropdownContentClass = "w-[220px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1"
+const dropdownItemClass = "rounded-[8px] focus:bg-tp-slate-100 focus:text-tp-slate-700 data-[highlighted]:bg-tp-slate-100 data-[highlighted]:text-tp-slate-700"
+
 // ─── Plan Sub-Card ────────────────────────────────────────────
 
 function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
@@ -44,20 +47,20 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
 
   const total = computePlanTotal(plan.services)
 
-  const handleStartClick = () => {
+  const handleActivateClick = () => {
     if (hasInProgressPlan) {
-      showSnackbar("A plan is already in progress. Complete it before starting another.", "warning")
+      showSnackbar("An active plan already exists. Complete it before activating another.", "warning")
       return
     }
     setStartOpen(true)
   }
 
-  const handleStart = () => {
+  const handleActivate = () => {
     dispatch({ type: "START_TREATMENT", planId: plan.id })
     openDrawer({ type: "closed" })
     setStartOpen(false)
-    showSnackbar(`"${plan.name}" has moved to In Progress`)
-    // Auto-navigate to In Progress tab after a brief moment
+    showSnackbar(`"${plan.name}" is now active and moved to Active Plans`)
+    // Auto-navigate to Active Plans tab after a brief moment
     setTimeout(() => navigateTab?.("progress"), 400)
   }
 
@@ -69,37 +72,33 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
   const handleEdit = () => openDrawer({ type: "edit-plan", planId: plan.id })
 
   return (
-    <div className="overflow-hidden rounded-[16px] border border-tp-slate-100 bg-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.22)]">
+    <div className="overflow-hidden rounded-[16px] border border-tp-slate-100/70 bg-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.22)]">
       {/* Sub-card header */}
-      <div className="flex items-center gap-[10px] border-b border-tp-slate-100 bg-[linear-gradient(180deg,rgba(75,74,213,0.06),rgba(75,74,213,0))] px-[14px] py-[14px]">
+      <div className="sticky top-0 z-[2] shrink-0 flex items-center gap-[10px] border-b border-tp-slate-100/70 bg-[linear-gradient(180deg,rgba(75,74,213,0.06),rgba(75,74,213,0))] px-[14px] py-[14px]">
         {/* Number counting badge */}
-        <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[8px] bg-tp-blue-50 shrink-0">
+        <div className="flex h-[42px] w-[42px] items-center justify-center rounded-[8px] bg-tp-blue-50 shrink-0">
           <span className="font-sans text-[14px] font-bold text-tp-blue-600">{index + 1}</span>
         </div>
 
         {/* Plan info */}
-        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-[12px]">
-          <p className="font-sans text-[16px] font-bold text-tp-slate-900 truncate shrink-0">
+        <div className="flex-1 min-w-0">
+          <p className="font-sans text-[16px] font-bold text-tp-slate-900 truncate">
             {plan.name}
           </p>
-          <div className="flex flex-wrap items-center gap-[6px] font-sans text-[13px] font-medium text-tp-slate-500">
-            <span className="text-tp-blue-600 font-semibold">{formatINR(total)}</span>
-            <span className="text-tp-slate-300">•</span>
-            <span>{plan.services.length} service{plan.services.length !== 1 ? "s" : ""}</span>
-            <span className="text-tp-slate-300">•</span>
-            <span>{plan.createdAt}</span>
+          <div className="mt-[2px] inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-500">
+            {formatINR(total)}
           </div>
         </div>
 
         <div className="flex items-center gap-[6px] shrink-0">
-          {/* Start Treatment — secondary green CTA (stroke, no bg) */}
+          {/* Activate Plan — secondary green CTA (stroke, no bg) */}
           <button
             type="button"
-            onClick={handleStartClick}
-            className="inline-flex items-center justify-center h-[42px] min-w-[120px] rounded-[12px] px-[16px] font-sans text-[14px] font-semibold text-tp-success-700 bg-transparent hover:bg-tp-success-50 transition-colors"
+            onClick={handleActivateClick}
+            className="inline-flex items-center justify-center h-[36px] min-w-[120px] rounded-[12px] px-[16px] font-sans text-[14px] font-semibold text-tp-success-700 bg-transparent hover:bg-tp-success-50 transition-colors"
             style={{ border: "1.5px solid var(--tp-success-400)" }}
           >
-            Start Treatment
+            Activate Plan
           </button>
 
           {/* Three-dot menu — plain, no bg */}
@@ -112,21 +111,21 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
                 <MoreVertical size={20} color="var(--tp-slate-500)" strokeWidth={2} />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[200px]">
-              <DropdownMenuItem onClick={handleEdit}>
+            <DropdownMenuContent align="end" className="w-[200px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1">
+              <DropdownMenuItem onClick={handleEdit} className={dropdownItemClass}>
                 <Edit2 size={16} variant="Linear" className="mr-2" />
                 Edit Plan
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => window.print()}>
+              <DropdownMenuItem onClick={() => window.print()} className={dropdownItemClass}>
                 <Printer size={16} variant="Linear" className="mr-2" />
                 Print Estimation
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDuplicate}>
+              <DropdownMenuItem onClick={handleDuplicate} className={dropdownItemClass}>
                 <Copy size={16} variant="Linear" className="mr-2" />
                 Duplicate Plan
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-tp-error-600 focus:text-tp-error-600">
+              <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-tp-error-600 focus:bg-red-50 focus:text-tp-error-600 data-[highlighted]:bg-red-50 data-[highlighted]:text-tp-error-600 rounded-[8px]">
                 <Trash size={20} variant="Linear" className="mr-2 text-tp-error-500" />
                 Delete Plan
               </DropdownMenuItem>
@@ -137,8 +136,8 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
 
       {/* Services table — padded, rounded, with stroke */}
       {plan.services.length > 0 && (
-        <div className="px-[10px] pb-[10px]">
-          <div className="rounded-[12px] border border-tp-slate-200 overflow-hidden w-full overflow-x-auto min-w-0">
+        <div className="px-[10px] pb-[10px] pt-[8px]">
+          <div className="rounded-[12px] border border-tp-slate-100/80 overflow-hidden w-full overflow-x-auto min-w-0">
             <table className="w-full min-w-[780px]">
               <thead>
                 <tr className="bg-tp-slate-50/80">
@@ -153,7 +152,7 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
               </thead>
               <tbody>
                 {plan.services.map((svc, idx) => (
-                  <tr key={svc.id} className="border-t border-tp-slate-100 bg-white hover:bg-tp-slate-50/70 transition-colors">
+                  <tr key={svc.id} className="border-t border-tp-slate-100/70 bg-white hover:bg-tp-slate-50/70 transition-colors">
                     <td className="px-[14px] py-[9px] font-sans text-[12px] text-tp-slate-400">{idx + 1}</td>
                     <td className="px-[8px] py-[9px]">
                       <div className="space-y-[2px]">
@@ -192,11 +191,11 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
                 ))}
               </tbody>
               <tfoot>
-                <tr className="border-t border-tp-slate-200 bg-tp-slate-50/50">
+                <tr className="border-t border-tp-slate-100/80 bg-tp-slate-50/50">
                   <td colSpan={6} className="px-[14px] py-[9px] text-right font-sans text-[12px] font-semibold text-tp-slate-600">
                     Plan Total
                   </td>
-                  <td className="px-[14px] py-[9px] text-right font-sans text-[14px] font-bold text-tp-blue-700">
+                  <td className="px-[14px] py-[9px] text-right font-sans text-[14px] font-bold text-tp-slate-700">
                     {formatINR(total)}
                   </td>
                 </tr>
@@ -212,19 +211,19 @@ function PlanSubCard({ plan, index }: { plan: TreatmentPlan; index: number }) {
         </div>
       )}
 
-      {/* Start Treatment confirmation */}
+      {/* Activate Plan confirmation */}
       <AlertDialog open={startOpen} onOpenChange={setStartOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Start Treatment</AlertDialogTitle>
+            <AlertDialogTitle>Activate Plan</AlertDialogTitle>
             <AlertDialogDescription>
-              Start treatment for <strong>{plan.name}</strong>? All {plan.services.length} service{plan.services.length !== 1 ? "s" : ""} will move to in-progress status.
+              Activate <strong>{plan.name}</strong>? All {plan.services.length} service{plan.services.length !== 1 ? "s" : ""} will move to active status.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStart} className="bg-tp-success-600 text-white hover:bg-tp-success-700">
-              Start Treatment
+            <AlertDialogAction onClick={handleActivate} className="bg-tp-success-600 text-white hover:bg-tp-success-700">
+              Activate Plan
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -278,7 +277,7 @@ export function PlanEstimatesTab() {
       <SectionFrame>
         <div className="rounded-[16px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
           {/* Cluster header — no CTA when empty */}
-          <div className="flex items-center px-[16px] py-[14px] border-b border-tp-slate-100">
+          <div className="flex items-center px-[16px] py-[14px] border-b border-tp-slate-100/70">
             <div className="flex items-center gap-[12px]">
               <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-blue-50">
                 <DocumentText size={24} variant="Bulk" className="text-tp-blue-600" />
@@ -287,7 +286,7 @@ export function PlanEstimatesTab() {
             </div>
           </div>
           {/* Empty state with CTA below */}
-          <div className="p-[12px] rounded-b-[16px]" style={{ background: "#F3F4F8" }}>
+          <div className="p-[12px] rounded-b-[16px]" style={{ background: "#E7E8EE" }}>
             <EmptyState
               icon={
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -318,9 +317,9 @@ export function PlanEstimatesTab() {
   return (
     <SectionFrame>
       {/* ── Outer Shell Card — white stroke ── */}
-      <div className="rounded-[16px] bg-white" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+      <div className="rounded-[16px] overflow-hidden bg-white h-full min-h-0 flex flex-col" style={{ border: "1.5px solid #FFFFFF", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
         {/* Cluster header */}
-        <div className="flex items-center justify-between px-[16px] py-[16px] border-b border-tp-slate-100">
+        <div className="sticky top-0 z-[3] shrink-0 flex items-center justify-between px-[16px] py-[16px] border-b border-tp-slate-100/70 bg-white">
           <div className="flex items-center gap-[12px]">
             <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-blue-50">
               <DocumentText size={24} variant="Bulk" className="text-tp-blue-600" />
@@ -329,9 +328,9 @@ export function PlanEstimatesTab() {
               <h3 className="font-sans text-[18px] font-bold text-tp-slate-900">
                 Plan Estimates
               </h3>
-              <p className="font-sans text-[13px] text-tp-slate-500 mt-[2px]">
-                {estimatePlans.length} plan{estimatePlans.length !== 1 ? "s" : ""} · Total <span className="font-semibold text-tp-slate-700">{formatINR(grandTotal)}</span>
-              </p>
+              <div className="mt-[2px] inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-500">
+                {formatINR(grandTotal)}
+              </div>
             </div>
           </div>
 
@@ -354,12 +353,12 @@ export function PlanEstimatesTab() {
                   <MoreVertical size={20} color="var(--tp-slate-500)" strokeWidth={2} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[220px]">
-                <DropdownMenuItem onClick={() => window.print()}>
+              <DropdownMenuContent align="end" className={dropdownContentClass}>
+                <DropdownMenuItem onClick={() => window.print()} className={dropdownItemClass}>
                   <Printer size={16} variant="Linear" className="mr-2" />
                   Print All Estimates
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openDrawer({ type: "bill-preview", planId: estimatePlans[0]?.id ?? "" })}>
+                <DropdownMenuItem onClick={() => openDrawer({ type: "bill-preview", planId: estimatePlans[0]?.id ?? "" })} className={dropdownItemClass}>
                   <Receipt1 size={16} variant="Linear" className="mr-2" />
                   View Combined Bill
                 </DropdownMenuItem>
@@ -369,7 +368,7 @@ export function PlanEstimatesTab() {
         </div>
 
         {/* Plan sub-cards — neutral bg for differentiation from white cards */}
-        <div className="p-[12px] space-y-[8px] rounded-b-[16px]" style={{ background: "#F3F4F8" }}>
+        <div className="flex-1 min-h-0 overflow-y-auto p-[12px] space-y-[8px] rounded-b-[16px]" style={{ background: "#E7E8EE" }}>
           {estimatePlans.map((plan, idx) => (
             <PlanSubCard key={plan.id} plan={plan} index={idx} />
           ))}

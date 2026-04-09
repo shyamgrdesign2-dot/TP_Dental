@@ -95,6 +95,7 @@ function NavDivider() {
 type NavIconConfig =
   | { kind: "medical"; name: string }
   | { kind: "iconsax"; Icon: React.ComponentType<any> }
+  | { kind: "tooth" }
 
 const NAV_ITEMS: Array<{
   id: NavItemId
@@ -105,6 +106,7 @@ const NAV_ITEMS: Array<{
   { id: "pastVisits",  label: "Past Visits",    icon: { kind: "iconsax",  Icon: Note1 } },
   { id: "vitals",      label: "Vitals",          icon: { kind: "medical",  name: "Heart Rate" } },
   { id: "history",     label: "Medical History", icon: { kind: "medical",  name: "clipboard-activity" } },
+  { id: "dental",      label: "Dental History",  icon: { kind: "tooth" } },
   { id: "dentalPlan",  label: "Dental Plan",     icon: { kind: "medical",  name: "surgical-scissors-02" }, navigateTo: "/treatment-plan" },
   { id: "medicalRecords", label: "Records",      icon: { kind: "medical",  name: "health-file-03" } },
   { id: "labResults",  label: "Lab Results",     icon: { kind: "medical",  name: "Lab" } },
@@ -175,6 +177,16 @@ function NavItem({
         >
           {icon.kind === "medical" ? (
             <MedicalNavIcon active={active} name={icon.name} />
+          ) : icon.kind === "tooth" ? (
+            <IconPill active={active}>
+              <ToothIcon
+                size={20}
+                variant={active ? "Bulk" : "Linear"}
+                color={active ? "var(--tp-blue-500)" : "#FFFFFF"}
+                strokeWidth={1.5}
+                className="block h-[20px] w-[20px]"
+              />
+            </IconPill>
           ) : (
             <IconsaxNavIcon active={active} Icon={icon.Icon} />
           )}

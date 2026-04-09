@@ -8,11 +8,19 @@
 // ─── Core Entities ──────────────────────────────────────────
 
 export type PlanStatus = "draft" | "active" | "in-progress" | "completed"
-export type ServiceStatus = "planned" | "in-progress" | "completed"
+export type ServiceStatus = "planned" | "in-progress" | "completed" | "no-show" | "not-interested"
 
 export interface SittingRecord {
   id: string
   date: string
+  doctor: string
+  notes?: string
+}
+
+export interface AppointmentRecord {
+  id: string
+  date: string
+  time: string
   doctor: string
   notes?: string
 }
@@ -23,7 +31,10 @@ export interface SubProcedure {
   date: string
   doctor: string
   notes?: string
+  status?: ProcedureStatus
 }
+
+export type ProcedureStatus = "not-started" | "in-progress" | "completed" | "no-show" | "not-interested"
 
 export type SurfaceId = "whole" | "occlusal" | "buccal" | "lingual" | "mesial" | "distal" | "cervical" | "root"
 
@@ -90,6 +101,7 @@ export interface PlanService {
   status: ServiceStatus
   sittings: SittingRecord[]
   procedures: SubProcedure[]
+  appointments?: AppointmentRecord[]
   startedAt?: string
   completedAt?: string
   notes?: string
@@ -114,9 +126,11 @@ export type DrawerState =
   | { type: "edit-plan"; planId: string }
   | { type: "bill-preview"; planId: string; serviceId?: string }
   | { type: "rx-preview"; planId: string; serviceId?: string }
-  | { type: "book-appointment"; planId: string; serviceId?: string }
+  | { type: "book-appointment"; planId: string; serviceId?: string; appointmentId?: string }
   | { type: "add-sitting"; serviceId: string }
+  | { type: "edit-sitting"; serviceId: string; sittingId: string }
   | { type: "add-procedure"; serviceId: string }
+  | { type: "edit-procedure"; serviceId: string; procedureId: string }
 
 // ─── Reducer Actions ────────────────────────────────────────
 
@@ -136,7 +150,14 @@ export type PlanAction =
   | { type: "MARK_SERVICE_COMPLETED"; serviceId: string }
   | { type: "REVERT_SERVICE_TO_PROGRESS"; serviceId: string }
   | { type: "ADD_SITTING"; serviceId: string; sitting: SittingRecord }
+  | { type: "UPDATE_SITTING"; serviceId: string; sittingId: string; patch: Partial<SittingRecord> }
+  | { type: "REMOVE_SITTING"; serviceId: string; sittingId: string }
   | { type: "ADD_SUB_PROCEDURE"; serviceId: string; procedure: SubProcedure }
+  | { type: "UPDATE_SUB_PROCEDURE"; serviceId: string; procedureId: string; patch: Partial<SubProcedure> }
+  | { type: "REMOVE_SUB_PROCEDURE"; serviceId: string; procedureId: string }
+  | { type: "ADD_APPOINTMENT"; serviceId: string; appointment: AppointmentRecord }
+  | { type: "UPDATE_APPOINTMENT"; serviceId: string; appointmentId: string; patch: Partial<AppointmentRecord> }
+  | { type: "REMOVE_APPOINTMENT"; serviceId: string; appointmentId: string }
   | { type: "SET_DRAWER"; drawer: DrawerState }
 
 // ─── Tab IDs ────────────────────────────────────────────────

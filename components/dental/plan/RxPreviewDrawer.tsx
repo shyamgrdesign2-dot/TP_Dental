@@ -89,7 +89,7 @@ export function RxPreviewDrawer() {
                       </p>
                       <p className="font-sans text-[12px] text-tp-slate-500">{svc.toothLabel}</p>
                       <p className="font-sans text-[12px] text-tp-slate-400 mt-[2px]">
-                        {svc.sittings.length} sitting{svc.sittings.length !== 1 ? "s" : ""} · {svc.status === "completed" ? "Completed" : svc.status === "in-progress" ? "In Progress" : "Planned"}
+                        {svc.sittings.length} sitting{svc.sittings.length !== 1 ? "s" : ""} · {svc.status === "completed" ? "Completed" : svc.status === "in-progress" ? "Active" : "Planned"}
                       </p>
                     </div>
                   </div>

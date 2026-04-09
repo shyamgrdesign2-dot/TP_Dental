@@ -589,13 +589,31 @@ export function AddEditPlanDrawer() {
           title={isEdit ? "Edit Plan" : "Create Treatment Plan"}
           onClose={() => { closeDrawer(); setShowNameError(false) }}
           action={
-            <button
-              type="button"
-              onClick={handleSaveWithValidation}
-              className="h-[42px] min-w-[120px] rounded-[12px] px-[20px] font-sans text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
-            >
-              {isEdit ? "Save Changes" : "Create Plan"}
-            </button>
+            <div className="flex items-center gap-[10px]">
+              <button type="button" title="Templates" className={iconBtnClass}>
+                <Grid5 color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+              </button>
+              <button type="button" title="Save as template" className={iconBtnClass}>
+                <Ram color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+              </button>
+              <button
+                type="button"
+                title="Erase"
+                onClick={clearAllRows}
+                disabled={rows.length === 0}
+                className={iconBtnClass}
+              >
+                <Eraser color="currentColor" size={16} strokeWidth={1.5} variant="Linear" />
+              </button>
+              <div className="w-px self-stretch bg-[linear-gradient(180deg,rgba(226,226,234,0.1)_0%,rgba(226,226,234,1)_50%,rgba(226,226,234,0.1)_100%)] mx-[2px]" />
+              <button
+                type="button"
+                onClick={handleSaveWithValidation}
+                className="h-[42px] min-w-[120px] rounded-[12px] px-[20px] font-sans text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+              >
+                {isEdit ? "Save Changes" : "Create Plan"}
+              </button>
+            </div>
           }
         />
 
