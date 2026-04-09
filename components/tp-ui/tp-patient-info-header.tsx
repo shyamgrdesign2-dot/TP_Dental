@@ -139,11 +139,11 @@ export function TPPatientInfoHeader({
             width: 80,
             height: 60,
             padding: "20px 15px",
-            borderRight: "0.5px solid #f1f1f5",
             borderBottom: "0.5px solid #f1f1f5",
           }}
           aria-label="Go back"
         >
+          <div aria-hidden="true" className="absolute border-[#f1f1f5] border-r-[0.5px] border-solid inset-[0_-0.25px_0_0] pointer-events-none" />
           <ChevronLeft size={24} color="#454551" strokeWidth={2} style={{ opacity: 0.7 }} />
         </button>
 

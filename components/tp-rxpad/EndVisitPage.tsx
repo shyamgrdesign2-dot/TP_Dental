@@ -4,7 +4,17 @@ import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Slide from "@mui/material/Slide"
 import { ArrowDown2, DocumentDownload, Edit2, LanguageSquare, Printer, ReceiptText, Setting2, User } from "iconsax-reactjs"
-import { ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { RxPreviewDocument } from "@/components/tp-rxpad/RxPreviewDocument"
 import { getComposedRxPreviewSnapshot } from "@/components/tp-rxpad/rx-preview-composer"
@@ -47,6 +57,7 @@ export function EndVisitPage() {
   const [language, setLanguage] = useState("English")
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null)
   const [snackbarOpen, setSnackbarOpen] = useState(false)
+  const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false)
   const [previewSnapshot, setPreviewSnapshot] = useState<RxPreviewComposedSnapshot | null>(null)
 
   useEffect(() => {
@@ -71,6 +82,15 @@ export function EndVisitPage() {
   useEffect(() => {
     setPreviewSnapshot(getComposedRxPreviewSnapshot(patientId))
   }, [patientId])
+
+  const openEditRxConfirm = () => {
+    setIsEditConfirmOpen(true)
+  }
+
+  const handleConfirmEditRx = () => {
+    setIsEditConfirmOpen(false)
+    router.push(`/rxpad?patientId=${patientId}`)
+  }
 
   const patient = useMemo(
     () => ({
@@ -152,15 +172,30 @@ export function EndVisitPage() {
 
   return (
     <div className="min-h-screen bg-tp-slate-100">
-      <header className="h-[62px] border-b border-tp-slate-100/70 bg-white px-[16px]">
+      <header className="h-[62px] border-b border-tp-slate-100/70 bg-white pr-[16px] pl-0">
         <div className="mx-auto flex h-full w-full items-center justify-between">
-          <div className="inline-flex items-center gap-[6px]">
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-tp-slate-100">
-              <User size={24} variant="Bulk" color="var(--tp-slate-600)" />
-            </div>
-            <div>
-              <p className="font-sans text-[14px] font-semibold text-tp-slate-700">{patient.name}</p>
-              <p className="font-sans text-[12px] text-tp-slate-600">{patient.gender} | {patient.age}</p>
+          <div className="inline-flex h-full items-center">
+            <button
+              aria-label="Go back"
+              className="bg-white content-stretch flex h-[62px] items-center justify-center px-[15px] py-[20px] relative shrink-0 w-[80px] transition-colors hover:bg-tp-slate-50"
+              data-name="Back Button"
+              onClick={openEditRxConfirm}
+              type="button"
+            >
+              <div aria-hidden="true" className="absolute border-[#f1f1f5] border-r-[0.5px] border-solid inset-[0_-0.25px_0_0] pointer-events-none" />
+              <div className="relative shrink-0 size-[24px]" data-name="Back Arrow">
+                <ChevronLeft color="#454551" size={24} strokeWidth={2} style={{ opacity: 0.7 }} />
+              </div>
+            </button>
+
+            <div className="inline-flex items-center gap-[6px] pl-[12px]">
+              <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-tp-slate-100">
+                <User size={24} variant="Bulk" color="var(--tp-slate-600)" />
+              </div>
+              <div>
+                <p className="font-sans text-[14px] font-semibold text-tp-slate-700">{patient.name}</p>
+                <p className="font-sans text-[12px] text-tp-slate-600">{patient.gender} | {patient.age}</p>
+              </div>
             </div>
           </div>
 
@@ -179,7 +214,7 @@ export function EndVisitPage() {
                 </g>
               </svg>
             </button>
-            <div className="h-[42px] w-px bg-tp-slate-200/60" />
+            <div className="bg-gradient-to-b from-[rgba(208,213,221,0.2)] h-[42px] opacity-80 shrink-0 to-[rgba(208,213,221,0.2)] via-1/2 via-[#d0d5dd] w-[1.05px]" />
 
             <button
               type="button"
@@ -230,15 +265,38 @@ export function EndVisitPage() {
             <ActionTile label="Create Bill" icon={<ReceiptText size={20} variant="Linear" />} />
             <ActionTile label="Print Digital Rx" icon={<Printer size={20} variant="Linear" />} onClick={() => window.print()} />
             <ActionTile label="Download Digital Rx" icon={<DocumentDownload size={20} variant="Linear" />} onClick={downloadRx} />
-            <ActionTile label="Edit Digital Rx" icon={<Edit2 size={20} variant="Linear" />} onClick={() => router.push(`/rxpad?patientId=${patientId}`)} />
+            <ActionTile label="Edit Digital Rx" icon={<Edit2 size={20} variant="Linear" />} onClick={openEditRxConfirm} />
           </div>
         </aside>
 
         <section className="relative flex-1 overflow-auto bg-tp-slate-100 p-[24px]">
           <RxPreviewDocument snapshot={previewSnapshot} />
-          <div className="absolute right-[22px] top-[32px] h-[146px] w-px bg-tp-slate-300/70" />
         </section>
       </main>
+
+      <AlertDialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>
+        <AlertDialogContent className="max-w-[420px] rounded-[16px] p-[24px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-sans text-[18px] font-semibold text-tp-slate-900">
+              Edit Digital Rx?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="font-sans text-[14px] leading-[1.5] text-tp-slate-600">
+              Are you sure you want to edit this Rx? You will be taken back to the Rx page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-[18px] flex gap-[10px]">
+            <AlertDialogCancel className="min-w-[100px] h-[40px] rounded-[10px] border border-tp-blue-500 bg-white px-4 font-sans text-[13px] font-semibold text-tp-blue-500 transition-colors hover:border-tp-blue-500 hover:bg-tp-blue-50/40 hover:text-tp-blue-500">
+              No, Stay Here
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmEditRx}
+              className="min-w-[100px] h-[40px] rounded-[10px] bg-tp-blue-600 px-4 font-sans text-[13px] font-semibold text-white hover:bg-tp-blue-700"
+            >
+              Yes, Edit Rx
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <TPSnackbar
         open={snackbarOpen}

@@ -243,7 +243,7 @@ function PatientDetailInner() {
             <ArrowLeft2 size={18} color="currentColor" variant="Linear" />
             Back
           </button>
-          <div className="h-[28px] w-[1px] bg-tp-slate-200" />
+          <div className="bg-gradient-to-b from-[rgba(208,213,221,0.2)] h-[42px] opacity-80 shrink-0 to-[rgba(208,213,221,0.2)] via-1/2 via-[#d0d5dd] w-[1.05px]" />
           <div className="flex items-center gap-[10px]">
             <div className="flex h-[36px] w-[36px] items-center justify-center rounded-full bg-tp-violet-100">
               <User size={20} color="var(--tp-violet-600)" variant="Bulk" />

@@ -1,9 +1,10 @@
 "use client"
 
-import { Calendar2, ClipboardText, Health, SearchNormal1 } from "iconsax-reactjs"
+import { Calendar2, Notepad2 } from "iconsax-reactjs"
 import { Building2 } from "lucide-react"
 import { ToothIcon } from "@/components/dental/ToothIcon"
 import type { RxPreviewComposedSnapshot, RxPreviewLine } from "@/components/tp-rxpad/rx-preview-store"
+import { TPMedicalIcon } from "@/components/tp-ui"
 
 function formatDate(value: string) {
   const dt = new Date(value)
@@ -55,6 +56,10 @@ function SectionList({
   )
 }
 
+function RxMedicalSectionIcon({ name }: { name: string }) {
+  return <TPMedicalIcon name={name} variant="bulk" size={14} color="var(--tp-slate-500)" className="block h-[14px] w-[14px]" />
+}
+
 export function RxPreviewDocument({
   snapshot,
 }: {
@@ -67,11 +72,11 @@ export function RxPreviewDocument({
 
   const renderLetterhead = () => (
     <>
-      <header className="rounded-[6px] bg-tp-slate-100/60 px-[10px] py-[8px]">
+      <header className="mb-[14px] rounded-[6px] bg-tp-slate-100/60 px-[10px] py-[8px]">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
-            <div className="flex h-[44px] w-[44px] items-center justify-center rounded-[8px] bg-tp-blue-50">
-              <Building2 size={22} className="text-tp-blue-600" strokeWidth={1.8} />
+            <div className="flex h-[64px] w-[64px] items-center justify-center rounded-[8px] bg-tp-blue-50">
+              <Building2 size={32} className="text-tp-blue-600" strokeWidth={1.8} />
             </div>
             <div>
               <p className="font-sans text-[15px] font-semibold leading-[20px] text-tp-blue-700">TP Dental Care</p>
@@ -137,15 +142,15 @@ export function RxPreviewDocument({
         <div className="space-y-[4px] pl-[6px]">
           {blocks.map((block, index) => (
             <div key={`${block.toothLabel}-${index}`} className="space-y-[2px]">
-              <p className="font-sans text-[11px] font-semibold leading-[16px] text-tp-slate-900">
-                <span className="mr-[6px] text-tp-slate-500">•</span>
+              <p className="pl-[12px] font-sans text-[11px] font-semibold leading-[16px] text-tp-slate-900">
+                <span className="mr-[6px] text-[10px] text-tp-slate-500">•</span>
                 {block.toothLabel}
               </p>
 
               <div className="space-y-[2px] pl-[18px]">
                 {block.treatmentHistory.length ? (
                   <p className="font-sans text-[11px] leading-[16px] text-tp-slate-700">
-                    <span className="mr-[6px] text-tp-slate-400">◦</span>
+                    <span className="mr-[6px] text-tp-slate-400">•</span>
                     <span className="font-medium text-tp-slate-900">Treatment History:</span>{" "}
                     {block.treatmentHistory.map((item, itemIndex) => (
                       <span key={`th-${itemIndex}`}>
@@ -158,7 +163,7 @@ export function RxPreviewDocument({
                 ) : null}
                 {block.findings.length ? (
                   <p className="font-sans text-[11px] leading-[16px] text-tp-slate-700">
-                    <span className="mr-[6px] text-tp-slate-400">◦</span>
+                    <span className="mr-[6px] text-tp-slate-400">•</span>
                     <span className="font-medium text-tp-slate-900">Findings:</span>{" "}
                     {block.findings.map((item, itemIndex) => (
                       <span key={`finding-${itemIndex}`}>
@@ -171,7 +176,7 @@ export function RxPreviewDocument({
                 ) : null}
                 {block.procedures.length ? (
                   <p className="font-sans text-[11px] leading-[16px] text-tp-slate-700">
-                    <span className="mr-[6px] text-tp-slate-400">◦</span>
+                    <span className="mr-[6px] text-tp-slate-400">•</span>
                     <span className="font-medium text-tp-slate-900">Procedures:</span>{" "}
                     {block.procedures.map((item, itemIndex) => (
                       <span key={`proc-${itemIndex}`}>
@@ -184,7 +189,7 @@ export function RxPreviewDocument({
                 ) : null}
                 {block.overallToothNote ? (
                   <p className="font-sans text-[11px] leading-[16px] text-tp-slate-700">
-                    <span className="mr-[6px] text-tp-slate-400">◦</span>
+                    <span className="mr-[6px] text-tp-slate-400">•</span>
                     <span className="font-medium text-tp-slate-900">Overall Tooth Notes:</span>{" "}
                     {block.overallToothNote}
                   </p>
@@ -212,12 +217,12 @@ export function RxPreviewDocument({
             </div>
           ) : (
             <div className="space-y-[10px] py-[8px]">
-              <SectionList title="Symptoms" rows={snapshot.symptoms} icon={<Health size={14} color="var(--tp-slate-500)" variant="Bulk" />} />
-              <SectionList title="Examination" rows={snapshot.examinations} icon={<SearchNormal1 size={14} color="var(--tp-slate-500)" variant="Bulk" />} />
-              <SectionList title="Diagnosis" rows={snapshot.diagnoses} icon={<ClipboardText size={14} color="var(--tp-slate-500)" variant="Bulk" />} />
-              <SectionList title="Lab Investigation" rows={snapshot.labInvestigations} icon={<SearchNormal1 size={14} color="var(--tp-slate-500)" variant="Bulk" />} />
-              <SectionList title="Medication (Rx)" rows={snapshot.medications} icon={<Health size={14} color="var(--tp-slate-500)" variant="Bulk" />} />
-              <SectionList title="Advice" rows={snapshot.advice} icon={<ClipboardText size={14} color="var(--tp-slate-500)" variant="Bulk" />} />
+              <SectionList title="Symptoms" rows={snapshot.symptoms} icon={<RxMedicalSectionIcon name="Virus" />} />
+              <SectionList title="Examination" rows={snapshot.examinations} icon={<RxMedicalSectionIcon name="medical service" />} />
+              <SectionList title="Diagnosis" rows={snapshot.diagnoses} icon={<RxMedicalSectionIcon name="Diagnosis" />} />
+              <SectionList title="Lab Investigation" rows={snapshot.labInvestigations} icon={<RxMedicalSectionIcon name="Test Tube" />} />
+              <SectionList title="Medication (Rx)" rows={snapshot.medications} icon={<RxMedicalSectionIcon name="Tablets" />} />
+              <SectionList title="Advice" rows={snapshot.advice} icon={<RxMedicalSectionIcon name="health care" />} />
 
               {renderDentalSection(firstPageDentalBlocks)}
 
@@ -232,7 +237,10 @@ export function RxPreviewDocument({
               ) : null}
               {snapshot.additionalNotes ? (
                 <section className="space-y-[2px]">
-                  <h3 className="font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-900">Additional Notes</h3>
+                  <h3 className="flex items-center gap-[5px] font-sans text-[13px] font-semibold leading-[18px] text-tp-slate-900">
+                    <Notepad2 size={14} color="var(--tp-slate-500)" variant="Bulk" />
+                    Additional Notes
+                  </h3>
                   <p className="font-sans text-[11px] leading-[16px] text-tp-slate-700">{snapshot.additionalNotes}</p>
                 </section>
               ) : null}

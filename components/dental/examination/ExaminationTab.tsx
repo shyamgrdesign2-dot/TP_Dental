@@ -1013,7 +1013,7 @@ function SingleToothPanel({ state }: { state: DentalCanvasState }) {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <div className="w-[1px] h-[18px] bg-tp-slate-200 mx-[2px]" />
+            <div className="bg-gradient-to-b from-[rgba(208,213,221,0.2)] h-[18px] opacity-80 shrink-0 to-[rgba(208,213,221,0.2)] via-1/2 via-[#d0d5dd] w-[1.05px] mx-[2px]" />
             <button
               type="button"
               onClick={tryBack}
