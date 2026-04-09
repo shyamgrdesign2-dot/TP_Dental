@@ -1638,9 +1638,21 @@ export function Tooth({
 }: ToothProps) {
   const gltf = useGLTF(modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
-  const clonedScene = useMemo(() => cloneSceneWithUniqueMaterials(gltf.scene), [gltf])
+  
+  const sceneRef = useRef<THREE.Group | null>(null)
+  if (!sceneRef.current) {
+    sceneRef.current = cloneSceneWithUniqueMaterials(gltf.scene)
+  }
+  const clonedScene = sceneRef.current
 
-  useEffect(() => () => disposeClonedScene(clonedScene), [clonedScene])
+  useEffect(() => {
+    const scene = sceneRef.current
+    return () => {
+      if (scene) disposeClonedScene(scene)
+      sceneRef.current = null
+    }
+  }, [gltf])
+
   const groupRef = useRef<THREE.Group>(null!)
   const outerGroupRef = useRef<THREE.Group>(null!)
   const toothMeshRef = useRef<THREE.Mesh | null>(null)
@@ -2092,7 +2104,8 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
   const [ghostCervicalY, setGhostCervicalY] = useState<number | null>(null)
   const [ghostHalfWidth, setGhostHalfWidth] = useState<number | null>(null)
 
-  const cloned = useMemo(() => {
+  const clonedRef = useRef<THREE.Group | null>(null)
+  if (!clonedRef.current) {
     const root = gltf.scene.clone(true) as THREE.Group
     root.traverse((obj) => {
       const mesh = obj as THREE.Mesh
@@ -2115,8 +2128,9 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
         mesh.material = prep(mat)
       }
     })
-    return root
-  }, [gltf])
+    clonedRef.current = root
+  }
+  const cloned = clonedRef.current
 
   // After mount: compute ghost tooth's cervical Y, then inject crown-only clipping shader
   useEffect(() => {
@@ -2215,16 +2229,20 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
 
   // Dispose on unmount
   useEffect(() => {
+    const scene = clonedRef.current
     return () => {
-      cloned.traverse((obj) => {
-        const m = obj as THREE.Mesh
-        if (m.isMesh) {
-          if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose())
-          else m.material?.dispose()
-        }
-      })
+      if (scene) {
+        scene.traverse((obj) => {
+          const m = obj as THREE.Mesh
+          if (m.isMesh) {
+            if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose())
+            else m.material?.dispose()
+          }
+        })
+      }
+      clonedRef.current = null
     }
-  }, [cloned])
+  }, [gltf])
 
   // All three bridge teeth should face the same direction as the central tooth (front view).
   // The outer parent group already applies the central tooth's mirrorX scale, so we do NOT
