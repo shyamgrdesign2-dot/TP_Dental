@@ -407,7 +407,7 @@ function PatientDetails() {
         return (
             <div className="appointment-wrap PatientDetailswrap m-0">
                 <div className="d-flex justify-content-center py-5">
-                    Patient Details Not found
+                    {/* Patient Details Not found */}
                 </div>
             </div>
         );
