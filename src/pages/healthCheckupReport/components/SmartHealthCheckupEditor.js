@@ -112,6 +112,123 @@ function SmartHealthCheckupEditor(
   // Initial/controlled content (Editor supports value prop)
   const initialContent = value || HEALTH_CHECKUP_REPORT_TEMPLATE_HTML;
 
+  // Fix Cmd+A / Ctrl+A collapsing styled content to plain text.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !EditorComponent) return;
+
+    const queryNative = () => container.querySelector("smart-editor");
+
+    const handleSelectAll = (e) => {
+      const isSelectAll = (e.metaKey || e.ctrlKey) && (e.key === "a" || e.keyCode === 65);
+      if (!isSelectAll) return;
+
+      const native = queryNative();
+      if (!native) return;
+
+      const editable = native.shadowRoot?.querySelector(".smart-editor-editable") ||
+                       native.querySelector(".smart-editor-editable") ||
+                       native.shadowRoot?.querySelector("[contenteditable='true']") ||
+                       native.querySelector("[contenteditable='true']");
+      
+      if (editable) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        // Use text node boundaries instead of the container element.
+        // This makes the selection look like a manual mouse drag, bypassing the editor's 
+        // internal 'Select All' block-conversion logic which fires when anchorNode is the container.
+        const getFirstText = (node) => {
+          if (node.nodeType === 3 && node.textContent.trim().length > 0) return node;
+          for (let i = 0; i < (node.childNodes?.length || 0); i++) {
+             const res = getFirstText(node.childNodes[i]);
+             if (res) return res;
+          }
+          return null;
+        };
+
+        const getLastText = (node) => {
+          if (node.nodeType === 3 && node.textContent.trim().length > 0) return node;
+          for (let i = (node.childNodes?.length || 0) - 1; i >= 0; i--) {
+             const res = getLastText(node.childNodes[i]);
+             if (res) return res;
+          }
+          return null;
+        };
+
+        try {
+          editable.focus();
+          const firstText = getFirstText(editable) || editable;
+          const lastText = getLastText(editable) || editable;
+
+          const selection = window.getSelection();
+          const range = document.createRange();
+          
+          if (firstText === editable) {
+            range.selectNodeContents(editable);
+          } else {
+            range.setStart(firstText, 0);
+            range.setEnd(lastText, lastText.nodeType === 3 ? lastText.textContent.length : lastText.childNodes.length);
+          }
+          
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } catch (err) {
+          console.error("Advanced manual selection failed", err);
+        }
+      }
+    };
+
+    const tryPatchNative = () => {
+      const native = queryNative();
+      if (!native) return false;
+
+      const editable = native.shadowRoot?.querySelector(".smart-editor-editable") ||
+                       native.querySelector(".smart-editor-editable");
+      
+      if (editable) {
+        editable.addEventListener("keydown", handleSelectAll, { capture: true });
+        
+        const safeSelectAll = function() {
+           handleSelectAll({ 
+             metaKey: true, key: 'a', 
+             preventDefault: () => {}, stopPropagation: () => {}, stopImmediatePropagation: () => {} 
+           });
+        };
+
+        // Suppress editor's internal selectAll overrides completely
+        ['selectAll', '_selectAll', '_selectAllClick', '_selectAllHandler'].forEach(m => {
+          native[m] = safeSelectAll;
+        });
+        
+        // Also prevent the standard document.execCommand('selectAll') from bubbling into the editor
+        editable.addEventListener("selectall", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          safeSelectAll();
+        }, { capture: true });
+
+        return true;
+      }
+      return false;
+    };
+
+    let retryCount = 0;
+    const interval = setInterval(() => {
+      if (tryPatchNative() || retryCount > 50) {
+        clearInterval(interval);
+      }
+      retryCount++;
+    }, 150);
+
+    window.addEventListener("keydown", handleSelectAll, { capture: true });
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("keydown", handleSelectAll, { capture: true });
+    };
+  }, [EditorComponent]);
 
   // Force HTML paste handler for Microsoft Word content to avoid brackets/JSON formatting issues
   useEffect(() => {
@@ -253,7 +370,7 @@ function SmartHealthCheckupEditor(
         toolbarItems={toolbarItems}
         hideToolbar={hideToolbar}
         toolbarViewMode="multiRow"
-        // onReady={handleReady}
+        editMode="html"
         readonly={readonly}
         value={initialContent}
         onChange={handleChange}
