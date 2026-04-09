@@ -6,7 +6,6 @@ export const lazyRetry = (importFn) =>
   
       importFn()
         .then((module) => {
-          sessionStorage.setItem("retry-lazy-refreshed", "false");
           resolve(module);
         })
         .catch((error) => {

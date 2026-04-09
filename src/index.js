@@ -124,11 +124,8 @@ if (typeof window !== "undefined") {
     }
   });
 
-  // Reset the flag after a successful fresh load,
-  // so future deployments can trigger one reload again.
-  window.addEventListener("load", () => {
-    sessionStorage.removeItem(CHUNK_RELOAD_KEY);
-  });
+  // Note: Do not clear CHUNK_RELOAD_KEY on load.
+  // This prevents infinite reload loops when a chunk keeps failing.
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
