@@ -189,11 +189,24 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                             smartRxFile: state?.smartRxFile || state?.files
                         } 
                     });
+                } else if (previousPage === "/tab-rx-prescription") {
+                    const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                    navigate("/tab-rx-prescription", {
+                        replace: true,
+                        state: {
+                            ...state,
+                            selectedLang: updatedSelectedLang,
+                            currentSessionRx: null,
+                            from: "/configure_print_setting",
+                            page: state?.page,
+                            smartRxFile: state?.smartRxFile || state?.smartRxFilesData
+                        }
+                    });
                 } else {
                     if (previousPage) {
-                        navigate(previousPage, { replace: true, state: { ...state, currentSessionRx } });
+                        navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: null } });
                     } else {
-                        navigate(-1, { replace: true, state: { ...state, currentSessionRx } });
+                        navigate(-1, { replace: true, state: { ...state, currentSessionRx: null } });
                     }
                 }
             } else {
@@ -220,7 +233,8 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         selectedLang: selectedLang,
                         print_url: print_url,
                         isAmbientRx: isAmbientRx,
-                        rxId: rxId
+                        rxId: rxId,
+                        currentSessionRx: null
                     } 
                 });
             } else if (previousPage === "/snap-rx/preview") {
@@ -229,7 +243,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: { 
                         ...state, 
                         selectedLang: selectedLang,
-                        currentSessionRx: currentSessionRx,
+                        currentSessionRx: null,
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files,
                         files: state?.files || state?.smartRxFile
@@ -241,11 +255,23 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     state: { 
                         ...state, 
                         selectedLang: selectedLang,
-                        currentSessionRx: currentSessionRx,
+                        currentSessionRx: null,
                         from: "/configure_print_setting",
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
+                });
+            } else if (previousPage === "/tab-rx-prescription") {
+                navigate("/tab-rx-prescription", {
+                    replace: true,
+                    state: {
+                        ...state,
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting",
+                        page: state?.page,
+                        smartRxFile: state?.smartRxFile || state?.smartRxFilesData
+                    }
                 });
             } else {
                 if (previousPage) {
@@ -290,6 +316,30 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         files: state?.files || state?.smartRxFile
                     } 
                 });
+            } else if (previousPage === "/print-smart-rx") {
+                navigate("/print-smart-rx", { 
+                    replace: true, 
+                    state: { 
+                        ...state, 
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting",
+                        page: state?.page, // Preserve page state to indicate if it's after digitization
+                        smartRxFile: state?.smartRxFile || state?.files
+                    } 
+                });
+            } else if (previousPage === "/tab-rx-prescription") {
+                navigate("/tab-rx-prescription", {
+                    replace: true,
+                    state: {
+                        ...state,
+                        selectedLang: selectedLang,
+                        currentSessionRx: null,
+                        from: "/configure_print_setting",
+                        page: state?.page,
+                        smartRxFile: state?.smartRxFile || state?.smartRxFilesData
+                    }
+                });
             } else {
                 if (previousPage) {
                     navigate(previousPage, { replace: true, state: { ...state, currentSessionRx: null } });
@@ -299,7 +349,7 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             }
         } else if (flag === 3) {
             // Hydrate blob URL to Blob so preview pages get a valid PDF (no revoked blob URL)
-            let sessionRxToPass = currentSessionRx;
+            let sessionRxToPass = currentSessionRx || state?.currentSessionRx;
             if (
                 typeof currentSessionRx === "string" &&
                 currentSessionRx.startsWith("blob:")
@@ -310,6 +360,19 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     sessionRxToPass = blob;
                 } catch (err) {
                     console.error("Failed to hydrate session Rx blob before navigation", err);
+                }
+            }
+            if (
+                !sessionRxToPass &&
+                typeof state?.currentSessionRx === "string" &&
+                state.currentSessionRx.startsWith("blob:")
+            ) {
+                try {
+                    const res = await fetch(state.currentSessionRx);
+                    const blob = await res.blob();
+                    sessionRxToPass = blob;
+                } catch (err) {
+                    console.error("Failed to hydrate session Rx blob from state", err);
                 }
             }
             if (previousPage === "/gen-rx-print") {
@@ -351,6 +414,19 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                         page: state?.page, // Preserve page state to indicate if it's after digitization
                         smartRxFile: state?.smartRxFile || state?.files
                     } 
+                });
+            } else if (previousPage === "/tab-rx-prescription") {
+                const updatedSelectedLang = printSettings?.default_language || selectedLang;
+                navigate("/tab-rx-prescription", {
+                    replace: true,
+                    state: {
+                        ...state,
+                        selectedLang: updatedSelectedLang,
+                        currentSessionRx: sessionRxToPass,
+                        from: "/configure_print_setting",
+                        page: state?.page,
+                        smartRxFile: state?.smartRxFile || state?.smartRxFilesData
+                    }
                 });
             } else {
                 if (previousPage) {

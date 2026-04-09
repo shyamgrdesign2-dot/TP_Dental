@@ -45,9 +45,10 @@ import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingS
 import { useConsultationNavigation } from "../hooks/useConsultationNavigation";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
+import { lazyRetry } from "../utils/lazyRetry";
 const BillingDashboard = React.lazy(() =>
-    import("./opdBilling/components/billingDashboard/BillingDashboard")
-  );
+  lazyRetry(() => import("./opdBilling/components/billingDashboard/BillingDashboard"))
+);
 
 const { Sider, Content } = Layout;
 

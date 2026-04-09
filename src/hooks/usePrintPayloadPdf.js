@@ -18,6 +18,7 @@ export const usePrintPayloadPdf = ({
 
   useEffect(() => {
     if (skipFetch) {
+      setIsGenerating(false);
       return;
     }
 
@@ -67,14 +68,16 @@ export const usePrintPayloadPdf = ({
       }
     };
 
-    fetchPayload();
+    const timeoutId = setTimeout(fetchPayload, 0);
     return () => {
       isCancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [printUrl, payloadOverride, skipFetch]);
 
   useEffect(() => {
     if (skipFetch) {
+      setIsGenerating(false);
       return;
     }
 
@@ -106,7 +109,7 @@ export const usePrintPayloadPdf = ({
           setPrintBlob(blob);
         }
       } catch (err) {
-        console.error("Failed to generate PDF blob", err);
+        console.log("Failed to generate PDF blob", err);
         if (!isCancelled) {
           setError(err);
           setPrintBlob(null);

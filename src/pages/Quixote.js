@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { Spin } from "antd";
 
@@ -167,8 +167,23 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
     const [pdfUrl, setPdfUrl] = useState(null)
     const [numPages, setNumPages] = useState();
     const [loadSuccess, setLoadSuccesss] = useState(false);
+    const pdfUrlRef = useRef(null);
+    const renderIdRef = useRef(0);
+    const isMountedRef = useRef(true);
 
     useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (pdfUrlRef.current) {
+                URL.revokeObjectURL(pdfUrlRef.current);
+                pdfUrlRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        const renderId = ++renderIdRef.current;
         // const makePDFUrl = async () => {
         //     var make_data = {
         //         mode: mode,
@@ -223,18 +238,30 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 dentalData={props.dentalData}
             />).toBlob();
 
+            const setPdfUrlSafe = (url) => {
+                if (!isMountedRef.current || renderId !== renderIdRef.current) {
+                    URL.revokeObjectURL(url);
+                    return false;
+                }
+                if (pdfUrlRef.current) {
+                    URL.revokeObjectURL(pdfUrlRef.current);
+                }
+                pdfUrlRef.current = url;
+                setPdfUrl(url);
+                dispatch(setCurrentSessionRx(url));
+                return true;
+            };
+
             try {
                 const blob = await renderPdfWithSmartRx(smartRxFile);
                 const url = URL.createObjectURL(blob);
-                setPdfUrl(url);
-                dispatch(setCurrentSessionRx(url));
+                setPdfUrlSafe(url);
             } catch (err) {
                 if (smartRxFile) {
                     try {
                         const blobFallback = await renderPdfWithSmartRx([]);
                         const fallbackUrl = URL.createObjectURL(blobFallback);
-                        setPdfUrl(fallbackUrl);
-                        dispatch(setCurrentSessionRx(fallbackUrl));
+                        setPdfUrlSafe(fallbackUrl);
                     } catch (fallbackErr) {
                     }
                 } else {
@@ -299,7 +326,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                         .map((page) => {
                             return (
                                 <Page
-                                    key={Math.random()}
+                                    key={page}
                                     className={loadSuccess ? 'react-pdf__Page_afterload' : null}
                                     loading={null}
                                     width={divWidth}
