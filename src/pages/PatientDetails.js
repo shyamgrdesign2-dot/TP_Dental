@@ -285,7 +285,7 @@ function PatientDetails() {
             dispatch(resetConsultations());
             dispatch(resetViewCaseManagerData());
         };
-    }, [patient_data?.patient_unique_id, allUploadedDocs.length, billPrintSettings, ipdBillPrintSettings]);
+    }, []);
 
     useEffect(() => {
     if (patient_data?.patient_unique_id && allUploadedDocs.length === 0) {
