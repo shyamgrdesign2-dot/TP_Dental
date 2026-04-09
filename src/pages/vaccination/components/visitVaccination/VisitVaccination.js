@@ -19,8 +19,9 @@ import moment from "moment";
 
 function VisitVaccination() {
   const navigate = useNavigate();
-  const { state } = useLocation();
-  const { patient_data } = state;
+  const location = useLocation();
+  const locationState = location.state || {};
+  const { patient_data } = locationState;
 
   const [upcomingVaccines, setUpcomingVaccines] = useState([]);
   const [pendingVaccines, setPendingVaccines] = useState([]);

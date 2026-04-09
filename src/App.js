@@ -207,6 +207,7 @@ function App() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const authToken = searchParams.get("authToken");
+  const mrnNo = searchParams.get("mrnNo");
   const redirectTo = searchParams.get("redirectTo");
   const uploadParams = searchParams.get("uploadParams");
   const ophthalUploadParams = searchParams.get("ophthalUploadParams");
@@ -451,8 +452,19 @@ function App() {
   useEffect(() => {
     if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
+      const mrnNoParam = mrnNo || params.get("mrnNo");
       params.delete("authToken");
       const afterSearch = params.toString();
+      if (location.pathname === "/patient_details" && mrnNoParam) {
+        navigate(
+          {
+            pathname: "/patient_details",
+            search: params.toString(),
+          },
+          { replace: true, state: { mrnNo: mrnNoParam } }
+        );
+        return;
+      }
       if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
         navigate(
           {
@@ -463,7 +475,7 @@ function App() {
         );
       }
     }
-  }, [authToken, navigate, location.pathname, isReceptionist]);
+  }, [authToken, navigate, location.pathname, location.search, isReceptionist, mrnNo]);
 
   useEffect(() => {
     if (uploadParams) {
