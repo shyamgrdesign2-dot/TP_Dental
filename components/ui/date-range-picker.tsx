@@ -256,9 +256,10 @@ interface DateRangePickerProps {
   onChange: (selection: DateSelection) => void
   className?: string
   hideFuturePresets?: boolean
+  triggerLabelOverride?: string
 }
 
-export function DateRangePicker({ value, onChange, className, hideFuturePresets }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, className, hideFuturePresets, triggerLabelOverride }: DateRangePickerProps) {
   const [open, setOpen] = useState(false)
   // Two-month view: left = shown month, right = left + 1
   const [leftViewDate, setLeftViewDate] = useState(() => startOfDay(new Date()))
@@ -273,7 +274,7 @@ export function DateRangePicker({ value, onChange, className, hideFuturePresets 
   const [pendingStart, setPendingStart] = useState<Date | null>(null)
   const [hoverDate, setHoverDate] = useState<Date | null>(null)
 
-  const triggerLabel = PRESETS.find((p) => p.id === value)?.label ?? "Select date"
+  const triggerLabel = triggerLabelOverride ?? PRESETS.find((p) => p.id === value)?.label ?? "Select date"
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)

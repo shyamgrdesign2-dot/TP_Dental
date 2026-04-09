@@ -27,7 +27,7 @@ import {
   TickCircle,
   Video,
 } from "iconsax-reactjs"
-import { Check, ChevronDown, ListFilter, MoreVertical, Plus, Search, Star, X } from "lucide-react"
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, LayoutList, ListFilter, MoreVertical, Plus, Search, Star, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { TPButton as Button, TPSplitButton } from "@/components/tp-ui/button-system"
@@ -35,6 +35,7 @@ import { TPSecondaryNavPanel, type TPSecondaryNavItem, TPTag } from "@/component
 import { TPSnackbar } from "@/components/tp-ui"
 import { AppointmentBanner } from "@/components/appointments/AppointmentBanner"
 import { DateRangePicker, type DatePresetId } from "@/components/ui/date-range-picker"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm"
 
 const REF_LOGO = "/assets/b38df11ad80d11b9c1d530142443a18c2f53d406.png"
@@ -77,6 +78,9 @@ interface AppointmentRow {
   dateKey: DateRangeKey
   starred?: boolean
 }
+
+type AppointmentViewMode = "list" | "calendar"
+type CalendarGranularity = "day" | "week" | "month"
 
 const navItems: TPSecondaryNavItem[] = [
   { id: "appointments", label: "Appointments", icon: Calendar2 },
@@ -248,6 +252,34 @@ function matchesDateFilter(rowDateKey: DateRangeKey, selected: DatePresetId) {
   return true
 }
 
+function inferDatePresetFromDate(date: Date): DatePresetId {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diff = Math.round((target.getTime() - today.getTime()) / 86400000)
+  if (diff === 0) return "today"
+  if (diff === -1) return "yesterday"
+  if (diff > 0) return diff <= 92 ? "next-3-months" : "next-4-months"
+  return Math.abs(diff) <= 92 ? "past-3-months" : "past-4-months"
+}
+
+function formatCalendarFilterLabel(date: Date, mode: CalendarGranularity): string {
+  if (mode === "month") {
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  }
+  if (mode === "day") {
+    if (isSameDate(date, startOfDay(new Date()))) return "Today"
+    return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+  }
+  const weekStart = startOfWeek(date)
+  const weekEnd = addDays(weekStart, 6)
+  const sameMonth = weekStart.getMonth() === weekEnd.getMonth() && weekStart.getFullYear() === weekEnd.getFullYear()
+  if (sameMonth) {
+    return `${weekStart.getDate()}-${weekEnd.getDate()} ${weekStart.toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
+  }
+  return `${weekStart.toLocaleDateString("en-US", { day: "numeric", month: "short" })} - ${weekEnd.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}`
+}
+
 const TAB_EMPTY_MESSAGES: Record<AppointmentStatus, string> = {
   "queue":                "There are no patients in the queue right now",
   "finished":             "You haven't finished any consultations yet",
@@ -269,11 +301,18 @@ export function DrAgentPage() {
   const searchParams = useSearchParams()
   const [activeRailItem, setActiveRailItem] = useState(navItems[0].id)
   const [activeTab, setActiveTab] = useState<AppointmentStatus>("queue")
+  const [appointmentViewMode, setAppointmentViewMode] = useState<AppointmentViewMode>("list")
+  const [calendarGranularity, setCalendarGranularity] = useState<CalendarGranularity>("day")
+  const [calendarCursorDate, setCalendarCursorDate] = useState(new Date())
+  const [appointments, setAppointments] = useState<AppointmentRow[]>(queueAppointments)
   const [query, setQuery] = useState("")
   const [tabDateFilters, setTabDateFilters] = useState<Partial<Record<AppointmentStatus, DatePresetId>>>({})
   const dateFilter = tabDateFilters[activeTab] ?? "today"
   function setDateFilter(id: DatePresetId) {
-    setTabDateFilters((prev) => ({ ...prev, [activeTab]: id }))
+    setTabDateFilters((prev) => {
+      if (prev[activeTab] === id) return prev
+      return { ...prev, [activeTab]: id }
+    })
   }
   const tableOverflowRef = useRef<HTMLDivElement | null>(null)
   const [isTableScrolled, setIsTableScrolled] = useState(false)
@@ -302,6 +341,12 @@ export function DrAgentPage() {
   useEffect(() => { setFilterMounted(true) }, [])
 
   useEffect(() => {
+    if (appointmentViewMode === "calendar") {
+      setCalendarGranularity("day")
+    }
+  }, [appointmentViewMode])
+
+  useEffect(() => {
     if (typeof window === "undefined") return
     const snackbarType = searchParams?.get("snackbar")
     const pendingKey = "tp.snackbar.appointment-completed"
@@ -328,7 +373,7 @@ export function DrAgentPage() {
   const hasActiveFilters = !!(query.trim()) || vtFilter.length > 0 || slotConsult !== "all" || dateFilter !== "today"
 
   const visibleAppointments = useMemo(() => {
-    let rows = queueAppointments.filter((row) => {
+    let rows = appointments.filter((row) => {
       const tabMatch = row.status === activeTab
       const dateMatch = matchesDateFilter(row.dateKey, dateFilter)
       const slotMatch = slotConsult === "all" ? true
@@ -350,11 +395,11 @@ export function DrAgentPage() {
       })
     }
     return rows
-  }, [activeTab, dateFilter, query, slotSort, slotConsult, vtFilter])
+  }, [activeTab, dateFilter, query, slotSort, slotConsult, vtFilter, appointments])
 
   // Calculate counts for each tab
   const getTabCount = (tabId: AppointmentStatus) => {
-    return queueAppointments.filter((row) => {
+    return appointments.filter((row) => {
       const tabMatch = row.status === tabId
       const dateMatch = matchesDateFilter(row.dateKey, dateFilter)
       const slotMatch = slotConsult === "all" ? true
@@ -369,6 +414,63 @@ export function DrAgentPage() {
         row.visitType.toLowerCase().includes(q)
       )
     }).length
+  }
+
+  const handleUpdateCalendarAppointment = (
+    rowId: string,
+    patch: {
+      name: string
+      contact: string
+      visitType: string
+      start: Date
+      end: Date
+      hasVideo: boolean
+    },
+  ) => {
+    setAppointments((prev) =>
+      prev.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              name: patch.name || row.name,
+              contact: patch.contact || row.contact,
+              visitType: patch.visitType || row.visitType,
+              slotTime: toMeridiemTime(patch.start),
+              slotDate: toHumanDate(patch.start),
+              hasVideo: patch.hasVideo,
+              dateKey: toDateRangeKey(patch.start),
+            }
+          : row,
+      ),
+    )
+  }
+
+  const handleCalendarStart = (row: AppointmentRow) => {
+    router.push(`/rxpad?patientId=${row.id}`)
+  }
+
+  const handleCalendarAddVitals = (row: AppointmentRow) => {
+    setSnackbarMessage(`Opening vitals for ${row.name}`)
+    setSnackbarOpen(true)
+  }
+
+  const handleCalendarOpenReports = (row: AppointmentRow) => {
+    router.push(`/patient-detail?patientId=${row.id}&from=appointments`)
+  }
+
+  const handleCalendarInvite = (row: AppointmentRow) => {
+    setSnackbarMessage(`Invite sent to ${row.name}`)
+    setSnackbarOpen(true)
+  }
+
+  const handleCalendarEndVisit = (row: AppointmentRow) => {
+    router.push(`/rxpad/end-visit?patientId=${row.id}`)
+  }
+
+  const handleCalendarDelete = (rowId: string) => {
+    setAppointments((prev) => prev.filter((row) => row.id !== rowId))
+    setSnackbarMessage("Appointment deleted")
+    setSnackbarOpen(true)
   }
 
   return (
@@ -398,9 +500,9 @@ export function DrAgentPage() {
           />
         </aside>
 
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 min-h-0 overflow-hidden">
           {/* STICKY LAYOUT: section is a flex column — only the table body scrolls */}
-          <section className="flex h-full flex-col overflow-hidden">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden">
             {/* Mobile nav strip — fixed, no scroll */}
             <div className="shrink-0 px-3 py-3 md:hidden">
               <div className="flex items-center gap-2 overflow-x-auto">
@@ -458,8 +560,8 @@ export function DrAgentPage() {
 
             {/* Card — flex-1 so it takes all remaining height; overlaps banner by 60px */}
             {/* Note: no overflow-hidden here — the date picker popover must be able to escape */}
-            <div className="relative z-10 -mt-[60px] flex flex-1 flex-col px-3 pb-6 sm:px-4 lg:px-[18px]">
-              <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-tp-slate-200 bg-white">
+            <div className="relative z-10 -mt-[60px] flex flex-1 min-h-0 flex-col px-3 pb-3 sm:px-4 lg:px-[18px]">
+              <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-tp-slate-200 bg-white">
 
                 {/* Tabs row — fixed, does not scroll vertically */}
                 <div className="shrink-0 overflow-x-auto border-b border-tp-slate-100 px-2 pt-2 sm:px-4 sm:pt-3 lg:px-[18px] lg:pt-[18px]">
@@ -536,6 +638,37 @@ export function DrAgentPage() {
                     </label>
 
                     <div className="flex shrink-0 items-center gap-2">
+                      <div className="inline-flex h-[38px] items-center rounded-[10px] border border-tp-slate-200 bg-white p-1">
+                        <button
+                          type="button"
+                          onClick={() => setAppointmentViewMode("list")}
+                          className={cn(
+                            "inline-flex h-[30px] items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold transition-colors",
+                            appointmentViewMode === "list"
+                              ? "bg-tp-blue-50 text-tp-blue-700"
+                              : "text-tp-slate-600 hover:bg-tp-slate-50",
+                          )}
+                          aria-pressed={appointmentViewMode === "list"}
+                          title="List view"
+                        >
+                          <LayoutList size={15} strokeWidth={2} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAppointmentViewMode("calendar")}
+                          className={cn(
+                            "inline-flex h-[30px] items-center gap-1.5 rounded-[8px] px-2.5 text-[12px] font-semibold transition-colors",
+                            appointmentViewMode === "calendar"
+                              ? "bg-tp-blue-50 text-tp-blue-700"
+                              : "text-tp-slate-600 hover:bg-tp-slate-50",
+                          )}
+                          aria-pressed={appointmentViewMode === "calendar"}
+                          title="Calendar view"
+                        >
+                          <CalendarDays size={15} strokeWidth={2} />
+                        </button>
+                      </div>
+
                       {/* Unified filter button */}
                       <button
                         ref={filterBtnRef}
@@ -560,6 +693,11 @@ export function DrAgentPage() {
                       <DateRangePicker
                         value={dateFilter}
                         onChange={(sel) => setDateFilter(sel.presetId)}
+                        triggerLabelOverride={
+                          appointmentViewMode === "calendar"
+                            ? formatCalendarFilterLabel(calendarCursorDate, calendarGranularity)
+                            : undefined
+                        }
                         className="min-w-[80px] max-w-[180px]"
                         hideFuturePresets={activeTab !== "queue"}
                       />
@@ -601,14 +739,15 @@ export function DrAgentPage() {
                   </div>
                 )}
 
-                {/* Table — flex-1, only this area scrolls */}
+                {/* Body — list or calendar */}
                 <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                  <div
-                    ref={tableOverflowRef}
-                    className="flex-1 min-h-0 overflow-auto px-3 pb-4 sm:px-4 lg:px-[18px]"
-                  >
-                    <div className="min-w-[920px] pt-1">
-                      <table className="w-full border-collapse">
+                  {appointmentViewMode === "list" ? (
+                    <div
+                      ref={tableOverflowRef}
+                      className="flex-1 min-h-0 overflow-auto px-3 pb-4 sm:px-4 lg:px-[18px]"
+                    >
+                      <div className="min-w-[920px] pt-1">
+                        <table className="w-full border-collapse">
                         <thead>
                           <tr className="rounded-[12px] bg-tp-slate-100">
                             <th className="rounded-l-[12px] px-3 py-3 text-left text-[12px] font-semibold uppercase text-tp-slate-700 min-w-[40px] max-w-[56px] w-[48px]">
@@ -816,9 +955,28 @@ export function DrAgentPage() {
                             ))
                           )}
                         </tbody>
-                      </table>
+                        </table>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex-1 min-h-0 overflow-auto px-3 pb-4 sm:px-4 lg:px-[18px]">
+                      <AppointmentsCalendarView
+                        rows={visibleAppointments}
+                        granularity={calendarGranularity}
+                        onGranularityChange={setCalendarGranularity}
+                        datePreset={dateFilter}
+                        onDatePresetChange={setDateFilter}
+                        onCursorDateChange={setCalendarCursorDate}
+                        onUpdate={handleUpdateCalendarAppointment}
+                        onStart={handleCalendarStart}
+                        onAddVitals={handleCalendarAddVitals}
+                        onOpenReports={handleCalendarOpenReports}
+                        onInvite={handleCalendarInvite}
+                        onEndVisit={handleCalendarEndVisit}
+                        onDelete={handleCalendarDelete}
+                      />
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -927,6 +1085,613 @@ function FilterTag({ prefix, value, onRemove }: { prefix: string; value: string;
         <X size={10} strokeWidth={2.5} />
       </button>
     </span>
+  )
+}
+
+type CalendarDraft = {
+  name: string
+  contact: string
+  visitType: string
+  date: string
+  time: string
+  durationMin: number
+  hasVideo: boolean
+}
+
+function toDateRangeKey(date: Date): DateRangeKey {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diff = Math.round((today.getTime() - target.getTime()) / 86400000)
+  if (diff === 0) return "today"
+  if (diff === 1) return "yesterday"
+  return diff <= 92 ? "past-3-months" : "past-4-months"
+}
+
+function toMeridiemTime(date: Date): string {
+  let hours = date.getHours()
+  const minutes = date.getMinutes()
+  const suffix = hours >= 12 ? "pm" : "am"
+  hours %= 12
+  if (hours === 0) hours = 12
+  return `${hours}:${minutes.toString().padStart(2, "0")} ${suffix}`
+}
+
+function ordinal(day: number): string {
+  if (day % 10 === 1 && day % 100 !== 11) return `${day}st`
+  if (day % 10 === 2 && day % 100 !== 12) return `${day}nd`
+  if (day % 10 === 3 && day % 100 !== 13) return `${day}rd`
+  return `${day}th`
+}
+
+function toHumanDate(date: Date): string {
+  return `${ordinal(date.getDate())} ${date.toLocaleString("en-US", { month: "short" })} ${date.getFullYear()}`
+}
+
+function parseSlotDate(value: string): Date {
+  const normalized = value.replace(/(\d+)(st|nd|rd|th)/, "$1")
+  const parsed = new Date(normalized)
+  if (!Number.isNaN(parsed.getTime())) return parsed
+  return new Date()
+}
+
+function toEventStart(row: AppointmentRow): Date {
+  const date = resolveRowDate(row)
+  const mins = parseSlotTime(row.slotTime)
+  const hours = Math.floor(mins / 60)
+  const minutes = mins % 60
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0, 0)
+}
+
+function resolveRowDate(row: AppointmentRow): Date {
+  const today = startOfDay(new Date())
+  if (row.dateKey === "today") return today
+  if (row.dateKey === "yesterday") return addDays(today, -1)
+  if (row.dateKey === "past-3-months") return addDays(today, -(14 + (row.serial % 21)))
+  if (row.dateKey === "past-4-months") return addDays(today, -(35 + (row.serial % 40)))
+  return parseSlotDate(row.slotDate)
+}
+
+function toInputDate(date: Date): string {
+  const yyyy = date.getFullYear()
+  const mm = `${date.getMonth() + 1}`.padStart(2, "0")
+  const dd = `${date.getDate()}`.padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function toInputTime(date: Date): string {
+  return `${`${date.getHours()}`.padStart(2, "0")}:${`${date.getMinutes()}`.padStart(2, "0")}`
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function startOfWeek(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const day = (d.getDay() + 6) % 7
+  d.setDate(d.getDate() - day)
+  return d
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+function isSameDate(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate()
+  )
+}
+
+function AppointmentsCalendarView({
+  rows,
+  granularity,
+  onGranularityChange,
+  datePreset,
+  onDatePresetChange,
+  onCursorDateChange,
+  onUpdate,
+  onStart,
+  onAddVitals,
+  onOpenReports,
+  onInvite,
+  onEndVisit,
+  onDelete,
+}: {
+  rows: AppointmentRow[]
+  granularity: CalendarGranularity
+  onGranularityChange: (g: CalendarGranularity) => void
+  datePreset: DatePresetId
+  onDatePresetChange: (preset: DatePresetId) => void
+  onCursorDateChange: (date: Date) => void
+  onUpdate: (rowId: string, patch: { name: string; contact: string; visitType: string; start: Date; end: Date; hasVideo: boolean }) => void
+  onStart: (row: AppointmentRow) => void
+  onAddVitals: (row: AppointmentRow) => void
+  onOpenReports: (row: AppointmentRow) => void
+  onInvite: (row: AppointmentRow) => void
+  onEndVisit: (row: AppointmentRow) => void
+  onDelete: (rowId: string) => void
+}) {
+  const [cursorDate, setCursorDate] = useState(new Date())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [draft, setDraft] = useState<CalendarDraft>({
+    name: "",
+    contact: "",
+    visitType: "New",
+    date: toInputDate(new Date()),
+    time: "10:00",
+    durationMin: 30,
+    hasVideo: false,
+  })
+
+  const events = useMemo<{ row: AppointmentRow; start: Date; end: Date }[]>(() => [], [rows])
+
+  const openEdit = (row: AppointmentRow, start: Date) => {
+    setEditingId(row.id)
+    setDraft({
+      name: row.name,
+      contact: row.contact,
+      visitType: row.visitType,
+      date: toInputDate(start),
+      time: toInputTime(start),
+      durationMin: 30,
+      hasVideo: row.hasVideo,
+    })
+    setIsModalOpen(true)
+  }
+
+  const submit = () => {
+    const start = new Date(`${draft.date}T${draft.time}:00`)
+    if (Number.isNaN(start.getTime())) return
+    const end = new Date(start.getTime() + draft.durationMin * 60000)
+    const payload = {
+      name: draft.name.trim(),
+      contact: draft.contact.trim(),
+      visitType: draft.visitType.trim(),
+      start,
+      end,
+      hasVideo: draft.hasVideo,
+    }
+    if (!editingId) return
+    onUpdate(editingId, payload)
+    setIsModalOpen(false)
+  }
+
+  useEffect(() => {
+    const now = new Date()
+    if (datePreset === "today") {
+      setCursorDate(now)
+      return
+    }
+    if (datePreset === "yesterday") {
+      setCursorDate(addDays(now, -1))
+      return
+    }
+    if (datePreset === "past-3-months" || datePreset === "next-3-months") {
+      setCursorDate(addDays(now, -45))
+      return
+    }
+    setCursorDate(addDays(now, -75))
+  }, [datePreset])
+
+  useEffect(() => {
+    onDatePresetChange(inferDatePresetFromDate(cursorDate))
+  }, [cursorDate, onDatePresetChange])
+
+  useEffect(() => {
+    onCursorDateChange(cursorDate)
+  }, [cursorDate, onCursorDateChange])
+
+  const goPrev = () => {
+    if (granularity === "month") setCursorDate(new Date(cursorDate.getFullYear(), cursorDate.getMonth() - 1, 1))
+    else if (granularity === "week") setCursorDate(addDays(cursorDate, -7))
+    else setCursorDate(addDays(cursorDate, -1))
+  }
+  const goNext = () => {
+    if (granularity === "month") setCursorDate(new Date(cursorDate.getFullYear(), cursorDate.getMonth() + 1, 1))
+    else if (granularity === "week") setCursorDate(addDays(cursorDate, 7))
+    else setCursorDate(addDays(cursorDate, 1))
+  }
+
+  const weekDays = useMemo(() => {
+    const ws = startOfWeek(cursorDate)
+    return Array.from({ length: 7 }, (_, i) => addDays(ws, i))
+  }, [cursorDate])
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[14px] border border-tp-slate-100 bg-white">
+      <div className="flex items-center justify-between border-b border-tp-slate-100 px-3 py-2.5 sm:px-4">
+        <div className="inline-flex items-center gap-2">
+          <button type="button" onClick={goPrev} className="inline-flex size-8 items-center justify-center rounded-[8px] border border-tp-slate-200 text-tp-slate-600 hover:bg-tp-slate-50">
+            <ChevronLeft size={16} />
+          </button>
+          <button type="button" onClick={goNext} className="inline-flex size-8 items-center justify-center rounded-[8px] border border-tp-slate-200 text-tp-slate-600 hover:bg-tp-slate-50">
+            <ChevronRight size={16} />
+          </button>
+          <p className="ml-1 text-[14px] font-semibold text-tp-slate-800">
+            {cursorDate.toLocaleString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
+
+        <div className="inline-flex items-center gap-2">
+          <div className="inline-flex h-8 items-center rounded-[8px] border border-tp-slate-200 bg-white p-1">
+            {(["day", "week", "month"] as CalendarGranularity[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onGranularityChange(mode)}
+                className={cn(
+                  "rounded-[6px] px-2.5 py-1 text-[12px] font-semibold capitalize",
+                  granularity === mode ? "bg-tp-blue-50 text-tp-blue-700" : "text-tp-slate-600 hover:bg-tp-slate-50",
+                )}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        {granularity === "month" ? (
+          <MonthCalendarGrid
+            cursorDate={cursorDate}
+            events={events}
+            onEdit={openEdit}
+            onStart={onStart}
+            onAddVitals={onAddVitals}
+            onOpenReports={onOpenReports}
+            onInvite={onInvite}
+            onEndVisit={onEndVisit}
+            onDelete={onDelete}
+          />
+        ) : (
+          <WeekDayCalendarGrid
+            mode={granularity}
+            weekDays={weekDays}
+            cursorDate={cursorDate}
+            events={events}
+            onEdit={openEdit}
+            onStart={onStart}
+            onAddVitals={onAddVitals}
+            onOpenReports={onOpenReports}
+            onInvite={onInvite}
+            onEndVisit={onEndVisit}
+            onDelete={onDelete}
+          />
+        )}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-[430px] rounded-[14px] border border-tp-slate-200 bg-white p-4 shadow-[0_20px_45px_-20px_rgba(15,23,42,0.5)]">
+            <p className="text-[16px] font-semibold text-tp-slate-900">Reschedule appointment</p>
+            <div className="mt-3 space-y-2.5">
+              <input
+                value={draft.name}
+                onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Patient name"
+                className="h-[38px] w-full rounded-[10px] border border-tp-slate-200 px-3 text-[13px] focus:border-tp-blue-300 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/15"
+              />
+              <input
+                value={draft.contact}
+                onChange={(e) => setDraft((p) => ({ ...p, contact: e.target.value }))}
+                placeholder="Contact number"
+                className="h-[38px] w-full rounded-[10px] border border-tp-slate-200 px-3 text-[13px] focus:border-tp-blue-300 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/15"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={draft.date}
+                  onChange={(e) => setDraft((p) => ({ ...p, date: e.target.value }))}
+                  className="h-[38px] w-full rounded-[10px] border border-tp-slate-200 px-3 text-[13px] focus:border-tp-blue-300 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/15"
+                />
+                <input
+                  type="time"
+                  value={draft.time}
+                  onChange={(e) => setDraft((p) => ({ ...p, time: e.target.value }))}
+                  className="h-[38px] w-full rounded-[10px] border border-tp-slate-200 px-3 text-[13px] focus:border-tp-blue-300 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/15"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  value={draft.visitType}
+                  onChange={(e) => setDraft((p) => ({ ...p, visitType: e.target.value }))}
+                  placeholder="Visit type"
+                  className="h-[38px] w-full rounded-[10px] border border-tp-slate-200 px-3 text-[13px] focus:border-tp-blue-300 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/15"
+                />
+                <select
+                  value={draft.durationMin}
+                  onChange={(e) => setDraft((p) => ({ ...p, durationMin: Number(e.target.value) }))}
+                  className="h-[38px] w-full rounded-[10px] border border-tp-slate-200 px-3 text-[13px] focus:border-tp-blue-300 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/15"
+                >
+                  <option value={15}>15 min</option>
+                  <option value={30}>30 min</option>
+                  <option value={45}>45 min</option>
+                  <option value={60}>60 min</option>
+                </select>
+              </div>
+              <label className="inline-flex items-center gap-2 text-[13px] text-tp-slate-700">
+                <input
+                  type="checkbox"
+                  checked={draft.hasVideo}
+                  onChange={(e) => setDraft((p) => ({ ...p, hasVideo: e.target.checked }))}
+                />
+                Teleconsultation
+              </label>
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="inline-flex h-[36px] items-center rounded-[9px] border border-tp-slate-200 px-3 text-[12px] font-semibold text-tp-slate-700 hover:bg-tp-slate-50">
+                Cancel
+              </button>
+              <button type="button" onClick={submit} className="inline-flex h-[36px] items-center rounded-[9px] bg-tp-blue-600 px-3 text-[12px] font-semibold text-white hover:bg-tp-blue-700">
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MonthCalendarGrid({
+  cursorDate,
+  events,
+  onEdit,
+  onStart,
+  onAddVitals,
+  onOpenReports,
+  onInvite,
+  onEndVisit,
+  onDelete,
+}: {
+  cursorDate: Date
+  events: { row: AppointmentRow; start: Date; end: Date }[]
+  onEdit: (row: AppointmentRow, start: Date) => void
+  onStart: (row: AppointmentRow) => void
+  onAddVitals: (row: AppointmentRow) => void
+  onOpenReports: (row: AppointmentRow) => void
+  onInvite: (row: AppointmentRow) => void
+  onEndVisit: (row: AppointmentRow) => void
+  onDelete: (rowId: string) => void
+}) {
+  const monthStart = new Date(cursorDate.getFullYear(), cursorDate.getMonth(), 1)
+  const gridStart = startOfWeek(monthStart)
+  const days = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
+
+  return (
+    <div className="grid min-w-[900px] grid-cols-7">
+      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+        <div key={d} className="sticky top-0 z-10 border-b border-r border-tp-slate-100 bg-tp-slate-50 px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-tp-slate-500">
+          {d}
+        </div>
+      ))}
+      {days.map((day) => {
+        const dayEvents = events.filter((e) => isSameDate(e.start, day))
+        const outside = day.getMonth() !== cursorDate.getMonth()
+        return (
+          <div
+            key={day.toISOString()}
+            className={cn(
+              "min-h-[130px] border-b border-r border-tp-slate-100 p-2 text-left align-top transition-colors",
+              outside ? "bg-tp-slate-50/60" : "bg-white",
+            )}
+          >
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className={cn("text-[12px] font-semibold", outside ? "text-tp-slate-400" : "text-tp-slate-700")}>{day.getDate()}</span>
+              {dayEvents.length > 0 && <span className="rounded-full bg-tp-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-tp-blue-600">{dayEvents.length}</span>}
+            </div>
+            <div className="space-y-1">
+              {dayEvents.slice(0, 3).map((event) => (
+                <div
+                  key={event.row.id}
+                  className="flex items-center gap-1 rounded-[6px] bg-tp-blue-50 px-1.5 py-1 text-[10px] font-medium text-tp-blue-700"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onEdit(event.row, event.start)}
+                    className="min-w-0 flex-1 truncate text-left"
+                    title={`${toMeridiemTime(event.start)} ${event.row.name}`}
+                  >
+                    {toMeridiemTime(event.start)} {event.row.name}
+                  </button>
+                  <CalendarEventMenu
+                    row={event.row}
+                    onStart={onStart}
+                    onAddVitals={onAddVitals}
+                    onOpenReports={onOpenReports}
+                    onInvite={onInvite}
+                    onEndVisit={onEndVisit}
+                    onReschedule={() => onEdit(event.row, event.start)}
+                    onDelete={onDelete}
+                  />
+                </div>
+              ))}
+              {dayEvents.length > 3 && <span className="block text-[10px] font-medium text-tp-slate-500">+{dayEvents.length - 3} more</span>}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function WeekDayCalendarGrid({
+  mode,
+  weekDays,
+  cursorDate,
+  events,
+  onEdit,
+  onStart,
+  onAddVitals,
+  onOpenReports,
+  onInvite,
+  onEndVisit,
+  onDelete,
+}: {
+  mode: "week" | "day"
+  weekDays: Date[]
+  cursorDate: Date
+  events: { row: AppointmentRow; start: Date; end: Date }[]
+  onEdit: (row: AppointmentRow, start: Date) => void
+  onStart: (row: AppointmentRow) => void
+  onAddVitals: (row: AppointmentRow) => void
+  onOpenReports: (row: AppointmentRow) => void
+  onInvite: (row: AppointmentRow) => void
+  onEndVisit: (row: AppointmentRow) => void
+  onDelete: (rowId: string) => void
+}) {
+  const days = mode === "day" ? [cursorDate] : weekDays
+  const dayStartHour = 8
+  const slots = Array.from({ length: 13 }, (_, i) => dayStartHour + i)
+  const slotHeight = 56
+  const gridHeight = slots.length * slotHeight
+
+  return (
+    <div className="min-w-[900px]">
+      <div className="grid border-b border-tp-slate-100" style={{ gridTemplateColumns: `72px repeat(${days.length}, minmax(0, 1fr))` }}>
+        <div className="border-r border-tp-slate-100 bg-tp-slate-50" />
+        {days.map((d) => (
+          <div key={d.toISOString()} className="border-r border-tp-slate-100 bg-tp-slate-50 px-2 py-2">
+            <p className="text-[12px] font-semibold text-tp-slate-700">
+              {d.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" })}
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="grid" style={{ gridTemplateColumns: `72px repeat(${days.length}, minmax(0, 1fr))` }}>
+        <div className="border-r border-tp-slate-100">
+          {slots.map((hour) => (
+            <div key={hour} className="h-[56px] border-b border-tp-slate-100 pr-2 pt-1 text-right text-[11px] text-tp-slate-500">
+              {hour}:00
+            </div>
+          ))}
+        </div>
+        {days.map((day) => {
+          const dayEvents = events.filter((e) => isSameDate(e.start, day))
+          return (
+            <div key={day.toISOString()} className="relative border-r border-tp-slate-100 bg-white" style={{ height: `${gridHeight}px` }}>
+              {slots.map((hour) => (
+                <div key={`${day.toISOString()}-${hour}`} className="h-[56px] border-b border-tp-slate-100" />
+              ))}
+              {dayEvents.map((event) => {
+                const startMin = event.start.getHours() * 60 + event.start.getMinutes()
+                const startBase = dayStartHour * 60
+                const top = Math.max(0, ((startMin - startBase) / 60) * slotHeight)
+                const durMin = Math.max(15, (event.end.getTime() - event.start.getTime()) / 60000)
+                const height = Math.max(104, (durMin / 60) * slotHeight)
+                return (
+                  <div
+                    key={event.row.id}
+                    className="absolute left-1 right-1 rounded-[8px] border border-tp-blue-200 bg-tp-blue-50 px-2 py-1.5 hover:bg-tp-blue-100"
+                    style={{ top: `${top}px`, height: `${height}px` }}
+                  >
+                    <div className="flex h-full flex-col">
+                      <div className="flex items-start justify-between gap-1">
+                        <button type="button" onClick={() => onEdit(event.row, event.start)} className="min-w-0 flex-1 text-left">
+                          <p className="truncate text-[11px] font-semibold text-tp-blue-700">{event.row.name}</p>
+                          <p className="truncate text-[10px] text-tp-blue-600">
+                            {event.row.gender}, {event.row.age}y • {event.row.contact}
+                          </p>
+                          <p className="truncate text-[10px] text-tp-blue-600">
+                            {toMeridiemTime(event.start)} • {event.row.visitType}
+                          </p>
+                        </button>
+                        <CalendarEventMenu
+                          row={event.row}
+                          onStart={onStart}
+                          onAddVitals={onAddVitals}
+                          onOpenReports={onOpenReports}
+                          onInvite={onInvite}
+                          onEndVisit={onEndVisit}
+                          onReschedule={() => onEdit(event.row, event.start)}
+                          onDelete={onDelete}
+                        />
+                      </div>
+                      <div className="mt-auto flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => onStart(event.row)}
+                          className="inline-flex h-[24px] items-center rounded-[6px] border border-tp-blue-300 bg-white px-2 text-[10px] font-semibold text-tp-blue-700 hover:bg-tp-blue-50"
+                        >
+                          TypeRx
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="AI action"
+                          className="inline-flex size-[24px] items-center justify-center rounded-[6px] transition-all hover:opacity-80"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(213,101,234,0.25) 0%, rgba(103,58,172,0.25) 45%, rgba(26,25,148,0.25) 100%)",
+                          }}
+                        >
+                          <span className="scale-[0.78]"><AiSparkIcon /></span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function CalendarEventMenu({
+  row,
+  onStart,
+  onAddVitals,
+  onOpenReports,
+  onInvite,
+  onEndVisit,
+  onReschedule,
+  onDelete,
+}: {
+  row: AppointmentRow
+  onStart: (row: AppointmentRow) => void
+  onAddVitals: (row: AppointmentRow) => void
+  onOpenReports: (row: AppointmentRow) => void
+  onInvite: (row: AppointmentRow) => void
+  onEndVisit: (row: AppointmentRow) => void
+  onReschedule: () => void
+  onDelete: (rowId: string) => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Appointment actions for ${row.name}`}
+          className="inline-flex size-5 items-center justify-center rounded text-tp-slate-600 hover:bg-white/80"
+        >
+          <MoreVertical size={13} strokeWidth={2} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-[180px] rounded-[10px] border border-tp-slate-100 bg-white p-1">
+        <DropdownMenuItem onClick={() => onStart(row)} className="rounded-[8px] text-[12px]">Start Appointment</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onAddVitals(row)} className="rounded-[8px] text-[12px]">Add Vitals</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onOpenReports(row)} className="rounded-[8px] text-[12px]">Open Reports</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onInvite(row)} className="rounded-[8px] text-[12px]">Invite</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onEndVisit(row)} className="rounded-[8px] text-[12px]">End Visit</DropdownMenuItem>
+        <DropdownMenuItem onClick={onReschedule} className="rounded-[8px] text-[12px]">Reschedule</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onDelete(row.id)} className="rounded-[8px] text-[12px] text-red-600 focus:text-red-700 data-[highlighted]:text-red-700">
+          Delete Appointment
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
