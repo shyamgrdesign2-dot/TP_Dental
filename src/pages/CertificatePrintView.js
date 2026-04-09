@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 // import { Container, Navbar, Nav, Dropdown } from "react-bootstrap";
 import { Col, Row, Button, message, Spin, Input } from "antd";
-import { isMobile, browserName, osName } from "react-device-detect";
+import { isMobile, browserName, osName, isTablet } from "react-device-detect";
 import axios from 'axios';
 import { saveAs } from 'file-saver';
 
@@ -82,7 +82,7 @@ function CertificatePrintView() {
             id: tcu_content_id,
             pms_default: pms_default,
             title: title,
-            content: removeLabelTags(HTMLTransformer(inputToLabel(tcu_content)))
+            content: removeLabelTags(HTMLTransformer(tcu_content))
         }
 
         const action = await dispatch(addCertificate(sendData))
@@ -168,8 +168,8 @@ function CertificatePrintView() {
         }
         const action = await dispatch(viewPatientCertificate(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            if (isMobile) {
-                // Mobile: Open bottom sheet for editing
+            if (isMobile && !isTablet) {
+                // Phone: Open bottom sheet for editing
                 setEditCertificateData(action.payload);
                 setShowEditCertificate(true);
             } else {
@@ -198,7 +198,7 @@ function CertificatePrintView() {
     return (
         <>
             <HeaderCertificatePrint state={state} viewable={viewable} />
-            {isMobile ? (
+            { (isMobile && !isTablet) ? (
                 <div className="certificate-print-view-mobile">
                     {/* Actions Section - Mobile */}
                     <div className="certificate-actions-section">
@@ -384,8 +384,8 @@ function CertificatePrintView() {
                     </Row>
                 </div>
             )}
-            {/* Mobile Edit Certificate Bottom Sheet */}
-            {isMobile && (
+            {/* Phone-only Edit Certificate bottom sheet (tablet uses /certificate like web) */}
+            {(isMobile && !isTablet) && (
                 <MobileCreateCertificate
                     visible={showEditCertificate}
                     onClose={() => {
