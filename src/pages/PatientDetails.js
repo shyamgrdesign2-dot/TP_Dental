@@ -132,7 +132,7 @@ function PatientDetails() {
                 searchPatients({ searchQuery: mrnNo, company: "zydus" })
             );
             if (searchAction.meta.requestStatus !== "fulfilled") {
-                errorMessage(searchAction.error);
+                errorMessage("No patient data found for this MRN.");
                 return;
             }
             const searchResult = searchAction.payload;
@@ -399,19 +399,19 @@ function PatientDetails() {
       setUploadDocDrawer(!uploadDocDrawer);
     };
 
+   const handleGenerateHealthCheckupReport = () => {
+    setShowHealthCheckupReportDrawer(true);
+   };
+
     if (!patient_data || (typeof patient_data === "object" && Object.keys(patient_data).length === 0)) {
         return (
             <div className="appointment-wrap PatientDetailswrap m-0">
                 <div className="d-flex justify-content-center py-5">
-                    <Spin />
+                    Patient Details Not found
                 </div>
             </div>
         );
     }
-
-   const handleGenerateHealthCheckupReport = () => {
-    setShowHealthCheckupReportDrawer(true);
-   };
 
     return (
         <>
