@@ -603,6 +603,56 @@ export function calculateAge(dateOfBirth) {
   return { years: ageInYears, months: ageInMonths, days: ageInDays };
 }
 
+export const calculateFollowUpText = (start_date, end_date) => {
+  const dateB = moment(start_date);
+  const dateC = moment(end_date);
+
+  const totalDays = dateB.diff(dateC, "days");
+
+  if (totalDays <= 0) {
+    return `${totalDays} ${totalDays === 0 ? "Day" : "Days"}`;
+  }
+
+  let text = "";
+  const years = dateB.diff(moment(dateC), "years");
+  if (years > 0) {
+    const months = dateB.diff(moment(dateC).add(years, "years"), "months");
+    const days = dateB.diff(
+      moment(dateC).add(years, "years").add(months, "months"),
+      "days"
+    );
+
+    text = `${years} ${years <= 1 ? "Year" : "Years"}`;
+    if (months > 0) text += ` ${months} ${months <= 1 ? "Month" : "Months"}`;
+    if (days > 0) text += ` ${days} ${days <= 1 ? "Day" : "Days"}`;
+  } else {
+    const months = dateB.diff(moment(dateC), "months");
+    if (months > 0) {
+      const remainingDays = dateB.diff(
+        moment(dateC).add(months, "months"),
+        "days"
+      );
+      const weeks = Math.floor(remainingDays / 7);
+      const days = remainingDays % 7;
+
+      text = `${months} ${months <= 1 ? "Month" : "Months"}`;
+      if (weeks > 0) text += ` ${weeks} ${weeks <= 1 ? "Week" : "Weeks"}`;
+      if (days > 0) text += ` ${days} ${days <= 1 ? "Day" : "Days"}`;
+    } else {
+      const weeks = Math.floor(totalDays / 7);
+      const days = totalDays % 7;
+
+      if (weeks > 0) {
+        text = `${weeks} ${weeks <= 1 ? "Week" : "Weeks"}`;
+        if (days > 0) text += ` ${days} ${days <= 1 ? "Day" : "Days"}`;
+      } else {
+        text = `${totalDays} ${totalDays <= 1 ? "Day" : "Days"}`;
+      }
+    }
+  }
+  return text;
+};
+
 export function calculateBirthdateFromAge(age) {
   // Get the current date
   const currentDate = new Date();

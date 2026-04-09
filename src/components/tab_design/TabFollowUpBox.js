@@ -7,7 +7,7 @@ import moment from "moment";
 import { isMobile } from 'react-device-detect';
 
 import CashManagerContext from '../../context/CashManagerContext';
-import { errorMessage, getFormattedDate, onlyNumberFormat, capitalizeAfterSentence, removeBeforeWhiteSpace } from "../../utils/utils";
+import { errorMessage, getFormattedDate, onlyNumberFormat, capitalizeAfterSentence, removeBeforeWhiteSpace, calculateFollowUpText } from "../../utils/utils";
 import dayjs from "dayjs";
 import Notes from "../../assets/images/notes.svg";
 import followUp from "../../assets/images/followup.svg";
@@ -129,44 +129,9 @@ function TabFollowUpBox() {
             console.log(`Difference is ${dateB.diff(dateC, 'weeks')} week(s)`);
             console.log(`Difference is ${dateB.diff(dateC, 'months')} month(s)`);
 
-            const days = dateB.diff(dateC, 'days');
-            const weeks = Math.floor(days / 7);
-            const remainingDays = days % 7;
-
-            // const days = moment.duration(dateB.diff(dateC)).asDays();
-            // const weeks = moment.duration(dateB.diff(dateC)).asWeeks();
-            // const months = moment.duration(dateB.diff(dateC)).asMonths();
-
-            if (weeks >= 48 && weeks % 48 === 0 && remainingDays === 0) {
-                const yearsValue = Math.floor(weeks / 48);
-                setFollowUpInput(`${yearsValue} ${yearsValue <= 1 ? 'Year' : 'Years'}`)
-            } else if (weeks === 5 && remainingDays === 0) {
-                setFollowUpInput("1 Month")
-            } else if ((weeks === 7 || weeks === 9) && remainingDays === 0) {
-                setFollowUpInput("2 Months")
-            } else if ((weeks === 11 || weeks === 13) && remainingDays === 0) {
-                setFollowUpInput("3 Months")
-            } else if (weeks === 17 && remainingDays === 0) {
-                setFollowUpInput("4 Months")
-            } else if ((weeks === 19 || weeks === 21) && remainingDays === 0) {
-                setFollowUpInput("5 Months")
-            } else if ((weeks === 23 || weeks === 25) && remainingDays === 0) {
-                setFollowUpInput("6 Months")
-            } else if ((weeks === 27 || weeks === 29) && remainingDays === 0) {
-                setFollowUpInput("7 Months")
-            } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48 && remainingDays === 0) {
-                const monthsValue = Math.floor(weeks / 4);
-                setFollowUpInput(`${monthsValue} ${monthsValue <= 1 ? 'Month' : 'Months'}`)
-            } else if (weeks > 0 && remainingDays > 0) {
-                setFollowUpInput(
-                    `${weeks} ${weeks <= 1 ? 'Week' : 'Weeks'} ${remainingDays} ${remainingDays <= 1 ? 'Day' : 'Days'}`
-                )
-            } else if (weeks > 0) {
-                setFollowUpInput(`${weeks} ${weeks <= 1 ? 'Week' : 'Weeks'}`)
-            } else {
-                setFollowUpInput(`${days} ${days <= 1 ? 'Day' : 'Days'}`)
-            }
-            setFollowUpDate(getFormattedDate(moment(moment().format(dateFormat)).add(days, 'day').format(dateFormat)))
+            const totalDays = dateB.diff(dateC, 'days');
+            setFollowUpInput(calculateFollowUpText(dateB, dateC));
+            setFollowUpDate(getFormattedDate(moment(moment().format(dateFormat)).add(totalDays, 'day').format(dateFormat)))
             setSelectedDate(date) // Set the selected date for DatePicker
             setDateOptions([]);
         }
