@@ -1638,20 +1638,7 @@ export function Tooth({
 }: ToothProps) {
   const gltf = useGLTF(modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
-  
-  const sceneRef = useRef<THREE.Group | null>(null)
-  if (!sceneRef.current) {
-    sceneRef.current = cloneSceneWithUniqueMaterials(gltf.scene)
-  }
-  const clonedScene = sceneRef.current
-
-  useEffect(() => {
-    const scene = sceneRef.current
-    return () => {
-      if (scene) disposeClonedScene(scene)
-      sceneRef.current = null
-    }
-  }, [gltf])
+  const clonedScene = useMemo(() => cloneSceneWithUniqueMaterials(gltf.scene), [gltf])
 
   const groupRef = useRef<THREE.Group>(null!)
   const outerGroupRef = useRef<THREE.Group>(null!)
@@ -2104,8 +2091,7 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
   const [ghostCervicalY, setGhostCervicalY] = useState<number | null>(null)
   const [ghostHalfWidth, setGhostHalfWidth] = useState<number | null>(null)
 
-  const clonedRef = useRef<THREE.Group | null>(null)
-  if (!clonedRef.current) {
+  const cloned = useMemo(() => {
     const root = gltf.scene.clone(true) as THREE.Group
     root.traverse((obj) => {
       const mesh = obj as THREE.Mesh
@@ -2116,8 +2102,7 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
         c.transparent = true
         c.opacity = 0.12
         c.depthWrite = false
-        c.side = THREE.DoubleSide // show interior so inner layers are visible from above
-        // Desaturate and darken: blend toward neutral gray for low visual weight
+        c.side = THREE.DoubleSide
         const lum = c.color.r * 0.299 + c.color.g * 0.587 + c.color.b * 0.114
         c.color.setRGB(lum * 0.55 + 0.22, lum * 0.55 + 0.22, lum * 0.55 + 0.22)
         return c
@@ -2128,9 +2113,8 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
         mesh.material = prep(mat)
       }
     })
-    clonedRef.current = root
-  }
-  const cloned = clonedRef.current
+    return root
+  }, [gltf])
 
   // After mount: compute ghost tooth's cervical Y, then inject crown-only clipping shader
   useEffect(() => {
@@ -2227,22 +2211,7 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
     return new THREE.Vector3(dirSign * spacing, 0, 0)
   }, [currentBB, side, mirrorX, ghostHalfWidth])
 
-  // Dispose on unmount
-  useEffect(() => {
-    const scene = clonedRef.current
-    return () => {
-      if (scene) {
-        scene.traverse((obj) => {
-          const m = obj as THREE.Mesh
-          if (m.isMesh) {
-            if (Array.isArray(m.material)) m.material.forEach(mat => mat.dispose())
-            else m.material?.dispose()
-          }
-        })
-      }
-      clonedRef.current = null
-    }
-  }, [gltf])
+
 
   // All three bridge teeth should face the same direction as the central tooth (front view).
   // The outer parent group already applies the central tooth's mirrorX scale, so we do NOT
