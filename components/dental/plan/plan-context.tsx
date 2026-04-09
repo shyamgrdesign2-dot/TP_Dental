@@ -299,12 +299,13 @@ interface PlanProviderProps {
   patientId: string
   children: React.ReactNode
   onNavigateTab?: (tab: string) => void
+  initialDrawer?: DrawerState
 }
 
-export function PlanProvider({ patientId, children, onNavigateTab }: PlanProviderProps) {
+export function PlanProvider({ patientId, children, onNavigateTab, initialDrawer }: PlanProviderProps) {
   const [state, dispatch] = useReducer(planReducer, {
     plans: getMockPlans(patientId),
-    drawer: { type: "closed" },
+    drawer: initialDrawer ?? { type: "closed" },
   })
 
   const estimatePlans = useMemo(

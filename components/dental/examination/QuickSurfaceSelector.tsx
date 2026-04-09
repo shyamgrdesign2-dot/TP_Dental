@@ -150,6 +150,7 @@ export function QuickSurfaceSelector({
   return (
     <div
       ref={containerRef}
+      data-surface-selector-ui="true"
       className="quick-surface-selector"
       style={disabled ? { opacity: 0.45, pointerEvents: 'none' } : undefined}
       onMouseMove={handleMouseMove}

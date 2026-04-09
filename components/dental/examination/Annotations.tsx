@@ -229,22 +229,25 @@ export function Annotations({
         const isExpanded = expandedAnnotation === point.id
         const isSelected = selectedZone === point.zoneId
         const isOccluded = occludedAnnotations[point.id] || false
+        // Keep selected/expanded annotation UI visible even if occlusion says hidden.
+        // Root/cervical points often sit close to geometry and can be falsely marked occluded.
+        const suppressByOcclusion = isOccluded && !isSelected && !isExpanded
         const zoneColor = ZONE_INFO[point.zoneId]?.color || '#666'
         const zoneLabel = getZoneLabel(point.zoneId, arch, toothPosition)
         const diagnoses = point.findings.map(f => f.type)
         const notes = zoneNotes[point.zoneId] || point.findings.map((f) => f.notes?.trim()).filter(Boolean).join(' · ')
         const abbr = getZoneAbbr(point.zoneId, arch, toothPosition)
 
-        const baseOpacity = isOccluded ? 0.15 : (isSelected ? 1 : 0.75)
+        const baseOpacity = suppressByOcclusion ? 0.15 : (isSelected ? 1 : 0.75)
 
         return (
           <group key={point.id} position={point.position}>
             <Html
               center
-              occlude
+              occlude={!isSelected && !isExpanded}
               onOcclude={(hidden) => handleOcclude(point.id, hidden)}
               style={{
-                pointerEvents: isOccluded ? 'none' : 'auto',
+                pointerEvents: suppressByOcclusion ? 'none' : 'auto',
                 userSelect: 'none',
                 opacity: baseOpacity,
                 transition: 'opacity 0.15s ease',
@@ -296,7 +299,7 @@ export function Annotations({
                 </div>
 
                 {/* Side tooltip with dotted connector */}
-                {isExpanded && !isOccluded && (
+                {isExpanded && (
                   <div
                     data-dental-annotation-ui="true"
                     style={{

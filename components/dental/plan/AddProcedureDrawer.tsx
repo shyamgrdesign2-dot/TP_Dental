@@ -6,6 +6,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { Search, Trash2 } from "lucide-react"
 import { Calendar } from "iconsax-reactjs"
 import {
@@ -52,6 +53,7 @@ interface ProcedureRow {
 }
 
 export function AddProcedureDrawer() {
+  const searchParams = useSearchParams()
   const { state, dispatch, closeDrawer, findService } = usePlanContext()
   const drawer = state.drawer
 
@@ -90,6 +92,15 @@ export function AddProcedureDrawer() {
       setSearchOpen(false)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (searchParams?.get("overlay") !== "procedure-search") return
+    setSearchQuery("Cr")
+    setHighlightedIndex(0)
+    setSearchOpen(true)
+    searchRef.current?.focus()
+  }, [isOpen, searchParams])
 
   const filteredProcedures = useMemo(() => {
     return PROCEDURE_CATALOG.filter((p) => {

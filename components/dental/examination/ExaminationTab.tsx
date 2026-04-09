@@ -1879,7 +1879,11 @@ function SurfaceCellDropdown({
     const onDoc = (e: MouseEvent) => {
       const a = anchorRef.current, p = popoverRef.current
       const t = e.target as HTMLElement | null
-      if (t?.tagName === "CANVAS" || t?.closest("[data-dental-annotation-ui='true']")) return
+      if (
+        t?.tagName === "CANVAS" ||
+        t?.closest("[data-dental-annotation-ui='true']") ||
+        t?.closest("[data-surface-selector-ui='true']")
+      ) return
       if (a && !a.contains(t) && p && !p.contains(t)) {
         setOpen(false)
         onDeactivate?.()

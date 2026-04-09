@@ -9,12 +9,69 @@ import { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ChevronLeft } from "lucide-react"
 import { TreatmentPlanTab } from "./TreatmentPlanTab"
+import { getMockPlans } from "./plan-mock-data"
+import type { DrawerState, PlanService, PlanTabId, TreatmentPlan } from "./plan-types"
+
+function getInitialDrawer(
+  drawerParam: string | null,
+  tab: PlanTabId,
+  plans: TreatmentPlan[],
+): DrawerState {
+  if (!drawerParam) return { type: "closed" }
+
+  const inProgressPlan = plans.find((plan) => plan.status === "in-progress")
+  const completedPlan = plans.find((plan) => plan.status === "completed")
+  const firstServiceFrom = (plan?: TreatmentPlan): PlanService | undefined => plan?.services?.[0]
+
+  if (drawerParam === "add-plan") return { type: "add-plan" }
+  if (drawerParam === "edit-plan") return plans[0] ? { type: "edit-plan", planId: plans[0].id } : { type: "closed" }
+
+  if (drawerParam === "add-sitting") {
+    const service = firstServiceFrom(inProgressPlan)
+    return service ? { type: "add-sitting", serviceId: service.id } : { type: "closed" }
+  }
+
+  if (drawerParam === "add-procedure") {
+    const service = firstServiceFrom(inProgressPlan)
+    return service ? { type: "add-procedure", serviceId: service.id } : { type: "closed" }
+  }
+
+  if (drawerParam === "book-appointment") {
+    const plan = tab === "completed" ? completedPlan : inProgressPlan
+    if (!plan) return { type: "closed" }
+    const service = firstServiceFrom(plan)
+    return { type: "book-appointment", planId: plan.id, serviceId: service?.id }
+  }
+
+  if (drawerParam === "bill-preview") {
+    const plan = tab === "completed" ? completedPlan : inProgressPlan
+    if (!plan) return { type: "closed" }
+    const service = firstServiceFrom(plan)
+    return { type: "bill-preview", planId: plan.id, serviceId: service?.id }
+  }
+
+  if (drawerParam === "rx-preview") {
+    if (!completedPlan) return { type: "closed" }
+    const service = firstServiceFrom(completedPlan)
+    return { type: "rx-preview", planId: completedPlan.id, serviceId: service?.id }
+  }
+
+  return { type: "closed" }
+}
 
 function TreatmentPlanInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "apt-1"
   const fromPage = searchParams?.get("from") ?? "rxpad"
+  const tabParam = searchParams?.get("tab")
+  const drawerParam = searchParams?.get("drawer")
+  const initialTab: PlanTabId =
+    tabParam === "progress" || tabParam === "completed" || tabParam === "estimates"
+      ? tabParam
+      : "estimates"
+  const plans = getMockPlans(patientId)
+  const initialDrawer = getInitialDrawer(drawerParam, initialTab, plans)
 
   const handleBack = () => {
     if (fromPage === "patient-detail") {
@@ -51,7 +108,7 @@ function TreatmentPlanInner() {
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <TreatmentPlanTab patientId={patientId} />
+        <TreatmentPlanTab patientId={patientId} initialTab={initialTab} initialDrawer={initialDrawer} />
       </div>
     </div>
   )

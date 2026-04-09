@@ -17,7 +17,7 @@ import { RxPreviewDrawer } from "./RxPreviewDrawer"
 import { BookAppointmentDrawer } from "./BookAppointmentDrawer"
 import { AddSittingDrawer } from "./AddSittingDrawer"
 import { AddProcedureDrawer } from "./AddProcedureDrawer"
-import type { PlanTabId } from "./plan-types"
+import type { DrawerState, PlanTabId } from "./plan-types"
 import "./plan-print-styles.css"
 
 // ─── Inner component (inside context) ──────────────────────
@@ -77,10 +77,17 @@ function TreatmentPlanInner({ activeTab, setActiveTab }: { activeTab: PlanTabId;
 interface TreatmentPlanTabProps {
   patientId: string
   patientAge?: number
+  initialTab?: PlanTabId
+  initialDrawer?: DrawerState
 }
 
-export function TreatmentPlanTab({ patientId, patientAge = 30 }: TreatmentPlanTabProps) {
-  const [activeTab, setActiveTab] = useState<PlanTabId>("estimates")
+export function TreatmentPlanTab({
+  patientId,
+  patientAge = 30,
+  initialTab = "estimates",
+  initialDrawer,
+}: TreatmentPlanTabProps) {
+  const [activeTab, setActiveTab] = useState<PlanTabId>(initialTab)
 
   const handleNavigateTab = useCallback((tab: string) => {
     if (tab === "estimates" || tab === "progress" || tab === "completed") {
@@ -89,7 +96,7 @@ export function TreatmentPlanTab({ patientId, patientAge = 30 }: TreatmentPlanTa
   }, [])
 
   return (
-    <PlanProvider patientId={patientId} onNavigateTab={handleNavigateTab}>
+    <PlanProvider patientId={patientId} onNavigateTab={handleNavigateTab} initialDrawer={initialDrawer}>
       <TreatmentPlanInner activeTab={activeTab} setActiveTab={setActiveTab} />
     </PlanProvider>
   )

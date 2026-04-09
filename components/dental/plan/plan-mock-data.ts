@@ -225,11 +225,207 @@ const CROWN_REPLACEMENT_PLAN: TreatmentPlan = {
   ],
 }
 
+// ─── apt-new: richer design-demo dataset ────────────────────
+
+const APT_NEW_ESTIMATE_PLAN_1: TreatmentPlan = {
+  id: "plan-new-001",
+  name: "Smile Rehabilitation Plan",
+  patientId: "apt-new",
+  createdAt: "2026-04-08",
+  updatedAt: "2026-04-10",
+  status: "draft",
+  notes: "Prioritize aesthetic + sensitivity concerns for upper anteriors.",
+  services: [
+    {
+      id: "svc-new-001",
+      planId: "plan-new-001",
+      treatment: "Veneers",
+      toothFdi: "11",
+      toothLabel: "Upper Right Central Incisor",
+      surfaces: ["buccal", "mesial"],
+      rate: 7500,
+      discount: 500,
+      amount: 7000,
+      status: "planned",
+      sittings: [],
+      procedures: [],
+    },
+    {
+      id: "svc-new-002",
+      planId: "plan-new-001",
+      treatment: "Veneers",
+      toothFdi: "21",
+      toothLabel: "Upper Left Central Incisor",
+      surfaces: ["buccal", "distal"],
+      rate: 7500,
+      discount: 500,
+      amount: 7000,
+      status: "planned",
+      sittings: [],
+      procedures: [],
+    },
+    {
+      id: "svc-new-003",
+      planId: "plan-new-001",
+      treatment: "Scaling & Polishing",
+      toothFdi: "full-mouth",
+      toothLabel: "Full Mouth",
+      surfaces: [],
+      rate: 1800,
+      discount: 0,
+      amount: 1800,
+      status: "planned",
+      sittings: [],
+      procedures: [],
+    },
+  ],
+}
+
+const APT_NEW_ESTIMATE_PLAN_2: TreatmentPlan = {
+  id: "plan-new-002",
+  name: "Quadrant Stabilization",
+  patientId: "apt-new",
+  createdAt: "2026-04-06",
+  updatedAt: "2026-04-11",
+  status: "active",
+  notes: "Address caries/restorations in lower left quadrant first.",
+  services: [
+    {
+      id: "svc-new-004",
+      planId: "plan-new-002",
+      treatment: "Restoration (Composite Filling)",
+      toothFdi: "36",
+      toothLabel: "Lower Left First Molar",
+      surfaces: ["occlusal", "distal"],
+      rate: 2400,
+      discount: 200,
+      amount: 2200,
+      status: "planned",
+      sittings: [],
+      procedures: [],
+    },
+    {
+      id: "svc-new-005",
+      planId: "plan-new-002",
+      treatment: "Root Canal Treatment",
+      toothFdi: "37",
+      toothLabel: "Lower Left Second Molar",
+      surfaces: ["occlusal", "root"],
+      rate: 8200,
+      discount: 700,
+      amount: 7500,
+      status: "planned",
+      sittings: [],
+      procedures: [],
+    },
+  ],
+}
+
+const APT_NEW_IN_PROGRESS_PLAN: TreatmentPlan = {
+  id: "plan-new-003",
+  name: "Pain Relief and Core Build-up",
+  patientId: "apt-new",
+  createdAt: "2026-03-30",
+  updatedAt: "2026-04-14",
+  status: "in-progress",
+  notes: "Pain reduced after first two sittings; proceed with core build-up.",
+  services: [
+    {
+      id: "svc-new-006",
+      planId: "plan-new-003",
+      treatment: "Root Canal Treatment",
+      toothFdi: "46",
+      toothLabel: "Lower Right First Molar",
+      surfaces: ["occlusal", "root"],
+      rate: 8500,
+      discount: 500,
+      amount: 8000,
+      status: "in-progress",
+      startedAt: "2026-04-01",
+      sittings: [
+        { id: "sit-new-001", date: "1 Apr 2026", doctor: "Dr. Sheela B R", notes: "Diagnosis + access opening + pain management" },
+        { id: "sit-new-002", date: "5 Apr 2026", doctor: "Dr. Sheela B R", notes: "Canal instrumentation and disinfection" },
+        { id: "sit-new-003", date: "12 Apr 2026", doctor: "Dr. Sheela B R", notes: "Interim medication and temporary seal" },
+      ],
+      procedures: [
+        { id: "proc-new-001", name: "Access opening", date: "1 Apr 2026", doctor: "Dr. Sheela B R", notes: "Pulp chamber opened" },
+        { id: "proc-new-002", name: "Working length determination", date: "5 Apr 2026", doctor: "Dr. Sheela B R" },
+        { id: "proc-new-003", name: "Temporary restoration", date: "12 Apr 2026", doctor: "Dr. Sheela B R" },
+      ],
+    },
+    {
+      id: "svc-new-007",
+      planId: "plan-new-003",
+      treatment: "Restoration (Composite Filling)",
+      toothFdi: "45",
+      toothLabel: "Lower Right Second Premolar",
+      surfaces: ["buccal", "occlusal"],
+      rate: 2600,
+      discount: 100,
+      amount: 2500,
+      status: "in-progress",
+      startedAt: "2026-04-09",
+      sittings: [
+        { id: "sit-new-004", date: "9 Apr 2026", doctor: "Dr. Sheela B R", notes: "Caries excavation and base placement" },
+      ],
+      procedures: [
+        { id: "proc-new-004", name: "Shade selection", date: "9 Apr 2026", doctor: "Dr. Sheela B R" },
+      ],
+    },
+  ],
+}
+
+const APT_NEW_COMPLETED_PLAN: TreatmentPlan = {
+  id: "plan-new-004",
+  name: "Posterior Crown Completion",
+  patientId: "apt-new",
+  createdAt: "2026-02-18",
+  updatedAt: "2026-03-28",
+  status: "completed",
+  notes: "Patient comfortable with final bite. Review after 3 months.",
+  services: [
+    {
+      id: "svc-new-008",
+      planId: "plan-new-004",
+      treatment: "Crown (Zirconia)",
+      toothFdi: "26",
+      toothLabel: "Upper Left First Molar",
+      surfaces: ["occlusal", "buccal", "lingual"],
+      rate: 9200,
+      discount: 1200,
+      amount: 8000,
+      status: "completed",
+      startedAt: "2026-02-20",
+      completedAt: "2026-03-18",
+      notes: "Final zirconia crown seated with proper proximal contact.",
+      sittings: [
+        { id: "sit-new-005", date: "20 Feb 2026", doctor: "Dr. Sheela B R", notes: "Preparation + digital scan" },
+        { id: "sit-new-006", date: "5 Mar 2026", doctor: "Dr. Sheela B R", notes: "Try-in and occlusal adjustments" },
+        { id: "sit-new-007", date: "18 Mar 2026", doctor: "Dr. Sheela B R", notes: "Final cementation and polishing" },
+      ],
+      procedures: [
+        { id: "proc-new-005", name: "Tooth preparation", date: "20 Feb 2026", doctor: "Dr. Sheela B R" },
+        { id: "proc-new-006", name: "Digital impression", date: "20 Feb 2026", doctor: "Dr. Sheela B R" },
+        { id: "proc-new-007", name: "Zirconia try-in", date: "5 Mar 2026", doctor: "Dr. Sheela B R" },
+        { id: "proc-new-008", name: "Final crown cementation", date: "18 Mar 2026", doctor: "Dr. Sheela B R", notes: "Occlusion verified" },
+      ],
+    },
+  ],
+}
+
 // ─── Export ──────────────────────────────────────────────────
 
 export function getMockPlans(patientId: string): TreatmentPlan[] {
   if (patientId === "apt-1") {
     return [PRIMARY_CARE_PLAN, WISDOM_TOOTH_PLAN, CROWN_REPLACEMENT_PLAN]
+  }
+  if (patientId === "apt-new") {
+    return [
+      APT_NEW_ESTIMATE_PLAN_1,
+      APT_NEW_ESTIMATE_PLAN_2,
+      APT_NEW_IN_PROGRESS_PLAN,
+      APT_NEW_COMPLETED_PLAN,
+    ]
   }
   // Other patients get an empty state
   return []

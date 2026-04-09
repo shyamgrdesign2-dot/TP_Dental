@@ -163,7 +163,6 @@ function disposeClonedScene(root: THREE.Object3D) {
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh
     if (!mesh.isMesh) return
-    mesh.geometry?.dispose()
     const mat = mesh.material
     if (Array.isArray(mat)) mat.forEach((m) => m.dispose())
     else mat?.dispose()

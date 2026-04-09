@@ -679,55 +679,158 @@ function DentitionTooltip({
   useFrame(() => {
     const el = tooltipRef.current
     if (!el) return
+    const connector = connectorRef.current
     const canvasRect = gl.domElement.getBoundingClientRect()
     const projected = tooltipAnchorWorld.clone().project(camera)
     // Hide if clipped behind camera/frustum.
     if (projected.z < -1 || projected.z > 1) {
       el.style.opacity = "0"
+      if (connector) connector.style.opacity = "0"
       return
     }
     el.style.opacity = "1"
+    if (connector) connector.style.opacity = "1"
 
     const anchorX = canvasRect.left + (projected.x * 0.5 + 0.5) * size.width
     const anchorY = canvasRect.top + (-projected.y * 0.5 + 0.5) * size.height
+    const toothProjected = new THREE.Vector3(archPose.position[0], archPose.position[1], archPose.position[2]).project(camera)
+    const toothCenterX = canvasRect.left + (toothProjected.x * 0.5 + 0.5) * size.width
+    const toothCenterY = canvasRect.top + (-toothProjected.y * 0.5 + 0.5) * size.height
     const gapPx = 30
     const edgePad = 10
     const rect = el.getBoundingClientRect()
+    // Normalize placement behavior so empty cards choose sides like filled cards.
+    const layoutW = Math.max(rect.width, isTiny ? 220 : 240)
+    const layoutH = Math.max(rect.height, isTiny ? 150 : 170)
+    const minX = canvasRect.left + edgePad
+    const maxX = canvasRect.right - edgePad - layoutW
+    const minY = canvasRect.top + edgePad
+    const maxY = canvasRect.bottom - edgePad - layoutH
+    const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
 
-    // Prefer above for maxillary, below for mandibular; auto-flip if out of bounds.
-    let placeTop = isMax
-    const topY = anchorY - gapPx - rect.height
-    const bottomY = anchorY + gapPx
-    if (placeTop && topY < canvasRect.top + edgePad) placeTop = false
-    if (!placeTop && bottomY + rect.height > canvasRect.bottom - edgePad) placeTop = true
+    const baseTopX = -layoutW / 2
+    const baseBottomX = -layoutW / 2
+    const baseRightY = -layoutH / 2
+    const baseLeftY = -layoutH / 2
+    // For side placements, nudge away from tooth center so cards don't sit over crown.
+    const sideVerticalBias = isMax ? -Math.max(24, layoutH * 0.2) : Math.max(24, layoutH * 0.2)
 
-    // Keep tooltip inside canvas horizontally, while staying close to anchor.
-    const naturalLeft = anchorX - rect.width / 2
-    const clampedLeft = Math.min(
-      Math.max(naturalLeft, canvasRect.left + edgePad),
-      canvasRect.right - edgePad - rect.width,
-    )
-    const dx = clampedLeft - naturalLeft
+    const topNaturalLeft = anchorX + baseTopX
+    const bottomNaturalLeft = anchorX + baseBottomX
+    const rightNaturalTop = anchorY + baseRightY
+    const leftNaturalTop = anchorY + baseLeftY
 
-    el.style.transform = placeTop
-      ? `translate(calc(-50% + ${dx}px), calc(-100% - ${gapPx}px))`
-      : `translate(calc(-50% + ${dx}px), ${gapPx}px)`
-    el.style.transformOrigin = placeTop ? "center bottom" : "center top"
+    const topAdjX = clamp(topNaturalLeft, minX, maxX) - topNaturalLeft
+    const bottomAdjX = clamp(bottomNaturalLeft, minX, maxX) - bottomNaturalLeft
+    const rightAdjY = clamp(rightNaturalTop, minY, maxY) - rightNaturalTop
+    const leftAdjY = clamp(leftNaturalTop, minY, maxY) - leftNaturalTop
 
-    // Screen-space dashed connector:
-    // - angle adapts with tooltip clamp/placement
-    // - extends slightly behind the card for a "connected" look
-    const connector = connectorRef.current
+    const sides = [
+      {
+        side: 'top' as const,
+        fits: anchorY - gapPx - layoutH >= minY,
+        free: (anchorY - gapPx - layoutH) - minY,
+        x: baseTopX + topAdjX,
+        y: -gapPx - layoutH,
+        origin: 'center bottom',
+      },
+      {
+        side: 'bottom' as const,
+        fits: anchorY + gapPx + layoutH <= canvasRect.bottom - edgePad,
+        free: (canvasRect.bottom - edgePad) - (anchorY + gapPx + layoutH),
+        x: baseBottomX + bottomAdjX,
+        y: gapPx,
+        origin: 'center top',
+      },
+      {
+        side: 'right' as const,
+        fits: anchorX + gapPx + layoutW <= canvasRect.right - edgePad,
+        free: (canvasRect.right - edgePad) - (anchorX + gapPx + layoutW),
+        x: gapPx,
+        y: baseRightY + rightAdjY + sideVerticalBias,
+        origin: 'left center',
+      },
+      {
+        side: 'left' as const,
+        fits: anchorX - gapPx - layoutW >= minX,
+        free: (anchorX - gapPx - layoutW) - minX,
+        x: -gapPx - layoutW,
+        y: baseLeftY + leftAdjY + sideVerticalBias,
+        origin: 'right center',
+      },
+    ]
+
+    const preferredOrder = isMax
+      ? ['top', 'right', 'left', 'bottom']
+      : ['bottom', 'right', 'left', 'top']
+
+    const toothSafeRadius = isMax ? 72 : 50
+    const distToRect = (px: number, py: number, rx: number, ry: number, rw: number, rh: number) => {
+      const dx = Math.max(rx - px, 0, px - (rx + rw))
+      const dy = Math.max(ry - py, 0, py - (ry + rh))
+      return Math.hypot(dx, dy)
+    }
+    const withSafety = sides.map((s) => {
+      const rectLeft = anchorX + s.x
+      const rectTop = anchorY + s.y
+      const safety = distToRect(toothCenterX, toothCenterY, rectLeft, rectTop, layoutW, layoutH)
+      const toothSafe = safety >= toothSafeRadius
+      return { ...s, safety, toothSafe }
+    })
+
+    // Upper teeth should never pick "bottom" while a tooth-safe alternative exists.
+    // This avoids cards sitting on top of the hovered upper crowns.
+    const preferredPool = isMax
+      ? withSafety.filter((s) => s.side !== 'bottom')
+      : withSafety
+
+    const fitOptions = preferredPool
+      .filter((s) => s.fits && s.toothSafe)
+      .sort((a, b) => {
+        if (b.safety !== a.safety) return b.safety - a.safety
+        if (b.free !== a.free) return b.free - a.free
+        return preferredOrder.indexOf(a.side) - preferredOrder.indexOf(b.side)
+      })
+
+    // Fallback ladder:
+    // 1) any fitting option in preferred pool
+    // 2) tooth-safe option from all sides
+    // 3) any option from all sides
+    const fallbackFits = preferredPool
+      .filter((s) => s.fits)
+      .sort((a, b) => b.free - a.free)
+    const toothSafeAll = withSafety
+      .filter((s) => s.toothSafe)
+      .sort((a, b) => {
+        if (b.safety !== a.safety) return b.safety - a.safety
+        return b.free - a.free
+      })
+    const anyAll = withSafety
+      .slice()
+      .sort((a, b) => b.free - a.free)
+    const chosen = fitOptions[0] ?? fallbackFits[0] ?? toothSafeAll[0] ?? anyAll[0]
+
+    el.style.transform = `translate(${chosen.x}px, ${chosen.y}px)`
+    el.style.transformOrigin = chosen.origin
+
+    // Screen-space dashed connector that follows selected side and extends
+    // slightly behind the tooltip edge for a visually continuous link.
     if (connector) {
-      const cardW = rect.width
-      const cardH = rect.height
-      const targetX = dx
-      const targetY = placeTop ? (-gapPx - 12) : (gapPx + 12)
+      const edgePoint = (() => {
+        if (chosen.side === 'top') return { x: chosen.x + rect.width / 2, y: chosen.y + rect.height }
+        if (chosen.side === 'bottom') return { x: chosen.x + rect.width / 2, y: chosen.y }
+        if (chosen.side === 'right') return { x: chosen.x, y: chosen.y + rect.height / 2 }
+        return { x: chosen.x + rect.width, y: chosen.y + rect.height / 2 }
+      })()
+      const lenToEdge = Math.hypot(edgePoint.x, edgePoint.y)
+      const ux = lenToEdge > 0.0001 ? edgePoint.x / lenToEdge : 0
+      const uy = lenToEdge > 0.0001 ? edgePoint.y / lenToEdge : -1
+      const extendBehind = 14
+      const targetX = edgePoint.x + ux * extendBehind
+      const targetY = edgePoint.y + uy * extendBehind
       const len = Math.hypot(targetX, targetY)
       const angle = Math.atan2(targetY, targetX)
-      // Keep at least a minimal visible connector length.
-      const width = Math.max(18, len)
-      connector.style.width = `${width}px`
+      connector.style.width = `${Math.max(18, len)}px`
       connector.style.transform = `translateY(-50%) rotate(${angle}rad)`
     }
   })
@@ -806,8 +909,8 @@ function DentitionTooltip({
         <div
           ref={tooltipRef}
           style={{
-            transform: isMax ? "translate(-50%, calc(-100% - 12px))" : "translate(-50%, 12px)",
-            transformOrigin: isMax ? "center bottom" : "center top",
+            transform: 'translate(-50%, -50%)',
+            transformOrigin: 'center center',
             background: 'rgba(0, 0, 0, 0.78)', color: '#fff',
             backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
             padding: cardPadding, borderRadius: '8px', fontSize: isTiny ? '11px' : '12px',
@@ -816,6 +919,8 @@ function DentitionTooltip({
             minWidth: `${cardMinW}px`, maxWidth: `${cardMaxW}px`, whiteSpace: 'normal',
             boxShadow: '0 4px 18px rgba(0,0,0,0.45)',
             textAlign: 'left',
+            left: 0,
+            top: 0,
             position: 'relative',
             zIndex: 1,
             transition: 'transform 120ms ease-out, opacity 120ms ease-out',

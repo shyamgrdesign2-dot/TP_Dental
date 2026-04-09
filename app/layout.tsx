@@ -49,6 +49,7 @@ export default function RootLayout({
         <TPThemeProvider>
           {children}
           <Analytics />
+          <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async />
         </TPThemeProvider>
       </body>
     </html>
