@@ -13,7 +13,7 @@ type GrowthEntry = { id: string; dateLabel: string; rows: GrowthRow[] };
 const GROWTH_ENTRIES: GrowthEntry[] = [
   {
     id: "g-27",
-    dateLabel: "Today (27 Jan'26)",
+    dateLabel: "27 Jan'26",
     rows: [
       { label: "Age", unit: "years", value: "3" },
       { label: "Height", unit: "cm", value: "130" },

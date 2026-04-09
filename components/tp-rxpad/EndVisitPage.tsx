@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Slide from "@mui/material/Slide"
 import { ArrowDown2, DocumentDownload, Edit2, LanguageSquare, Printer, ReceiptText, Setting2, User } from "iconsax-reactjs"
 import { ChevronRight } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { RxPreviewDocument } from "@/components/tp-rxpad/RxPreviewDocument"
+import { getComposedRxPreviewSnapshot } from "@/components/tp-rxpad/rx-preview-composer"
+import type { RxPreviewComposedSnapshot } from "@/components/tp-rxpad/rx-preview-store"
 import { TPSnackbar } from "@/components/tp-ui"
 import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm"
-
-const RX_PREVIEW_IMAGE = "https://www.figma.com/api/mcp/asset/959a3623-63f1-4a6f-ae03-324d9f5a4af3"
 
 const LANGUAGES = ["English", "Hindi", "Tamil", "Telugu", "Kannada", "Malayalam"]
 
@@ -44,16 +46,31 @@ export function EndVisitPage() {
   const patientId = searchParams?.get("patientId") ?? "apt-1"
   const [language, setLanguage] = useState("English")
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null)
+  const [snackbarOpen, setSnackbarOpen] = useState(false)
+  const [previewSnapshot, setPreviewSnapshot] = useState<RxPreviewComposedSnapshot | null>(null)
 
   useEffect(() => {
+    if (typeof window === "undefined") return
     const snackbarType = searchParams?.get("snackbar")
-    if (snackbarType !== "visit-ended") return
-    setSnackbarMessage("Visit ended successfully")
-    const params = new URLSearchParams(searchParams?.toString() ?? "")
-    params.delete("snackbar")
-    const next = params.toString()
-    router.replace(next ? `/rxpad/end-visit?${next}` : "/rxpad/end-visit")
+    const pendingKey = "tp.snackbar.end-visit"
+    if (snackbarType === "visit-ended") {
+      window.sessionStorage.setItem(pendingKey, "1")
+      const params = new URLSearchParams(searchParams?.toString() ?? "")
+      params.delete("snackbar")
+      const next = params.toString()
+      router.replace(next ? `/rxpad/end-visit?${next}` : "/rxpad/end-visit")
+      return
+    }
+    if (window.sessionStorage.getItem(pendingKey) === "1") {
+      window.sessionStorage.removeItem(pendingKey)
+      setSnackbarMessage("Visit ended successfully")
+      setSnackbarOpen(true)
+    }
   }, [router, searchParams])
+
+  useEffect(() => {
+    setPreviewSnapshot(getComposedRxPreviewSnapshot(patientId))
+  }, [patientId])
 
   const patient = useMemo(
     () => ({
@@ -65,20 +82,72 @@ export function EndVisitPage() {
   )
 
   const downloadRx = async () => {
-    try {
-      const res = await fetch(RX_PREVIEW_IMAGE)
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "digital-rx-preview.png"
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    } catch {
-      window.open(RX_PREVIEW_IMAGE, "_blank", "noopener,noreferrer")
+    const lines: string[] = []
+    lines.push("Digital Rx")
+    lines.push("")
+    if (previewSnapshot) {
+      const pushSection = (title: string, rows: { title: string; metaParts: string[] }[]) => {
+        if (!rows.length) return
+        lines.push(title)
+        rows.forEach((row) => {
+          const suffix = row.metaParts.length ? ` (${row.metaParts.join(" | ")})` : ""
+          lines.push(`- ${row.title}${suffix}`)
+        })
+        lines.push("")
+      }
+      if (previewSnapshot.vitals.length) {
+        lines.push("Vitals")
+        previewSnapshot.vitals.forEach((row) => lines.push(`- ${row.label} (${row.unit}): ${row.value}`))
+        lines.push("")
+      }
+      pushSection("Symptoms", previewSnapshot.symptoms)
+      pushSection("Examination", previewSnapshot.examinations)
+      pushSection("Diagnosis", previewSnapshot.diagnoses)
+      pushSection("Lab Investigation", previewSnapshot.labInvestigations)
+      pushSection("Medication (Rx)", previewSnapshot.medications)
+      pushSection("Advice", previewSnapshot.advice)
+      if (previewSnapshot.labResults.length) {
+        lines.push("Lab Results (Today)")
+        previewSnapshot.labResults.forEach((row) => lines.push(`- ${row.label} ${row.unit}: ${row.value}`))
+        lines.push("")
+      }
+      if (previewSnapshot.dentalExamination.length) {
+        lines.push("Dental Examination")
+        previewSnapshot.dentalExamination.forEach((block) => {
+          lines.push(`- ${block.toothLabel}`)
+          block.treatmentHistory.forEach((item) =>
+            lines.push(`  - Treatment History: ${item.title}${item.metaParts.length ? ` (${item.metaParts.join(" | ")})` : ""}`),
+          )
+          block.findings.forEach((item) =>
+            lines.push(`  - Findings: ${item.title}${item.metaParts.length ? ` (${item.metaParts.join(" | ")})` : ""}`),
+          )
+          block.procedures.forEach((item) =>
+            lines.push(`  - Procedures: ${item.title}${item.metaParts.length ? ` (${item.metaParts.join(" | ")})` : ""}`),
+          )
+          if (block.overallToothNote) {
+            lines.push(`  - Overall Tooth Notes: ${block.overallToothNote}`)
+          }
+        })
+        lines.push("")
+      }
+      if (previewSnapshot.followUp) {
+        lines.push(`Follow Up: ${previewSnapshot.followUp}`)
+      }
+      if (previewSnapshot.additionalNotes) {
+        lines.push(`Additional Notes: ${previewSnapshot.additionalNotes}`)
+      }
+    } else {
+      lines.push("No Rx data available yet.")
     }
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "digital-rx.txt"
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -166,25 +235,22 @@ export function EndVisitPage() {
         </aside>
 
         <section className="relative flex-1 overflow-auto bg-tp-slate-100 p-[24px]">
-          <div className="mx-auto w-full max-w-[590px] rounded-[16px] shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
-            <img
-              src={RX_PREVIEW_IMAGE}
-              alt="Digital Rx preview"
-              className="block h-auto w-full rounded-[16px] object-cover"
-            />
-          </div>
+          <RxPreviewDocument snapshot={previewSnapshot} />
           <div className="absolute right-[22px] top-[32px] h-[146px] w-px bg-tp-slate-300/70" />
         </section>
       </main>
 
       <TPSnackbar
-        open={Boolean(snackbarMessage)}
+        open={snackbarOpen}
         message={snackbarMessage ?? ""}
         severity="success"
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        TransitionComponent={Slide}
+        TransitionProps={{ direction: "down" }}
         autoHideDuration={1800}
         onClose={(_, reason) => {
           if (reason === "clickaway") return
+          setSnackbarOpen(false)
           setSnackbarMessage(null)
         }}
       />

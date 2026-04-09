@@ -62,6 +62,22 @@ const SECTIONS: Section[] = [
   },
 ];
 
+function renderDetail(detail: string) {
+  const parts = detail
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (parts.length <= 1) return detail
+
+  return parts.map((part, index) => (
+    <React.Fragment key={`${part}-${index}`}>
+      {index > 0 ? <span className="text-tp-slate-300"> | </span> : null}
+      <span>{part}</span>
+    </React.Fragment>
+  ))
+}
+
 function HistoryCard({ title, items }: { title: string; items: HistoryItem[] }) {
   return (
     <SectionCard title={title} hideChevron>
@@ -73,7 +89,7 @@ function HistoryCard({ title, items }: { title: string; items: HistoryItem[] }) 
             </p>
             {item.detail ? (
               <p className="mt-[4px] font-sans text-[14px] text-tp-slate-400 leading-[20px]">
-                {item.detail}
+                {renderDetail(item.detail)}
               </p>
             ) : null}
           </div>

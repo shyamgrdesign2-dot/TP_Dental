@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createPortal } from "react-dom"
+import Slide from "@mui/material/Slide"
 import {
   Calendar2,
   CalendarAdd,
@@ -297,13 +298,23 @@ export function DrAgentPage() {
   const [filterStyle, setFilterStyle] = useState<React.CSSProperties>({})
   const [filterMounted, setFilterMounted] = useState(false)
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null)
+  const [snackbarOpen, setSnackbarOpen] = useState(false)
   useEffect(() => { setFilterMounted(true) }, [])
 
   useEffect(() => {
+    if (typeof window === "undefined") return
     const snackbarType = searchParams?.get("snackbar")
-    if (snackbarType !== "appointment-completed") return
-    setSnackbarMessage("Appointment completed successfully")
-    router.replace("/appointments")
+    const pendingKey = "tp.snackbar.appointment-completed"
+    if (snackbarType === "appointment-completed") {
+      window.sessionStorage.setItem(pendingKey, "1")
+      router.replace("/appointments")
+      return
+    }
+    if (window.sessionStorage.getItem(pendingKey) === "1") {
+      window.sessionStorage.removeItem(pendingKey)
+      setSnackbarMessage("Appointment completed successfully")
+      setSnackbarOpen(true)
+    }
   }, [router, searchParams])
 
   function handleFilterBtnClick() {
@@ -829,13 +840,16 @@ export function DrAgentPage() {
       )}
 
       <TPSnackbar
-        open={Boolean(snackbarMessage)}
+        open={snackbarOpen}
         message={snackbarMessage ?? ""}
         severity="success"
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        TransitionComponent={Slide}
+        TransitionProps={{ direction: "down" }}
         autoHideDuration={1800}
         onClose={(_, reason) => {
           if (reason === "clickaway") return
+          setSnackbarOpen(false)
           setSnackbarMessage(null)
         }}
       />

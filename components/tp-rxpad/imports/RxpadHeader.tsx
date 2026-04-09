@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   ArrowDown2,
@@ -20,6 +20,9 @@ import { ChevronLeft, MoreVertical } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer"
 import { TPSplitButton } from "@/components/tp-ui/button-system"
+import { RxPreviewDocument } from "@/components/tp-rxpad/RxPreviewDocument"
+import { getComposedRxPreviewSnapshot } from "@/components/tp-rxpad/rx-preview-composer"
+import type { RxPreviewComposedSnapshot } from "@/components/tp-rxpad/rx-preview-store"
 import svgPaths from "./svg-gb0jbe9ifm";
 
 type RxpadHeaderProps = {
@@ -27,15 +30,24 @@ type RxpadHeaderProps = {
   onBack?: () => void
 }
 
-const RX_PREVIEW_IMAGE = "https://www.figma.com/api/mcp/asset/959a3623-63f1-4a6f-ae03-324d9f5a4af3"
-
 export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
   const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const openEndVisit = () => {
+  const [previewSnapshot, setPreviewSnapshot] = useState<RxPreviewComposedSnapshot | null>(null)
+
+  const getCurrentPatientId = () => {
     const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
-    const pid = params.get("patientId") ?? "apt-1"
+    return params.get("patientId") ?? "apt-1"
+  }
+
+  useEffect(() => {
+    if (!isPreviewOpen) return
+    setPreviewSnapshot(getComposedRxPreviewSnapshot(getCurrentPatientId()))
+  }, [isPreviewOpen])
+
+  const openEndVisit = () => {
+    const pid = getCurrentPatientId()
     router.push(`/rxpad/end-visit?patientId=${pid}&snackbar=visit-ended`)
   }
 
@@ -244,13 +256,7 @@ export default function RxpadHeader({ className, onBack }: RxpadHeaderProps) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="mx-auto w-full max-w-[590px] rounded-[16px] shadow-[0_1px_2px_rgba(16,24,40,0.06)]">
-              <img
-                src={RX_PREVIEW_IMAGE}
-                alt="Digital Rx preview"
-                className="block h-auto w-full rounded-[16px] object-cover"
-              />
-            </div>
+            <RxPreviewDocument snapshot={previewSnapshot} />
           </div>
         </TPDrawerContent>
       </TPDrawer>

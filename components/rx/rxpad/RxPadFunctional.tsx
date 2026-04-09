@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import { useSearchParams } from "next/navigation"
 import { Calendar2, Notepad2, Trash } from "iconsax-reactjs"
 import {
   ChevronDown,
@@ -17,6 +18,7 @@ import {
   symptomSuggestions,
 } from "../sample-data"
 import { useRxPadSync } from "@/components/tp-rxpad/rxpad-sync-context"
+import { saveRxPreviewSnapshot, type RxPreviewLine } from "@/components/tp-rxpad/rx-preview-store"
 import {
   TPMedicalIcon,
   TPRxPadSearchInput,
@@ -1893,6 +1895,8 @@ function EditableTableModule({
 }
 
 export function RxPadFunctional() {
+  const searchParams = useSearchParams()
+  const patientId = searchParams?.get("patientId") ?? "apt-1"
   const { lastCopyRequest } = useRxPadSync()
   const lastHandledCopyId = useRef<number>(0)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -1907,6 +1911,11 @@ export function RxPadFunctional() {
 
   const [additionalNotes, setAdditionalNotes] = useState("")
   const [followUp, setFollowUp] = useState("")
+
+  const toPreviewLine = useCallback((title: string, metaParts: Array<string | undefined>): RxPreviewLine => ({
+    title: title.trim(),
+    metaParts: metaParts.map((part) => (part ?? "").trim()).filter(Boolean),
+  }), [])
 
   useEffect(() => {
     if (!lastCopyRequest || lastHandledCopyId.current === lastCopyRequest.id) return
@@ -1990,6 +1999,45 @@ export function RxPadFunctional() {
 
     setToastMessage(`Details from ${payload.sourceDateLabel} added to RxPad`)
   }, [lastCopyRequest])
+
+  useEffect(() => {
+    const snapshot = {
+      patientId,
+      updatedAt: new Date().toISOString(),
+      symptoms: symptomRows
+        .filter((row) => (row.name ?? "").trim().length > 0)
+        .map((row) => toPreviewLine(row.name ?? "", [row.since, row.status, row.note])),
+      examinations: examinationRows
+        .filter((row) => (row.name ?? "").trim().length > 0)
+        .map((row) => toPreviewLine(row.name ?? "", [row.note])),
+      diagnoses: diagnosisRows
+        .filter((row) => (row.name ?? "").trim().length > 0)
+        .map((row) => toPreviewLine(row.name ?? "", [row.since, row.status, row.note])),
+      labInvestigations: labRows
+        .filter((row) => (row.investigation ?? "").trim().length > 0)
+        .map((row) => toPreviewLine(row.investigation ?? "", [row.note])),
+      medications: medicationRows
+        .filter((row) => (row.medicine ?? "").trim().length > 0)
+        .map((row) => toPreviewLine(row.medicine ?? "", [row.unitPerDose, row.frequency, row.when, row.duration, row.note])),
+      advice: adviceRows
+        .filter((row) => (row.advice ?? "").trim().length > 0)
+        .map((row) => toPreviewLine(row.advice ?? "", [row.note])),
+      followUp: followUp.trim() || undefined,
+      additionalNotes: additionalNotes.trim() || undefined,
+    }
+    saveRxPreviewSnapshot(patientId, snapshot)
+  }, [
+    patientId,
+    symptomRows,
+    examinationRows,
+    diagnosisRows,
+    labRows,
+    medicationRows,
+    adviceRows,
+    followUp,
+    additionalNotes,
+    toPreviewLine,
+  ])
 
   const symptomsColumns: ColumnConfig[] = useMemo(
     () => [

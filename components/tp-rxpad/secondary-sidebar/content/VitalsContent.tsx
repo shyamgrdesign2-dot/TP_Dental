@@ -7,12 +7,7 @@ import clsx from "clsx";
 import { ArrowSquareDown, ArrowSquareUp } from "iconsax-reactjs";
 import { ActionButton, useStickyHeaderState } from "../detail-shared";
 import { tpSectionCardStyle } from "../tokens";
-
-type VitalRow = {
-  label: string;
-  unit: string;
-  value: string;
-};
+import { VITALS_PRIMARY_DATE_LABEL, VITALS_PRIMARY_ROWS, type VitalRow } from "./today-data";
 
 type VitalDateBlock = {
   id: string;
@@ -23,20 +18,8 @@ type VitalDateBlock = {
 const VITALS_BY_DATE: VitalDateBlock[] = [
   {
     id: "today-27",
-    dateLabel: "Today (27 Jan'26)",
-    rows: [
-      { label: "Temperature", unit: "Frh", value: "95" },
-      { label: "Pulse", unit: "/min", value: "68" },
-      { label: "Resp. Rate", unit: "/min", value: "18" },
-      { label: "Systolic", unit: "mmhg", value: "120" },
-      { label: "Diastolic", unit: "mmhg", value: "75" },
-      { label: "SpO2", unit: "%", value: "98" },
-      { label: "Height", unit: "cms", value: "172" },
-      { label: "Weight", unit: "kgs", value: "68" },
-      { label: "BMI", unit: "kg/m²", value: "23.0" },
-      { label: "BMR", unit: "kcals", value: "1680" },
-      { label: "BSA", unit: "m²", value: "1.82" },
-    ],
+    dateLabel: VITALS_PRIMARY_DATE_LABEL,
+    rows: VITALS_PRIMARY_ROWS,
   },
   {
     id: "d-26",

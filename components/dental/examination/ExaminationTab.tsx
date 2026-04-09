@@ -33,6 +33,7 @@ import type { ZoneId, ToothEntry } from "./types"
 import { MiniToothCanvas } from "./MiniToothCanvas"
 import { MiniScopeCanvas } from "./MiniScopeCanvas"
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons"
+import { saveDentalPreviewSnapshot, type RxPreviewDentalSection, type RxPreviewLine } from "@/components/tp-rxpad/rx-preview-store"
 
 interface ExaminationTabProps {
   patientId: string
@@ -92,6 +93,87 @@ function computeDentalScore(state: DentalCanvasState | null): {
         score >= 60 ? "Fair" as const :
           score >= 40 ? "Needs attention" as const : "Poor" as const
   return { score, rating, totalDeduction, affectedTeeth: affected.size, breakdown: { diag: Math.round(diag), findings: Math.round(findings) } }
+}
+
+function toPreviewLine(title: string, metaParts: Array<string | undefined>): RxPreviewLine {
+  return {
+    title: title.trim(),
+    metaParts: metaParts.map((part) => (part ?? "").trim()).filter(Boolean),
+  }
+}
+
+function surfaceList(surfaces: ZoneId[]) {
+  if (!surfaces.length) return ""
+  return surfaces.map((surface) => ZONE_INFO[surface]?.label ?? surface).join(", ")
+}
+
+function toDentalPreviewSections(state: DentalCanvasState): RxPreviewDentalSection[] {
+  const byTooth = new Map<string, RxPreviewDentalSection>()
+
+  const ensureTooth = (fdi: string) => {
+    const existing = byTooth.get(fdi)
+    if (existing) return existing
+    const tooth = TEETH.find((item) => item.fdi === fdi)
+    const toothLabel = tooth
+      ? `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name} (T${fdi})`
+      : `Tooth (T${fdi})`
+    const next: RxPreviewDentalSection = {
+      toothLabel,
+      treatmentHistory: [],
+      findings: [],
+      procedures: [],
+    }
+    byTooth.set(fdi, next)
+    return next
+  }
+
+  Object.entries(state.toothDiagnoses).forEach(([fdi, diagnoses]) => {
+    if (!diagnoses.size) return
+    const block = ensureTooth(fdi)
+    diagnoses.forEach((diagnosis) => {
+      block.treatmentHistory.push(toPreviewLine(diagnosis, []))
+    })
+  })
+
+  state.implantTeeth.forEach((fdi) => {
+    const block = ensureTooth(fdi)
+    const exists = block.treatmentHistory.some((row) => row.title.toLowerCase() === "implant")
+    if (!exists) {
+      block.treatmentHistory.push(toPreviewLine("Implant", []))
+    }
+  })
+
+  Object.entries(state.findingsByTooth).forEach(([fdi, findings]) => {
+    if (!findings.length) return
+    const block = ensureTooth(fdi)
+    findings.forEach((finding) => {
+      block.findings.push(
+        toPreviewLine(finding.type, [ZONE_INFO[finding.zoneId]?.label, finding.notes]),
+      )
+    })
+  })
+
+  state.allEntries.forEach((entry) => {
+    const block = ensureTooth(entry.toothFdi)
+    const meta = [surfaceList(entry.surfaces), entry.since, entry.plannedDate, entry.status, entry.notes]
+    if (entry.kind === "finding") {
+      block.findings.push(toPreviewLine(entry.name, meta))
+      return
+    }
+    if (entry.kind === "procedure" || entry.kind === "planned") {
+      block.procedures.push(toPreviewLine(entry.name, meta))
+      return
+    }
+    block.treatmentHistory.push(toPreviewLine(entry.name, meta))
+  })
+
+  return Array.from(byTooth.values()).filter(
+    (section) =>
+      section.treatmentHistory.length > 0 ||
+      section.findings.length > 0 ||
+      section.procedures.length > 0 ||
+      Boolean(section.overallToothNote?.trim()),
+  )
 }
 
 export function ExaminationTab({ patientId, patientAge = 30 }: ExaminationTabProps) {
@@ -162,6 +244,15 @@ export function ExaminationTab({ patientId, patientAge = 30 }: ExaminationTabPro
     canvasState.implantTeeth.size === 0 &&
     Object.values(canvasState.findingsByTooth).every((a) => a.length === 0) &&
     canvasState.allEntries.length === 0
+
+  useEffect(() => {
+    if (!canvasState) return
+    saveDentalPreviewSnapshot(patientId, {
+      patientId,
+      updatedAt: new Date().toISOString(),
+      sections: toDentalPreviewSections(canvasState),
+    })
+  }, [canvasState, patientId])
 
   return (
     <div ref={containerRef} className={`relative flex h-full w-full overflow-hidden bg-tp-slate-100 p-[18px] ${isGetStarted ? 'gap-[18px]' : ''}`}>

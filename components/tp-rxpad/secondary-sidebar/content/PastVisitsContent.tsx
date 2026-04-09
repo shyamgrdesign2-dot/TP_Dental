@@ -32,6 +32,7 @@ import {
   TPDrawerTitle,
 } from "@/components/tp-ui/tp-drawer"
 import { TPMedicalIcon, TPSnackbar } from "@/components/tp-ui"
+import { ToothIcon } from "@/components/dental/ToothIcon"
 
 import { tpSectionCardStyle } from "../tokens"
 import { useStickyHeaderState } from "../detail-shared"
@@ -59,6 +60,7 @@ interface DigitalVisitData {
   examinations: VisitLineItem[]
   diagnoses: VisitLineItem[]
   medications: MedicationVisitItem[]
+  dentalExamination?: DentalToothVisitBlock[]
   advice: string
   followUp: string
   labInvestigations: string[]
@@ -89,6 +91,28 @@ interface PastVisitEntry {
   writtenRx: WrittenRxDocument[]
 }
 
+interface DentalStructuredLine {
+  name: string
+  surface?: string
+  since?: string
+  date?: string
+  status?: string
+  notes?: string
+}
+
+interface DentalToothVisitBlock {
+  toothLabel: string
+  treatmentHistory: DentalStructuredLine[]
+  findings: DentalStructuredLine[]
+  procedures: DentalStructuredLine[]
+  overallToothNote?: string
+}
+
+interface FormattedLine {
+  title: string
+  metaParts: string[]
+}
+
 function normalizePointerText(value: string): string {
   return value
     .replace(/\s*[•·]\s*/g, " • ")
@@ -99,33 +123,166 @@ function normalizePointerText(value: string): string {
     .trim()
 }
 
+function formatMedicationDetail(item: MedicationVisitItem): string {
+  const row = item.row
+  const details = [
+    row.unitPerDose,
+    row.frequency,
+    row.when,
+    row.duration,
+    row.note,
+  ].map((value) => normalizePointerText(value)).filter(Boolean)
+
+  return details.join(" | ")
+}
+
+function formatBracketParts(parts: Array<string | undefined>): string {
+  const clean = parts.map((part) => normalizePointerText(part ?? "")).filter(Boolean)
+  return clean.length > 0 ? clean.join(" | ") : ""
+}
+
+function splitMetaParts(value: string): string[] {
+  return normalizePointerText(value)
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function renderMetaInBrackets(parts: string[]) {
+  if (parts.length === 0) return null
+  return (
+    <span className="text-tp-slate-400">
+      {" ("}
+      {parts.map((part, index) => (
+        <React.Fragment key={`${part}-${index}`}>
+          {index > 0 ? <span className="text-tp-slate-300"> | </span> : null}
+          {part}
+        </React.Fragment>
+      ))}
+      {")"}
+    </span>
+  )
+}
+
 const WRITTEN_RX_PDF_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
 const WRITTEN_RX_PREVIEW = "/assets/afc7c9e55f8624dd8cba9c2017f7a975fba9d2d2.png"
 
 const PAST_VISITS: PastVisitEntry[] = [
   {
     id: "visit-27-jan",
-    dateLabel: "Today (27 Jan'26)",
+    dateLabel: "27 Jan'26",
     digitalRx: {
-      symptoms: [],
-      examinations: [],
+      symptoms: [
+        { label: "Tooth pain", detail: "Since: 5 days | Status: Active | Trigger: Night-time throbbing" },
+        { label: "Cold sensitivity", detail: "Since: 2 weeks | Status: Active | Trigger: Sweet and cold drinks" },
+      ],
+      examinations: [
+        { label: "General oral exam", detail: "Deep cavity in 36, tenderness on percussion, oral hygiene fair" },
+      ],
       diagnoses: [
-        // ── Per-tooth dental records ──
-        { label: "🦷 T36 — Lower Left First Molar", detail: "" },
-        { label: "Chief Complaint", detail: "Tooth pain (5 days, severe, throbbing at night)" },
-        { label: "Clinical Examination", detail: "Deep cavity, periapical tenderness on percussion" },
-        { label: "Treatment History", detail: "Irreversible pulpitis — deep caries with pulpal involvement" },
-        { label: "Treatment Plan", detail: "RCT (sitting 1 scheduled 28 Jan)" },
-
-        { label: "🦷 T16 — Upper Right First Molar", detail: "" },
-        { label: "Chief Complaint", detail: "Sensitivity to cold & sweet stimuli (2 weeks, moderate)" },
-        { label: "Clinical Examination", detail: "Caries on buccal & occlusal surfaces, staining" },
-        { label: "Treatment History", detail: "Dental caries — early cavity, no prior treatment" },
-        { label: "Treatment Plan", detail: "Composite restoration" },
-
-        { label: "🦷 T41 — Lower Right Central Incisor", detail: "" },
-        { label: "Clinical Examination", detail: "Supragingival calculus on lingual surface" },
-        { label: "Treatment Plan", detail: "Full-mouth scaling & polishing" },
+        { label: "Irreversible pulpitis", detail: "Since: 5 days | Status: Confirmed | Related to tooth 36" },
+        { label: "Dental caries", detail: "Since: 2 weeks | Status: Confirmed | Affected teeth: 16, 36" },
+      ],
+      dentalExamination: [
+        {
+          toothLabel: "Lower Left First Molar (T36)",
+          treatmentHistory: [
+            {
+              name: "Root Canal Treatment",
+              surface: "Occlusal, Root",
+              since: "12 Feb'25",
+              notes: "Access opening completed",
+            },
+            {
+              name: "Composite Restoration",
+              surface: "Mesio-occlusal",
+              since: "20 Nov'24",
+              notes: "Secondary caries suspected near margin",
+            },
+          ],
+          findings: [
+            {
+              name: "Deep caries with percussion tenderness",
+              surface: "Occlusal",
+              since: "27 Jan'26",
+              notes: "Night pain present",
+            },
+            {
+              name: "Localized gingival inflammation",
+              surface: "Lingual",
+              since: "27 Jan'26",
+              notes: "Mild bleeding on probing",
+            },
+          ],
+          procedures: [
+            {
+              name: "RCT Sitting 1",
+              surface: "Mesial and distal canals",
+              date: "28 Jan'26",
+              status: "Planned",
+              notes: "Working length confirmation pending",
+            },
+            {
+              name: "Pain management protocol",
+              date: "27 Jan'26",
+              status: "Completed",
+              notes: "Ibuprofen SOS prescribed",
+            },
+          ],
+          overallToothNote: "Severe throbbing pain for 5 days; crown planned post-obturation.",
+        },
+        {
+          toothLabel: "Upper Right First Molar (T16)",
+          treatmentHistory: [],
+          findings: [
+            {
+              name: "Early caries with staining",
+              surface: "Buccal, Occlusal",
+              since: "27 Jan'26",
+              notes: "Cold and sweet sensitivity",
+            },
+            {
+              name: "Food impaction tendency",
+              surface: "Distal marginal ridge",
+              since: "27 Jan'26",
+            },
+          ],
+          procedures: [
+            {
+              name: "Composite Restoration",
+              surface: "Buccal, Occlusal",
+              date: "30 Jan'26",
+              status: "Planned",
+            },
+            {
+              name: "Topical fluoride application",
+              date: "27 Jan'26",
+              status: "Completed",
+              notes: "Post-sensitivity management",
+            },
+          ],
+          overallToothNote: "No previous restorative work for this tooth.",
+        },
+        {
+          toothLabel: "Lower Right Central Incisor (T41)",
+          treatmentHistory: [],
+          findings: [
+            {
+              name: "Supragingival calculus",
+              surface: "Lingual",
+              since: "27 Jan'26",
+            },
+          ],
+          procedures: [
+            {
+              name: "Scaling and Polishing",
+              surface: "Lingual",
+              date: "31 Jan'26",
+              status: "Planned",
+            },
+          ],
+          overallToothNote: "Include with full-mouth periodontal therapy.",
+        },
       ],
       medications: [
         {
@@ -180,14 +337,45 @@ const PAST_VISITS: PastVisitEntry[] = [
     id: "visit-26-jan",
     dateLabel: "26 Jan'26",
     digitalRx: {
-      symptoms: [],
-      examinations: [],
+      symptoms: [
+        { label: "Facial swelling", detail: "Since: 3 days | Status: Active | Site: Left buccal vestibule" },
+      ],
+      examinations: [
+        { label: "Oral exam", detail: "Mild facial swelling, large carious lesion on 26, tenderness positive" },
+      ],
       diagnoses: [
-        { label: "🦷 T26 — Upper Left First Molar", detail: "" },
-        { label: "Chief Complaint", detail: "Swelling (3 days, buccal vestibule, fluctuant), difficulty chewing on left side" },
-        { label: "Clinical Examination", detail: "Mild left facial swelling, large carious lesion on 26, buccal swelling, TTP positive" },
-        { label: "Treatment History", detail: "Periapical abscess — acute, buccal space involvement" },
-        { label: "Treatment Plan", detail: "I&D under LA performed. RCT or extraction post-antibiotics" },
+        { label: "Periapical abscess", detail: "Since: 3 days | Status: Confirmed | Associated with tooth 26" },
+      ],
+      dentalExamination: [
+        {
+          toothLabel: "Upper Left First Molar (T26)",
+          treatmentHistory: [
+            {
+              name: "Acute periapical abscess",
+              surface: "Buccal vestibule",
+              since: "26 Jan'26",
+              notes: "Buccal space involvement",
+            },
+          ],
+          findings: [
+            {
+              name: "Large carious lesion with swelling",
+              surface: "Buccal",
+              since: "26 Jan'26",
+              notes: "Tender on percussion",
+            },
+          ],
+          procedures: [
+            {
+              name: "Incision and Drainage",
+              surface: "Buccal vestibule",
+              date: "26 Jan'26",
+              status: "Completed",
+              notes: "Under LA",
+            },
+          ],
+          overallToothNote: "Review for RCT vs extraction after antibiotic course.",
+        },
       ],
       medications: [
         {
@@ -233,15 +421,44 @@ const PAST_VISITS: PastVisitEntry[] = [
     id: "visit-24-jan",
     dateLabel: "24 Jan'26",
     digitalRx: {
-      symptoms: [],
-      examinations: [],
+      symptoms: [
+        { label: "Bleeding gums", detail: "Since: 1 month | Status: Active | During brushing" },
+        { label: "Bad breath", detail: "Since: 1 month | Status: Active" },
+      ],
+      examinations: [
+        { label: "Periodontal exam", detail: "Generalized 3-4mm pockets, bleeding on probing, moderate calculus" },
+      ],
       diagnoses: [
-        { label: "🦷 Full Mouth — Periodontal", detail: "" },
-        { label: "Chief Complaint", detail: "Bleeding gums (1 month, during brushing, both arches), persistent bad breath" },
-        { label: "Clinical Examination", detail: "Generalized 3-4mm pockets, bleeding on probing, moderate supragingival calculus (all quadrants)" },
-        { label: "Treatment History", detail: "Chronic gingivitis — generalized, moderate. No prior periodontal treatment" },
-        { label: "Treatment Plan", detail: "Full-mouth scaling & polishing (completed in single sitting)" },
-        { label: "Notes", detail: "Oral hygiene instructions given. Modified Bass brushing technique demonstrated. Recall in 6 months." },
+        { label: "Chronic generalized gingivitis", detail: "Since: 1 month | Status: Confirmed | Moderate severity" },
+      ],
+      dentalExamination: [
+        {
+          toothLabel: "Full Mouth (Periodontal)",
+          treatmentHistory: [],
+          findings: [
+            {
+              name: "Generalized periodontal pockets",
+              surface: "All quadrants",
+              since: "24 Jan'26",
+              notes: "3-4mm pockets with bleeding on probing",
+            },
+            {
+              name: "Moderate supragingival calculus",
+              surface: "All quadrants",
+              since: "24 Jan'26",
+            },
+          ],
+          procedures: [
+            {
+              name: "Scaling and Polishing",
+              surface: "Full Mouth",
+              date: "24 Jan'26",
+              status: "Completed",
+              notes: "Single sitting",
+            },
+          ],
+          overallToothNote: "Modified Bass brushing technique demonstrated; 2-week review advised.",
+        },
       ],
       medications: [
         {
@@ -642,13 +859,13 @@ function ListSection({
     Symptoms: "all symptoms",
     Examination: "all examination findings",
     Diagnosis: "all diagnoses",
-    "Med (Rx)": "all medications",
+    "Medication (Rx)": "all medications",
   }
   const itemDescriptions: Record<string, string> = {
     Symptoms: "this symptom",
     Examination: "this finding",
     Diagnosis: "this diagnosis",
-    "Med (Rx)": "this medication",
+    "Medication (Rx)": "this medication",
   }
 
   return (
@@ -676,6 +893,7 @@ function ListSection({
         {items.map((item) => {
           const normalizedLabel = normalizePointerText(item.label)
           const normalizedDetail = normalizePointerText(item.detail)
+          const detailParts = splitMetaParts(normalizedDetail)
           return (
             <li key={`${title}-${item.label}-${item.detail}`} className="group list-disc marker:text-tp-slate-500 text-[14px] leading-[20px] text-tp-slate-700">
               <div className="flex items-start justify-between gap-1.5">
@@ -687,8 +905,10 @@ function ListSection({
                 >
                   <span className="block min-w-0">
                     <span className="font-sans font-medium text-tp-slate-700">{normalizedLabel}</span>
-                    {normalizedDetail ? (
-                      <span className="ml-1 font-sans text-[14px] leading-[20px] text-tp-slate-400">{`(${normalizedDetail})`}</span>
+                    {detailParts.length > 0 ? (
+                      <span className="ml-1 font-sans text-[14px] leading-[20px]">
+                        {renderMetaInBrackets(detailParts)}
+                      </span>
                     ) : null}
                   </span>
                 </TapCopyTooltip>
@@ -784,6 +1004,73 @@ function FollowUpSection({
       >
         <span className="font-sans text-[14px] leading-[20px] text-tp-slate-600">{followUp}</span>
       </TapCopyTooltip>
+    </div>
+  )
+}
+
+function DentalToothBlock({
+  block,
+}: {
+  block: DentalToothVisitBlock
+}) {
+  const hasRows =
+    block.treatmentHistory.length > 0 ||
+    block.findings.length > 0 ||
+    block.procedures.length > 0 ||
+    Boolean(block.overallToothNote?.trim())
+
+  if (!hasRows) return null
+
+  const formatStructuredLine = (line: DentalStructuredLine): FormattedLine => {
+    const meta = formatBracketParts([
+      line.surface,
+      line.since,
+      line.date,
+      line.status,
+      line.notes,
+    ])
+    return {
+      title: normalizePointerText(line.name),
+      metaParts: meta ? splitMetaParts(meta) : [],
+    }
+  }
+
+  const sectionRows: Array<{ label: string; values: FormattedLine[] }> = [
+    { label: "Treatment History", values: block.treatmentHistory.map(formatStructuredLine) },
+    { label: "Findings", values: block.findings.map(formatStructuredLine) },
+    { label: "Procedures", values: block.procedures.map(formatStructuredLine) },
+    {
+      label: "Overall Tooth Notes",
+      values: block.overallToothNote?.trim()
+        ? [{ title: normalizePointerText(block.overallToothNote), metaParts: [] }]
+        : [],
+    },
+  ].filter((row) => row.values.length > 0)
+
+  return (
+    <div className="relative shrink-0 w-full px-[12px] py-[8px] flex flex-col gap-[6px]">
+      <div className="group flex items-center gap-[6px]">
+        <div className="flex h-[16px] w-[16px] shrink-0 items-center justify-center">
+          <ToothIcon size={14} color="var(--tp-violet-400)" variant="Bulk" />
+        </div>
+        <span className="font-sans font-semibold text-tp-slate-700 text-[14px] tracking-[0.012px] leading-[20px]">
+          {block.toothLabel}
+        </span>
+      </div>
+      <ul className="space-y-[2px] pl-[18px]">
+        {sectionRows.map((row) => (
+          <li key={`${block.toothLabel}-${row.label}`} className="list-disc marker:text-tp-slate-500 text-[14px] leading-[20px] text-tp-slate-600">
+            <span className="font-medium text-tp-slate-700">{row.label}:</span>{" "}
+            {row.values.map((value, index) => (
+              <React.Fragment key={`${row.label}-${index}`}>
+                {index > 0 ? <span className="text-tp-slate-400">, </span> : null}
+                <span className="text-tp-slate-700">{value.title}</span>
+                {renderMetaInBrackets(value.metaParts)}
+              </React.Fragment>
+            ))}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -924,6 +1211,33 @@ export function PastVisitsContent() {
             const activeTab = tabState[entry.id]
             const showDigital = expanded && hasDigital && activeTab === "digital"
             const showWritten = expanded && hasWritten && (!hasDigital || activeTab === "written")
+            const diagnosisItems = entry.digitalRx ? entry.digitalRx.diagnoses : []
+            const medicationItems: VisitLineItem[] = entry.digitalRx
+              ? entry.digitalRx.medications.map((item) => ({
+                  label: normalizePointerText(item.row.medicine || item.label),
+                  detail: formatMedicationDetail(item),
+                }))
+              : []
+            const dentalToothBlocks = (entry.digitalRx?.dentalExamination ?? []).filter(
+              (block) =>
+                block.treatmentHistory.length > 0 ||
+                block.findings.length > 0 ||
+                block.procedures.length > 0 ||
+                Boolean(block.overallToothNote?.trim()),
+            )
+            const hasClinicalContent = Boolean(
+              entry.digitalRx &&
+              (
+                entry.digitalRx.symptoms.length > 0 ||
+                entry.digitalRx.examinations.length > 0 ||
+                diagnosisItems.length > 0 ||
+                medicationItems.length > 0 ||
+                entry.digitalRx.labInvestigations.length > 0 ||
+                Boolean(entry.digitalRx.advice?.trim()) ||
+                Boolean(entry.digitalRx.followUp?.trim())
+              ),
+            )
+            const hasDentalContent = dentalToothBlocks.length > 0
 
             return (
               <div key={entry.id} className="relative shrink-0 w-full" style={tpSectionCardStyle}>
@@ -953,47 +1267,85 @@ export function PastVisitsContent() {
 
                     {showDigital && entry.digitalRx ? (
                       <>
-                        <ListSection
-                          icon={<SymptomsIcon />}
-                          title="Symptoms"
-                          items={entry.digitalRx.symptoms}
-                          onCopySection={() => showCopySnackbar("Symptoms added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} symptom added successfully to RxPad`)}
-                        />
+                        {entry.digitalRx.symptoms.length > 0 ? (
+                          <ListSection
+                            icon={<SymptomsIcon />}
+                            title="Symptoms"
+                            items={entry.digitalRx.symptoms}
+                            onCopySection={() => showCopySnackbar("Symptoms added successfully to RxPad")}
+                            onCopyItem={(item) => showCopySnackbar(`${item.label} symptom added successfully to RxPad`)}
+                          />
+                        ) : null}
 
-                        <ListSection
-                          icon={<ExamIcon />}
-                          title="Examination"
-                          items={entry.digitalRx.examinations}
-                          onCopySection={() => showCopySnackbar("Examination findings added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} finding added successfully to RxPad`)}
-                        />
+                        {entry.digitalRx.examinations.length > 0 ? (
+                          <ListSection
+                            icon={<ExamIcon />}
+                            title="Examination"
+                            items={entry.digitalRx.examinations}
+                            onCopySection={() => showCopySnackbar("Examination findings added successfully to RxPad")}
+                            onCopyItem={(item) => showCopySnackbar(`${item.label} finding added successfully to RxPad`)}
+                          />
+                        ) : null}
 
-                        <ListSection
-                          icon={<DiagnosisIcon />}
-                          title="Diagnosis"
-                          items={entry.digitalRx.diagnoses}
-                          onCopySection={() => showCopySnackbar("Diagnoses added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} diagnosis added successfully to RxPad`)}
-                        />
+                        {diagnosisItems.length > 0 ? (
+                          <ListSection
+                            icon={<DiagnosisIcon />}
+                            title="Diagnosis"
+                            items={diagnosisItems}
+                            onCopySection={() => showCopySnackbar("Diagnoses added successfully to RxPad")}
+                            onCopyItem={(item) => showCopySnackbar(`${item.label} diagnosis added successfully to RxPad`)}
+                          />
+                        ) : null}
 
-                        <ListSection
-                          icon={<PillIcon />}
-                          title="Med (Rx)"
-                          items={entry.digitalRx.medications}
-                          onCopySection={() => showCopySnackbar("Medications added successfully to RxPad")}
-                          onCopyItem={(item) => showCopySnackbar(`${item.label} medication added successfully to RxPad`)}
-                        />
+                        {entry.digitalRx.labInvestigations.length > 0 ? (
+                          <ListSection
+                            icon={<DiagnosisIcon />}
+                            title="Lab Investigation"
+                            items={entry.digitalRx.labInvestigations.map((item) => ({ label: item, detail: "" }))}
+                            onCopySection={() => showCopySnackbar("Lab investigations added successfully to RxPad")}
+                            onCopyItem={(item) => showCopySnackbar(`${item.label} added successfully to RxPad`)}
+                          />
+                        ) : null}
 
-                        <AdviceSection
-                          advice={entry.digitalRx.advice}
-                          onCopy={() => showCopySnackbar("Advice added successfully to RxPad")}
-                        />
+                        {medicationItems.length > 0 ? (
+                          <ListSection
+                            icon={<PillIcon />}
+                            title="Medication (Rx)"
+                            items={medicationItems}
+                            onCopySection={() => showCopySnackbar("Medications added successfully to RxPad")}
+                            onCopyItem={(item) => showCopySnackbar(`${item.label} medication added successfully to RxPad`)}
+                          />
+                        ) : null}
 
-                        <FollowUpSection
-                          followUp={entry.digitalRx.followUp}
-                          onCopy={() => showCopySnackbar("Follow-up added successfully to RxPad")}
-                        />
+                        {hasDentalContent ? (
+                          <div className="space-y-[8px] pb-[10px]">
+                            {dentalToothBlocks.map((block) => (
+                              <DentalToothBlock key={`${entry.id}-${block.toothLabel}`} block={block} />
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {entry.digitalRx.advice.trim() ? (
+                          <AdviceSection
+                            advice={entry.digitalRx.advice}
+                            onCopy={() => showCopySnackbar("Advice added successfully to RxPad")}
+                          />
+                        ) : null}
+
+                        {entry.digitalRx.followUp.trim() ? (
+                          <FollowUpSection
+                            followUp={entry.digitalRx.followUp}
+                            onCopy={() => showCopySnackbar("Follow-up added successfully to RxPad")}
+                          />
+                        ) : null}
+
+                        {!hasClinicalContent && !hasDentalContent ? (
+                          <div className="px-[12px] py-[10px]">
+                            <p className="font-sans text-[12px] text-tp-slate-400">
+                              No clinical or dental examination details available for this visit.
+                            </p>
+                          </div>
+                        ) : null}
                       </>
                     ) : null}
 
