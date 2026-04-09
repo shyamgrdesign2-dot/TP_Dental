@@ -767,13 +767,13 @@ export function DrAgentPage() {
                                       <TPSplitButton
                                         primaryAction={{
                                           label: "TypeRx",
-                                          onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`),
+                                          onClick: () => router.push(`/rxpad?patientId=${row.id}`),
                                         }}
                                         secondaryActions={[
-                                          { id: "voice-rx", label: "VoiceRx", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
-                                          { id: "tab-rx", label: "TabRx", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
-                                          { id: "snap-rx", label: "SnapRx", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
-                                          { id: "smart-sync", label: "SmartSync", onClick: () => router.push(`/rxpad?patientId=${row.id}&snackbar=iscribe-connected`) },
+                                          { id: "voice-rx", label: "VoiceRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
+                                          { id: "tab-rx", label: "TabRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
+                                          { id: "snap-rx", label: "SnapRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
+                                          { id: "smart-sync", label: "SmartSync", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                                         ]}
                                         variant="outline"
                                         theme="primary"
