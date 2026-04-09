@@ -371,6 +371,10 @@ export function injectShader(
   const mat = material as THREE.MeshStandardMaterial
   const colorVecs = _cachedColorVecs
   const dirs = getDirsForTooth(toothFdi, quadrant, zoneYawRad)
+  // Critical: ensure Three.js does not reuse a stale non-dental shader program
+  // across tab/type switches. Without a dedicated key, onBeforeCompile can be
+  // bypassed by program cache hits, causing missing dentition colors until remount.
+  mat.customProgramCacheKey = () => 'tp-dental-zone-shader-v1'
 
   mat.onBeforeCompile = (shader) => {
     ref.shader = shader
@@ -1638,7 +1642,9 @@ export function Tooth({
 }: ToothProps) {
   const gltf = useGLTF(modelPath)
   const implantGltf = useGLTF('/models/implant.glb')
-  const clonedScene = useMemo(() => cloneSceneWithUniqueMaterials(gltf.scene), [gltf])
+  const [mountGen] = useState(() => Math.random())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const clonedScene = useMemo(() => cloneSceneWithUniqueMaterials(gltf.scene), [gltf, mountGen])
 
   const groupRef = useRef<THREE.Group>(null!)
   const outerGroupRef = useRef<THREE.Group>(null!)
@@ -2090,7 +2096,9 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
   const groupRef = useRef<THREE.Group>(null)
   const [ghostCervicalY, setGhostCervicalY] = useState<number | null>(null)
   const [ghostHalfWidth, setGhostHalfWidth] = useState<number | null>(null)
+  const [mountGen] = useState(() => Math.random())
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const cloned = useMemo(() => {
     const root = gltf.scene.clone(true) as THREE.Group
     root.traverse((obj) => {
@@ -2114,7 +2122,7 @@ const BridgeGhostTooth = memo(function BridgeGhostTooth({
       }
     })
     return root
-  }, [gltf])
+  }, [gltf, mountGen])
 
   // After mount: compute ghost tooth's cervical Y, then inject crown-only clipping shader
   useEffect(() => {

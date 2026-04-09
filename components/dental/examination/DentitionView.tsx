@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react'
+import { memo, useMemo, useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react'
 import * as THREE from 'three'
 import { useGLTF, Html, Center } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -55,10 +55,11 @@ const ArchTooth = memo(function ArchTooth({
   const isBridge = diagnoses?.has('Bridge') || false
   const isDenture = diagnoses?.has('Denture') || false
 
-  // Same deep clone as Tooth.tsx — unique materials per tooth
-  const clonedScene = useMemo(() => {
-    return cloneSceneWithUniqueMaterials(gltf.scene)
-  }, [gltf])
+  // Fresh clone on every mount — mount generation forces a new clone so that
+  // switching tabs (Adult→Pedia→Adult) always starts with clean materials.
+  const [mountGen] = useState(() => Math.random())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const clonedScene = useMemo(() => cloneSceneWithUniqueMaterials(gltf.scene), [gltf, mountGen])
 
   // Implant placement state + tooth mesh ref for procedural implant
   const [implantPlacement, setImplantPlacement] = useState<{
@@ -72,6 +73,7 @@ const ArchTooth = memo(function ArchTooth({
   const toothMeshRefLocal = useRef<THREE.Mesh | null>(null)
   const implantBB = useRef<THREE.Box3 | null>(null)
   const shaderRefs = useRef<Array<{ shader: any }>>([])
+  const shaderInjectedRef = useRef(false)
   const zoneFindingsRef = useRef<number[]>([0, 0, 0, 0, 0, 0, 0])
 
   // Update findings ref whenever findings change — picked up next frame
@@ -106,8 +108,15 @@ const ArchTooth = memo(function ArchTooth({
   // After mount: compute bounding box and inject the SAME shader as single-tooth view
   // No guard ref — always re-inject when diagnosis flags change.
   // Uses requestAnimationFrame to wait for <Center> layout.
-  useEffect(() => {
+  useLayoutEffect(() => {
+    shaderInjectedRef.current = false
+    shaderRefs.current = []
+    let cancelled = false
+    let rafOuter = 0
+    let rafInner = 0
     const applyToCurrentScene = () => {
+      if (cancelled) return false
+      if (shaderInjectedRef.current) return true
       if (!groupRef.current) return false
       groupRef.current.updateMatrixWorld(true)
 
@@ -145,6 +154,7 @@ const ArchTooth = memo(function ArchTooth({
           else materials.push(m.material)
         }
       })
+      if (materials.length === 0) return false
 
       shaderRefs.current = []
       for (const mat of materials) {
@@ -170,6 +180,7 @@ const ArchTooth = memo(function ArchTooth({
           isDenture,
         }),
       })
+      shaderInjectedRef.current = true
 
       // Compute implant placement + store bb
       implantBB.current = bb
@@ -219,17 +230,45 @@ const ArchTooth = memo(function ArchTooth({
       return true
     }
 
-    if (applyToCurrentScene()) return
-    let raf = 0
-    let tries = 0
-    const maxTries = 12
-    const tick = () => {
+    const runWithRetries = () => {
       if (applyToCurrentScene()) return
-      tries += 1
-      if (tries < maxTries) raf = requestAnimationFrame(tick)
+      let raf = 0
+      let tries = 0
+      const maxTries = 120
+      const tick = () => {
+        if (cancelled) return
+        if (applyToCurrentScene()) return
+        tries += 1
+        if (tries < maxTries) raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+      return () => cancelAnimationFrame(raf)
     }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+
+    const cancelRetry = runWithRetries()
+    const lateRetry = window.setTimeout(() => {
+      if (!shaderInjectedRef.current && !cancelled) {
+        // One extra pass after layout stabilizes (tab/type transitions).
+        applyToCurrentScene()
+      }
+    }, 1200)
+
+    // Match Tooth.tsx timing model: defer to post-layout via double RAF.
+    rafOuter = requestAnimationFrame(() => {
+      rafInner = requestAnimationFrame(() => {
+        if (!shaderInjectedRef.current && !cancelled) {
+          applyToCurrentScene()
+        }
+      })
+    })
+
+    return () => {
+      cancelled = true
+      cancelRetry?.()
+      cancelAnimationFrame(rafOuter)
+      cancelAnimationFrame(rafInner)
+      window.clearTimeout(lateRetry)
+    }
   }, [clonedScene, tooth, isImplant, isMissing, isCrown, isRCT, isBridge, isDenture, gl, camera])
 
   // Hover glow on state change (avoid per-frame traversals across all teeth).

@@ -1154,6 +1154,7 @@ export function DentalCanvas({
           <Suspense fallback={null}>
             {isDentitionView ? (
               <DentitionView
+                key={`dentition-${patientType}`}
                 patientType={patientType}
                 layoutMode="split"
                 toothDiagnoses={toothDiagnoses}
@@ -1168,6 +1169,7 @@ export function DentalCanvas({
             ) : (
               selectionScope.type !== 'tooth' ? (
                 <DentitionView
+                  key={`scope-${patientType}-${selectionScope.type}-${selectionScope.id}`}
                   patientType={patientType}
                   visibleFdis={selectionScope.fdis}
                   disableSelection={true}
