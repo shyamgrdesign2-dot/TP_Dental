@@ -653,6 +653,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             value = `${caseManagerData?.patient_data?.patient_dob ? caseManagerData?.patient_data?.patient_dob : '-'}`
         } else if (id == 15) {
             value = `${abhaDetails?.abha_address ? abhaDetails?.abha_address : "-"}`;
+        } else if (id == 17) {
+            const abhaToken = String(caseManagerData?.abha_token ?? "").trim();
+            value = abhaToken ? (abhaToken.length === 1 ? `0${abhaToken}` : abhaToken) : "-";
         } else if (id == 16) {
             value = `${abhaDetails?.abha_number ? abhaDetails?.abha_number : "-"}`;
         }
