@@ -1,6 +1,7 @@
 import { Button, Col, Row } from "antd";
 import CommonModal from "../../../../common/CommonModal";
 import { Cropper } from "react-cropper";
+import "cropperjs/dist/cropper.css";
 import React, { useCallback, useEffect, useState } from "react";
 import { dataUrlToFileUsingFetch, errorMessage } from "../../../../utils/utils";
 import defaultprofile from "./../../../../assets/images/default-profile.svg";
@@ -50,11 +51,13 @@ const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
           fileUrl.type == "image/jpg")
       ) {
         const reader = new FileReader();
+        reader.onerror = () => {};
         reader.onload = () => {
+          const dataUrl = reader.result;
           setFileHeader({
             imageShow: false,
             crop: true,
-            file: reader.result,
+            file: dataUrl,
             originalFile: fileUrl,
           });
           showHideHeaderModal();
@@ -70,9 +73,8 @@ const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
 
   const getHeaderCropData = async () => {
     if (typeof cropperHeaderRef.current?.cropper !== "undefined") {
-      const trimData = cropperHeaderRef.current?.cropper
-        .getCroppedCanvas()
-        .toDataURL(fileHeader.originalFile.type);
+      const croppedCanvas = cropperHeaderRef.current?.cropper.getCroppedCanvas();
+      const trimData = croppedCanvas?.toDataURL(fileHeader.originalFile.type);
       const uploadFile = await dataUrlToFileUsingFetch(
         trimData,
         "header.png",
@@ -134,11 +136,13 @@ const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
           fileUrl.type == "image/jpg")
       ) {
         const reader = new FileReader();
+        reader.onerror = () => {};
         reader.onload = () => {
+          const dataUrl = reader.result;
           setFileFooter({
             imageShow: false,
             crop: true,
-            file: reader.result,
+            file: dataUrl,
             originalFile: fileUrl,
           });
           showHideFooterModal();
@@ -154,9 +158,8 @@ const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
 
   const getFooterCropData = async () => {
     if (typeof cropperFooterRef.current?.cropper !== "undefined") {
-      const trimData = cropperFooterRef.current?.cropper
-        .getCroppedCanvas()
-        .toDataURL(fileFooter.originalFile.type);
+      const croppedCanvas = cropperFooterRef.current?.cropper.getCroppedCanvas();
+      const trimData = croppedCanvas?.toDataURL(fileFooter.originalFile.type);
       const uploadFile = await dataUrlToFileUsingFetch(
         trimData,
         "footer.png",

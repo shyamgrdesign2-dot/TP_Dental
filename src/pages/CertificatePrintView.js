@@ -82,7 +82,7 @@ function CertificatePrintView() {
             id: tcu_content_id,
             pms_default: pms_default,
             title: title,
-            content: removeLabelTags(HTMLTransformer(inputToLabel(tcu_content)))
+            content: removeLabelTags(HTMLTransformer(tcu_content))
         }
 
         const action = await dispatch(addCertificate(sendData))

@@ -12,13 +12,28 @@ import "./Onboarding.scss";
 import "./FeatureTabCard/FeatureTabCard.scss";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService.js";
 import { Spin } from "antd";
-const Carousel = React.lazy(() => import("./OnboardCarousel"));
-const FeatureTabCard = React.lazy(() => import("./FeatureTabCard/FeatureTabCard.js"));
-const TrustBy = React.lazy(() => import("./TrustBy/TrustedBy.js"));
-const Testimonials = React.lazy(() => import("./Testimonials/Testimonials.js"));
-const FAQ = React.lazy(() => import("./FAQ/FAQ.js"));
-const OurScale = React.lazy(() => import("./OurScale/OurScale.js"));
-const Footer = React.lazy(() => import("./Footer/Footer.js"));
+import { lazyRetry } from "../../../utils/lazyRetry";
+const Carousel = React.lazy(() =>
+  lazyRetry(() => import("./OnboardCarousel"))
+);
+const FeatureTabCard = React.lazy(() =>
+  lazyRetry(() => import("./FeatureTabCard/FeatureTabCard.js"))
+);
+const TrustBy = React.lazy(() =>
+  lazyRetry(() => import("./TrustBy/TrustedBy.js"))
+);
+const Testimonials = React.lazy(() =>
+  lazyRetry(() => import("./Testimonials/Testimonials.js"))
+);
+const FAQ = React.lazy(() =>
+  lazyRetry(() => import("./FAQ/FAQ.js"))
+);
+const OurScale = React.lazy(() =>
+  lazyRetry(() => import("./OurScale/OurScale.js"))
+);
+const Footer = React.lazy(() =>
+  lazyRetry(() => import("./Footer/Footer.js"))
+);
 
 const Onboarding = () => {
   const [view, setView] = useState("signup");
