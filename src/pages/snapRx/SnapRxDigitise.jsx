@@ -246,7 +246,7 @@ function SnapRxDigitise({isTabRx = false}) {
 
   useEffect(() => {
     if (smartRxFile?.length > 0 && token && state.type === "new") {
-      if (!shouldUseCustomRxDigitize) {
+      if (shouldUseCustomRxDigitize) {
         digitizeManyaCustomRx();
       } else {
         digitizeRx();
