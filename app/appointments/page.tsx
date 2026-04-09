@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { Mulish } from "next/font/google"
 import { DrAgentPage } from "@/components/tp-appointment-screen/DrAgentPage"
 
@@ -15,7 +16,9 @@ export const metadata = {
 export default function TPAppointmentPage() {
   return (
     <div className={mulish.variable}>
-      <DrAgentPage />
+      <Suspense fallback={null}>
+        <DrAgentPage />
+      </Suspense>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { EndVisitPage } from "@/components/tp-rxpad/EndVisitPage"
 
 export const metadata = {
@@ -6,6 +7,10 @@ export const metadata = {
 }
 
 export default function Page() {
-  return <EndVisitPage />
+  return (
+    <Suspense fallback={null}>
+      <EndVisitPage />
+    </Suspense>
+  )
 }
 
