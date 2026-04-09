@@ -2984,9 +2984,10 @@ function Cardiology(props) {
 
   // Shared digitised sections UI with icons for voice, ambient, snap, and smart
   const renderDigitisedSections = (data) => {
-    if (!data) return null;
+    if (!data) return renderDentalDigitisedSection();
     return (
       <div className="m-4">
+        {renderDentalDigitisedSection()}
         {hasVitalsContent(data) && (
           <>
             <div className="d-flex align-items-start">
@@ -3051,7 +3052,7 @@ function Cardiology(props) {
             {renderItems("diagnosis", data)}
           </>
         )}
-        {data?.medications && hasValidContent(data, "medications") && (
+        {data?.medications && hasValidContent(data, "medications") && !dentalMedicationRowsFiltered?.length && (
           <>
             <div className="d-flex align-items-start">
               <img className="me-2" src={Medicationicon} alt="Medications" />
