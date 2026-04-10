@@ -1145,9 +1145,10 @@ const ZydusLabParams = ({
                 ) : (
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead style={{ backgroundColor: "#F1F1F5" }}>
-                            <tr style={{ position: "sticky", left: 0 }}>
+                            <tr style={{ position: "sticky", top: 0, zIndex: 5 }}>
                                 <th style={{
                                     position: "sticky",
+                                    top: 0,
                                     left: 0,
                                     background: "#F1F1F5",
                                     width: "23rem",
@@ -1155,12 +1156,16 @@ const ZydusLabParams = ({
                                     borderTopLeftRadius: "10px",
                                     borderBottomLeftRadius: "10px",
                                     fontWeight: "600",
-                                    zIndex: 3
+                                    zIndex: 7
                                 }}>
                                     <span>Lab Service/Parameter</span>
                                 </th>
                                 {organizedData?.dates?.map((date, index) => (
                                     <th key={date} style={{ 
+                                        position: "sticky",
+                                        top: 0,
+                                        zIndex: 6,
+                                        background: "#F1F1F5",
                                         padding: "10px",
                                         minWidth: "120px",
                                         borderTopRightRadius: index === organizedData.dates.length - 1 ? "10px" : "0",
