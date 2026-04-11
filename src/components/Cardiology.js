@@ -4051,6 +4051,21 @@ function Cardiology(props) {
                         </div>
                       </div>
                     )}
+                    {viewCaseManagerData?.follow_up_date && (
+                      <div
+                        className="d-flex align-items-center mb-14"
+                      >
+                        <img className="me-3" src={followUp} alt="Symptoms" />
+                        <div className="title-common">Follow-up:</div>
+                        <div className="follow-up-date-text">
+                          {viewCaseManagerData?.follow_up_date
+                            ? moment(viewCaseManagerData.follow_up_date).format(
+                                "DD/MM/YYYY"
+                              )
+                            : ""}
+                        </div>
+                      </div>
+                    )}
                     {customModulesRxData.length > 0 &&
                       customModulesRxData
                         ?.filter((item) => {
