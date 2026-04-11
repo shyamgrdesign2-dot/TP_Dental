@@ -4053,7 +4053,7 @@ function Cardiology(props) {
                     )}
                     {viewCaseManagerData?.follow_up_date && (
                       <div
-                        className="d-flex align-items-center mb-14"
+                        className="d-flex align-items-center m-0 mb-14 follow-up-detailsPage"
                       >
                         <img className="me-3" src={followUp} alt="Symptoms" />
                         <div className="title-common">Follow-up:</div>
