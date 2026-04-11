@@ -28,6 +28,7 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
+import { ensureMedicationGroundedForRxSave } from "../../utils/medicationRxPayload";
 
 function SnapRxDigitise({isTabRx = false}) {
   const divRef = useRef(null);
@@ -331,10 +332,7 @@ function SnapRxDigitise({isTabRx = false}) {
             quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
           }
 
-          return {
-            ...item,
-            quantity,
-          };
+          return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }) || [];
 
       const quantityActionMedicine = await ApiMedication.getQuantity({
@@ -355,10 +353,7 @@ function SnapRxDigitise({isTabRx = false}) {
               quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
             }
 
-            return {
-              ...item,
-              quantity,
-            };
+            return ensureMedicationGroundedForRxSave({ ...item, quantity });
           }),
       };
 
