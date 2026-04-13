@@ -60,6 +60,7 @@ import {
   GB_TAB_RX,
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
+  GB_VOICE_RX_FREE,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -576,7 +577,8 @@ function Cardiology(props) {
   const isVideoConsultOn = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultOn = useFeatureIsOn(GB_TELE_CONSULT);
   const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
 

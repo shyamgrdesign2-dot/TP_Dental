@@ -93,6 +93,7 @@ export const GB_DISABLE_GROUNDING = "disable-grounding";
 export const GB_OPTHAL_MODULE = "opthal-module";
 export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
 export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
+export const GB_VOICE_RX_FREE = "free-voice-rx";
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
