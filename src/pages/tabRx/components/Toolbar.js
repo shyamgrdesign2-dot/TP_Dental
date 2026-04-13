@@ -1,4 +1,7 @@
-import React, { useState, useRef, useEffect} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { CgClose } from 'react-icons/cg';
+import { GiAnticlockwiseRotation } from "react-icons/gi";
+import { LuPen, LuHighlighter, LuEraser, LuUndo2, LuRedo2, LuPlus, LuMinus } from 'react-icons/lu';
 import { CLINICAL_COLORS, HIGHLIGHTER_COLORS } from '../utils/constants';
 import './Toolbar.scss';
 
