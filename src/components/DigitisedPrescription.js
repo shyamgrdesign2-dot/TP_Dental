@@ -42,6 +42,7 @@ import alertIcon from "../assets/images/alertIcon.svg";
 import documentIcon from "../assets/images/document-normal.svg";
 import warningIcon from "../assets/images/danger.svg";
 import { setDentalData } from "../redux/dentalRxSlice";
+import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -114,6 +115,10 @@ export const normalizeNewItem = (type, text = "") => {
   return { name: t, lineItem: "" };
 };
 
+/** Medication string used for fuzzy search / display priority (grounded first, then legacy typo key, then OCR name). */
+const getMedicationNameForFuzzy = (m) =>
+  String(m?.groundedMedicineName ?? m?.groundingMedicineName ?? m?.name ?? "").trim();
+
 const getPrimaryText = (type, item) => {
   if (type === "advice") return typeof item === "string" ? item : "";
   if (type === "medications") return (item?.groundedMedicineName || "").trim() || (item?.name || "").trim() || "";
@@ -127,8 +132,7 @@ const getPrimaryText = (type, item) => {
   return item?.name || "";
 };
 
-const getMedicationNameToUse = (med) =>
-  ((med?.groundingMedicineName || "").trim() || (med?.name || "").trim());
+const getMedicationNameToUse = (med) => getMedicationNameForFuzzy(med);
 
 const getMedicationNamesSignature = (meds = []) =>
   meds.map((m) => getMedicationNameToUse(m)).join("|");
@@ -780,12 +784,18 @@ const DigitisedPrescription = ({
             arr[index] = String(editableText ?? "").trim();
           } else if (type === "medications" || type === "labInvestigation") {
             if (val) {
-              arr[index] = {
-                ...item,
-                name: item?.name || val,
-                groundedMedicineName: type === "medications" ? (item?.groundedMedicineName || val) : undefined,
-                refinedName: type === "medications" ? (item?.refinedName || val) : undefined,
-              };
+              if (type === "medications") {
+                arr[index] = {
+                  ...item,
+                  groundedMedicineName: val,
+                  refinedName: val,
+                };
+              } else {
+                arr[index] = {
+                  ...item,
+                  name: item?.name || val,
+                };
+              }
             } else {
               arr[index] = item;
             }
@@ -1004,7 +1014,6 @@ const DigitisedPrescription = ({
 
         const correctedResults = await Promise.all(
           meds.map(async (med) => {
-            // Use groundingMedicineName if present and non-empty, otherwise use name
             const nameToUse = getMedicationNameToUse(med);
             const isManualSelection = Boolean(
               med?.metadata?.isManualSelection ||
@@ -1023,9 +1032,7 @@ const DigitisedPrescription = ({
               return { correctedName: nameToUse, fullData: null, skip: true };
             }
             try {
-              // Send groundingMedicineName to grounding API if present, otherwise send name
-              const searchName = getMedicationNameToUse(med);
-              const result = await ApiMedication.getFuzzySearch(searchName);
+              const result = await ApiMedication.getFuzzySearch(nameToUse);
               const corrected = result?.[0]?.tmm_medicine_name?.trim();
               return {
                 correctedName: corrected || nameToUse,
@@ -1040,15 +1047,12 @@ const DigitisedPrescription = ({
 
         const anyChanged = meds.some(
           (m, i) => {
-            const currentDisplayName = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
+            const currentDisplayName = getMedicationNameForFuzzy(m);
             return currentDisplayName !== correctedResults[i].correctedName;
           }
         );
         if (!anyChanged) {
-          const correctedSig = meds.map((m) => {
-            const nameToUse = (m?.groundingMedicineName || "").trim() || (m?.name || "").trim();
-            return nameToUse;
-          }).join("|");
+          const correctedSig = meds.map((m) => getMedicationNameForFuzzy(m)).join("|");
           lastFuzzyNamesRef.current = correctedSig;
           return;
         }
@@ -1068,19 +1072,19 @@ const DigitisedPrescription = ({
             medications: currentMeds.map((m, idx) => {
               const result = correctedResults[idx];
               if (!result || result.skip) return m;
-              return {
+              const corrected = result.correctedName;
+              return ensureMedicationGroundedForRxSave({
                 ...m,
-                name: result.correctedName,
-                refinedName: result.correctedName,
-                // Add metadata for fuzzy search corrected name with full data
+                groundedMedicineName: corrected,
+                refinedName: corrected,
                 metadata: {
                   ...m.metadata,
-                  fuzzyCorrectedName: result.correctedName,
-                  originalName: getMedicationNameToUse(m),
+                  fuzzyCorrectedName: corrected,
+                  originalName: getMedicationNameForFuzzy(m) || m.name,
                   isFuzzyCorrected: true,
                   ...(result.fullData || {}),
                 },
-              };
+              });
             }),
           };
         });
@@ -1212,7 +1216,6 @@ const DigitisedPrescription = ({
         if (arr[activeIndex]) {
           arr[activeIndex] = {
             ...arr[activeIndex],
-            name: value,
             groundedMedicineName: value,
             refinedName: value,
             metadata: {
@@ -1345,18 +1348,25 @@ const DigitisedPrescription = ({
   const handleInputChange = (e) => {
     const value = e.target.value;
     setEditableText(value);
-    // Live update name for medications/labInvestigation at current index
+    // Live update: medications store user edits on groundedMedicineName (keep name as source/OCR text)
     if (activeType === "medications" || activeType === "labInvestigation") {
       setData((prev) => {
         const updated = { ...prev };
         const key = activeType;
         const arr = Array.isArray(updated[key]) ? [...updated[key]] : [];
         if (arr[activeIndex]) {
-          arr[activeIndex] = {
-            ...arr[activeIndex],
-            name: value,
-            ...(activeType === "medications" ? { groundedMedicineName: value, refinedName: value } : {}),
-          };
+          if (activeType === "medications") {
+            arr[activeIndex] = {
+              ...arr[activeIndex],
+              groundedMedicineName: value,
+              refinedName: value,
+            };
+          } else {
+            arr[activeIndex] = {
+              ...arr[activeIndex],
+              name: value,
+            };
+          }
           updated[key] = arr;
         }
         return updated;
@@ -1451,7 +1461,22 @@ const DigitisedPrescription = ({
       const currentText = (isLineItem ? editableLineItem : editableText ?? "").trim();
       if (type === "advice" || type === "others") {
         arr[index] = currentText;
-      } else if (type === "medications" || type === "labInvestigation") {
+      } else if (type === "medications") {
+        const lineItem = isLineItem
+          ? currentText || cur?.lineItem || prev[type]?.lineItem
+          : cur?.lineItem;
+        if (!currentText) {
+          arr[index] = cur;
+        } else if (isLineItem) {
+          arr[index] = { ...(cur || {}), lineItem };
+        } else {
+          arr[index] = {
+            ...(cur || {}),
+            groundedMedicineName: currentText,
+            refinedName: currentText,
+          };
+        }
+      } else if (type === "labInvestigation") {
         const name = isLineItem ? cur?.name || prev[type]?.name : currentText || cur?.name;
         const lineItem = isLineItem ? currentText || cur?.lineItem || prev[type]?.lineItem : cur?.lineItem;
         arr[index] = currentText
@@ -1459,7 +1484,6 @@ const DigitisedPrescription = ({
               ...(cur || {}),
               name,
               lineItem,
-              ...(type === "medications" ? { groundedMedicineName: name, refinedName: name } : {}),
             }
           : cur;
       } else if (type === "dynamicFields") {
