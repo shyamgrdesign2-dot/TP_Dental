@@ -86,6 +86,7 @@ import {
   GB_HEALTH_CHECKUP_REPORT,
   PATIENT_DETAILS_SIDEBAR_KEYS,
   GB_TAB_RX_CVT,
+  GB_VOICE_RX_FREE,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -245,7 +246,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isAppointmentAgentAccessableFromGB =
     useFeatureIsOn("appointment-agent");

@@ -132,6 +132,12 @@ const getPrimaryText = (type, item) => {
   return item?.name || "";
 };
 
+const getMedicationNameToUse = (med) =>
+  ((med?.groundingMedicineName || "").trim() || (med?.name || "").trim());
+
+const getMedicationNamesSignature = (meds = []) =>
+  meds.map((m) => getMedicationNameToUse(m)).join("|");
+
 const getDentalMedicationArray = (rootMedications, dentalMedications) => {
   if (Array.isArray(rootMedications)) return rootMedications;
   if (Array.isArray(dentalMedications)) return dentalMedications;
@@ -1005,21 +1011,40 @@ const DigitisedPrescription = ({
       try {
         const meds = medsSnapshot || sectionData.medications || [];
         if (!meds.length) return;
+        const sourceSignature = getMedicationNamesSignature(meds);
 
         const correctedResults = await Promise.all(
           meds.map(async (med) => {
-            const nameToUse = getMedicationNameForFuzzy(med);
+            // Use groundingMedicineName if present and non-empty, otherwise use name
+            const nameToUse = getMedicationNameToUse(med);
+            const isManualSelection = Boolean(
+              med?.metadata?.isManualSelection ||
+                med?.metadata?.selectedValue
+            );
+            const hasSameFuzzyResult = Boolean(
+              med?.metadata?.isFuzzyCorrected &&
+                (med?.metadata?.fuzzyCorrectedName || "").trim() === nameToUse
+            );
             if (!nameToUse)
-              return { correctedName: nameToUse, fullData: null };
+              return { correctedName: nameToUse, fullData: null, skip: true };
+            if (isManualSelection) {
+              return { correctedName: nameToUse, fullData: null, skip: true };
+            }
+            if (hasSameFuzzyResult) {
+              return { correctedName: nameToUse, fullData: null, skip: true };
+            }
             try {
-              const result = await ApiMedication.getFuzzySearch(nameToUse);
+              // Send groundingMedicineName to grounding API if present, otherwise send name
+              const searchName = getMedicationNameToUse(med);
+              const result = await ApiMedication.getFuzzySearch(searchName);
               const corrected = result?.[0]?.tmm_medicine_name?.trim();
               return {
                 correctedName: corrected || nameToUse,
                 fullData: result?.[0] || null,
+                skip: false,
               };
-            } catch (error) {    
-              return { correctedName: nameToUse, fullData: null };
+            } catch (error) {
+              return { correctedName: nameToUse, fullData: null, skip: true };
             }
           })
         );
@@ -1041,24 +1066,32 @@ const DigitisedPrescription = ({
           .join("|");
         lastFuzzyNamesRef.current = correctedSig;
 
-        setData((prev) => ({
-          ...prev,
-          medications: (prev?.medications || []).map((m, idx) => {
-            const corrected = correctedResults[idx].correctedName;
-            return ensureMedicationGroundedForRxSave({
-              ...m,
-              groundedMedicineName: corrected,
-              refinedName: corrected,
-              metadata: {
-                ...m.metadata,
-                fuzzyCorrectedName: corrected,
-                originalName: getMedicationNameForFuzzy(m) || m.name,
-                isFuzzyCorrected: true,
-                ...(correctedResults[idx].fullData || {}),
-              },
-            });
-          }),
-        }));
+        setData((prev) => {
+          const currentMeds = prev?.medications || [];
+          const currentSignature = getMedicationNamesSignature(currentMeds);
+          // Do not apply stale fuzzy result if user changed names meanwhile.
+          if (currentSignature !== sourceSignature) return prev;
+          return {
+            ...prev,
+            medications: currentMeds.map((m, idx) => {
+              const result = correctedResults[idx];
+              if (!result || result.skip) return m;
+              return {
+                ...m,
+                name: result.correctedName,
+                refinedName: result.correctedName,
+                // Add metadata for fuzzy search corrected name with full data
+                metadata: {
+                  ...m.metadata,
+                  fuzzyCorrectedName: result.correctedName,
+                  originalName: getMedicationNameToUse(m),
+                  isFuzzyCorrected: true,
+                  ...(result.fullData || {}),
+                },
+              };
+            }),
+          };
+        });
       } finally {}
     },
     [sectionData.medications, setData]
@@ -1115,13 +1148,13 @@ const DigitisedPrescription = ({
   // Fuzzy-correct medication names ONCE when medications first become available
   useEffect(() => {
     if (!isGroundingAccessable) return;
-    if (hasFuzzyRunMedsRef.current) return;
     const meds = sectionData.medications || [];
     if (!meds.length) return;
-    
-    const namesSignature = meds.map((m) => getMedicationNameForFuzzy(m)).join("|");
+
+    // Use groundingMedicineName if present, otherwise use name for signature
+    const namesSignature = getMedicationNamesSignature(meds);
     if (!namesSignature) return;
-    
+
     // If signature matches what we last processed, skip
     if (namesSignature === lastFuzzyNamesRef.current) return;
 
@@ -1169,8 +1202,10 @@ const DigitisedPrescription = ({
 
   const onSelectParent = (value, option) => {
     // Open Add Custom popup if needed (tmm_id === 0)
+    let parsedOption = null;
     try {
       const meta = option?.key ? JSON.parse(option.key) : null;
+      parsedOption = meta;
       if (meta && meta.tmm_id === 0) {
         setShowAddMedicinePopup(true);
         return;
@@ -1189,8 +1224,9 @@ const DigitisedPrescription = ({
             refinedName: value,
             metadata: {
               ...arr[activeIndex].metadata,
-              ...(option?.key ? JSON.parse(option.key) : {}),
+              ...(parsedOption || {}),
               selectedValue: value,
+              isManualSelection: true,
             },
           };
           updated.medications = arr;

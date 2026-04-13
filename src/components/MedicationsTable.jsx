@@ -502,6 +502,7 @@ const MedicationsTable = ({
         newMedication.metadata = {
           ...medication,
           selectedValue: medicineName,
+          isManualSelection: true,
         };
       }
       
@@ -668,6 +669,7 @@ const MedicationsTable = ({
             updated.metadata = {
               ...medicineData,
               selectedValue: medicineName,
+              isManualSelection: true,
             };
           }
           
@@ -1840,6 +1842,7 @@ const MedicationsTable = ({
               newMedication.metadata = {
                 ...addedMedicine,
                 selectedValue: medicineName,
+                isManualSelection: true,
               };
             }
             

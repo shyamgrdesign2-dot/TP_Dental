@@ -62,6 +62,7 @@ import {
     S_DDX,
     S_VOICE_RX,
     OPTHAL_PAD_MODULE_ID,
+    GB_VOICE_RX_FREE,
 } from "../../../../utils/constants";
 import {
     assignCarePlan,
@@ -242,7 +243,8 @@ function TabRxHeaderV2({
 
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
-    const isFreeVoiceRxUser = isVoiceRxFree();
+    const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+    const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
 
     useEffect(() => {
         dispatch(oneClickTemplatesList());

@@ -4,8 +4,9 @@ import { Drawer } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import { getProfile, services } from '../../../redux/doctorsSlice';
 import { isMobile } from 'react-device-detect';
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from '../../../utils/utils';
-import { FAILED_VERIFICATION, FREE, S_VOICE_RX } from '../../../utils/constants';
+import { FAILED_VERIFICATION, FREE, GB_VOICE_RX_FREE, S_VOICE_RX } from '../../../utils/constants';
 import ExpiredSubModal from '../../monetization/components/ExpiredSubModal';
 import FreeTrialButton from '../../monetization/components/FreeTrialButton';
 import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
@@ -60,7 +61,8 @@ function MobileVoiceRxConsult() {
   const VOICE_RX_planDetails = servicesList?.find(
     (service) => service.service_name === S_VOICE_RX
   );
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tokenData = getTokenData();
 
   const isVoiceRxCreditExpired =
