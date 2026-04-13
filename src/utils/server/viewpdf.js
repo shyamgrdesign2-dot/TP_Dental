@@ -8892,6 +8892,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }}
                                       >
                                         {item?.name || item?.lineItem || ""}
+                                        {item?.instruction || item?.notes || item?.note || item?.lineItem
+                                          ? ` (${item?.instruction || item?.notes || item?.note || item?.lineItem})`
+                                          : ""}
                                         &nbsp;
                                       </Text>
                                       <Text
@@ -8976,6 +8979,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }}
                                       >
                                         {item?.name || item?.lineItem || ""}
+                                        {item?.instruction || item?.notes || item?.note || item?.lineItem
+                                          ? ` (${item?.instruction || item?.notes || item?.note || item?.lineItem})`
+                                          : ""}
                                         &nbsp;
                                       </Text>
                                     </Text>
