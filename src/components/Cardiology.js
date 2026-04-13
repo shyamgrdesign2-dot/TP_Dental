@@ -3850,6 +3850,23 @@ function Cardiology(props) {
                       ))}
                   </>
                 )}
+                {snapRxDigitisedData?.followUp && (
+                  <div
+                    className={`d-flex align-items-center mb-14 follow-up-detailsPage`}
+                  >
+                    <img className="me-3" src={followUp} alt="Symptoms" />
+                    <div className="title-common">Follow-up:</div>
+                    <div className="follow-up-date-text">
+                      {snapRxDigitisedData?.followUp
+                        ? moment(
+                          snapRxDigitisedData?.followUp,
+                          ["YYYY-MM-DD", "DD/MM/YYYY", "DD-MM-YYYY"],
+                          true
+                        ).format("DD/MM/YYYY")
+                        : ""}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : !(isMobile && !isTablet) && (
               <Card.Body className="p-0 cardbody-data">
