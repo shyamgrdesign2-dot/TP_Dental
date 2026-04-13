@@ -775,6 +775,7 @@ function SmartRxDigitise() {
           {
             tcm_id,
             patient_unique_id: patient_data.patient_unique_id,
+            isDentalReq: true
           },
           {
             headers: {
