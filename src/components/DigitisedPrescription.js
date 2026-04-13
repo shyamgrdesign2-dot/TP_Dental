@@ -132,8 +132,7 @@ const getPrimaryText = (type, item) => {
   return item?.name || "";
 };
 
-const getMedicationNameToUse = (med) =>
-  ((med?.groundingMedicineName || "").trim() || (med?.name || "").trim());
+const getMedicationNameToUse = (med) => getMedicationNameForFuzzy(med);
 
 const getMedicationNamesSignature = (meds = []) =>
   meds.map((m) => getMedicationNameToUse(m)).join("|");
@@ -1015,7 +1014,6 @@ const DigitisedPrescription = ({
 
         const correctedResults = await Promise.all(
           meds.map(async (med) => {
-            // Use groundingMedicineName if present and non-empty, otherwise use name
             const nameToUse = getMedicationNameToUse(med);
             const isManualSelection = Boolean(
               med?.metadata?.isManualSelection ||
@@ -1034,9 +1032,7 @@ const DigitisedPrescription = ({
               return { correctedName: nameToUse, fullData: null, skip: true };
             }
             try {
-              // Send groundingMedicineName to grounding API if present, otherwise send name
-              const searchName = getMedicationNameToUse(med);
-              const result = await ApiMedication.getFuzzySearch(searchName);
+              const result = await ApiMedication.getFuzzySearch(nameToUse);
               const corrected = result?.[0]?.tmm_medicine_name?.trim();
               return {
                 correctedName: corrected || nameToUse,
@@ -1076,19 +1072,19 @@ const DigitisedPrescription = ({
             medications: currentMeds.map((m, idx) => {
               const result = correctedResults[idx];
               if (!result || result.skip) return m;
-              return {
+              const corrected = result.correctedName;
+              return ensureMedicationGroundedForRxSave({
                 ...m,
-                name: result.correctedName,
-                refinedName: result.correctedName,
-                // Add metadata for fuzzy search corrected name with full data
+                groundedMedicineName: corrected,
+                refinedName: corrected,
                 metadata: {
                   ...m.metadata,
-                  fuzzyCorrectedName: result.correctedName,
-                  originalName: getMedicationNameToUse(m),
+                  fuzzyCorrectedName: corrected,
+                  originalName: getMedicationNameForFuzzy(m) || m.name,
                   isFuzzyCorrected: true,
                   ...(result.fullData || {}),
                 },
-              };
+              });
             }),
           };
         });
