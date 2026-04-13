@@ -20,11 +20,17 @@ const Toolbar = ({
   onZoomOut,
   onFit
 }) => {
+  const DEFAULT_PEN_THICKNESS = 2;
+  const DEFAULT_ERASER_THICKNESS = 2;
+  const DEFAULT_HIGHLIGHTER_THICKNESS = 14;
+
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState({ x: typeof window !== 'undefined' ? 20 : 20, y: 150 });
   const [orientation, setOrientation] = useState('vertical');
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const toolbarRef = useRef(null);
+  const settingsPanelRef = useRef(null);
   // Android fires BOTH pointerdown AND a synthetic click for a single tap.
   // iOS/iPad respects e.preventDefault() in pointerdown and suppresses the click.
   // Recording the pointerdown timestamp and skipping onClick when it fires within
@@ -35,6 +41,31 @@ const Toolbar = ({
   const activeColors = toolSettings.activeTool === 'highlighter' ? HIGHLIGHTER_COLORS : CLINICAL_COLORS;
   const isTextTool = toolSettings.activeTool === 'text';
   const zoomPercent = Math.round((zoomLevel || 1) * 100);
+
+  const getToolThickness = (settings, tool) => {
+    if (tool === 'pen') return settings.penThickness ?? DEFAULT_PEN_THICKNESS;
+    if (tool === 'eraser') return settings.eraserThickness ?? DEFAULT_ERASER_THICKNESS;
+    if (tool === 'highlighter') return settings.highlighterThickness ?? DEFAULT_HIGHLIGHTER_THICKNESS;
+    return settings.thickness ?? DEFAULT_PEN_THICKNESS;
+  };
+
+  // Close settings panel when tapping/clicking outside toolbar.
+  useEffect(() => {
+    if (!showSettings) return undefined;
+
+    const handleOutsidePointer = (e) => {
+      const target = e.target;
+      if (!target) return;
+      if (toolbarRef.current && toolbarRef.current.contains(target)) return;
+      if (settingsPanelRef.current && settingsPanelRef.current.contains(target)) return;
+      setShowSettings(false);
+    };
+
+    window.addEventListener('pointerdown', handleOutsidePointer, true);
+    return () => {
+      window.removeEventListener('pointerdown', handleOutsidePointer, true);
+    };
+  }, [showSettings, setShowSettings]);
 
   const handlePointerDown = (e) => {
     const target = e.target;
@@ -95,14 +126,15 @@ const Toolbar = ({
     if (tool === toolSettings.activeTool && !isMinimized) {
       setShowSettings(!showSettings);
     } else {
-      // Default Settings Logic
-      let newSettings = { ...toolSettings, activeTool: tool };
-      
-      if (tool === 'highlighter') {
-          newSettings.thickness = 14; // Default to 14px as requested
-      } else if (tool === 'pen' && toolSettings.activeTool === 'highlighter') {
-          newSettings.thickness = 2; // Reset to reasonable pen default if coming from highlighter
-      }
+      // Keep thickness independent per tool.
+      const newSettings = {
+        ...toolSettings,
+        penThickness: toolSettings.penThickness ?? DEFAULT_PEN_THICKNESS,
+        eraserThickness: toolSettings.eraserThickness ?? DEFAULT_ERASER_THICKNESS,
+        highlighterThickness: toolSettings.highlighterThickness ?? DEFAULT_HIGHLIGHTER_THICKNESS,
+        activeTool: tool,
+        thickness: getToolThickness(toolSettings, tool),
+      };
 
       setToolSettings(newSettings);
       setShowSettings(true);
@@ -172,6 +204,7 @@ const Toolbar = ({
 
   return (
     <div
+      ref={toolbarRef}
       className={`tab-rx-toolbar ${orientation}`}
       style={{ left: position.x, top: position.y }}
       onPointerDown={handlePointerDown}
@@ -327,6 +360,7 @@ const Toolbar = ({
         {/* Dynamic Drawer Settings Panel */}
         {showSettings && (
           <div 
+            ref={settingsPanelRef}
             className={`settings-panel ${orientation} ${getDrawerClasses()}`}
             onPointerDown={(e) => e.stopPropagation()} 
           >
@@ -385,7 +419,20 @@ const Toolbar = ({
                         max="24"
                         step="1"
                         value={toolSettings.thickness}
-                        onChange={(e) => setToolSettings(prev => ({ ...prev, thickness: parseInt(e.target.value) }))}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value, 10);
+                          setToolSettings((prev) => {
+                            const next = { ...prev, thickness: value };
+                            if (prev.activeTool === 'pen') {
+                              next.penThickness = value;
+                            } else if (prev.activeTool === 'eraser') {
+                              next.eraserThickness = value;
+                            } else if (prev.activeTool === 'highlighter') {
+                              next.highlighterThickness = value;
+                            }
+                            return next;
+                          });
+                        }}
                       />
                       <span className="slider-label">24px</span>
                    </div>
