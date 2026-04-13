@@ -27,71 +27,170 @@ import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
+import { lazyRetry } from "./utils/lazyRetry";
 
-const AppointmentList = React.lazy(() => import("./pages/AppointmentList"));
-const PatientDetails = React.lazy(() => import("./pages/PatientDetails"));
-const Prescription = React.lazy(() => import("./pages/Prescription"));
-const SmartPrescription = React.lazy(() => import("./pages/SmartPrescription"));
-const SmartRxPreview = React.lazy(() => import("./pages/SmartRxPreview"));
-const TabPrescription = React.lazy(() => import("./pages/tab_design/TabPrescription"));
-const PrescriptionPrintView = React.lazy(() => import("./pages/PrescriptionPrintView"));
-const ConfigurePrintSetting = React.lazy(() => import("./pages/ConfigurePrintSetting"));
-const MedicalCertificate = React.lazy(() => import("./pages/MedicalCertificate"));
-const CertificatePrintView = React.lazy(() => import("./pages/CertificatePrintView"));
-const DoctorProfile = React.lazy(() => import("./pages/DoctorProfile"));
-const DoctorWebsiteSetting = React.lazy(() => import("./pages/DoctorWebsiteSetting"));
-const MessageCreateCampaign = React.lazy(() => import("./pages/MessageCreateCampaign"));
-const SmartRxDigitise = React.lazy(() => import("./pages/SmartRxDigitise"));
-const ApolloConsultations = React.lazy(() => import("./pages/apolloConsultations/ApolloConsultations"));
-const GenRxPrescriptionPrintView = React.lazy(() => import("./pages/GenRxPrescriptionPrintView"));
-const BillingDashboard = React.lazy(() => import("./pages/opdBilling/components/billingDashboard/BillingDashboard"));
-const BillingSettings = React.lazy(() => import("./pages/opdBilling/components/advanceBillSettings/BillingSettings"));
-const AllPatients = React.lazy(() => import("./pages/allPatients.js/AllPatients"));
-const AddAppointment = React.lazy(() => import("./pages/addAppointment/AddAppointment"));
-const GetUnlimitedAccess = React.lazy(() => import("./pages/monetization/GetUnlimitedAccess"));
-const Onboarding = React.lazy(() => import("./pages/onBoarding/components/Onboarding"));
-const FinalSetup = React.lazy(() => import("./pages/FinalSetup"));
-const OurOffering = React.lazy(() => import("./pages/ourOffering/OurOffering"));
-const SnapRx = React.lazy(() => import("./pages/snapRx/SnapRx"));
-const UploadRx = React.lazy(() => import("./pages/uploadRx"));
-const OphthalSnapRx = React.lazy(() => import("./pages/ophthalSnapRx/SnapRx"));
-const OphthalUploadRx = React.lazy(() => import("./pages/ophthalUploadRx"));
-const SnapRxPreview = React.lazy(() => import("./pages/snapRx/SnapRxPreview"));
-const SnapRxDigitise = React.lazy(() => import("./pages/snapRx/SnapRxDigitise"));
-const AppointmentAgent = React.lazy(() => import("./pages/appointmentAgent/AppointmentAgent"));
-const AppointmentSuccess = React.lazy(() => import("./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess"));
-const VoiceRxConsult = React.lazy(() => import("./pages/VoiceRxConsult"));
-const OpdBill = React.lazy(() => import("./pages/opdBilling/OpdBill"));
-const HealthRecords = React.lazy(() => import("./pages/abhaRecords/HealthRecords"));
-const AbhaStandalone = React.lazy(() => import("./pages/abha/AbhaStandalone"));
-const AddNewPatient = React.lazy(() => import("./pages/AddNewPatient"));
-const TalkativeWidget = React.lazy(() => import("./components/TalkativeWidget"));
-const AppTeleconsultBootstrap = React.lazy(
-  () => import("./components/AppTeleconsultBootstrap")
+const AppointmentList = React.lazy(() =>
+  lazyRetry(() => import("./pages/AppointmentList"))
 );
-const DemoExpirationBanner = React.lazy(
-  () => import("./common/DemoExpirationBanner")
+const PatientDetails = React.lazy(() =>
+  lazyRetry(() => import("./pages/PatientDetails"))
 );
-const PlanExpirationBanner = React.lazy(
-  () => import("./common/PlanExpirationBanner")
+const Prescription = React.lazy(() =>
+  lazyRetry(() => import("./pages/Prescription"))
 );
-const DoctorModal = React.lazy(() => import("./common/DoctorModal"));
-const ExpiredPlanCard = React.lazy(() => import("./common/ExpiredPlanCard"));
-const BottomSheetManager = React.lazy(
-  () => import("./components/bottomSheetManager")
+const SmartPrescription = React.lazy(() =>
+  lazyRetry(() => import("./pages/SmartPrescription"))
 );
-const UpgradeServicesModal = React.lazy(
-  () => import("./pages/monetization/components/UpgradeServicesModal")
+const SmartRxPreview = React.lazy(() =>
+  lazyRetry(() => import("./pages/SmartRxPreview"))
 );
-const MobilePatientDetails = React.lazy(() => import("./pages/mobile/PatientDetails/PatientDetails"));
-const MobileAllPatients = React.lazy(() => import("./pages/mobile/AllPatients/AllPatients"));
-const MobileVoiceRxConsult = React.lazy(() => import("./pages/mobile/VoiceRxConsult/MobileVoiceRxConsult"));
-const MobileVoiceRecording = React.lazy(() => import("./pages/mobile/VoiceRecording/MobileVoiceRecording"));
-const AppStoreProvider = React.lazy(() => import("./redux/AppStoreProvider"));
-const TabRx = React.lazy(() => import("./pages/tabRx/TabRx"));
-const TabRxCanvas = React.lazy(() => import("./pages/tabRx/components/TabRxCanvas"));
-const TabRxPrescriptionPrintView = React.lazy(() => import("./pages/tabRx/components/tabRxPrescriptionPrintView/TabRxPrescriptionPrintView"));
-const TabRxDigitization = React.lazy(() => import("./pages/tabRx/components/Digitization"));
+const TabPrescription = React.lazy(() =>
+  lazyRetry(() => import("./pages/tab_design/TabPrescription"))
+);
+const PrescriptionPrintView = React.lazy(() =>
+  lazyRetry(() => import("./pages/PrescriptionPrintView"))
+);
+const ConfigurePrintSetting = React.lazy(() =>
+  lazyRetry(() => import("./pages/ConfigurePrintSetting"))
+);
+const MedicalCertificate = React.lazy(() =>
+  lazyRetry(() => import("./pages/MedicalCertificate"))
+);
+const CertificatePrintView = React.lazy(() =>
+  lazyRetry(() => import("./pages/CertificatePrintView"))
+);
+const DoctorProfile = React.lazy(() =>
+  lazyRetry(() => import("./pages/DoctorProfile"))
+);
+const DoctorWebsiteSetting = React.lazy(() =>
+  lazyRetry(() => import("./pages/DoctorWebsiteSetting"))
+);
+const MessageCreateCampaign = React.lazy(() =>
+  lazyRetry(() => import("./pages/MessageCreateCampaign"))
+);
+const SmartRxDigitise = React.lazy(() =>
+  lazyRetry(() => import("./pages/SmartRxDigitise"))
+);
+const ApolloConsultations = React.lazy(() =>
+  lazyRetry(() => import("./pages/apolloConsultations/ApolloConsultations"))
+);
+const GenRxPrescriptionPrintView = React.lazy(() =>
+  lazyRetry(() => import("./pages/GenRxPrescriptionPrintView"))
+);
+const BillingDashboard = React.lazy(() =>
+  lazyRetry(() => import("./pages/opdBilling/components/billingDashboard/BillingDashboard"))
+);
+const BillingSettings = React.lazy(() =>
+  lazyRetry(() => import("./pages/opdBilling/components/advanceBillSettings/BillingSettings"))
+);
+const AllPatients = React.lazy(() =>
+  lazyRetry(() => import("./pages/allPatients.js/AllPatients"))
+);
+const AddAppointment = React.lazy(() =>
+  lazyRetry(() => import("./pages/addAppointment/AddAppointment"))
+);
+const GetUnlimitedAccess = React.lazy(() =>
+  lazyRetry(() => import("./pages/monetization/GetUnlimitedAccess"))
+);
+const Onboarding = React.lazy(() =>
+  lazyRetry(() => import("./pages/onBoarding/components/Onboarding"))
+);
+const FinalSetup = React.lazy(() =>
+  lazyRetry(() => import("./pages/FinalSetup"))
+);
+const OurOffering = React.lazy(() =>
+  lazyRetry(() => import("./pages/ourOffering/OurOffering"))
+);
+const SnapRx = React.lazy(() =>
+  lazyRetry(() => import("./pages/snapRx/SnapRx"))
+);
+const UploadRx = React.lazy(() =>
+  lazyRetry(() => import("./pages/uploadRx"))
+);
+const OphthalSnapRx = React.lazy(() =>
+  lazyRetry(() => import("./pages/ophthalSnapRx/SnapRx"))
+);
+const OphthalUploadRx = React.lazy(() =>
+  lazyRetry(() => import("./pages/ophthalUploadRx"))
+);
+const SnapRxPreview = React.lazy(() =>
+  lazyRetry(() => import("./pages/snapRx/SnapRxPreview"))
+);
+const SnapRxDigitise = React.lazy(() =>
+  lazyRetry(() => import("./pages/snapRx/SnapRxDigitise"))
+);
+const AppointmentAgent = React.lazy(() =>
+  lazyRetry(() => import("./pages/appointmentAgent/AppointmentAgent"))
+);
+const AppointmentSuccess = React.lazy(() =>
+  lazyRetry(() => import("./pages/appointmentAgent/components/AppointmentSuccess/AppointmentSuccess"))
+);
+const VoiceRxConsult = React.lazy(() =>
+  lazyRetry(() => import("./pages/VoiceRxConsult"))
+);
+const OpdBill = React.lazy(() =>
+  lazyRetry(() => import("./pages/opdBilling/OpdBill"))
+);
+const HealthRecords = React.lazy(() =>
+  lazyRetry(() => import("./pages/abhaRecords/HealthRecords"))
+);
+const AbhaStandalone = React.lazy(() =>
+  lazyRetry(() => import("./pages/abha/AbhaStandalone"))
+);
+const AddNewPatient = React.lazy(() =>
+  lazyRetry(() => import("./pages/AddNewPatient"))
+);
+const TalkativeWidget = React.lazy(() =>
+  lazyRetry(() => import("./components/TalkativeWidget"))
+);
+const AppTeleconsultBootstrap = React.lazy(() =>
+  lazyRetry(() => import("./components/AppTeleconsultBootstrap"))
+);
+const DemoExpirationBanner = React.lazy(() =>
+  lazyRetry(() => import("./common/DemoExpirationBanner"))
+);
+const PlanExpirationBanner = React.lazy(() =>
+  lazyRetry(() => import("./common/PlanExpirationBanner"))
+);
+const DoctorModal = React.lazy(() =>
+  lazyRetry(() => import("./common/DoctorModal"))
+);
+const ExpiredPlanCard = React.lazy(() =>
+  lazyRetry(() => import("./common/ExpiredPlanCard"))
+);
+const BottomSheetManager = React.lazy(() =>
+  lazyRetry(() => import("./components/bottomSheetManager"))
+);
+const UpgradeServicesModal = React.lazy(() =>
+  lazyRetry(() => import("./pages/monetization/components/UpgradeServicesModal"))
+);
+const MobilePatientDetails = React.lazy(() =>
+  lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
+);
+const MobileAllPatients = React.lazy(() =>
+  lazyRetry(() => import("./pages/mobile/AllPatients/AllPatients"))
+);
+const MobileVoiceRxConsult = React.lazy(() =>
+  lazyRetry(() => import("./pages/mobile/VoiceRxConsult/MobileVoiceRxConsult"))
+);
+const MobileVoiceRecording = React.lazy(() =>
+  lazyRetry(() => import("./pages/mobile/VoiceRecording/MobileVoiceRecording"))
+);
+const AppStoreProvider = React.lazy(() =>
+  lazyRetry(() => import("./redux/AppStoreProvider"))
+);
+const TabRx = React.lazy(() =>
+  lazyRetry(() => import("./pages/tabRx/TabRx"))
+);
+const TabRxCanvas = React.lazy(() =>
+  lazyRetry(() => import("./pages/tabRx/components/TabRxCanvas"))
+);
+const TabRxPrescriptionPrintView = React.lazy(() =>
+  lazyRetry(() => import("./pages/tabRx/components/tabRxPrescriptionPrintView/TabRxPrescriptionPrintView"))
+);
+const TabRxDigitization = React.lazy(() =>
+  lazyRetry(() => import("./pages/tabRx/components/Digitization"))
+);
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -108,6 +207,7 @@ function App() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const authToken = searchParams.get("authToken");
+  const mrnNo = searchParams.get("mrnNo");
   const redirectTo = searchParams.get("redirectTo");
   const uploadParams = searchParams.get("uploadParams");
   const ophthalUploadParams = searchParams.get("ophthalUploadParams");
@@ -352,8 +452,19 @@ function App() {
   useEffect(() => {
     if (authToken && !isReceptionist) {
       const params = new URLSearchParams(location.search);
+      const mrnNoParam = mrnNo || params.get("mrnNo");
       params.delete("authToken");
       const afterSearch = params.toString();
+      if (location.pathname === "/patient_details" && mrnNoParam) {
+        navigate(
+          {
+            pathname: "/patient_details",
+            search: params.toString(),
+          },
+          { replace: true, state: { mrnNo: mrnNoParam } }
+        );
+        return;
+      }
       if (location.pathname !== "/our-offerings" && location.pathname !== "/abha-standalone") {
         navigate(
           {
@@ -364,7 +475,7 @@ function App() {
         );
       }
     }
-  }, [authToken, navigate, location.pathname, isReceptionist]);
+  }, [authToken, navigate, location.pathname, location.search, isReceptionist, mrnNo]);
 
   useEffect(() => {
     if (uploadParams) {

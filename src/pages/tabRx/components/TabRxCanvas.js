@@ -116,6 +116,7 @@ const TabRxCanvas = forwardRef(({
   const [templates, setTemplates] = useState([]);
   const [uploadCanvasDrawer, setUploadCanvasDrawer] = useState(false);
   const hasAppliedDrawerPreferenceRef = useRef(false);
+  const hasPromptedFirstTemplateUploadRef = useRef(false);
 
   // Prevent re-hydrating from edit backend metadata after the user switches templates/pages.
   const didHydrateFromEditRef = useRef(false);
@@ -132,7 +133,6 @@ const TabRxCanvas = forwardRef(({
         (arr || []).some((el) => el?.content && el.content.trim().length > 0),
       );
     if (hasUserWork) {
-      setSelectedTemplateId(initialTemplateId);
       return;
     }
 
@@ -149,7 +149,7 @@ const TabRxCanvas = forwardRef(({
     }
     setStrokesByPage({ [newPageId]: [] });
     setTextElementsByPage({ [newPageId]: [] });
-  }, [initialTemplateId, selectedTemplateId, pagesMetadata.length, strokesByPage, textElementsByPage]);
+  }, [initialTemplateId]);
 
   // Handle external multi-page custom background images
   const backgroundImagesStr = backgroundImages ? backgroundImages.join(',') : '';
@@ -532,7 +532,19 @@ const TabRxCanvas = forwardRef(({
       try {
         const result = await getTemplates();
         if (result.success) {
-          setTemplates(result.data || []);
+          const fetchedTemplates = result.data || [];
+          setTemplates(fetchedTemplates);
+          if (
+            fetchedTemplates.length === 0 &&
+            !hasPromptedFirstTemplateUploadRef.current
+          ) {
+            // First-time setup: show letterhead drawer and prompt upload once.
+            if (!showTemplateDrawer && onToggleTemplateDrawer) {
+              onToggleTemplateDrawer();
+            }
+            setUploadCanvasDrawer(true);
+            hasPromptedFirstTemplateUploadRef.current = true;
+          }
         }
       } catch (error) {
         console.error('Error loading templates:', error);

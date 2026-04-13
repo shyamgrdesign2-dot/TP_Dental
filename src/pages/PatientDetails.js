@@ -43,13 +43,15 @@ import { setBillPrintSettings, setIpdBillPrintSettings } from "../redux/billingS
 import { useConsultationNavigation } from "../hooks/useConsultationNavigation";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import { resetPatientsDetails } from "../redux/appointmentsSlice";
+import { lazyRetry } from "../utils/lazyRetry";
+import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
+import { errorMessage } from "../utils/utils";
 import { ASSETS } from "../assets";
 const variables = ASSETS.scss.variables;
 const alertIcon = ASSETS.images.alerticon;
-
 const BillingDashboard = React.lazy(() =>
-    import("./opdBilling/components/billingDashboard/BillingDashboard")
-  );
+  lazyRetry(() => import("./opdBilling/components/billingDashboard/BillingDashboard"))
+);
 
 const { Sider, Content } = Layout;
 
@@ -70,11 +72,13 @@ function PatientDetails() {
       );
     const dispatch = useDispatch();
 
-    const { state } = useLocation();
-    const { patient_data, sidebarKey: initialSidebarKey } = state
-
-    let location = useLocation();
+    const location = useLocation();
     const navigate = useNavigate();
+    const locationState = location.state || {};
+    const { patient_data, sidebarKey: initialSidebarKey } = locationState || {};
+    const stateMrnNo = locationState?.mrnNo;
+    const queryMrnNo = new URLSearchParams(location.search).get("mrnNo");
+    const mrnNo = queryMrnNo || stateMrnNo;
     const { isVaccinationAccessable, isGrowthChartAccessable } = useAccess(
       patient_data?.ageYears
     );
@@ -109,7 +113,67 @@ function PatientDetails() {
     const [isCheckingAdmission, setIsCheckingAdmission] = useState(false);
     const [opthalPrescriptionHistory, setOpthalPrescriptionHistory] = useState([]);
     const [showHealthCheckupReportDrawer, setShowHealthCheckupReportDrawer] = useState(false);
-    
+    const hasFetchedFromMrn = useRef(false);
+
+    useEffect(() => {
+        const fetchPatientFromMrn = async () => {
+            const isEmptyPatientData = (() => {
+                if (!patient_data) return true;
+                if (Array.isArray(patient_data)) return patient_data.length === 0;
+                if (typeof patient_data === "object") {
+                    return Object.keys(patient_data).length === 0;
+                }
+                return true;
+            })();
+            if (!mrnNo || !isEmptyPatientData || hasFetchedFromMrn.current) {
+                return;
+            }
+            hasFetchedFromMrn.current = true;
+            const searchAction = await dispatch(
+                searchPatients({ searchQuery: mrnNo, company: "zydus" })
+            );
+            if (searchAction.meta.requestStatus !== "fulfilled") {
+                errorMessage("No patient data found for this MRN.");
+                return;
+            }
+            const searchResult = searchAction.payload;
+            const record = Array.isArray(searchResult) ? searchResult[0] : searchResult;
+            if (!record) {
+                errorMessage("No patient data found for this MRN.");
+                return;
+            }
+            const syncAction = await dispatch(synczyduspatient(record));
+            if (syncAction.meta.requestStatus === "fulfilled") {
+                const result = syncAction.payload;
+                if (!result?.patient_unique_id) {
+                    errorMessage('Invalid patient data received. Please try again.');
+                    return;
+                }
+                try {
+                    if (window.Moengage && typeof window.Moengage.track_event === 'function') {
+                        window.Moengage.track_event("TP_Patient_details", {
+                            patient_number: record?.mobilenumber,
+                            patient_id: result?.patient_unique_id
+                        });
+                    }
+                } catch (error) {
+                    console.warn('Analytics error:', error);
+                }
+                navigate("/patient_details", {
+                    replace: true,
+                    state: {
+                        patient_data: { ...result, mrno: record.mrno },
+                        sidebarKey: initialSidebarKey,
+                        mrnNo: mrnNo,
+                    },
+                });
+            } else {
+                errorMessage(syncAction.error);
+            }
+        };
+
+        fetchPatientFromMrn();
+    }, [dispatch, mrnNo, patient_data, navigate, initialSidebarKey]);
 
     useEffect(() => {
         dispatch(resetViewCaseManagerData());
@@ -118,7 +182,7 @@ function PatientDetails() {
     useEffect(() => {
         if (patient_data?.patient_unique_id) {
             dispatch(listConsultations({
-                patient_unique_id: patient_data.patient_unique_id,
+                patient_unique_id: patient_data?.patient_unique_id,
                 limit: 10,
                 page: 1
             }));
@@ -171,7 +235,7 @@ function PatientDetails() {
                 patient_id: patient_data?.patient_unique_id,
             });
             var sendData = {
-                patient_unique_id: patient_data.patient_unique_id,
+                patient_unique_id: patient_data?.patient_unique_id,
                 tcm_id: currentConsultation.tcm_id
             };
             dispatch(viewCaseManager(sendData));
@@ -225,7 +289,7 @@ function PatientDetails() {
     }, []);
 
     useEffect(() => {
-    if (patient_data.patient_unique_id && allUploadedDocs.length === 0) {
+    if (patient_data?.patient_unique_id && allUploadedDocs.length === 0) {
         getAllPatientDocs();
     }
     if (
@@ -282,6 +346,9 @@ function PatientDetails() {
     };
 
     const getAllPatientDocs = async () => {
+        if (!patient_data?.patient_unique_id) {
+            return;
+        }
         const doctorUploadedDocs = await fetchAllPatientDocs(patient_data.patient_unique_id);
         const patientUploadedDocs = await fetchDocsUploadedByPatient(
           patient_data.patient_unique_id
@@ -297,7 +364,7 @@ function PatientDetails() {
     const nextPress = () => {
         window.Moengage.track_event("patient_detail_next", {
             "doctor_id": profile?.doctor_unique_id,
-            "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
+            "patient_id": patient_data?.patient_unique_id || 0
         });
         handleNextConsultation();
     }
@@ -305,7 +372,7 @@ function PatientDetails() {
     const prevPress = () => {
         window.Moengage.track_event("patient_detail_prev", {
             "doctor_id": profile?.doctor_unique_id,
-            "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0
+            "patient_id": patient_data?.patient_unique_id || 0
         });
         handlePrevConsultation();
     }
@@ -329,13 +396,23 @@ function PatientDetails() {
      setShowDeletePopup(true);
    };
 
-   const handleDrawerUploadDoc = () => {
-     setUploadDocDrawer(!uploadDocDrawer);
-   };
+    const handleDrawerUploadDoc = () => {
+      setUploadDocDrawer(!uploadDocDrawer);
+    };
 
    const handleGenerateHealthCheckupReport = () => {
     setShowHealthCheckupReportDrawer(true);
    };
+
+    if (!patient_data || (typeof patient_data === "object" && Object.keys(patient_data).length === 0)) {
+        return (
+            <div className="appointment-wrap PatientDetailswrap m-0">
+                <div className="d-flex justify-content-center py-5">
+                    {/* Patient Details Not found */}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>

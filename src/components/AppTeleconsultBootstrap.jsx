@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { message } from "antd";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import { getTokenData } from "../utils/utils";
 import TeleconsultNotificationHandler from "./TeleconsultNotificationHandler";
 import TeleconsultFloatingWindow from "./TeleconsultFloatingWindow";
 import {
@@ -48,6 +49,15 @@ export default function AppTeleconsultBootstrap() {
       return;
     }
     doctorLeftFiredRef.current = true;
+    const tokenData = getTokenData();
+
+    window?.Moengage?.track_event("TP_TC_endTC", {
+      doctor_name: profile?.um_name,
+      doctor_number: profile?.um_contact,
+      doctor_specialty: profile?.dp_name,
+      um_id: tokenData?.user_id,
+    });
+
     try {
       if (activeTeleconsultConsultationId) {
         await ApiTeleconsult.doctorLeft(activeTeleconsultConsultationId);
@@ -68,7 +78,7 @@ export default function AppTeleconsultBootstrap() {
       }
       dispatch(setJoinToken(null));
     }
-  }, [activeTeleconsultAppointmentId, activeTeleconsultConsultationId, dispatch]);
+  }, [activeTeleconsultAppointmentId, activeTeleconsultConsultationId, dispatch, profile]);
 
   // If user navigates into any Voice Rx consult route while a teleconsult call is active,
   // automatically drop the video call so they can proceed with the Voice Rx flow.

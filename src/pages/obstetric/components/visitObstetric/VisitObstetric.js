@@ -25,8 +25,9 @@ export default function VisitObstetric({ doctorId }) {
   const { obstetricDetails: allObstetricDetails, isObstetricDetailsFetched } =
     useSelector((state) => state.obstetric);
   const obstetricDetails = allObstetricDetails?.currentPregnancy || {};
-  const { state } = useLocation();
-  const { patient_data } = state;
+  const location = useLocation();
+  const locationState = location.state || {};
+  const { patient_data } = locationState;
   const { isGynaecHistoryAccessable } = useAccess();
 
   const [viewMore, setViewMore] = useState(false);

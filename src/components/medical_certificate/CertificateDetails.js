@@ -3,7 +3,7 @@ import { Dropdown, Button, Drawer, Spin, message } from "antd";
 import Card from 'react-bootstrap/Card';
 import moment from "moment";
 import { useNavigate } from 'react-router-dom';
-import { isChrome, isSafari, isMobile } from "react-device-detect";
+import { isChrome, isSafari, isMobile, isTablet } from "react-device-detect";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -148,7 +148,7 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
                                 })}
                             </div>
                         ) : (
-                            isMobile ? (
+                            (isMobile && !isTablet) ? (
                                 // Mobile Empty State
                                 <div className="certificate-empty-state-mobile">
                                     <div className="certificate-empty-state">

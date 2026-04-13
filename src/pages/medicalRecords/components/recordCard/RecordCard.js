@@ -306,7 +306,7 @@ const RecordCard = ({
       if (tokenData.clinic_id == 8061) {//Cancer Hospital
         window.open(`http://10.12.100.170:6162/Launch_Viewer.asp?Username=hisuser&Password=hisuser&patientid=${patient_data.mrno}`);
       } else if (tokenData.clinic_id == 10733) {//Vadodara Hospital
-        window.open(`http://10.14.100.14:6162/Launch_Viewer.asp?Username=hisuser&Password=hisuser&patientid=${patient_data.mrno}`);
+        window.open(`https://10.14.100.14/PACSAPI/Launch_Viewer?Username=hisuser&Password=hisuser&patientid=${patient_data.mrno}`);
       } else if (tokenData.clinic_id == 10739) {//Anand Hospital
         window.open(`http://10.10.11.108:6162/Launch_Viewer.asp?Username=hisuser&Password=hisuser&patientid=${patient_data.mrno}`);
       } else {//Ahmedabad Hospital

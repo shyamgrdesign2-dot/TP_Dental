@@ -720,6 +720,7 @@ function AddAppointment() {
         "Doctor_unique_id": profile?.doctor_unique_id,
         "Doctor_name": profile?.um_name,
         "Doctor_mobile_No": profile?.um_contact,
+        appointment_type: isTeleConsultEnabled && appointmentMode === "teleconsult" ? 1 : 0,
         "Patient_unique_id": clickedPatient?.patient_unique_id,
         "Patient_name": clickedPatient?.pm_first_name,
         "Pm_pid": clickedPatient?.pm_pid,
@@ -1081,6 +1082,12 @@ function AddAppointment() {
                 fontWeight: 500,
               }}
               onClick={() => {
+                window.Moengage.track_event("TP__TC_ApptBooking", {
+                  "Doctor_name": profile?.um_name,
+                  "Doctor_mobile_No": profile?.um_contact,
+                  "Doctor_specialty": profile?.dp_name,
+                  "Doctor_um_id": tokenData?.user_id,
+                });
                 setAppointmentMode("teleconsult");
                 setSelectedTimeSlot(null);
                 setSelectedSlotDetails(null);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
-import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence } from '../../utils/utils'
+import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
 import { EXTRA_OPTIONS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
 import moment from 'moment';
 import ObsHistoryInlineView from './obsHistory/inline';
@@ -830,40 +830,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const onCalFollowUp = (start_date, end_date) => {
-        const dateB = moment(start_date);
-        const dateC = moment(end_date);
-
-        const days = dateB.diff(dateC, 'days');
-        const weeks = Math.floor(days / 7);
-        const remainingDays = days % 7;
-
-        if (weeks >= 48 && weeks % 48 === 0 && remainingDays === 0) {
-            const yearsValue = Math.floor(weeks / 48);
-            return `${yearsValue} ${yearsValue <= 1 ? 'Year' : 'Years'}`;
-        } else if (weeks === 5 && remainingDays === 0) {
-            return "1 Month";
-        } else if ((weeks === 7 || weeks === 9) && remainingDays === 0) {
-            return "2 Months";
-        } else if ((weeks === 11 || weeks === 13) && remainingDays === 0) {
-            return "3 Months";
-        } else if (weeks === 17 && remainingDays === 0) {
-            return "4 Months";
-        } else if ((weeks === 19 || weeks === 21) && remainingDays === 0) {
-            return "5 Months";
-        } else if ((weeks === 23 || weeks === 25) && remainingDays === 0) {
-            return "6 Months";
-        } else if ((weeks === 27 || weeks === 29) && remainingDays === 0) {
-            return "7 Months";
-        } else if (weeks % 4 === 0 && weeks >= 4 && weeks < 48 && remainingDays === 0) {
-            const monthsValue = Math.floor(weeks / 4);
-            return `${monthsValue} ${monthsValue <= 1 ? 'Month' : 'Months'}`;
-        } else if (weeks > 0 && remainingDays > 0) {
-            return `${weeks} ${weeks <= 1 ? 'Week' : 'Weeks'} ${remainingDays} ${remainingDays <= 1 ? 'Day' : 'Days'}`;
-        } else if (weeks > 0) {
-            return `${weeks} ${weeks <= 1 ? 'Week' : 'Weeks'}`;
-        } else {
-            return `${days} ${days <= 1 ? 'Day' : 'Days'}`;
-        }
+        return calculateFollowUpText(start_date, end_date);
     };
 
     let gynecListViewCounter = 1, medicalHistoryIndex = 1;

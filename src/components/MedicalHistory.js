@@ -18,8 +18,9 @@ function MedicalHistory({ loading, medicalHistoryData, doctorId }) {
     const [isExpand, setIsExpand] = useState(false);
     const [gynecHistory, setGynecHistory] = useState({});
 
-    const { state } = useLocation();
-    const { patient_data } = state;
+    const location = useLocation();
+    const locationState = location.state || {};
+    const { patient_data } = locationState;
 
     const {isGynaecHistoryAccessable} = useAccess();
 

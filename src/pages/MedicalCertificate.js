@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button, Drawer, Input, message } from 'antd';
 import { Container, Navbar, Row, Col } from 'react-bootstrap';
 import CommonModal from '../common/CommonModal';
@@ -33,6 +33,10 @@ function MedicalCertificate() {
     const { certificate_data, patient_data } = state != null && state;
 
     const editor = useRef(null);
+    // Stable ids for template date inputs (avoids new ids every render / DOM churn).
+    const placeholderInputIdsRef = useRef({ startDate: [], endDate: [], joinDate: [], customDate: [] });
+
+    // (Intentionally no debug logs here; keep this file lean.)
 
     // const [fontSize, setFontSize] = useState('14');
 
@@ -47,7 +51,61 @@ function MedicalCertificate() {
         return 'id-' + Math.random().toString(36).substring(2, 9);
     };
 
-    const TOOLBAR = [
+    const editorValue = useMemo(() => {
+        const ids = placeholderInputIdsRef.current;
+        const ensureId = (bucket, idx) => {
+            if (!bucket[idx]) bucket[idx] = generateRandomId();
+            return bucket[idx];
+        };
+        let startIdx = 0;
+        let endIdx = 0;
+        let joinIdx = 0;
+        let customIdx = 0;
+
+        return (content || "")
+            .replace(/{Consulting Doctor}/g, `<label class="consulting_doctor">${profile?.um_name}</label>`)
+            .replace(/{Patient Name}/g, `<label class="patient_name">${patient_data?.pm_fullname}</label>`)
+            .replace(/{Age}/g, `<label class="age">${patient_data?.ageYears}Y, ${patient_data?.ageMonths}M</label>`)
+            .replace(/{Contact Number}/g, `<label class="contact_number">${patient_data?.pm_contact_no}</label>`)
+            .replace(/{Gender}/g, `<label class="gender">${patient_data?.pm_gender}</label>`)
+            .replace(/{Email}/g, `<label class="email">${patient_data?.pm_email ? patient_data?.pm_email : 'Email'}</label>`)
+            .replace(/{Patient ID}/g, `<label class="patient_id">${patient_data?.pm_pid}</label>`)
+            .replace(/{Address}/g, `<label class="address">${patient_data?.patient_address ? patient_data?.patient_address : 'Address'}</label>`)
+            .replace(/{Blood Group}/g, `<label class="blood_group">${patient_data?.pm_blood_group ? patient_data?.pm_blood_group : 'Blood Group'}</label>`)
+            .replace(/{Date of Birth}/g, `<label class="date_of_birth">${patient_data?.DOB}</label>`)
+            .replace(/{Today Date}/g, `<label class="today_date">${moment().format('DD-MM-YYYY')}</label>`)
+            .replace(/{Department}/g, `<label class="department">${profile?.dp_name}</label>`)
+            .replace(/{Referred by}/g, `<label class="referred_by">Enter Referred by</label>`)
+            .replace(/{Case Type}/g, `<label class="case_type">Enter Case Type</label>`)
+            .replace(/{Last appointment}/g, `<label class="last_appointment">Enter Last appointment</label>`)
+            .replace(/{Inpatient Number}/g, `<label class="inpatient_number">Enter Inpatient Number</label>`)
+            .replace(/{Ward}/g, `<label class="ward">Enter Ward</label>`)
+            .replace(/{Room\/Bed}/g, `<label class="room_bed">Enter Room/Bed</label>`)
+            .replace(/{Admitting Doctor}/g, `<label class="admitting_doctor">Enter Admitting Doctor</label>`)
+            .replace(/{Admitting Date}/g, `<label class="admitting_date">Enter Admitting Date</label>`)
+            .replace(/{Admitting Time}/g, `<label class="admitting_time">Enter Admitting Time</label>`)
+            .replace(/{Discharge Date}/g, `<label class="discharge_date">Enter Discharge Date</label>`)
+            .replace(/{Discharge Time}/g, `<label class="discharge_time">Enter Discharge Time</label>`)
+            .replace(/{Admitted Days}/g, `<label class="admitted_days">Enter Admitted Days</label>`)
+            .replace(/{Admission Diagnosis}/g, `<label class="admission_diagnosis">Enter Admission Diagnosis</label>`)
+            .replace(/{Discharge Diagnosis}/g, `<label class="discharge_diagnosis">Enter Discharge Diagnosis</label>`)
+            .replace(/{Resident of}/g, `<label class="resident_of">Enter Resident of</label>`)
+            .replace(/{Start Date}/g, () => `<input type="date" id="${ensureId(ids.startDate, startIdx++)}" value="" class="start_date">`)
+            .replace(/{End Date}/g, () => `<input type="date" id="${ensureId(ids.endDate, endIdx++)}" value="" class="end_date">`)
+            .replace(/{Join Date}/g, () => `<input type="date" id="${ensureId(ids.joinDate, joinIdx++)}" value="" class="join_date">`)
+            .replace(/{Custom Date}/g, () => `<input type="date" id="${ensureId(ids.customDate, customIdx++)}" value="" class="custom_date">`)
+            .replace(/{Diagnosis}/g, `<label class="diagnosis">Enter Diagnosis</label>`)
+            .replace(/{Time}/g, `<label class="time">Enter Time</label>`)
+            .replace(/{Travel From}/g, `<label class="travel_from">Enter Travel From</label>`)
+            .replace(/{Travel To}/g, `<label class="travel_to">Enter Travel To</label>`)
+            .replace(/{Photo ID card No}/g, `<label class="photo_id_card_no">Enter Photo ID card No</label>`)
+            .replace(/{Nationality}/g, `<label class="nationality">Enter Nationality</label>`)
+            .replace(/{Passport Number}/g, `<label class="passport_number">Enter Passport Number</label>`)
+            .replace(/{Procedure}/g, `<label class="procedure">Enter Procedure</label>`)
+            .replace(/{Number of Months}/g, `<label class="number_of_months">Enter Number of Months</label>`);
+    }, [content, profile?.um_name, profile?.dp_name, patient_data]);
+
+    const TOOLBAR = useMemo(() => ([
         'undo', 'redo',
         {
             // name: fontSize,
@@ -95,14 +153,6 @@ function MedicalCertificate() {
                     editor.s.insertHTML(html);
                 };
 
-                const handleInputChange = (inputElement, eventType) => {
-                    inputElement.removeAttribute('value');
-                    inputElement.addEventListener(eventType, (event) => {
-                        const value = event.target.value;
-                        inputElement.setAttribute('value', value);
-                    });
-                };
-
                 switch (selectedOption) {
                     case 'option1':
                         insertHTMLContent(`<label class="consulting_doctor">${profile?.um_name}</label>`);
@@ -124,11 +174,9 @@ function MedicalCertificate() {
                         break;
                     case 'option7':
                         insertHTMLContent(`<input type="date" id="${randomId}" value="" class="custom_date">`);
-                        // handleInputChange(document.getElementById(randomId), 'change');
                         break;
                     case 'option8':
                         insertHTMLContent(`<input type="search" id="${randomId}" value=""/>`);
-                        // handleInputChange(document.getElementById(randomId), 'keyup');
                         break;
                     case 'option9':
                         insertHTMLContent(`<label class="email">${content}</label>`);
@@ -178,11 +226,14 @@ function MedicalCertificate() {
                 // }
             }
         }
-    ]
+    ]), [profile?.um_name, patient_data?.pm_fullname, patient_data?.ageYears, patient_data?.ageMonths, patient_data?.pm_contact_no, patient_data?.pm_gender]);
 
-    const config = {
+    const config = useMemo(() => ({
         statusbar: false,
-        placeholder: 'Write Description...',
+        // Force non-iframe mode when possible; if Jodit still uses iframe internally on some devices,
+        // we also attach shields to the editor's own document in afterInit.
+        iframe: false,
+        placeholder: '',
         buttons: TOOLBAR,
         buttonsSM: TOOLBAR,
         buttonsMD: TOOLBAR,
@@ -275,7 +326,73 @@ function MedicalCertificate() {
         //         }
         //     }
         // }
-    };
+    }), [TOOLBAR]);
+
+    const handleInputChange = useCallback((event) => {
+        const inputElement = event.target;
+        if (inputElement.type === "date" || inputElement.type === "search") {
+            const elementId = inputElement.id;
+            const valueToUpdate = document.getElementById(elementId);
+            if (valueToUpdate) {
+                valueToUpdate.removeAttribute("value");
+                if (inputElement.type === "date") {
+                    const raw = inputElement.value;
+                    const newDateValue =
+                        raw && moment(raw).isValid() ? moment(raw).format("DD/MM/YYYY") : "";
+                    valueToUpdate.setAttribute("value", newDateValue);
+                } else if (inputElement.type === "search") {
+                    valueToUpdate.setAttribute("value", inputElement.value);
+                }
+            }
+        }
+    }, []);
+
+    const handleAddEventListener = useCallback(() => {
+        const dateInputs = document.querySelectorAll('input[type="date"][id]');
+        const searchInputs = document.querySelectorAll('input[type="search"][id]');
+        dateInputs.forEach((input) => {
+            input.removeEventListener("change", handleInputChange);
+            input.removeEventListener("input", handleInputChange);
+            input.addEventListener("change", handleInputChange);
+            input.addEventListener("input", handleInputChange);
+        });
+        searchInputs.forEach((input) => {
+            input.removeEventListener("keyup", handleInputChange);
+            input.addEventListener("keyup", handleInputChange);
+        });
+    }, [handleInputChange]);
+
+    const handleRemoveEventListener = useCallback(() => {
+        const dateInputs = document.querySelectorAll('input[type="date"][id]');
+        const searchInputs = document.querySelectorAll('input[type="search"][id]');
+        dateInputs.forEach((input) => {
+            input.removeEventListener("change", handleInputChange);
+            input.removeEventListener("input", handleInputChange);
+        });
+        searchInputs.forEach((input) => {
+            input.removeEventListener("keyup", handleInputChange);
+        });
+    }, [handleInputChange]);
+
+    useEffect(() => {
+        handleAddEventListener();
+        return () => handleRemoveEventListener();
+    }, [content, handleAddEventListener, handleRemoveEventListener]);
+
+    const onEditorChange = useCallback(() => {
+        const allInputs = document.querySelectorAll('input[type="date"][id], input[type="search"][id]');
+        allInputs.forEach((input) => {
+            if (input.type === "date") {
+                input.removeEventListener("change", handleInputChange);
+                input.removeEventListener("input", handleInputChange);
+                input.addEventListener("change", handleInputChange);
+                input.addEventListener("input", handleInputChange);
+            } else {
+                input.removeEventListener("keyup", handleInputChange);
+                input.addEventListener("keyup", handleInputChange);
+            }
+        });
+    }, [handleInputChange]);
 
     useEffect(() => {
         if (certificate_data !== undefined) {
@@ -285,58 +402,7 @@ function MedicalCertificate() {
             setTitle('');
             setContent('');
         }
-        if (certificate_data?.content?.length > 0) {
-            config.placeholder = ''
-        }
     }, [certificate_data]);
-
-    const handleAddEventListener = () => {
-      // Specifically target only date and search inputs with IDs
-      const dateInputs = document.querySelectorAll('input[type="date"][id]');
-      const searchInputs = document.querySelectorAll(
-        'input[type="search"][id]'
-      );
-
-      // Handle date inputs
-      dateInputs.forEach((input) => {
-        input.removeEventListener("change", handleInputChange);
-        input.removeEventListener("input", handleInputChange);
-        input.addEventListener("change", handleInputChange);
-        input.addEventListener("input", handleInputChange);
-      });
-
-      // Handle search inputs
-      searchInputs.forEach((input) => {
-        input.removeEventListener("keyup", handleInputChange);
-        input.addEventListener("keyup", handleInputChange);
-      });
-    };
-
-    const handleRemoveEventListener = () => {
-      const dateInputs = document.querySelectorAll('input[type="date"][id]');
-      const searchInputs = document.querySelectorAll(
-        'input[type="search"][id]'
-      );
-
-      dateInputs.forEach((input) => {
-        input.removeEventListener("change", handleInputChange);
-        input.removeEventListener("input", handleInputChange);
-      });
-
-      searchInputs.forEach((input) => {
-        input.removeEventListener("keyup", handleInputChange);
-      });
-    };
-
-    useEffect(() => {
-        // Initial setup
-        handleAddEventListener();
-
-        // Cleanup
-        return () => {
-            handleRemoveEventListener();
-        };
-    }, [content]);
 
     useEffect(() => {
         const handleBackspace = (event) => {
@@ -363,75 +429,7 @@ function MedicalCertificate() {
         };
     }, []);
 
-    const onEditorChange = (newContent) => {
-        // console.log(newContent)
-        const allInputs = document.querySelectorAll('input[type="date"][id], input[type="search"][id]');
-
-        allInputs.forEach((input) => {
-            if (input.type === 'date') {
-                input.removeEventListener("change", handleInputChange);
-                input.removeEventListener("input", handleInputChange);
-                input.addEventListener("change", handleInputChange);
-                input.addEventListener("input", handleInputChange);
-            } else {
-                input.removeEventListener("keyup", handleInputChange);
-                input.addEventListener("keyup", handleInputChange);
-            }
-        });
-    }
-
-    function removeLabelWithoutContent() {
-        const allLabels = document.querySelectorAll('label');
-        // Function to handle label removal if empty
-        const handleLabelChange = (label) => {
-            console.log(label)
-            if (label.textContent.trim().length === 0) {
-                label.remove();
-            }
-        };
-
-        // Setup MutationObserver to watch for changes in the label elements
-        const observer = new MutationObserver((mutationsList) => {
-            for (let mutation of mutationsList) {
-                if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                    handleLabelChange(mutation.target);
-                }
-            }
-        });
-
-        // Observe each label
-        allLabels.forEach(label => {
-            handleLabelChange(label); // Initial check
-            observer.observe(label, { childList: true, characterData: true, subtree: true });
-        });
-
-        // Clean up observer on component unmount
-        return () => {
-            observer.disconnect();
-        };
-    }
-
-    function handleInputChange(event) {
-      const inputElement = event.target;
-      if (inputElement.type === "date" || inputElement.type === "search") {
-        const elementId = inputElement.id;
-        const valueToUpdate = document.getElementById(elementId);
-        if (valueToUpdate) {
-          valueToUpdate.removeAttribute('value');
-                if (inputElement.type === "date") {
-                    const newDateValue = moment(inputElement.value).format('DD/MM/YYYY');
-                    // console.log(newDateValue)
-          valueToUpdate.setAttribute('value', newDateValue);
-                } else if (inputElement.type === "search") {
-                    const newTextValue = inputElement.value;
-                    // console.log(newTextValue)
-                    valueToUpdate.setAttribute('value', newTextValue);
-                }
-            } else {
-                console.error("Element with ID", elementId, "not found for value update.");
-        }
-      }
-    }
+    // No onChange handling needed; we persist editor content on blur.
 
     const handleCreateCertificateDrawer = useCallback(() => {
         setCreateCertificateDrawer(!createCertificateDrawer)
@@ -539,7 +537,7 @@ function MedicalCertificate() {
                                 {certificate_data !== undefined ? (
                                     <div className="d-flex align-items-center py-3 cursor-pointer">
                                         <div className="bg-fitness me-3">
-                                            {certificate_data?.icon_image ? <img src={certificate_data?.icon_image} alt="" /> : title[0]}
+                                            {certificate_data?.icon_image ? <img src={certificate_data?.icon_image} alt="" /> : title?.length > 0 ? title?.[0] : ""}
                                         </div>
                                         <div>
                                             <div className="title-common">
@@ -570,54 +568,11 @@ function MedicalCertificate() {
                     key={'JoditEditor123'}
                     ref={editor}
                     config={config}
-                    value={content
-                        .replace(/{Consulting Doctor}/g, `<label class="consulting_doctor">${profile?.um_name}</label>`)
-                        .replace(/{Patient Name}/g, `<label class="patient_name">${patient_data?.pm_fullname}</label>`)
-                        .replace(/{Age}/g, `<label class="age">${patient_data?.ageYears}Y, ${patient_data?.ageMonths}M</label>`)
-                        .replace(/{Contact Number}/g, `<label class="contact_number">${patient_data?.pm_contact_no}</label>`)
-                        .replace(/{Gender}/g, `<label class="gender">${patient_data?.pm_gender}</label>`)
-                        .replace(/{Email}/g, `<label class="email">${patient_data?.pm_email ? patient_data?.pm_email : 'Email'}</label>`)
-                        .replace(/{Patient ID}/g, `<label class="patient_id">${patient_data?.pm_pid}</label>`)
-                        .replace(/{Address}/g, `<label class="address">${patient_data?.patient_address ? patient_data?.patient_address : 'Address'}</label>`)
-                        .replace(/{Blood Group}/g, `<label class="blood_group">${patient_data?.pm_blood_group ? patient_data?.pm_blood_group : 'Blood Group'}</label>`)
-                        .replace(/{Date of Birth}/g, `<label class="date_of_birth">${patient_data?.DOB}</label>`)
-                        .replace(/{Today Date}/g, `<label class="today_date">${moment().format('DD-MM-YYYY')}</label>`)
-                        .replace(/{Department}/g, `<label class="department">${profile?.dp_name}</label>`)
-                        .replace(/{Referred by}/g, `<label class="referred_by">Enter Referred by</label>`)
-                        .replace(/{Case Type}/g, `<label class="case_type">Enter Case Type</label>`)
-                        .replace(/{Last appointment}/g, `<label class="last_appointment">Enter Last appointment</label>`)
-                        .replace(/{Inpatient Number}/g, `<label class="inpatient_number">Enter Inpatient Number</label>`)
-                        .replace(/{Ward}/g, `<label class="ward">Enter Ward</label>`)
-                        .replace(/{Room\/Bed}/g, `<label class="room_bed">Enter Room/Bed</label>`)
-                        .replace(/{Admitting Doctor}/g, `<label class="admitting_doctor">Enter Admitting Doctor</label>`)
-                        .replace(/{Admitting Date}/g, `<label class="admitting_date">Enter Admitting Date</label>`)
-                        .replace(/{Admitting Time}/g, `<label class="admitting_time">Enter Admitting Time</label>`)
-                        .replace(/{Discharge Date}/g, `<label class="discharge_date">Enter Discharge Date</label>`)
-                        .replace(/{Discharge Time}/g, `<label class="discharge_time">Enter Discharge Time</label>`)
-                        .replace(/{Admitted Days}/g, `<label class="admitted_days">Enter Admitted Days</label>`)
-                        .replace(/{Admission Diagnosis}/g, `<label class="admission_diagnosis">Enter Admission Diagnosis</label>`)
-                        .replace(/{Discharge Diagnosis}/g, `<label class="discharge_diagnosis">Enter Discharge Diagnosis</label>`)
-                        .replace(/{Resident of}/g, `<label class="resident_of">Enter Resident of</label>`)
-                        // .replace(/{Start Date}/g, `<label class="start_date">Enter Start Date</label>`)
-                        // .replace(/{End Date}/g, `<label class="end_date">Enter End Date</label>`)
-                        // .replace(/{Join Date}/g, `<label class="join_date">Enter Join Date</label>`)
-                        .replace(/{Start Date}/g, `<input type="date" id="${generateRandomId()}" value="" class="start_date">`)
-                        .replace(/{End Date}/g, `<input type="date" id="${generateRandomId()}" value="" class="end_date">`)
-                        .replace(/{Join Date}/g, `<input type="date" id="${generateRandomId()}" value="" class="join_date">`)
-                        .replace(/{Custom Date}/g, `<input type="date" id="${generateRandomId()}" value="" class="custom_date">`)
-                        .replace(/{Diagnosis}/g, `<label class="diagnosis">Enter Diagnosis</label>`)
-                        .replace(/{Time}/g, `<label class="time">Enter Time</label>`)
-                        .replace(/{Travel From}/g, `<label class="travel_from">Enter Travel From</label>`)
-                        .replace(/{Travel To}/g, `<label class="travel_to">Enter Travel To</label>`)
-                        .replace(/{Photo ID card No}/g, `<label class="photo_id_card_no">Enter Photo ID card No</label>`)
-                        .replace(/{Nationality}/g, `<label class="nationality">Enter Nationality</label>`)
-                        .replace(/{Passport Number}/g, `<label class="passport_number">Enter Passport Number</label>`)
-                        .replace(/{Procedure}/g, `<label class="procedure">Enter Procedure</label>`)
-                        .replace(/{Number of Months}/g, `<label class="number_of_months">Enter Number of Months</label>`)
-                    }
+                    value={editorValue}
                     // tabIndex={1} // tabIndex of textarea
                     // onBlur={newContent => setContent(newContent)} // preferred to use only this option to update the content for performance reasons
                     // onChange={newContent => onChange(newContent)}
+                    onBlur={(newContent) => setContent(newContent || "")}
                     onChange={onEditorChange}
                 />
                 <div>
@@ -645,3 +600,4 @@ function MedicalCertificate() {
     )
 }
 export default MedicalCertificate;
+
