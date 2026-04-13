@@ -58,6 +58,7 @@ import {
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
+import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
@@ -82,6 +83,7 @@ import {
   S_DDX,
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
+  GB_VOICE_RX_FREE,
 } from "../utils/constants";
 import visitEnd from "../assets/images/end-visit.svg";
 import imgCloseVisit from "../assets/images/close-visit.svg";
@@ -221,7 +223,8 @@ const ConsultationDrawer = ({
   const { TextArea } = Input;
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const [shouldShowVideo, setShowVideo] = useState(false);
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE
@@ -2271,10 +2274,7 @@ const ConsultationDrawer = ({
             quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
           }
 
-          return {
-            ...item,
-            quantity,
-          };
+          return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }),
       };
 

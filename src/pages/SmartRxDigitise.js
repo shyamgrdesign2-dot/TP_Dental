@@ -30,6 +30,7 @@ import axios from "axios";
 import { updateCredits } from "../redux/monetizationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import { setDentalData, clearDentalData } from "../redux/dentalRxSlice";
+import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
 
 function SmartRxDigitise() {
   const divRef = useRef(null);
@@ -322,10 +323,7 @@ function SmartRxDigitise() {
             quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
           }
 
-          return {
-            ...item,
-            quantity,
-          };
+          return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }) || [];
 
       const quantityActionMedicine = await ApiMedication.getQuantity({
@@ -346,10 +344,7 @@ function SmartRxDigitise() {
               quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
             }
 
-            return {
-              ...item,
-              quantity,
-            };
+            return ensureMedicationGroundedForRxSave({ ...item, quantity });
           }),
       };
 

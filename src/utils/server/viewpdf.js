@@ -375,12 +375,14 @@ const AI_FLOW_MEDICINE_UNIT_MAP = {
 function getAiFlowMedicationDisplayList(medicine) {
   if (!Array.isArray(medicine) || medicine.length === 0) return [];
   return medicine.map((item, index) => {
-    const tmm_unit = item.tmm_unit ?? item.unit_id ?? 2;
-    const unitTitle = AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] || "Unit";
+    const tmm_unit = item.tmm_unit ?? item.unit_id;
+    const unitTitle = tmm_unit ? AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] : "";
     const medicineUnit =
       Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
         ? item.medicineUnit
-        : [{ tmu_id: tmm_unit, tmu_title: unitTitle }];
+        : tmm_unit && unitTitle
+          ? [{ tmu_id: tmm_unit, tmu_title: unitTitle }]
+          : [];
     return {
       ...item,
       index,
@@ -388,6 +390,8 @@ function getAiFlowMedicationDisplayList(medicine) {
       tmm_medicine_name:
         item.tmm_medicine_name ||
         item.name ||
+        item.groundedMedicineName ||
+        item.groundingMedicineName ||
         item.medicine_name ||
         item.lineItem ||
         "",
@@ -412,6 +416,42 @@ function getAiFlowMedicationDisplayList(medicine) {
         item.tmm_duration_type ?? item.duration_type ?? "day(s)",
       display_qty: item.display_qty ?? item.quantity ?? item.qty ?? "",
       tmm_remarks: item.tmm_remarks ?? item.notes ?? item.note ?? "",
+    };
+  });
+}
+
+function enrichCaseManagerAiMedicationForPrint(medicine) {
+  const base = getAiFlowMedicationDisplayList(medicine);
+  return base.map((item) => {
+    const meta =
+      item?.metadata && typeof item.metadata === "object" ? item.metadata : null;
+    const metaMedName = meta && String(meta.tmm_medicine_name ?? "").trim();
+    const tmm_medicine_name = metaMedName
+      ? metaMedName
+      : String(
+          item.groundedMedicineName ||
+            item.groundingMedicineName ||
+            item.tmm_medicine_name ||
+            item.medicine_name ||
+            item.name ||
+            item.lineItem ||
+            "",
+        ).trim();
+    const tmm_generic = metaMedName
+      ? meta.tmm_generic ??
+        item.tmm_generic ??
+        item.corrected_name ??
+        ""
+      : item.tmm_generic ??
+        item.corrected_name ??
+        meta?.tmm_generic ??
+        item.generic ??
+        "";
+    return {
+      ...item,
+      tmm_medicine_name,
+      tmm_generic,
+      rx_duration_text: String(item.duration ?? "").trim(),
     };
   });
 }
@@ -623,6 +663,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     zydusLabData,
     customModules,
     abhaDetails,
+    isDigitisedPrintConfig,
   } = props;
   const isPediatricAccessable =
     caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID ||
@@ -908,6 +949,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       value = `${caseManagerData?.patient_data?.patient_dob ? caseManagerData?.patient_data?.patient_dob : "-"}`;
     } else if (id == 15) {
       value = `${abhaDetails?.abha_address ?? "-"}`;
+    } else if (id == 17) {
+      const abhaToken = String(caseManagerData?.abha_token ?? "").trim();
+      value = abhaToken ? (abhaToken.length === 1 ? `0${abhaToken}` : abhaToken) : "-";
     } else if (id == 16) {
       value = `${abhaDetails?.abha_number ?? "-"}`;
     }
@@ -1235,7 +1279,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     dentalWorkDoneRowsFiltered.length > 0 ||
     hasWorkDoneNotes;
   const shouldHidePrimaryMedicationSection =
-    isRxDigitizeBool && dentalMedicationRowsFiltered.length > 0;
+    (isRxDigitizeBool ||
+      caseManagerData?.isRxDigitize ||
+      isDigitisedPrintConfig) &&
+    dentalMedicationRowsFiltered.length > 0;
   const dentalQuadrantSections = [
     { key: "UPPER_RIGHT", label: "UPPER RIGHT" },
     { key: "UPPER_LEFT", label: "UPPER LEFT" },
@@ -1313,34 +1360,32 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
 
   // Helper to check if digitized RX flow is active (smart, snap, voice, ambient)
-  const isDigitizedFlow = () => {
-    return (
-      isVoiceRxDigitizeBool || isAmbientVoiceRxDigitizeBool || isRxDigitizeBool
+  const isDigitizedFlow = () =>
+    isVoiceRxDigitizeBool ||
+    isAmbientVoiceRxDigitizeBool ||
+    isRxDigitizeBool;
+
+  const digitizedMedicationRowHasLabel = (item) => {
+    const m = item?.metadata;
+    const brand =
+      m && typeof m === "object"
+        ? String(m.tmm_medicine_name || m.selectedValue || "").trim()
+        : "";
+    return !!(
+      item?.refinedName ||
+      item?.name ||
+      item?.lineItem ||
+      item?.medicine_name ||
+      item?.groundingMedicineName ||
+      item?.groundedMedicineName ||
+      (item?.metadata?.fuzzyCorrectedName &&
+        String(item.metadata.fuzzyCorrectedName).trim()) ||
+      brand ||
+      (m && m.tmm_id != null)
     );
   };
 
   const showConsultSectionsWhenRx = !rx || (rx && isSnapRx);
-  const innerMedication = (index) => {
-    const mainArray = [];
-    for (var i = index; i < caseManagerData?.medicine?.length; i++) {
-      if (
-        caseManagerData?.medicine?.[i]?.tmm_id ==
-        caseManagerData?.medicine?.[index]?.tmm_id
-      ) {
-        mainArray.push(caseManagerData?.medicine?.[i]);
-      } else {
-        break;
-      }
-    }
-    return mainArray;
-  };
-  const medicationData = caseManagerData?.medicine
-    ?.map((e, index) => ({ ...e, index: index }))
-    ?.reduce(
-      (acc, curr) =>
-        acc?.at?.(-1)?.tmm_id == curr?.tmm_id ? acc : [...acc, curr],
-      [],
-    );
 
   const getFrequencyLanguageTitles = (languageId) => {
     const languageMap = {
@@ -1455,6 +1500,155 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     );
     return unitPerDoseFormat;
   };
+
+  const isAiFlowMedication = !!(
+    isDigitisedPrintConfig ||
+    caseManagerData?.isVoiceAmbientRx ||
+    caseManagerData?.isRxDigitize
+  );
+  const aiFlowMedicationList =
+    isAiFlowMedication && Array.isArray(caseManagerData?.medicine)
+      ? enrichCaseManagerAiMedicationForPrint(caseManagerData.medicine)
+      : [];
+  const useAiMedTableCells = aiFlowMedicationList.length > 0;
+  const medicineRowsSource = useAiMedTableCells
+    ? aiFlowMedicationList
+    : caseManagerData?.medicine || [];
+
+  const innerMedication = (index) => {
+    const mainArray = [];
+    const list = medicineRowsSource;
+    for (var i = index; i < list.length; i++) {
+      if (list[i]?.tmm_id == list[index]?.tmm_id) {
+        mainArray.push(list[i]);
+      } else {
+        break;
+      }
+    }
+    return mainArray;
+  };
+  const medicationData = medicineRowsSource?.length
+    ? medicineRowsSource
+        .map((e, index) => ({ ...e, index }))
+        .reduce(
+          (acc, curr) =>
+            acc?.at?.(-1)?.tmm_id == curr?.tmm_id ? acc : [...acc, curr],
+          [],
+        )
+    : [];
+
+  function getAiMedicationFrequencyDisplay(item, option) {
+    const hasSlotFrequency = !!(
+      item?.tcm_tmm_freq_morning ||
+      item?.tcm_tmm_freq_afternoon ||
+      item?.tcm_tmm_freq_evening ||
+      item?.tcm_tmm_freq_night
+    );
+    const mappedFrequency =
+      frequencyList?.find((x) => x.tmf_id === item?.tmm_freq_type)?.[
+        frequencyLang()
+      ] || "";
+    const rawFrequency = (
+      item?.frequency ||
+      item?.freq ||
+      item?.frequencyText ||
+      item?.frequency_text ||
+      ""
+    )
+      .toString()
+      .trim();
+    const slotFrequency = hasSlotFrequency
+      ? option?.numeric_frequency
+        ? `${item?.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item?.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item?.tcm_tmm_freq_evening ? " - " + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ""} - ${item?.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}`
+        : formatFrequency(
+            item?.tcm_tmm_freq_morning,
+            item?.tcm_tmm_freq_afternoon,
+            item?.tcm_tmm_freq_evening,
+            item?.tcm_tmm_freq_night,
+            option?.is_dosage_decimal,
+          )
+      : "";
+
+    let chosenFrequency = "-";
+    if (rawFrequency) {
+      chosenFrequency = rawFrequency;
+    } else if (item?.tmf_block === 0 || item?.tmf_block === "") {
+      chosenFrequency = slotFrequency || "-";
+    } else if (mappedFrequency) {
+      chosenFrequency = `(${mappedFrequency})`;
+    } else {
+      chosenFrequency = slotFrequency || "-";
+    }
+
+    return chosenFrequency;
+  }
+
+  function getAiMedicationTimingDisplay(item) {
+    const mappedTiming = timingList?.find((x) => x.tmt_id === item?.tmm_time);
+    if (mappedTiming && mappedTiming?.tmt_title !== "None") {
+      return mappedTiming?.[timeingLang()] || "";
+    }
+    return (
+      item?.schedule ||
+      item?.when ||
+      item?.timing ||
+      item?.instruction ||
+      ""
+    )
+      .toString()
+      .trim();
+  }
+
+  function getAiMedicationDoseDisplay(item, option) {
+    const doseVal =
+      item?.tmm_dosage != null && String(item.tmm_dosage).trim() !== ""
+        ? item.tmm_dosage
+        : item?.dosage;
+    if (doseVal == null || String(doseVal).trim() === "") {
+      return (
+        item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)
+          ?.tmu_title || "-"
+      );
+    }
+    if (item.tmm_unit) {
+      const u =
+        item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title ||
+        "";
+      return u
+        ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u}`
+        : String(doseVal).trim();
+    }
+    const s = String(doseVal).trim();
+    if (/\d/.test(s) && /[a-zA-Z]/i.test(s)) return s;
+    const u0 =
+      item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)
+        ?.tmu_title || "";
+    return u0
+      ? `${formatUnitPerDose(doseVal, option?.is_dosage_decimal)} ${u0}`
+      : s;
+  }
+
+  function getAiMedicationDurationDisplay(item) {
+    const plain = String(item.rx_duration_text ?? item.duration ?? "").trim();
+    if (plain) return plain;
+    if (EXTRA_OPTIONS.some((x) => x.value == item.tmm_duration_type)) {
+      return durationLang(capitalize(item.tmm_duration_type, true));
+    }
+    if (isNumeric(item.tmm_days)) {
+      return `${item.tmm_days} ${durationLang(item.tmm_duration_type)}`;
+    }
+    return "-";
+  }
+
+  function getAiMedicationQuantityDisplay(item) {
+    const q = item.display_qty ?? item.quantity ?? item.qty;
+    return q !== undefined && q !== null && String(q).trim() !== "" ? q : "-";
+  }
+
+  function getAiMedicationNotesDisplay(item) {
+    const v = item.tmm_remarks ?? item.notes ?? item.note;
+    return v != null && String(v).trim() !== "" ? String(v).trim() : "-";
+  }
 
   const getCustomModuleName = (id) => {
     const customModule = customModules?.modules?.find(
@@ -6942,49 +7136,83 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               ))}
                             {isDigitizedFlow() &&
                               digitizedData?.medications?.some(
-                                (item) => item?.refinedName || item?.name,
+                                digitizedMedicationRowHasLabel,
                               ) &&
                               (() => {
                                 const medList =
                                   digitizedData?.medications || [];
                                 const normalizeKey = (val) =>
                                   (val || "").toString().trim().toLowerCase();
-                                const getMedName = (item) =>
-                                  isAmbientVoiceRxDigitizeBool
-                                    ? item?.metadata?.fuzzyCorrectedName &&
-                                      item?.metadata?.fuzzyCorrectedName.trim() !==
-                                        ""
-                                      ? item?.metadata?.fuzzyCorrectedName
-                                      : item?.groundingMedicineName &&
-                                          item?.groundingMedicineName.trim() !==
-                                            ""
-                                        ? item?.groundingMedicineName
-                                        : item?.name
-                                    : item?.name || item?.refinedName;
-                                const getGroundedKey = (item) => {
-                                  const grounded =
-                                    item?.groundedMedicineName ??
-                                    item?.groundingMedicineName ??
-                                    item?.metadata?.fuzzyCorrectedName ??
-                                    "";
-                                  return (
-                                    normalizeKey(grounded) ||
-                                    normalizeKey(getMedName(item))
-                                  );
+                                const dMeta = (it) =>
+                                  it?.metadata &&
+                                  typeof it.metadata === "object"
+                                    ? it.metadata
+                                    : null;
+                                const dBrand = (it) =>
+                                  String(
+                                    dMeta(it)?.tmm_medicine_name ||
+                                      dMeta(it)?.selectedValue ||
+                                      "",
+                                  ).trim();
+                                const dMetaOk = (it) => !!dBrand(it);
+                                const dGeneric = (it) =>
+                                  option?.medicine_with_generic && dMetaOk(it)
+                                    ? String(
+                                        dMeta(it)?.tmm_generic ||
+                                          it?.corrected_name ||
+                                          "",
+                                      ).trim()
+                                    : "";
+                                const dPrimary = (it) =>
+                                  dMetaOk(it)
+                                    ? dBrand(it)
+                                    : String(
+                                        it?.groundedMedicineName || "",
+                                      ).trim();
+                                const getMedName = (item) => {
+                                  if (isAmbientVoiceRxDigitizeBool) {
+                                    const fz = item?.metadata?.fuzzyCorrectedName;
+                                    if (fz != null && String(fz).trim() !== "")
+                                      return String(fz).trim();
+                                    const ground =
+                                      item?.groundingMedicineName ||
+                                      item?.groundedMedicineName;
+                                    if (
+                                      ground != null &&
+                                      String(ground).trim() !== ""
+                                    )
+                                      return String(ground).trim();
+                                    const fallback =
+                                      item?.name ||
+                                      item?.refinedName ||
+                                      item?.lineItem ||
+                                      item?.medicine_name ||
+                                      "";
+                                    return String(fallback).trim();
+                                  }
+                                  return String(
+                                    item?.name ||
+                                      item?.refinedName ||
+                                      item?.lineItem ||
+                                      item?.medicine_name ||
+                                      "",
+                                  ).trim();
                                 };
-                                const getGroundedDisplayName = (item) => {
-                                  const grounded =
-                                    item?.groundedMedicineName ??
-                                    item?.groundingMedicineName ??
-                                    item?.metadata?.fuzzyCorrectedName ??
-                                    "";
-                                  const groundedTrim = (grounded || "")
-                                    .toString()
-                                    .trim();
-                                  return groundedTrim !== ""
-                                    ? groundedTrim
-                                    : getMedName(item) || "";
-                                };
+                                const dKey = (it) =>
+                                  (dMetaOk(it)
+                                    ? normalizeKey(dBrand(it)) ||
+                                      normalizeKey(
+                                        String(
+                                          dMeta(it)?.tmm_id ?? dMeta(it)?.id ?? "",
+                                        ),
+                                      )
+                                    : normalizeKey(
+                                        String(
+                                          it?.groundedMedicineName || "",
+                                        ).trim(),
+                                      )) ||
+                                  normalizeKey(String(it?.id ?? "")) ||
+                                  normalizeKey(getMedName(it));
                                 const getMedMeta = (item) => {
                                   const parts = [];
                                   const freq = (item?.frequency || "")
@@ -7038,12 +7266,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 const groupedMedications = (() => {
                                   const map = new Map();
                                   for (const item of medList) {
-                                    const key = getGroundedKey(item);
+                                    const key = dKey(item);
                                     if (!key) continue;
                                     if (!map.has(key)) {
                                       map.set(key, {
                                         key,
-                                        name: getGroundedDisplayName(item),
+                                        name: dPrimary(item),
                                         items: [],
                                       });
                                     }
@@ -7080,6 +7308,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       </Text>
                                       {groupedMedications.map((group, i) => {
                                         const name = group?.name;
+                                        const firstItem = group?.items?.[0];
+                                        const genericLine = firstItem
+                                          ? dGeneric(firstItem)
+                                          : "";
                                         const meta = (group?.items || [])
                                           .map(getMedMeta)
                                           .filter(Boolean)
@@ -7099,7 +7331,25 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             }}
                                           >
                                             {name}
-                                            {meta ? ` ${meta}` : ""}
+                                            {genericLine ? (
+                                              <Text
+                                                style={{
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size -
+                                                    2,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {` (${genericLine})`}
+                                              </Text>
+                                            ) : null}
+                                            {meta ? (
+                                              <Text style={{ fontWeight: 400 }}>
+                                                {` ${meta}`}
+                                              </Text>
+                                            ) : null}
                                             {i < groupedMedications.length - 1
                                               ? ", "
                                               : ""}
@@ -7129,6 +7379,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       </Text>
                                       {groupedMedications.map((group, i) => {
                                         const name = group?.name;
+                                        const firstItem = group?.items?.[0];
+                                        const genericLine = firstItem
+                                          ? dGeneric(firstItem)
+                                          : "";
                                         const meta = (group?.items || [])
                                           .map(getMedMeta)
                                           .filter(Boolean)
@@ -7168,7 +7422,27 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                               }}
                                             >
                                               {name}
-                                              {meta ? ` ${meta}` : ""}
+                                              {genericLine ? (
+                                                <Text
+                                                  style={{
+                                                    fontSize:
+                                                      PX_TO_PT *
+                                                        printSettings?.page_format
+                                                          ?.font_size -
+                                                      2,
+                                                    fontWeight: 400,
+                                                  }}
+                                                >
+                                                  {` (${genericLine})`}
+                                                </Text>
+                                              ) : null}
+                                              {meta ? (
+                                                <Text
+                                                  style={{ fontWeight: 400 }}
+                                                >
+                                                  {` ${meta}`}
+                                                </Text>
+                                              ) : null}
                                             </Text>
                                           </Text>
                                         ) : null;
@@ -7375,6 +7649,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           const isTapered = items.length > 1;
                                           const medicationName =
                                             group?.name || "N/A";
+                                          const medicationGeneric = items[0]
+                                            ? dGeneric(items[0])
+                                            : "";
 
                                           return (
                                             <View
@@ -7420,6 +7697,29 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 >
                                                   {medicationName}
                                                 </Text>
+                                                {medicationGeneric ? (
+                                                  <Text
+                                                    style={[
+                                                      {
+                                                        color: "#171725",
+                                                        fontFamily:
+                                                          getIndianLanguageFont(
+                                                            medicationGeneric,
+                                                            digitizedFont,
+                                                          ),
+                                                        fontSize:
+                                                          PX_TO_PT *
+                                                            printSettings
+                                                              ?.page_format
+                                                              ?.font_size -
+                                                          2,
+                                                        fontWeight: 400,
+                                                      },
+                                                    ]}
+                                                  >
+                                                    {medicationGeneric}
+                                                  </Text>
+                                                ) : null}
                                               </View>
                                               <View
                                                 style={{
@@ -7682,6 +7982,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     </Text>
                                     {groupedMedications.map((group, i) => {
                                       const name = group?.name;
+                                      const firstItem = group?.items?.[0];
+                                      const genericLine = firstItem
+                                        ? dGeneric(firstItem)
+                                        : "";
                                       const meta = (group?.items || [])
                                         .map(getMedMeta)
                                         .filter(Boolean)
@@ -7721,7 +8025,25 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             }}
                                           >
                                             {name}
-                                            {meta ? ` ${meta}` : ""}
+                                            {genericLine ? (
+                                              <Text
+                                                style={{
+                                                  fontSize:
+                                                    PX_TO_PT *
+                                                      printSettings?.page_format
+                                                        ?.font_size -
+                                                    2,
+                                                  fontWeight: 400,
+                                                }}
+                                              >
+                                                {` (${genericLine})`}
+                                              </Text>
+                                            ) : null}
+                                            {meta ? (
+                                              <Text style={{ fontWeight: 400 }}>
+                                                {` ${meta}`}
+                                              </Text>
+                                            ) : null}
                                           </Text>
                                         </Text>
                                       ) : null;

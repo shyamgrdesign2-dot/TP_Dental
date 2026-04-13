@@ -181,6 +181,7 @@ export const getDefaultPrintsettings = createAsyncThunk(
           }
         };
         ensureItem(15, "ABHA ID");
+        ensureItem(17, "ABHA Token");
         ensureItem(16, "ABHA Registration Number");
       }
       return result.data;
