@@ -17,7 +17,7 @@ import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetization
 import { resetVaccineState } from "../redux/vaccineSlice";
 
 import smartPad from "../assets/images/smartPad.svg";
-import { GB_ISCRIBE, GB_SNAP_RX, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX, PAID } from "../utils/constants";
+import { GB_ISCRIBE, GB_SNAP_RX, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX, PAID, GB_VOICE_RX_FREE } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
@@ -59,7 +59,8 @@ function WalkInConsultation() {
   const isSnapRxAccessable = useFeatureIsOn(
     GB_SNAP_RX
   );
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);

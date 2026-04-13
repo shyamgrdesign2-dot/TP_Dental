@@ -9,7 +9,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
-import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID } from "../utils/constants";
+import { ADD, EDIT, GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, PAID, GB_VOICE_RX_FREE } from "../utils/constants";
 import { errorMessage, getClinic, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { useDeviceType } from "../utils/deviceDetection";
 
@@ -57,7 +57,8 @@ function PatientForm({ mode = ADD, patient_data }) {
         GB_ISCRIBE
     );
     const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
-    const isFreeVoiceRxUser = isVoiceRxFree();
+    const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+    const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const { planDetails } = useSelector((state) => state.subscription);
     const { service_mappings } = planDetails || {};
