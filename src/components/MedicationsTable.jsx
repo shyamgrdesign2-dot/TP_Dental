@@ -853,7 +853,7 @@ const MedicationsTable = ({
       if (!currentFrequency) return;
 
       // Check if it's a numeric format (like "1-0-1")
-      const isNumericFormat = /^\d+(-\d+)*$/.test(currentFrequency);
+      const isNumericFormat = /^\d*\.?\d+(?:-\d*\.?\d+)*$/.test(currentFrequency);
       
       if (isNumericFormat) {
         // Keep the numeric format as is
