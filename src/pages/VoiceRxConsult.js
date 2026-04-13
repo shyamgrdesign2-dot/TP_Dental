@@ -7,10 +7,10 @@ import PatientSummary from "../components/PatientSummary";
 import VoiceWaveVisualizer from "../components/WaveVisualizer";
 
 import styles from "./VoiceRxConsult.module.scss";
-
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree, getSupportedMimeType, errorMessage, stopAllActiveRecorders } from "../utils/utils";
 import { useSelector, useDispatch } from "react-redux";
-import { FAILED_VERIFICATION, FREE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
+import { FAILED_VERIFICATION, FREE, GB_VOICE_RX_FREE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from "../utils/constants";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
@@ -75,7 +75,8 @@ const VoiceRxConsult = () => {
   const VOICE_RX_planDetails = servicesList?.find(
     (service) => service.service_name === S_VOICE_RX
   );
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tokenData = getTokenData();
   const clinic = getClinic(profile?.hospital_data);
 

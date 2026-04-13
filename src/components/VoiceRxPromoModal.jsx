@@ -5,7 +5,7 @@ import "./VoiceRxPromoModal.scss";
 
 import { useSelector, useDispatch } from "react-redux";
 import { services } from "../redux/doctorsSlice";
-import { FREE, GB_ZYDUS_USER, S_VOICE_RX } from "../utils/constants";
+import { FREE, GB_ZYDUS_USER, GB_VOICE_RX_FREE, S_VOICE_RX } from "../utils/constants";
 import { extendCredits } from "../redux/monetizationSlice";
 
 import GenRxKnowMore from "./GenRxKnowMore";
@@ -42,7 +42,8 @@ const VoiceRxPromoModal = () => {
   const [isLoading, setIsLoading] = useState(false);
   const clinic = getClinic(profile?.hospital_data);
   const [isOpen, setIsOpen] = useState(false);
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
 
   const moeData = {

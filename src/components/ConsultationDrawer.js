@@ -66,6 +66,7 @@ import {
   S_DDX,
   S_VOICE_RX,
   S_AMBIENT_VOICE_RX,
+  GB_VOICE_RX_FREE,
 } from "../utils/constants";
 
 import { checkCredits, updateCredits } from "../redux/monetizationSlice";
@@ -230,7 +231,8 @@ const ConsultationDrawer = ({
   const { TextArea } = Input;
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const [shouldShowVideo, setShowVideo] = useState(false);
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_APOLLO_DISABLE_FEATURE

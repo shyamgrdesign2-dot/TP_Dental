@@ -17,15 +17,13 @@ import { clearSearch, searchPatients, synczyduspatient } from "../redux/appointm
 import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace, getClinic, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
-import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX } from "../utils/constants";
+import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX, GB_VOICE_RX_FREE } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import moment from "moment";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
 import { resetDDxState } from "../redux/ddxSlice";
 import PrimaryActionButton from "../components/PrimaryActionButton";
-import { ASSETS } from "../assets";
-const smartPad = ASSETS.images.smartpad;
 
 function WalkInConsultationZydus() {
     const navigate = useNavigate();
@@ -53,7 +51,8 @@ function WalkInConsultationZydus() {
         GB_ISCRIBE
     );
     const isSnapRxAccessable = useFeatureIsOn(GB_SNAP_RX);
-    const isFreeVoiceRxUser = isVoiceRxFree();
+    const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+    const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
 
     const [keyboardOpen, setKeyboardOpen] = useState(false);

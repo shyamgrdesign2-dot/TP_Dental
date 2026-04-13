@@ -36,6 +36,7 @@ import {
   GB_TAB_RX,
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
+  GB_VOICE_RX_FREE,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -580,7 +581,8 @@ function Cardiology(props) {
   const isVideoConsultOn = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultOn = useFeatureIsOn(GB_TELE_CONSULT);
   const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
 
@@ -3691,7 +3693,30 @@ function Cardiology(props) {
               (!isSmartRxFile && !isTabRx) ? (
               <div>
                 {showDigitalGenRx ? (
-                  renderDigitisedSections(genRxData)
+                  <>
+                    {renderDigitisedSections(genRxData)}
+                    <div
+                      className={`d-flex align-items-center mb-14 ${
+                        viewCaseManagerData?.follow_up_date
+                          ? "follow-up-detailsPage"
+                          : ""
+                      }`}
+                    >
+                      {viewCaseManagerData?.follow_up_date && (
+                        <>
+                          <img className="me-3" src={followUp} alt="Symptoms" />
+                          <div className="title-common">Follow-up:</div>
+                          <div className="follow-up-date-text">
+                            {viewCaseManagerData?.follow_up_date
+                              ? moment(viewCaseManagerData.follow_up_date).format(
+                                  "DD/MM/YYYY"
+                                )
+                              : ""}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <div className="m-4">
                     {isAmbientRx ? (
@@ -3764,32 +3789,30 @@ function Cardiology(props) {
                     )}
                   </div>
                 )}
-                <div
-                  className={`d-flex align-items-center mb-14 ${
-                    viewCaseManagerData?.follow_up_date
-                      ? "follow-up-detailsPage"
-                      : ""
-                  }`}
-                >
-                  {viewCaseManagerData?.follow_up_date && (
-                    <>
-                      <img className="me-3" src={followUp} alt="Symptoms" />
-                      <div className="title-common">Follow-up:</div>
-                      <div className="follow-up-date-text">
-                        {viewCaseManagerData?.follow_up_date
-                          ? moment(viewCaseManagerData.follow_up_date).format(
-                              "DD/MM/YYYY"
-                            )
-                          : ""}
-                      </div>
-                    </>
-                  )}
-                </div>
               </div>
             ) : !(isMobile && !isTablet) && (isSmartRxFile || isTabRx) && !isSnapRx ? (
               <div>
                 {isRxdigitised && showDigitalRx ? (
-                  renderDigitisedSections(rxDigitisedData?.editedData)
+                  <>
+                    {renderDigitisedSections(rxDigitisedData?.editedData)}
+                    {rxDigitisedData?.editedData?.followUp && (
+                      <div
+                        className={`d-flex align-items-center mb-14 follow-up-detailsPage`}
+                      >
+                        <img className="me-3" src={followUp} alt="Symptoms" />
+                        <div className="title-common">Follow-up:</div>
+                        <div className="follow-up-date-text">
+                          {rxDigitisedData?.editedData?.followUp
+                            ? moment(
+                              rxDigitisedData?.editedData?.followUp,
+                              ["YYYY-MM-DD", "DD/MM/YYYY", "DD-MM-YYYY"],
+                              true
+                            ).format("DD/MM/YYYY")
+                            : ""}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <>
                     {smartRxFile?.length > 0 &&
@@ -3807,32 +3830,30 @@ function Cardiology(props) {
                       ))}
                   </>
                 )}
-                <div
-                  className={`d-flex align-items-center mb-14 ${
-                    viewCaseManagerData?.follow_up_date
-                      ? "follow-up-detailsPage"
-                      : ""
-                  }`}
-                >
-                  {viewCaseManagerData?.follow_up_date && (
-                    <>
-                      <img className="me-3" src={followUp} alt="Symptoms" />
-                      <div className="title-common">Follow-up:</div>
-                      <div className="follow-up-date-text">
-                        {viewCaseManagerData?.follow_up_date
-                          ? moment(viewCaseManagerData.follow_up_date).format(
-                              "DD/MM/YYYY"
-                            )
-                          : ""}
-                      </div>
-                    </>
-                  )}
-                </div>
               </div>
             ) : !(isMobile && !isTablet) && isSnapRx && isSnapRxAccessableFromGB ? (
               <div>
                 {isSnapRxdigitised && showDigitalSnapRx ? (
-                  renderDigitisedSections(snapRxDigitisedData)
+                  <>
+                    {renderDigitisedSections(snapRxDigitisedData)}
+                    {snapRxDigitisedData?.followUp && (
+                      <div
+                        className={`d-flex align-items-center mb-14 follow-up-detailsPage`}
+                      >
+                        <img className="me-3" src={followUp} alt="Symptoms" />
+                        <div className="title-common">Follow-up:</div>
+                        <div className="follow-up-date-text">
+                          {snapRxDigitisedData?.followUp
+                            ? moment(
+                              snapRxDigitisedData?.followUp,
+                              ["YYYY-MM-DD", "DD/MM/YYYY", "DD-MM-YYYY"],
+                              true
+                            ).format("DD/MM/YYYY")
+                            : ""}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <>
                     {!!snapRxFile?.length &&

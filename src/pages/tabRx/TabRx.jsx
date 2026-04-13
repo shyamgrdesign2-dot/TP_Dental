@@ -32,6 +32,7 @@ import {
   GB_OPTHAL_MODULE,
   GB_VIDEO_CONSULT,
   GB_TELE_CONSULT,
+  GB_VOICE_RX_FREE,
 } from "../../utils/constants";
 import { FETCH_SMART_RX } from "../../utils/constants";
 
@@ -207,7 +208,8 @@ function TabRx() {
   const { planDetails } = useSelector((state) => state.subscription);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);

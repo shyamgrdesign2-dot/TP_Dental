@@ -4,9 +4,9 @@ import { message, Drawer } from 'antd';
 import { useSelector, useDispatch } from 'react-redux';
 import VoiceWaveVisualizer from '../../../components/WaveVisualizer';
 import ExpiredSubModal from '../../monetization/components/ExpiredSubModal';
-
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { getClinic, getSupportedMimeType, isVoiceRxFree, errorMessage } from '../../../utils/utils';
-import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION } from '../../../utils/constants';
+import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION, GB_VOICE_RX_FREE } from '../../../utils/constants';
 import { checkCredits } from '../../../redux/monetizationSlice';
 import { services } from '../../../redux/doctorsSlice';
 import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
@@ -36,7 +36,8 @@ function MobileVoiceRecording() {
   const VOICE_RX_planDetails = servicesList?.find(
     (e) => e.service_name === S_VOICE_RX
   );
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
 
   const [selectedMode, setSelectedMode] = useState('');
   const [isRecording, setIsRecording] = useState(false);

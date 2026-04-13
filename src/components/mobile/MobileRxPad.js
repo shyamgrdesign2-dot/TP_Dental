@@ -3,7 +3,8 @@ import { Drawer, message } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getDecodedToken } from '../../utils/localStorage';
-import { S_AMBIENT_VOICE_RX, S_VOICE_RX, S_DDX, MESSAGE_KEY, FREE, FAILED_VERIFICATION } from '../../utils/constants';
+import { useFeatureIsOn } from '@growthbook/growthbook-react';
+import { S_AMBIENT_VOICE_RX, S_VOICE_RX, S_DDX, MESSAGE_KEY, FREE, FAILED_VERIFICATION, GB_VOICE_RX_FREE } from '../../utils/constants';
 import {
   generateAmbientRx,
   updateAmbientRx,
@@ -141,7 +142,8 @@ function MobileRxPad({ visible, onClose, onDataReady, onQuickEdit, queries = [],
   const doctorId = decodedToken?.result?.user_id;
 
   // Credit and trial logic (matches desktop ConsultationDrawer)
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const VOICE_RX_planDetails = servicesList?.find(service => service.service_name === S_VOICE_RX);
   const DDX_planDetails = servicesList?.find(service => service.service_name === S_DDX);
   

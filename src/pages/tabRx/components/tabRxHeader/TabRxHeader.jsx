@@ -55,6 +55,7 @@ import {
   S_VOICE_RX,
   OPTHAL_PAD_MODULE_ID,
   GB_SAVE_AS_DRAFT_RX,
+  GB_VOICE_RX_FREE,
 } from "../../../../utils/constants";
 import {
   assignCarePlan,
@@ -219,7 +220,8 @@ function TabRxHeader({
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
-  const isFreeVoiceRxUser = isVoiceRxFree();
+  const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const [saveDraftLoading, setSaveDraftLoading] = useState(false);
   const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
   const { isEditRx = false } = useLocation().state || {};
