@@ -15,57 +15,57 @@ const SYSTEM_NAME = "TatvaPractice Design System"
 
 const COMPONENT_FILES = [
   // Root components
-  "tp-accordion.tsx",
-  "tp-alert.tsx",
-  "tp-avatar.tsx",
-  "tp-badge.tsx",
-  "tp-banner.tsx",
-  "tp-breadcrumbs.tsx",
-  "tp-button.tsx",
-  "tp-card.tsx",
-  "tp-checkbox.tsx",
-  "tp-chip.tsx",
-  "tp-color-picker.tsx",
-  "tp-command.tsx",
-  "tp-date-picker.tsx",
-  "tp-dialog.tsx",
-  "tp-divider.tsx",
-  "tp-drawer.tsx",
-  "tp-dropdown-menu.tsx",
-  "tp-empty-state.tsx",
-  "tp-file-upload.tsx",
-  "tp-number-input.tsx",
-  "tp-otp-input.tsx",
-  "tp-pagination.tsx",
-  "tp-popover.tsx",
-  "tp-progress.tsx",
-  "tp-radio.tsx",
-  "tp-rating.tsx",
-  "tp-segmented-control.tsx",
-  "tp-select.tsx",
-  "tp-skeleton.tsx",
-  "tp-slider.tsx",
-  "tp-snackbar.tsx",
-  "tp-spinner.tsx",
-  "tp-stepper.tsx",
-  "tp-switch.tsx",
-  "tp-table.tsx",
-  "tp-tabs.tsx",
-  "tp-tag.tsx",
-  "tp-textfield.tsx",
-  "tp-time-picker.tsx",
-  "tp-timeline.tsx",
-  "tp-tooltip.tsx",
-  "tp-transfer-list.tsx",
-  "tp-tree-view.tsx",
+  "tp-accordion.jsx",
+  "tp-alert.jsx",
+  "tp-avatar.jsx",
+  "tp-badge.jsx",
+  "tp-banner.jsx",
+  "tp-breadcrumbs.jsx",
+  "tp-button.jsx",
+  "tp-card.jsx",
+  "tp-checkbox.jsx",
+  "tp-chip.jsx",
+  "tp-color-picker.jsx",
+  "tp-command.jsx",
+  "tp-date-picker.jsx",
+  "tp-dialog.jsx",
+  "tp-divider.jsx",
+  "tp-drawer.jsx",
+  "tp-dropdown-menu.jsx",
+  "tp-empty-state.jsx",
+  "tp-file-upload.jsx",
+  "tp-number-input.jsx",
+  "tp-otp-input.jsx",
+  "tp-pagination.jsx",
+  "tp-popover.jsx",
+  "tp-progress.jsx",
+  "tp-radio.jsx",
+  "tp-rating.jsx",
+  "tp-segmented-control.jsx",
+  "tp-select.jsx",
+  "tp-skeleton.jsx",
+  "tp-slider.jsx",
+  "tp-snackbar.jsx",
+  "tp-spinner.jsx",
+  "tp-stepper.jsx",
+  "tp-switch.jsx",
+  "tp-table.jsx",
+  "tp-tabs.jsx",
+  "tp-tag.jsx",
+  "tp-textfield.jsx",
+  "tp-time-picker.jsx",
+  "tp-timeline.jsx",
+  "tp-tooltip.jsx",
+  "tp-transfer-list.jsx",
+  "tp-tree-view.jsx",
 ]
 
 const BUTTON_SYSTEM_FILES = [
   "index.ts",
-  "TPButton.tsx",
-  "TPButtonIcon.tsx",
-  "TPIconButton.tsx",
-  "TPSplitButton.tsx",
+  "TPButton.jsx",
+  "TPButtonIcon.jsx",
+  "TPIconButton.jsx",
+  "TPSplitButton.jsx",
 ]
 
 // ─── Generate package.json for the exported library ───
@@ -153,7 +153,7 @@ function generateTsConfig(): string {
           "@/lib/*": ["./lib/*"],
         },
       },
-      include: ["**/*.ts", "**/*.tsx"],
+      include: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
       exclude: ["node_modules"],
     },
     null,
@@ -179,14 +179,14 @@ npm install
 
 Import the global stylesheet in your app's root layout:
 
-\`\`\`tsx
-// app/layout.tsx or pages/_app.tsx
+\`\`\`jsx
+// app/layout.jsx or pages/_app.jsx
 import "./styles/globals.css"
 \`\`\`
 
 ### 3. Use Components
 
-\`\`\`tsx
+\`\`\`jsx
 import { TPButton, TPCard, TPCardContent, TPTextField } from "./components"
 
 export default function MyPage() {

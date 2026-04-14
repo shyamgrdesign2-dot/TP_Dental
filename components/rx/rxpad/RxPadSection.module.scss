@@ -1,0 +1,354 @@
+@use "../../../styles/tp-tokens" as tp;
+
+.section {
+  border-radius: 16px;
+  border: 1px solid tp.$slate-100;
+  background: #fff;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 18px 18px 0;
+}
+
+.titleCluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.iconWrap {
+  display: inline-flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  color: var(--tp-violet-500);
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: tp.$slate-700;
+  font-family: Inter, var(--font-body), ui-sans-serif, sans-serif;
+  letter-spacing: 0.1px;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.iconBtn {
+  display: inline-flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: tp.$slate-100;
+  color: tp.$slate-700;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: tp.$slate-200;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+}
+
+.autofillWrap {
+  padding: 8px 18px 0;
+}
+
+.autofillBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, var(--tp-success-500), var(--tp-success-400));
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.autofillDot {
+  height: 6px;
+  width: 6px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.8);
+}
+
+.body {
+  padding: 18px;
+}
+
+// ChipSearchInput
+.chipStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchWrap {
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: tp.$slate-400;
+}
+
+.searchInput {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid tp.$slate-200;
+  background: tp.$slate-50;
+  padding: 8px 12px 8px 36px;
+  font-size: 12px;
+  color: tp.$slate-800;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
+
+  &::placeholder {
+    color: tp.$slate-400;
+  }
+
+  &:focus {
+    border-color: var(--tp-blue-300);
+    background: #fff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);
+  }
+}
+
+.suggestRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestChip {
+  border-radius: 9999px;
+  border: 1px solid tp.$slate-200;
+  background: tp.$slate-50;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: tp.$slate-600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    color 0.15s;
+
+  &:hover {
+    border-color: var(--tp-blue-300);
+    background: tp.$blue-50;
+    color: var(--tp-blue-600);
+  }
+}
+
+.selectedRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid tp.$slate-100;
+}
+
+.selectedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 9999px;
+  background: tp.$blue-50;
+  border: 1px solid var(--tp-blue-200);
+  padding: 2px 6px 2px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: tp.$blue-700;
+}
+
+.chipRemove {
+  border-radius: 9999px;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: tp.$blue-100;
+  }
+}
+
+// MedicationTable
+.medStack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tableScroll {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid tp.$slate-200;
+}
+
+.table {
+  width: 100%;
+  font-size: 12px;
+}
+
+.theadRow {
+  background: tp.$slate-50;
+  color: tp.$slate-500;
+  font-family: "Inter", ui-sans-serif, sans-serif;
+}
+
+.th {
+  padding: 8px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.thNarrow {
+  width: 4%;
+}
+
+.thMed {
+  min-width: 160px;
+}
+
+.thSmall {
+  min-width: 80px;
+}
+
+.thWhen {
+  min-width: 90px;
+}
+
+.thDur {
+  min-width: 80px;
+}
+
+.thNote {
+  min-width: 60px;
+}
+
+.thTrash {
+  width: 40px;
+}
+
+.tbodyRow {
+  border-top: 1px solid tp.$slate-100;
+  transition: background-color 0.15s;
+
+  &:hover {
+    background: rgb(248 250 252 / 0.5);
+  }
+}
+
+.td {
+  padding: 6px 8px;
+}
+
+.dragCell {
+  color: tp.$slate-400;
+  cursor: grab;
+}
+
+.medName {
+  font-size: 12px;
+  font-weight: 500;
+  color: tp.$slate-800;
+}
+
+.tdMuted {
+  color: tp.$slate-700;
+}
+
+.freqPill {
+  border-radius: 4px;
+  border: 1px solid tp.$slate-200;
+  padding: 2px 6px;
+  color: tp.$slate-700;
+}
+
+.notePill {
+  border-radius: 4px;
+  background: tp.$slate-100;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: tp.$slate-500;
+}
+
+.rowDelete {
+  border-radius: 4px;
+  padding: 4px;
+  color: tp.$slate-400;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+
+  &:hover {
+    background: var(--tp-error-50);
+    color: var(--tp-error-500);
+  }
+}
+
+.medSearchWrap {
+  position: relative;
+}
+
+.medSearchInput {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid tp.$slate-200;
+  background: tp.$slate-50;
+  padding: 8px 12px 8px 36px;
+  font-size: 12px;
+  color: tp.$slate-800;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
+
+  &::placeholder {
+    color: tp.$slate-400;
+  }
+
+  &:focus {
+    border-color: var(--tp-blue-300);
+    background: #fff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);
+  }
+}

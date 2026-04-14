@@ -231,12 +231,12 @@ const CROWN_REPLACEMENT_PLAN: TreatmentPlan = {
   ],
 }
 
-// ─── apt-new: richer design-demo dataset ────────────────────
+// ─── apt-6: Anjali Patel — active / scheduled plans (demo) ─────────────────
 
-const APT_NEW_ESTIMATE_PLAN_1: TreatmentPlan = {
-  id: "plan-new-001",
+const ANJALI_ESTIMATE_PLAN_1: TreatmentPlan = {
+  id: "plan-anjali-001",
   name: "Smile Rehabilitation Plan",
-  patientId: "apt-new",
+  patientId: "apt-6",
   createdAt: "2026-04-08",
   updatedAt: "2026-04-10",
   status: "draft",
@@ -244,7 +244,7 @@ const APT_NEW_ESTIMATE_PLAN_1: TreatmentPlan = {
   services: [
     {
       id: "svc-new-001",
-      planId: "plan-new-001",
+      planId: "plan-anjali-001",
       treatment: "Veneers",
       toothFdi: "11",
       toothLabel: "Upper Right Central Incisor",
@@ -258,7 +258,7 @@ const APT_NEW_ESTIMATE_PLAN_1: TreatmentPlan = {
     },
     {
       id: "svc-new-002",
-      planId: "plan-new-001",
+      planId: "plan-anjali-001",
       treatment: "Veneers",
       toothFdi: "21",
       toothLabel: "Upper Left Central Incisor",
@@ -272,7 +272,7 @@ const APT_NEW_ESTIMATE_PLAN_1: TreatmentPlan = {
     },
     {
       id: "svc-new-003",
-      planId: "plan-new-001",
+      planId: "plan-anjali-001",
       treatment: "Scaling & Polishing",
       toothFdi: "full-mouth",
       toothLabel: "Full Mouth",
@@ -287,10 +287,10 @@ const APT_NEW_ESTIMATE_PLAN_1: TreatmentPlan = {
   ],
 }
 
-const APT_NEW_ESTIMATE_PLAN_2: TreatmentPlan = {
-  id: "plan-new-002",
+const ANJALI_ESTIMATE_PLAN_2: TreatmentPlan = {
+  id: "plan-anjali-002",
   name: "Quadrant Stabilization",
-  patientId: "apt-new",
+  patientId: "apt-6",
   createdAt: "2026-04-06",
   updatedAt: "2026-04-11",
   status: "active",
@@ -298,7 +298,7 @@ const APT_NEW_ESTIMATE_PLAN_2: TreatmentPlan = {
   services: [
     {
       id: "svc-new-004",
-      planId: "plan-new-002",
+      planId: "plan-anjali-002",
       treatment: "Restoration (Composite Filling)",
       toothFdi: "36",
       toothLabel: "Lower Left First Molar",
@@ -312,7 +312,7 @@ const APT_NEW_ESTIMATE_PLAN_2: TreatmentPlan = {
     },
     {
       id: "svc-new-005",
-      planId: "plan-new-002",
+      planId: "plan-anjali-002",
       treatment: "Root Canal Treatment",
       toothFdi: "37",
       toothLabel: "Lower Left Second Molar",
@@ -327,10 +327,10 @@ const APT_NEW_ESTIMATE_PLAN_2: TreatmentPlan = {
   ],
 }
 
-const APT_NEW_IN_PROGRESS_PLAN: TreatmentPlan = {
-  id: "plan-new-003",
+const ANJALI_IN_PROGRESS_PLAN: TreatmentPlan = {
+  id: "plan-anjali-003",
   name: "Pain Relief and Core Build-up",
-  patientId: "apt-new",
+  patientId: "apt-6",
   createdAt: "2026-03-30",
   updatedAt: "2026-04-14",
   status: "in-progress",
@@ -338,7 +338,7 @@ const APT_NEW_IN_PROGRESS_PLAN: TreatmentPlan = {
   services: [
     {
       id: "svc-new-006",
-      planId: "plan-new-003",
+      planId: "plan-anjali-003",
       treatment: "Root Canal Treatment",
       toothFdi: "46",
       toothLabel: "Lower Right First Molar",
@@ -364,7 +364,7 @@ const APT_NEW_IN_PROGRESS_PLAN: TreatmentPlan = {
     },
     {
       id: "svc-new-007",
-      planId: "plan-new-003",
+      planId: "plan-anjali-003",
       treatment: "Restoration (Composite Filling)",
       toothFdi: "45",
       toothLabel: "Lower Right Second Premolar",
@@ -387,10 +387,10 @@ const APT_NEW_IN_PROGRESS_PLAN: TreatmentPlan = {
   ],
 }
 
-const APT_NEW_COMPLETED_PLAN: TreatmentPlan = {
-  id: "plan-new-004",
+const ANJALI_COMPLETED_PLAN: TreatmentPlan = {
+  id: "plan-anjali-004",
   name: "Posterior Crown Completion",
-  patientId: "apt-new",
+  patientId: "apt-6",
   createdAt: "2026-02-18",
   updatedAt: "2026-03-28",
   status: "completed",
@@ -398,7 +398,7 @@ const APT_NEW_COMPLETED_PLAN: TreatmentPlan = {
   services: [
     {
       id: "svc-new-008",
-      planId: "plan-new-004",
+      planId: "plan-anjali-004",
       treatment: "Crown (Zirconia)",
       toothFdi: "26",
       toothLabel: "Upper Left First Molar",
@@ -431,14 +431,14 @@ export function getMockPlans(patientId: string): TreatmentPlan[] {
   if (patientId === "apt-1") {
     return [PRIMARY_CARE_PLAN, WISDOM_TOOTH_PLAN, CROWN_REPLACEMENT_PLAN]
   }
-  if (patientId === "apt-new") {
+  if (patientId === "apt-6") {
     return [
-      APT_NEW_ESTIMATE_PLAN_1,
-      APT_NEW_ESTIMATE_PLAN_2,
-      APT_NEW_IN_PROGRESS_PLAN,
-      APT_NEW_COMPLETED_PLAN,
+      ANJALI_ESTIMATE_PLAN_1,
+      ANJALI_ESTIMATE_PLAN_2,
+      ANJALI_IN_PROGRESS_PLAN,
+      ANJALI_COMPLETED_PLAN,
     ]
   }
-  // Other patients get an empty state
+  // First-visit patients (e.g. Ria Kapoor) and others — no plans until created
   return []
 }

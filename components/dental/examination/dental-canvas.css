@@ -145,29 +145,29 @@
 }
 
 /* ── Tooth Selector (Dental Chart) ── */
-.dental-canvas-root .tooth-selector { position: absolute; bottom: 12px; left: 14px; right: 14px; z-index: 10; }
+.dental-canvas-root .tooth-selector { position: absolute; bottom: 6px; left: 6px; right: 6px; z-index: 10; }
 .dental-canvas-root .tooth-selector-surface {
   position: absolute;
-  right: 0;
+  right: 14px;
   bottom: calc(100% + 8px);
   z-index: 12;
 }
 .dental-canvas-root .tooth-chart {
-  background: rgba(255,255,255,0.96); backdrop-filter: blur(14px);
-  border-radius: 12px; padding: 9px 12px;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+  background: transparent; backdrop-filter: none;
+  border-radius: 0; padding: 0;
+  box-shadow: none;
   border: none;
 }
-.dental-canvas-root .tooth-chart-row { display: flex; align-items: center; gap: 5px; }
-.dental-canvas-root .tooth-quadrant { display: flex; gap: 5px; flex: 1; min-width: 0; }
-.dental-canvas-root .chart-midline { width: 1px; height: 22px; background: #e2e8f0; margin: 0 6px; }
-.dental-canvas-root .chart-horizontal-line { height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent); margin: 4px 0; }
+.dental-canvas-root .tooth-chart-row { display: flex; align-items: center; gap: 3px; }
+.dental-canvas-root .tooth-quadrant { display: flex; gap: 3px; flex: 1; min-width: 0; }
+.dental-canvas-root .chart-midline { width: 1px; height: 18px; background: #e2e8f0; margin: 0 3px; }
+.dental-canvas-root .chart-horizontal-line { height: 1px; background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent); margin: 2px 0; }
 .dental-canvas-root .quadrant-label {
   font-size: 8px; color: #94a3b8; font-weight: 700; width: 22px; text-align: center;
   letter-spacing: 0.5px;
 }
 .dental-canvas-root .tooth-pick {
-  flex: 1 1 24px; min-width: 24px; height: 24px; border: 1px solid #e2e8f0; border-radius: 5px;
+  flex: 1 1 22px; min-width: 22px; height: 22px; border: 0.5px solid rgba(226,232,240,0.6); border-radius: 5px;
   background: #fff; font-size: 10px; font-weight: 700; color: #475569; cursor: pointer;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex; align-items: center; justify-content: center; padding: 0;
@@ -180,19 +180,19 @@
 .dental-canvas-root .tooth-pick.active {
   background: var(--tp-blue-500); color: #fff;
   border-color: var(--tp-blue-500);
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.24);
+  box-shadow: none;
 }
 .dental-canvas-root .tooth-pick.active:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.28);
+  box-shadow: none;
 }
 .dental-canvas-root .tooth-pick.has-diagnosis:not(.active) {
-  border-color: #e2e8f0;
+  border-color: rgba(226,232,240,0.6);
   background: #f5f3ff;
   color: #6d28d9;
 }
 .dental-canvas-root .tooth-pick.has-diagnosis:hover:not(.active) {
-  border-color: #e2e8f0;
+  border-color: rgba(226,232,240,0.6);
   background: #ede9fe;
 }
 
@@ -338,15 +338,7 @@
   background: transparent;
 }
 
-/* ── Quick Surface Selector — raw clickable SVG, no card ── */
-.dental-canvas-root .quick-surface-selector {
-  position: relative;
-  width: 65px; padding: 0;
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
+/* Quick surface selector: layout lives in QuickSurfaceSelector.module.scss */
 
 /* Narrow canvas: keep tooth targets tappable and avoid crunching. */
 @container (max-width: 660px) {
@@ -391,20 +383,4 @@
     min-width: 22px;
     text-align: center;
   }
-}
-.dental-canvas-root .quick-surface-svg {
-  width: 76px;
-  height: auto;
-  max-height: 164px;
-  display: block;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.08));
-}
-/* ── Tooltip for Quick Surface Selector ── */
-.dental-canvas-root .qss-tooltip {
-  pointer-events: none;
-  animation: qssTooltipFadeIn 0.12s ease-out;
-}
-@keyframes qssTooltipFadeIn {
-  from { opacity: 0; transform: translate(-50%, -100%) translateY(4px); }
-  to   { opacity: 1; transform: translate(-50%, -100%) translateY(0); }
 }

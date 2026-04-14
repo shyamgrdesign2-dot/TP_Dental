@@ -8,7 +8,7 @@
 // ─── Core Entities ──────────────────────────────────────────
 
 export type PlanStatus = "draft" | "active" | "in-progress" | "completed"
-export type ServiceStatus = "planned" | "in-progress" | "completed" | "no-show" | "not-interested"
+export type ServiceStatus = "planned" | "in-progress" | "completed" | "no-show" | "not-interested" | "cancelled"
 
 export interface SittingRecord {
   id: string
@@ -23,6 +23,11 @@ export interface AppointmentRecord {
   time: string
   doctor: string
   notes?: string
+  /** "scheduled" by default; "cancelled" marks a cancelled appointment and keeps the reason for history */
+  status?: "scheduled" | "cancelled"
+  cancellationReason?: string
+  patientCategory?: string
+  caseType?: string
 }
 
 export interface SubProcedure {
@@ -64,6 +69,15 @@ export const SURFACE_ABBR: Record<SurfaceId, string> = Object.fromEntries(
   SURFACE_OPTIONS.map((option) => [option.id, option.abbr]),
 ) as Record<SurfaceId, string>
 
+export function getPlanSurfaceLabel(surfaceId: SurfaceId | string): string {
+  const opt = SURFACE_OPTIONS.find((o) => o.id === surfaceId)
+  if (opt)
+    return opt.label
+  if (typeof surfaceId === "string" && surfaceId.length > 0)
+    return surfaceId.charAt(0).toUpperCase() + surfaceId.slice(1)
+  return String(surfaceId)
+}
+
 const WHOLE_TOOTH_TREATMENTS = new Set([
   "Root Canal Treatment",
   "Pulp Capping",
@@ -102,6 +116,8 @@ export interface PlanService {
   sittings: SittingRecord[]
   procedures: SubProcedure[]
   appointments?: AppointmentRecord[]
+  /** Planned surgery / procedure date for this line (from plan builder) */
+  procedureDate?: string
   startedAt?: string
   completedAt?: string
   notes?: string

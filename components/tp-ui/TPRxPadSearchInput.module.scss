@@ -1,0 +1,44 @@
+@use "../../styles/tp-tokens" as tp;
+
+.wrapper {
+  position: relative;
+}
+
+.icon {
+  pointer-events: none;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: tp.$slate-400;
+}
+
+.input {
+  height: 42px;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid tp.$slate-300;
+  background: #fff;
+  padding-left: 36px;
+  padding-right: 12px;
+  font-size: 14px;
+  font-family: "Inter", ui-sans-serif, sans-serif;
+  color: tp.$slate-700;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+
+  &::placeholder {
+    color: tp.$slate-400;
+  }
+
+  &:hover {
+    border-color: tp.$slate-400;
+  }
+
+  &:focus {
+    border-color: var(--tp-blue-500);
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);
+  }
+}

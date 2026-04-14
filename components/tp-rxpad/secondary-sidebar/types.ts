@@ -1,6 +1,5 @@
 /** All possible section IDs for the secondary sidebar navigation. */
 export type NavItemId =
-  | "drAgent"
   | "pastVisits"
   | "vitals"
   | "history"
@@ -17,7 +16,7 @@ export type NavItemId =
 
 /** Sections that have real data */
 export const SECTIONS_WITH_DATA: NavItemId[] = [
-  "drAgent", "pastVisits", "vitals", "history",
+  "pastVisits", "vitals", "history",
   "gynec", "obstetric", "vaccine", "growth",
   "medicalRecords", "labResults", "personalNotes", "dental",
 ];

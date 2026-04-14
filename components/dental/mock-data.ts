@@ -79,6 +79,8 @@ export interface InitialToothState {
 }
 
 export const INITIAL_TOOTH_STATE: Record<string, InitialToothState> = {
+  /** Ria Kapoor — first visit; empty chart until you chart in the session */
+  "apt-new": {},
   "apt-1": {
     // Shyam GR — RCT on 36, Crown on 26, Caries on 16 buccal
     toothDiagnoses: {
@@ -117,7 +119,7 @@ export const INITIAL_TOOTH_STATE: Record<string, InitialToothState> = {
 
 /** Dental history entries keyed by patientId (apt-* from appointment screen) */
 export const DENTAL_HISTORY: Record<string, DentalHistoryEntry[]> = {
-  "apt-new": [],   // Riya Kapoor — first-visit patient, empty state demo
+  "apt-new": [],   // Ria Kapoor — first visit, no prior dental history
   "apt-1": [
     // Shyam GR — historical entries from past visits (matches current tooth state)
     { id: "dh-s01", condition: "RCT — 36 (in progress)", since: "Feb 2025", status: "Active", medication: true, notes: "2 sittings completed, crown pending." },

@@ -1,0 +1,335 @@
+@use "../../styles/tp-tokens" as tp;
+
+.page {
+  min-height: 100vh;
+  background: tp.$slate-100;
+}
+
+.header {
+  height: 62px;
+  border-bottom: 1px solid color-mix(in srgb, tp.$slate-100 70%, transparent);
+  background: #fff;
+  padding-right: 16px;
+  padding-left: 0;
+}
+
+.headerInner {
+  margin-inline: auto;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerLeft {
+  display: inline-flex;
+  height: 100%;
+  align-items: center;
+}
+
+.backBtn {
+  position: relative;
+  display: flex;
+  height: 62px;
+  width: 80px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 15px;
+  background: #fff;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: tp.$slate-50;
+  }
+}
+
+.backBtnRule {
+  position: absolute;
+  inset: 0 -0.25px 0 0;
+  pointer-events: none;
+  border-right: 0.5px solid #f1f1f5;
+}
+
+.backIconWrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.patientRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+}
+
+.avatar {
+  display: flex;
+  height: 42px;
+  width: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: tp.$slate-100;
+}
+
+.patientName {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: tp.$slate-700;
+}
+
+.patientMeta {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  color: tp.$slate-600;
+}
+
+.headerRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.iconBtnTutorial {
+  display: inline-flex;
+  height: 42px;
+  width: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10.5px;
+  color: #8a4dbb;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover {
+    background: tp.$slate-50;
+  }
+}
+
+.tutorialSvg {
+  display: block;
+  height: 42px;
+  width: 42px;
+}
+
+.dividerV {
+  height: 42px;
+  width: 1.05px;
+  flex-shrink: 0;
+  opacity: 0.8;
+  background: linear-gradient(
+    to bottom,
+    rgb(208 213 221 / 0.2) 0%,
+    #d0d5dd 50%,
+    rgb(208 213 221 / 0.2) 100%
+  );
+}
+
+.headerPillBtn {
+  display: inline-flex;
+  height: 42px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10.5px;
+  background: tp.$slate-100;
+  padding: 0 12px;
+  color: tp.$slate-700;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, tp.$slate-200 80%, transparent);
+  }
+}
+
+.pillBtnLabel {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.doneBtn {
+  display: inline-flex;
+  height: 42px;
+  min-width: 100px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10.5px;
+  background: var(--tp-blue-600);
+  padding: 0 12px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--tp-blue-700);
+  }
+}
+
+.dropdownPanel {
+  width: 170px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, tp.$slate-100 70%, transparent);
+  background: #fff;
+  padding: 4px;
+}
+
+.dropdownItem {
+  border-radius: 8px;
+
+  &:focus,
+  &[data-highlighted] {
+    background: tp.$slate-100;
+  }
+}
+
+.main {
+  display: flex;
+  height: calc(100vh - 62px);
+  width: 100%;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  background: #fff;
+  padding: 18px;
+}
+
+.sidebarStack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.previewSection {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  background: tp.$slate-100;
+  padding: 24px;
+}
+
+// Action tiles
+.actionTile {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--tp-blue-500);
+  background: #fff;
+  padding: 8px 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--tp-blue-50) 40%, transparent);
+  }
+}
+
+.actionTileInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.actionTileLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actionIcon {
+  color: var(--tp-blue-500);
+}
+
+.actionLabel {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tp-blue-500);
+}
+
+.chevronBlue {
+  color: var(--tp-blue-500);
+}
+
+// Alert dialog
+.alertContent {
+  max-width: 420px;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.alertTitle {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: tp.$slate-900;
+}
+
+.alertDesc {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: tp.$slate-600;
+}
+
+.alertFooter {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+}
+
+.alertCancel {
+  min-width: 100px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--tp-blue-500);
+  background: #fff;
+  padding: 0 16px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tp-blue-500);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--tp-blue-500);
+    background: color-mix(in srgb, var(--tp-blue-50) 40%, transparent);
+    color: var(--tp-blue-500);
+  }
+}
+
+.alertAction {
+  min-width: 100px;
+  height: 40px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--tp-blue-600);
+  padding: 0 16px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--tp-blue-700);
+  }
+}
