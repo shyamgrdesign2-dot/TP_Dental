@@ -5198,7 +5198,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           fontWeight: 500,
                                         }}
                                       >
-                                        {item?.lineItem || item?.name || ""}
+                                        {`${item?.name || item?.lineItem || ""}${item?.note || item?.notes ? ` (${item?.note || item?.notes})` : ""}`}
                                         &nbsp;
                                       </Text>
                                       <Text
@@ -5282,7 +5282,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                           fontWeight: 400,
                                         }}
                                       >
-                                        {item?.lineItem || item?.name || ""}
+                                        {`${item?.name || item?.lineItem || ""}${item?.note || item?.notes ? ` (${item?.note || item?.notes})` : ""}`}
                                         &nbsp;
                                       </Text>
                                     </Text>
@@ -5425,7 +5425,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             },
                                           ]}
                                         >
-                                          {item?.name || item?.lineItem || "-"}
+                                          { item?.lineItem || item.notes || "-"}
                                           &nbsp;
                                         </Text>
                                         <Text
