@@ -42,24 +42,13 @@ const TOOLBAR_ITEMS = [
 ];
 
 function SmartHealthCheckupEditor(
-  { value = "", onChange, readonly = false, className = "", toolbarItems = TOOLBAR_ITEMS, hideToolbar = true, toolbarSlotRef = null },
+  { value = "", onChange, readonly = false, className = "", toolbarItems = TOOLBAR_ITEMS, hideToolbar = true },
   ref
 ) {
   const containerRef = useRef(null);
   const [EditorComponent, setEditorComponent] = useState(null);
   const [loadError, setLoadError] = useState(null);
-  const valueRef = useRef(value);
 
-  const resizeObserverRef = useRef(null);
-  const timeoutIdsRef = useRef([]);
-
-  useEffect(() => {
-    return () => {
-      resizeObserverRef.current?.disconnect();
-      timeoutIdsRef.current.forEach(clearTimeout);
-      timeoutIdsRef.current = [];
-    };
-  }, []);
 
   useImperativeHandle(ref, () => ({
     getHtml: () => {
@@ -96,9 +85,6 @@ function SmartHealthCheckupEditor(
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    valueRef.current = value;
-  }, [value]);
 
   const handleChange = useCallback(
     (e) => {
@@ -230,120 +216,200 @@ function SmartHealthCheckupEditor(
     };
   }, [EditorComponent]);
 
-  // Force HTML paste handler for Microsoft Word content to avoid brackets/JSON formatting issues
+  // Intercept ALL paste events to prevent the editor's native paste handler from
+  // restructuring the document and stripping CSS classes from the report template.
+  //
+  // KEY INSIGHT: The Smart editor registers its paste handler at window/document level
+  // with capture:true, so attaching to the element or shadow root fires too late.
+  // We must register at window capture to beat it, and use direct Range DOM insertion
+  // (not executeCommand / native.executeCommand) to bypass the editor's block-wrapping pipeline.
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !EditorComponent) return;
 
     const queryNative = () => container.querySelector("smart-editor");
 
-    const cleanWordHtml = (html) => {
+    // Tags that are safe to preserve in pasted content
+    const SAFE_TAGS = new Set([
+      'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del',
+      'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'a',
+      'sub', 'sup',
+    ]);
+    // Attributes that are safe to keep on pasted elements
+    const SAFE_ATTRS = new Set(['href', 'target', 'colspan', 'rowspan']);
+
+    /**
+     * Sanitize arbitrary clipboard HTML into clean, minimal markup:
+     * - Remove Word/Office comment blocks (<!--[if ...]>...<![endif]-->)
+     * - Unwrap vendor-specific wrapper elements (span, font, o:p, w:t, mso:*, etc.)
+     *   while preserving their text content.
+     * - Strip all inline styles, Word/Office classes, and non-essential attributes.
+     * - Flatten any unsupported tags to plain text.
+     */
+    const sanitizePastedHtml = (html) => {
       if (!html) return "";
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
 
-      // 1. Unwrap problematic inline wrappers that fragment selection and block formatting
-      const unwrapTags = Array.from(doc.querySelectorAll('*')).filter(el => {
-        const tag = el.tagName.toLowerCase();
-        return tag === 'span' || tag === 'font' || tag.includes(':');
-      });
-
-      unwrapTags.forEach(el => {
-        const parent = el.parentNode;
-        if (parent) {
-          while (el.firstChild) {
-            parent.insertBefore(el.firstChild, el);
+      // Step 1 – Remove comment nodes (Word <!--[if ...]>...<![endif]--> junk)
+      const removeComments = (node) => {
+        Array.from(node.childNodes).forEach((child) => {
+          if (child.nodeType === Node.COMMENT_NODE) {
+            node.removeChild(child);
+          } else {
+            removeComments(child);
           }
-          parent.removeChild(el);
-        }
-      });
+        });
+      };
+      removeComments(doc.body);
 
-      // 2. Strip all remaining layout-locking attributes from structural elements (p, table, etc)
-      const structuralElements = doc.querySelectorAll('*');
-      structuralElements.forEach(el => {
-        el.removeAttribute('style');
-        el.removeAttribute('class');
-        el.removeAttribute('id');
-        el.removeAttribute('lang');
-      });
+      // Step 2 – Unwrap any element NOT in SAFE_TAGS, bottom-up loop handles nesting
+      let keepGoing = true;
+      while (keepGoing) {
+        keepGoing = false;
+        for (const el of Array.from(doc.body.querySelectorAll('*'))) {
+          if (!SAFE_TAGS.has(el.tagName.toLowerCase())) {
+            const parent = el.parentNode;
+            if (parent) {
+              while (el.firstChild) parent.insertBefore(el.firstChild, el);
+              parent.removeChild(el);
+              keepGoing = true;
+            }
+          }
+        }
+      }
+
+      // Step 3 – Strip all unsafe attributes from remaining elements
+      for (const el of Array.from(doc.body.querySelectorAll('*'))) {
+        const toRemove = Array.from(el.attributes)
+          .map((a) => a.name)
+          .filter((n) => !SAFE_ATTRS.has(n.toLowerCase()));
+        toRemove.forEach((a) => el.removeAttribute(a));
+      }
 
       return doc.body.innerHTML;
     };
 
+    /**
+     * Locate the shadow-DOM contenteditable surface and the host element.
+     */
+    const getEditorParts = () => {
+      const native = queryNative();
+      if (!native) return { native: null, editable: null };
+      const editable =
+        native.shadowRoot?.querySelector(".smart-editor-editable") ||
+        native.shadowRoot?.querySelector("[contenteditable='true']") ||
+        native.querySelector(".smart-editor-editable") ||
+        native.querySelector("[contenteditable='true']");
+      return { native, editable };
+    };
+
+    /**
+     * Returns true when focus / selection is inside our editor's editable surface.
+     * The editable lives in a shadow root, so document.activeElement == host element;
+     * shadowRoot.activeElement gives the actual focused node.
+     */
+    const isEditorFocused = () => {
+      const { native, editable } = getEditorParts();
+      if (!native || !editable) return false;
+      if (native.shadowRoot?.activeElement === editable) return true;
+      const sel = window.getSelection();
+      if (sel?.rangeCount > 0) {
+        return editable.contains(sel.getRangeAt(0).commonAncestorContainer);
+      }
+      return false;
+    };
+
+    /**
+     * Insert sanitized HTML at the current cursor position by directly manipulating
+     * the DOM via the Range API — completely bypassing the editor's paste pipeline
+     * which wraps content in its own <div data-block-id class="smart-editor-block">.
+     */
+    const insertAtCursor = (html) => {
+      const { editable } = getEditorParts();
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || !editable) return;
+
+      const range = sel.getRangeAt(0);
+      if (!editable.contains(range.commonAncestorContainer)) return;
+
+      range.deleteContents();
+
+      const frag = range.createContextualFragment(html);
+      const lastNode = frag.lastChild;
+      range.insertNode(frag);
+
+      // Place cursor just after inserted content
+      if (lastNode) {
+        try {
+          const newRange = document.createRange();
+          newRange.setStartAfter(lastNode);
+          newRange.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+        } catch (_) {
+          range.collapse(false);
+        }
+      }
+    };
+
+    /**
+     * Master paste handler registered at window-capture — fires before the Smart
+     * editor's own window/document-level capture listeners.
+     */
     const handlePaste = (e) => {
-      const htmlData = e.clipboardData.getData("text/html");
-      const textData = e.clipboardData.getData("text/plain");
+      if (!isEditorFocused()) return; // only intercept when inside our editor
 
-      // Check for Word/structured paste or broken JSON list structure
-      if (htmlData && (
-        htmlData.toLowerCase().indexOf("microsoft") > -1 ||
-        htmlData.toLowerCase().indexOf("office") > -1 ||
-        htmlData.toLowerCase().indexOf("word") > -1 ||
-        (textData && textData.trim().startsWith("[["))
-      )) {
-        // Prevent the editor's internal "smart" logic from firing at all
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
 
-        const cleanedHtml = cleanWordHtml(htmlData);
-        let native = queryNative();
+      const htmlData = e.clipboardData?.getData("text/html") || "";
+      const textData = e.clipboardData?.getData("text/plain") || "";
 
-        if (native && native.executeCommand) {
-          native.executeCommand("insertHTML", cleanedHtml);
-          // Move cursor to end of pasted content
-          setTimeout(() => {
-            native.focus();
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-              const range = selection.getRangeAt(0);
-              range.collapse(false);
-              selection.removeAllRanges();
-              selection.addRange(range);
-            }
-          }, 0);
-        } else {
-          document.execCommand("insertHTML", false, cleanedHtml);
+      let contentToInsert;
+      if (htmlData) {
+        contentToInsert = sanitizePastedHtml(htmlData);
+      } else if (textData) {
+        // Plain-text paste: escape HTML special chars and convert newlines to <br>
+        contentToInsert = textData
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\n/g, "<br>");
+      } else {
+        return; // Nothing in clipboard
+      }
+
+      // Insert directly via Range API — bypasses the editor's block-wrapping pipeline
+      insertAtCursor(contentToInsert);
+    };
+
+    /**
+     * Block `beforeinput` with inputType "insertFromPaste" — modern browsers fire this
+     * before the paste event and the Smart editor uses it to trigger its block-replace logic.
+     */
+    const handleBeforeInput = (e) => {
+      if (
+        e.inputType === "insertFromPaste" ||
+        e.inputType === "insertFromPasteAsQuotation"
+      ) {
+        if (isEditorFocused()) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
         }
       }
     };
 
-    // Attach listeners recursively to both host and shadow root contents if available
-    let retryCount = 0;
-    const attachListeners = () => {
-      const native = queryNative();
-      if (!native) {
-        if (retryCount < 10) {
-          retryCount++;
-          setTimeout(attachListeners, 200);
-        }
-        return;
-      }
+    // Register at window-capture level — fires before any element-level or
+    // document-level handler the Smart editor may have installed.
+    window.addEventListener("paste", handlePaste, { capture: true });
+    window.addEventListener("beforeinput", handleBeforeInput, { capture: true });
 
-      // 1. Host listener
-      native.addEventListener("paste", handlePaste, true);
-
-      // 2. Try to find contenteditable inside shadow root
-      if (native.shadowRoot) {
-        const content = native.shadowRoot.querySelector(".smart-editor-content") ||
-          native.shadowRoot.querySelector("[contenteditable]");
-        if (content) {
-          content.addEventListener("paste", handlePaste, true);
-        }
-      }
-    };
-
-    attachListeners();
     return () => {
-      const native = queryNative();
-      if (native) {
-        native.removeEventListener("paste", handlePaste, true);
-        if (native.shadowRoot) {
-          const content = native.shadowRoot.querySelector(".smart-editor-content") ||
-            native.shadowRoot.querySelector("[contenteditable]");
-          if (content) content.removeEventListener("paste", handlePaste, true);
-        }
-      }
+      window.removeEventListener("paste", handlePaste, { capture: true });
+      window.removeEventListener("beforeinput", handleBeforeInput, { capture: true });
     };
   }, [EditorComponent]);
 
