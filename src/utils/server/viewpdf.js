@@ -1375,7 +1375,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     );
   };
 
-  const showConsultSectionsWhenRx = !rx || (rx && isSnapRx);
+  const showConsultSectionsWhenRx = !rx || (rx && isSnapRx) || caseManagerData?.isCustomSSRX === "1";
 
   const getFrequencyLanguageTitles = (languageId) => {
     const languageMap = {
@@ -1635,52 +1635,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           [],
         )
     : [];
-
-  function getAiMedicationFrequencyDisplay(item, option) {
-    const hasSlotFrequency = !!(
-      item?.tcm_tmm_freq_morning ||
-      item?.tcm_tmm_freq_afternoon ||
-      item?.tcm_tmm_freq_evening ||
-      item?.tcm_tmm_freq_night
-    );
-    const mappedFrequency =
-      frequencyList?.find((x) => x.tmf_id === item?.tmm_freq_type)?.[
-        frequencyLang()
-      ] || "";
-    const rawFrequency = (
-      item?.frequency ||
-      item?.freq ||
-      item?.frequencyText ||
-      item?.frequency_text ||
-      ""
-    )
-      .toString()
-      .trim();
-    const slotFrequency = hasSlotFrequency
-      ? option?.numeric_frequency
-        ? `${item?.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item?.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item?.tcm_tmm_freq_evening ? " - " + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ""} - ${item?.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}`
-        : formatFrequency(
-            item?.tcm_tmm_freq_morning,
-            item?.tcm_tmm_freq_afternoon,
-            item?.tcm_tmm_freq_evening,
-            item?.tcm_tmm_freq_night,
-            option?.is_dosage_decimal,
-          )
-      : "";
-
-    let chosenFrequency = "-";
-    if (rawFrequency) {
-      chosenFrequency = rawFrequency;
-    } else if (item?.tmf_block === 0 || item?.tmf_block === "") {
-      chosenFrequency = slotFrequency || "-";
-    } else if (mappedFrequency) {
-      chosenFrequency = `(${mappedFrequency})`;
-    } else {
-      chosenFrequency = slotFrequency || "-";
-    }
-
-    return chosenFrequency;
-  }
 
   function getAiMedicationTimingDisplay(item) {
     const mappedTiming = timingList?.find((x) => x.tmt_id === item?.tmm_time);
