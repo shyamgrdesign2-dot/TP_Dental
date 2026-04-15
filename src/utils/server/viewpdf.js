@@ -1711,7 +1711,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
   function getAiMedicationQuantityDisplay(item) {
     const q = item.display_qty ?? item.quantity ?? item.qty;
-    return q !== undefined && q !== null && String(q).trim() !== "" ? q : "-";
+    return q !== undefined && q !== null && String(q).trim() !== "" && Number(q) !== 0 ? q : "-";
   }
 
   function getAiMedicationNotesDisplay(item) {

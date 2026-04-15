@@ -870,7 +870,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     function getAiMedicationQuantityDisplay(item) {
         const q = item.display_qty ?? item.quantity ?? item.qty;
-        return q !== undefined && q !== null && String(q).trim() !== '' ? q : '-';
+        return q !== undefined && q !== null && String(q).trim() !== '' && Number(q) !== 0 ? q : '-';
     }
 
     function getAiMedicationNotesDisplay(item) {
@@ -2360,9 +2360,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     </Text>
                                                                                 ) : null}
                                                                                 <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500, marginTop: isTaper ? PX_TO_PT * 2 : 0 }}>
-                                                                                    {item.tmm_dosage && item.tmm_unit
-                                                                                        ? `${medicine_freq_dosage_format(item.tmm_dosage, option?.is_dosage_decimal)} ${item.medicineUnit?.find((x) => x.tmu_id == item.tmm_unit)?.tmu_title || ''}`
-                                                                                        : (item.medicineUnit?.find((x) => x.tmu_id == item.default_tmm_unit)?.tmu_title || '-')}
                                                                                     {getAiMedicationDoseDisplay(item, option)}
                                                                                 </Text>
                                                                             </View>
