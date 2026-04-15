@@ -15,6 +15,7 @@ import { checkToShowOpdBilling } from '../pages/opdBilling/service';
 import { useDispatch } from 'react-redux';
 import moment from 'moment';
 import {
+    GB_CVT_EXT_HOS,
     GB_HEALTH_CHECKUP_REPORT,
     NEO_NATOLOGISTS_DP_ID,
     PAEDIATRIC_DP_ID,
@@ -63,6 +64,7 @@ function SidebarPatient({
     const isIPDAccessible = isNewIPDAccessableFromGB || isNewIPDHosBusinessIdAccessableFromGB;
     const isAdmitted = patientAdmissionStatus?.alreadyAdmitted === true;
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
     const menu = [
         {
@@ -108,7 +110,13 @@ function SidebarPatient({
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
         // { icon_name: 'icon-billings', short_title: 'Add Bill', long_title: 'Add Bill/Payment' },
         // { icon_name: 'icon-More', short_title: '', long_title: 'More Options' }
-    ]?.filter((item) => item);
+    ]?.filter((item) => {
+        if (!item) return false;
+        if (isCvtExtHosAccessableFromGB) {
+            return item.key === PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY;
+        }
+        return true;
+    });
 
     let patientDOB = ''
 
@@ -185,7 +193,8 @@ function SidebarPatient({
                 </div>
             )}
             <div>
-                {tokenData?.hospital_business_id != config.zydus_business_id && (
+                {tokenData?.hospital_business_id != config.zydus_business_id &&
+                    !isCvtExtHosAccessableFromGB && (
                     <Link to="/edit_patient" replace={true} state={{ patient_data: patient_data }}>
                         <Button className='btn btn-primary2 d-flex justify-content-center align-items-center w-100 mt-3 btn-41'
                             onClick={() => {

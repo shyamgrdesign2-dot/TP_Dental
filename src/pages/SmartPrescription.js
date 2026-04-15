@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import "../pages/smartSync/smartSync.css";
 import { Button, Drawer, message, Tooltip } from "antd";
 import { useLocation } from "react-router-dom";
@@ -121,6 +121,16 @@ import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT } from "../utils/constants";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import { generateMissionHosTemplateBackground } from "./smartSync/services/missionHosTemplateHelper";
+import {
+  configureCanvasContext,
+  hardwarePointToCanvas,
+} from "./smartSync/services/canvasUtils";
+import {
+  resolveSelectedTemplateById,
+  resolveTemplatePageSources,
+  isStandardTemplate,
+} from "./smartSync/services/templateUtils";
 import {
   setAppointmentTeleconsultStatus,
   setActiveTeleconsultAppointmentId,
@@ -191,6 +201,7 @@ function SmartPrescription() {
   const { state } = useLocation();
   const { patient_data, send_path, caseManagerData, smartRxFilesData, pam_id, videoConsultData, fromRepeatRx } = state;
   const chartType = state?.chartType;
+
   // If fromRepeatRx is true, force tcmId to 0 to treat it as new consultation
   const tcmId = (fromRepeatRx || caseManagerData === undefined) ? 0 : (caseManagerData.tcm_id || 0);
   const pamId = fromRepeatRx ? 0 : pam_id ? pam_id : caseManagerData !== undefined ? caseManagerData.pam_id : 0;
@@ -377,6 +388,55 @@ function SmartPrescription() {
   const [templateToEdit, setTemplateToEdit] = useState(null);
   const [showAllSymptoms, setShowAllSymptoms] = useState(false);
   const [downloadingTemplateId, setDownloadingTemplateId] = useState(null);
+  const getSelectedTemplateById = useCallback((templateId) => {
+    return resolveSelectedTemplateById(templateId, templates);
+  }, [templates]);
+
+  const getTemplatePageSources = useCallback(async (template) => {
+    return resolveTemplatePageSources({
+      template,
+      profile,
+      patientData: patient_data,
+      generateMissionHosTemplateBackground,
+      forceBlankAddress: true,
+      outputWidth: 720,
+      outputHeight: 980,
+    });
+  }, [profile, patient_data]);
+
+  // When Mission / standard-style templates are active, regenerate pages if patient fields load or change.
+  const missionTemplatePatientKey = useMemo(() => {
+    const template = getSelectedTemplateById(selectedTemplateId);
+    if (!template || !isStandardTemplate(template)) {
+      return null;
+    }
+    return [
+      patient_data?.patient_unique_id,
+      patient_data?.pam_id,
+      patient_data?.pm_pid,
+      patient_data?.pm_fullname,
+      patient_data?.pm_contact_no,
+      patient_data?.pm_gender,
+      patient_data?.appointment_time,
+      patient_data?.patient_age,
+      patient_data?.ageYears,
+    ]
+      .map((v) => (v !== undefined && v !== null ? String(v) : ""))
+      .join("|");
+  }, [
+    selectedTemplateId,
+    templates,
+    getSelectedTemplateById,
+    patient_data?.patient_unique_id,
+    patient_data?.pam_id,
+    patient_data?.pm_pid,
+    patient_data?.pm_fullname,
+    patient_data?.pm_contact_no,
+    patient_data?.pm_gender,
+    patient_data?.appointment_time,
+    patient_data?.patient_age,
+    patient_data?.ageYears,
+  ]);
   
   // Track page metadata including template pages and blank pages
   // page_type can only be: "template" or "blank"
@@ -522,18 +582,25 @@ function SmartPrescription() {
     // }
   }, [smartRxFilesData]);
 
-  // Auto-load template images when selectedTemplateId changes
+  // Auto-load template images when selection changes, or when patient context updates for Mission-style templates
   useEffect(() => {
     // Only load template images if there are no smartRxFiles
     // smartRxFiles should take priority over templates
-    if (selectedTemplateId && selectedTemplateId !== 'none' && templates.length > 0 && 
+    if (selectedTemplateId && selectedTemplateId !== 'none' && 
         (!smartRxFiles || smartRxFiles.length === 0)) {
-      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+      const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
       if (selectedTemplate) {
-        loadTemplateImages(selectedTemplate);
+        void loadTemplateImages(selectedTemplate).catch((e) =>
+          console.error("Auto-load template images failed", e)
+        );
       }
     }
-  }, [selectedTemplateId, smartRxFiles.length]); // Only depend on length, not the array reference
+  }, [
+    selectedTemplateId,
+    smartRxFiles.length,
+    getSelectedTemplateById,
+    missionTemplatePatientKey,
+  ]);
 
   // Monitor changes to pagesMetaData for debugging
   useEffect(() => {
@@ -945,7 +1012,7 @@ function SmartPrescription() {
     if (templateData && templateData.id) {
       setSelectedTemplateId(templateData.id);
       // Load the template images immediately
-      loadTemplateImages(templateData);
+      await loadTemplateImages(templateData);
     }
     
     // Close the upload drawer
@@ -983,11 +1050,13 @@ function SmartPrescription() {
       setMetadataSafely(blankPageMetadata, "handleTemplateSelect blank");
     } else {
       // Handle template selection
-      const selected = templates.find(t => t.id === templateId);
+      const selected = getSelectedTemplateById(templateId);
       if (selected) {
-        message.success(`Template "${selected.title}" activated`);
+        message.success(`Template "${selected.title || "Standard Template"}" activated`);
         // Load template images - this will create pages and set template image indices
-        loadTemplateImages(selected);
+        void loadTemplateImages(selected).catch((e) =>
+          console.error("loadTemplateImages failed", e)
+        );
       }
     }
   };
@@ -1277,7 +1346,7 @@ function SmartPrescription() {
       if (updatedTemplateData && updatedTemplateData.id) {
         setSelectedTemplateId(updatedTemplateData.id);
         // Load the updated template images immediately
-        loadTemplateImages(updatedTemplateData);
+        await loadTemplateImages(updatedTemplateData);
       }
     
     // Reset edit state
@@ -1632,33 +1701,6 @@ function SmartPrescription() {
     });
   };
 
-  // Function to get scale factors for X and Y axes
-  const getScaleFactors = () => {
-    // Canvas dimensions
-    const canvasWidth = 720;
-    const canvasHeight = 980;
-    
-    // Coordinate ranges from your system
-    const xMin = 3;
-    const xMax = 475;
-    const yMin = 0;
-    const yMax = 650;
-    
-    // Calculate scale factors
-    const xScaleFactor = canvasWidth / (xMax - xMin);
-    // const yScaleFactor = canvasHeight / (yMax - yMin);
-    const yScaleFactor = 1.5;
-    
-    return { xScaleFactor, yScaleFactor };
-  };
-
-  // Function to get scale factor (default for all templates) - keeping for backward compatibility
-  const getScaleFactor = () => {
-    const { xScaleFactor, yScaleFactor } = getScaleFactors();
-    // Return average scale factor for backward compatibility
-    return (xScaleFactor + yScaleFactor) / 2;
-  };
-
   // Function to check if there are unsaved changes on the current canvas
   const checkForUnsavedChanges = () => {
     // Check if there are any custom RX images loaded (indicating user has been working on canvas)
@@ -1682,9 +1724,16 @@ function SmartPrescription() {
   };
 
   // Function to load template images
-  const loadTemplateImages = (template) => {
-    
-    if (!template.uploaded_files || template.uploaded_files.length === 0) {
+  const loadTemplateImages = async (template) => {
+    let templatePageSources = [];
+    try {
+      templatePageSources = await getTemplatePageSources(template);
+    } catch (e) {
+      console.error("loadTemplateImages: failed to resolve template pages", e);
+      setLoading(false);
+      return;
+    }
+    if (templatePageSources.length === 0) {
       return;
     }
     
@@ -1698,13 +1747,13 @@ function SmartPrescription() {
       ctxGlobalRefs.current = {};
     }
     
-    const totalImages = template.uploaded_files.length;
+    const totalImages = templatePageSources.length;
     let loadedCount = 0;
 
     // Generate unique IDs for each template image page
-    const newPageIds = template.uploaded_files.map(() => uuidv4());
+    const newPageIds = templatePageSources.map(() => uuidv4());
     setPages(newPageIds);
-    setDataPresentInCanvas(Array(template.uploaded_files.length).fill(true));
+    setDataPresentInCanvas(Array(templatePageSources.length).fill(true));
     setSelectedPage(0); // Select the first page
     
     // Initialize pages metadata for template pages
@@ -1721,10 +1770,12 @@ function SmartPrescription() {
     // Clear previous custom RX images since we're loading templates
     setCustomRxImages([]);
     
-    template.uploaded_files.forEach((file, index) => {
+    templatePageSources.forEach((templateImageSrc, index) => {
       const img = new Image();
-      img.src = file.file_url;
-      img.crossOrigin = "anonymous";
+      if (templateImageSrc && !String(templateImageSrc).startsWith("data:")) {
+        img.crossOrigin = "anonymous";
+      }
+      img.src = templateImageSrc;
       img.onload = () => {
         setImageRefs((prevState) => ({
           ...prevState,
@@ -2121,15 +2172,15 @@ function SmartPrescription() {
     <canvas
       key={id}
       id={id}
-      width="720px"
-      height="980px"
+      width={720}
+      height={980}
       className={`canvas-style ${
         selectedPage === index ? "canvas-active" : ""
       }`}
       ref={(el) => {
         if (el) {
           canvasRefs.current[id] = el;
-          const ctx = el.getContext("2d");
+          const ctx = configureCanvasContext(el.getContext("2d"));
           ctxGlobalRefs.current[id] = ctx;
         }
       }}
@@ -2360,11 +2411,13 @@ function SmartPrescription() {
     ctxGlobalRefs.current = {};
     
     // Reload the selected template that was loaded on mount
-    if (selectedTemplateId && selectedTemplateId !== 'none' && templates.length > 0) {
-      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+    if (selectedTemplateId && selectedTemplateId !== 'none') {
+      const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
       if (selectedTemplate) {
         // Reload the template images - this will recreate pages and load template images
-        loadTemplateImages(selectedTemplate);
+        void loadTemplateImages(selectedTemplate).catch((e) =>
+          console.error("loadTemplateImages after clear all failed", e)
+        );
         return; // Exit early after reloading template
       }
     }
@@ -2396,7 +2449,7 @@ function SmartPrescription() {
   };
 
   // Function to clear current page and reload template image
-  const handleClearCurrentPage = () => {
+  const handleClearCurrentPage = async () => {
 
     const currentPageId = pages[selectedPage];
     const canvas = canvasRefs.current[currentPageId];
@@ -2417,26 +2470,33 @@ function SmartPrescription() {
         // This is a template page - try to reload template image first
         if (isTemplateSelected(selectedTemplateId)) {
           // We have the template loaded, use it
-          const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
-          if (selectedTemplate && selectedTemplate.uploaded_files && selectedTemplate.uploaded_files.length > templateImageIndex) {
-            const templateImage = selectedTemplate.uploaded_files[templateImageIndex];
-            if (templateImage && templateImage.file_url) {
-              const img = new Image();
-              img.src = templateImage.file_url;
+          const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
+          let templatePageSources = [];
+          try {
+            templatePageSources = await getTemplatePageSources(selectedTemplate);
+          } catch (e) {
+            console.error("handleClearCurrentPage: template sources failed", e);
+          }
+          const templateImage = templatePageSources[templateImageIndex || 0];
+          if (templateImage) {
+            const img = new Image();
+            if (!String(templateImage).startsWith("data:")) {
               img.crossOrigin = "anonymous";
-              img.onload = () => {
-                ctx.drawImage(img, 0, 0, 720, 980);
-                setImageRefs((prevState) => ({
-                  ...prevState,
-                  [currentPageId]: img,
-                }));
-                setImageLoaded((prevState) => ({
-                  ...prevState,
-                  [currentPageId]: true,
-                }));
-              };
-              return; // Exit early after loading template image
             }
+            img.src = templateImage;
+            img.onload = () => {
+              configureCanvasContext(ctx);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              setImageRefs((prevState) => ({
+                ...prevState,
+                [currentPageId]: img,
+              }));
+              setImageLoaded((prevState) => ({
+                ...prevState,
+                [currentPageId]: true,
+              }));
+            };
+            return; // Exit early after loading template image
           }
         }
         
@@ -2447,7 +2507,8 @@ function SmartPrescription() {
           img.src = smartRxImage;
           img.crossOrigin = "anonymous";
           img.onload = () => {
-            ctx.drawImage(img, 0, 0, 720, 980);
+            configureCanvasContext(ctx);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             setImageRefs((prevState) => ({
               ...prevState,
               [currentPageId]: img,
@@ -2474,7 +2535,8 @@ function SmartPrescription() {
           img.src = smartRxImage;
           img.crossOrigin = "anonymous";
           img.onload = () => {
-            ctx.drawImage(img, 0, 0, 720, 980);
+            configureCanvasContext(ctx);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             setImageRefs((prevState) => ({
               ...prevState,
               [currentPageId]: img,
@@ -2514,14 +2576,14 @@ function SmartPrescription() {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     } 
     
-    // Get proper scale factors for X and Y axes
-    const { xScaleFactor, yScaleFactor } = getScaleFactors();
+    const p0 = hardwarePointToCanvas(t, n);
+    const p1 = hardwarePointToCanvas(a, c);
 
     // Set consistent styles
     ctx.strokeStyle = "#000"; // Example color for regular drawing
 
-    ctx.moveTo(t * xScaleFactor, n * yScaleFactor);
-    ctx.lineTo(a * xScaleFactor, c * yScaleFactor);
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
     ctx.lineJoin = ctx.lineCap = "round";
     ctx.stroke();
     if (!dataPresentInCanvas[selectedPage]) {
@@ -2534,13 +2596,13 @@ function SmartPrescription() {
   function editDraw(t, n, a, c, pageIndex) {
     const canvas = canvasRefs.current[pageIndex];
     if (!canvas) return;
-    // Get proper scale factors for X and Y axes
-    const { xScaleFactor, yScaleFactor } = getScaleFactors();
-    
+    const p0 = hardwarePointToCanvas(t, n);
+    const p1 = hardwarePointToCanvas(a, c);
+
     ctxGlobalRefs.current[pageIndex].strokeStyle = "#000";
     ctxGlobalRefs.current[pageIndex].beginPath();
-    ctxGlobalRefs.current[pageIndex].moveTo(t * xScaleFactor, n * yScaleFactor);
-    ctxGlobalRefs.current[pageIndex].lineTo(a * xScaleFactor, c * yScaleFactor);
+    ctxGlobalRefs.current[pageIndex].moveTo(p0.x, p0.y);
+    ctxGlobalRefs.current[pageIndex].lineTo(p1.x, p1.y);
     ctxGlobalRefs.current[pageIndex].lineJoin = ctxGlobalRefs.current[
       pageIndex
     ].lineCap = "round";
@@ -2756,7 +2818,7 @@ function SmartPrescription() {
       if (imageLoaded[pageId] && canvasRefs.current[pageId]) {
         // Only draw template images if they haven't been drawn before
         // This prevents overwriting user drawings when imageLoaded state changes
-        const ctx = canvasRefs.current[pageId].getContext("2d");
+        const ctx = configureCanvasContext(canvasRefs.current[pageId].getContext("2d"));
         
         // Check if this canvas already has content (user drawings)
         const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -2764,7 +2826,7 @@ function SmartPrescription() {
         
         if (!hasContent) {
           // Only draw template image if canvas is empty
-          ctx.drawImage(imageRefs[pageId], 0, 0, 720, 980);
+          ctx.drawImage(imageRefs[pageId], 0, 0, ctx.canvas.width, ctx.canvas.height);
           ctxGlobalRefs.current[pageId] = ctx;
         }
       }
@@ -2812,7 +2874,7 @@ function SmartPrescription() {
   };
 
   // Function to add same canvas page (with current template or RX type)
-  const handleAddSameCanvasPage = (pageIndex) => {
+  const handleAddSameCanvasPage = async (pageIndex) => {
     // Preserve canvas drawings for all existing pages before adding new page
     const preservedCanvasData = {};
     pages.forEach((pageId) => {
@@ -2860,15 +2922,23 @@ function SmartPrescription() {
     // Load the same image for the new page
     if (isTemplateSelected(selectedTemplateId) && currentPageMeta?.page_type === "template") {
       // For template images - use the same template image index as the current page
-      const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+      const selectedTemplate = getSelectedTemplateById(selectedTemplateId);
       const currentTemplateImageIndex = currentPageMeta?.template_page_index || 0;
-      
-      if (selectedTemplate && selectedTemplate.uploaded_files && selectedTemplate.uploaded_files.length > currentTemplateImageIndex) {
-        const imageToUse = selectedTemplate.uploaded_files[currentTemplateImageIndex].file_url;
-        
+
+      let templatePageSources = [];
+      try {
+        templatePageSources = await getTemplatePageSources(selectedTemplate);
+      } catch (e) {
+        console.error("handleAddSameCanvasPage: template sources failed", e);
+      }
+      if (templatePageSources.length > currentTemplateImageIndex) {
+        const imageToUse = templatePageSources[currentTemplateImageIndex];
+
         const img = new Image();
+        if (imageToUse && !String(imageToUse).startsWith("data:")) {
+          img.crossOrigin = "anonymous";
+        }
         img.src = imageToUse;
-        img.crossOrigin = "anonymous";
         img.onload = () => {
           setImageRefs((prevState) => ({
             ...prevState,

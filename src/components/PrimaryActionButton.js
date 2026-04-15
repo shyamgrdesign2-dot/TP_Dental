@@ -4,7 +4,7 @@ import { Button, Dropdown } from "antd";
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { GB_TAB_RX } from "../utils/constants";
+import { GB_TAB_RX, GB_CVT_EXT_HOS } from "../utils/constants";
 import { ASSETS } from "../assets";
 const smartPad = ASSETS.images.smartpad;
 
@@ -100,8 +100,15 @@ const PrimaryActionButton = ({
   const isTabRxEnabledFromGB = useFeatureIsOn(GB_TAB_RX);
   const isTabRxVisible = isTabRxEnabledFromGB && isMobile;
   // const isTabRxVisible = isTabRxEnabledFromGB ;
-  
-  if (isZydusAccount) {
+
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
+  // External hospital mode: only SmartRx — no Voice/Snap/Tab/Consult (desktop or mobile)
+  if (isCvtExtHosAccessableFromGB) {
+    if (isSmartRxAccessible) {
+      allAvailableOptions.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
+    }
+  } else if (isZydusAccount) {
     // For Zydus accounts: Consult is always primary, all other options go to dropdown
     if (isSmartRxAccessible && !isMobile) {
       dropdownOptionsList.push({ type: "smartrx", label: "SmartRx", handler: onSmartRxClick });
@@ -151,6 +158,10 @@ const PrimaryActionButton = ({
   const primaryOption = allAvailableOptions[0];
   // Dropdown options: For Zydus, use dropdownOptionsList; otherwise, use remaining options from allAvailableOptions
   const dropdownOptions = isZydusAccount ? dropdownOptionsList : allAvailableOptions.slice(1);
+
+  if (!primaryOption) {
+    return null;
+  }
 
   // Generate dropdown menu items - following priority order: SmartRx > VoiceRx > SnapRx > TabRx > Consult
   const getMenuItems = () => {
