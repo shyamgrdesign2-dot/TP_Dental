@@ -7,11 +7,13 @@ import { useSelector, useDispatch } from "react-redux";
 import moment from 'moment';
 import { getDecodedToken } from '../utils/localStorage';
 import config from '../config';
-import { NEO_NATOLOGISTS_DP_ID, PAEDIATRIC_DP_ID } from '../utils/constants';
+import { GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, PAEDIATRIC_DP_ID } from '../utils/constants';
 import { isMobile } from 'react-device-detect';
 import { listBloodGroup, editBloodGroup, viewPatient } from '../redux/appointmentsSlice';
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { ASSETS } from "../assets";
 const BloodIcon = ASSETS.images.blood;
+
 
 export const genderAge = (patient_data, profile, shouldShowGender = true) => {
     var value = shouldShowGender && patient_data?.pm_gender
@@ -54,6 +56,8 @@ function ProfilePopover(props) {
     const { patients_details } = useSelector(
         (state) => state.records
     );
+
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
     const isPaediatric = profile?.dp_id === PAEDIATRIC_DP_ID;
 
@@ -196,24 +200,26 @@ function ProfilePopover(props) {
                     </div>
                 </div>
             )}
-            <div>
-                {tokenData?.hospital_business_id != config.zydus_business_id && (
-                    <Link to="/edit_patient" replace={true} state={{ patient_data: patient_data }}>
-                        <Button className='btn btn-primary2 d-flex justify-content-center align-items-center w-100 mt-3 btn-41'>
-                            <i className='icon-Edit me-2 fs-21'></i>
-                            Edit Profile
-                        </Button>
-                    </Link>
-                )}
-                {locationPath == '/patient_details' ? '' :
-                    <Link to="/patient_details" state={{ patient_data: patient_data }}>
-                        <Button className='btn btn-primary2 align-items-center d-flex justify-content-center w-100 mt-3 btn-41'>
-                            <i className='icon-Visit-Summary fs-21 me-2'></i>
-                            Visit Summary
-                        </Button>
-                    </Link>
-                }
-            </div>
+            { !isCvtExtHosAccessableFromGB && 
+                <div>
+                    {tokenData?.hospital_business_id != config.zydus_business_id && (
+                        <Link to="/edit_patient" replace={true} state={{ patient_data: patient_data }}>
+                            <Button className='btn btn-primary2 d-flex justify-content-center align-items-center w-100 mt-3 btn-41'>
+                                <i className='icon-Edit me-2 fs-21'></i>
+                                Edit Profile
+                            </Button>
+                        </Link>
+                    )}
+                    {locationPath == '/patient_details' ? '' :
+                        <Link to="/patient_details" state={{ patient_data: patient_data }}>
+                            <Button className='btn btn-primary2 align-items-center d-flex justify-content-center w-100 mt-3 btn-41'>
+                                <i className='icon-Visit-Summary fs-21 me-2'></i>
+                                Visit Summary
+                            </Button>
+                        </Link>
+                    }
+                </div>
+            }
         </>
     )
 

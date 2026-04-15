@@ -26,6 +26,7 @@ import {
   NEO_NATOLOGISTS_DP_ID,
   GB_CARE_PLAN,
   GB_TELE_CONSULT,
+  GB_CVT_EXT_HOS,
 } from "../utils/constants";
 
 import ReconnectingWebSocket from "reconnectingwebsocket";
@@ -361,6 +362,8 @@ function SmartPrescription() {
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
 
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
   const [vitalDrawer, setVitalDrawer] = useState(false);
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
@@ -3601,7 +3604,9 @@ function SmartPrescription() {
               {showSCBanner && (
                 <SCBanner handleBanner={() => setShowSCBanner(false)} />
               )}
-              {CUSTOMIZED_PAD_LEFT_LIST()}
+              { !isCvtExtHosAccessableFromGB &&
+                CUSTOMIZED_PAD_LEFT_LIST()
+              }
               {selectedSymptomsCollector?.notes && (
                 <div className="prescription-box-sm p-14">
                   <div style={{ padding: "6px" }}>
@@ -3664,9 +3669,11 @@ function SmartPrescription() {
                   </div>
                 </div>
               )}
-              <div className="prescription-box-sm p-14">
-                <SmartRxFollowUpBox />
-              </div>
+              { !isCvtExtHosAccessableFromGB &&
+                <div className="prescription-box-sm p-14">
+                  <SmartRxFollowUpBox />
+                </div>
+              }
             </div>
             <div
               className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3"

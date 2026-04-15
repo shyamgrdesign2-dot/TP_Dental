@@ -49,6 +49,7 @@ import {
   WS_CONTROL_URL,
   MESSAGE_KEY,
   GB_PILLUP_MEDICINE,
+  GB_CVT_EXT_HOS,
 } from "../utils/constants";
 import ReconnectingWebSocket from "reconnectingwebsocket";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -147,6 +148,8 @@ function HeaderPrescription({
     useFeatureIsOn(GB_SMARTSYNC_CONNECT);
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
   const { isAutofillSelected, selectedSymptomsCollector } = useSelector(
     (state) => state.ddx
   );
@@ -786,7 +789,7 @@ function HeaderPrescription({
               {isSmartSyncConnectAccessableFromGB && (
                 <Button
                   type="button"
-                  className="btn align-items-center d-flex btn-device-connect rounded-5 pe-3 bg-white shadow2"
+                  className="btn align-items-center d-flex btn-device-connect rounded-5 pe-3 bg-white shadow2 me-2"
                   onClick={
                     isConnected
                       ? handleDisconnectPopup
@@ -857,7 +860,7 @@ function HeaderPrescription({
                   </div>
                 </Button>
               )}
-              {isPillUpAccessableFromGB && (
+              {isPillUpAccessableFromGB && !isCvtExtHosAccessableFromGB && (
                 <div
                   ref={tourRef}
                   className="ms-2 border rounded-20px px-2 py-1 d-flex align-items-center"
@@ -927,13 +930,14 @@ function HeaderPrescription({
                   </>
                 }
               />
-
-              <button
-                className="btn d-flex align-items-center btn-text"
-                onClick={handleDrawerCustomize}
-              >
-                <i className="icon-setting me-2"></i> <span>Customize</span>
-              </button>
+              { !isCvtExtHosAccessableFromGB &&
+                <button
+                  className="btn d-flex align-items-center btn-text"
+                  onClick={handleDrawerCustomize}
+                >
+                  <i className="icon-setting me-2"></i> <span>Customize</span>
+                </button>
+              }
 
               <Drawer
                 placement="right"
@@ -945,44 +949,51 @@ function HeaderPrescription({
               >
                 {CUSTOMIZE_CONTENT_TAB}
               </Drawer>
-
-              <Popover
-                open={popOverVideo}
-                onOpenChange={showHideVideoListPopover}
-                content={VIDEO_CONTENT}
-                trigger="click"
-                overlayClassName="pop-430 pp-0 videoTutorial"
-                placement="bottom"
-              >
-                {/* <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'> */}
-                <span
-                  className="text-decoration-none rounded-5 mx-3"
-                  style={{ cursor: "pointer" }}
+              { !isCvtExtHosAccessableFromGB &&
+                <Popover
+                  open={popOverVideo}
+                  onOpenChange={showHideVideoListPopover}
+                  content={VIDEO_CONTENT}
+                  trigger="click"
+                  overlayClassName="pop-430 pp-0 videoTutorial"
+                  placement="bottom"
                 >
-                  <img height={42} src={tutorial} />
-                </span>
-                {/* </button> */}
-              </Popover>
-              {videoLink && (
+                  {/* <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'> */}
+                  <span
+                    className="text-decoration-none rounded-5 mx-3"
+                    style={{ cursor: "pointer" }}
+                  >
+                    <img height={42} src={tutorial} />
+                  </span>
+                  {/* </button> */}
+                </Popover>
+              }
+
+              {videoLink && !isCvtExtHosAccessableFromGB && (
                 <VideoModal
                   videoLink={videoLink}
                   onCancel={() => setVideoLink(null)}
                 />
               )}
-              <Button
-                type="button"
-                className="btn align-items-center d-flex btn-41 btn-clear me-20"
-                onClick={() => setIsClearModalOpen(!isClearModalOpen)}
-                loading={loading}
-                disabled={!prescription}
-              >
-                <img
-                  className="align-items-center d-flex"
-                  src={reload}
-                  alt="clear"
-                />
-                <span>Clear All</span>
-              </Button>
+
+
+              { !isCvtExtHosAccessableFromGB && 
+                (<Button
+                    type="button"
+                    className="btn align-items-center d-flex btn-41 btn-clear me-20"
+                    onClick={() => setIsClearModalOpen(!isClearModalOpen)}
+                    loading={loading}
+                    disabled={!prescription}
+                  >
+                    <img
+                      className="align-items-center d-flex"
+                      src={reload}
+                      alt="clear"
+                    />
+                    <span>Clear All</span>
+                  </Button>
+                )
+              }
 
               <CommonModal
                 isModalOpen={isClearModalOpen}
