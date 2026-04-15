@@ -317,6 +317,17 @@ const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
 
 const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' };
 
+function parseAiFrequencyLeadingPattern(fullRaw) {
+    const m = (fullRaw || "").toString().trim().match(/^((?:\d+(?:\.\d+)?)(?:\s*-\s*(?:\d+(?:\.\d+)?)){1,3})(?:\s+(.*))?$/);
+    if (!m) return null;
+    const parts = m[1].replace(/\s/g, "").split("-").map(Number);
+    if (parts.length < 2 || parts.length > 4 || parts.some((x) => Number.isNaN(x))) return null;
+    const [morning = 0, afternoon = 0, evening = 0, night = 0] = parts;
+    return { morning, afternoon, evening, night, remainder: (m[2] || "").trim(), slotCount: parts.length };
+}
+
+const aiFrequencyNumericFromParsed = (p, dec) =>
+    p && [p.morning, p.afternoon, p.evening, p.night].slice(0, p.slotCount).map((v) => (v ? medicine_freq_dosage_format(v, dec) : 0)).join(" - ");
 
 function mapMedicationListForPrintPdf(medicines, idPrefix) {
     if (!Array.isArray(medicines) || medicines.length === 0) return [];
@@ -325,7 +336,7 @@ function mapMedicationListForPrintPdf(medicines, idPrefix) {
         const unitTitle = tmm_unit ? AI_FLOW_MEDICINE_UNIT_MAP[tmm_unit] : '';
         const medicineUnit = Array.isArray(item.medicineUnit) && item.medicineUnit.length > 0
             ? item.medicineUnit
-            : (tmm_unit && unitTitle ? [{ tmu_id: tmm_unit, tmu_title: unitTitle }] : []);
+            : [{ tmu_id: tmm_unit, tmu_title: unitTitle }];
         return {
             ...item,
             index,
@@ -334,7 +345,7 @@ function mapMedicationListForPrintPdf(medicines, idPrefix) {
             tmm_generic: item.tmm_generic ?? item.corrected_name ?? item.metadata?.tmm_generic ?? item.generic ?? '',
             tmm_unit: tmm_unit,
             medicineUnit,
-            tmm_dosage: item.tmm_dosage ?? item.dosage ?? '',
+            tmm_dosage: item.tmm_dosage ?? item.dosage ?? item.unitPerDose ?? item.unit_per_dose ?? item.Dosage ?? '',
             tcm_tmm_freq_morning: item.tcm_tmm_freq_morning ?? item.freqMorning,
             tcm_tmm_freq_afternoon: item.tcm_tmm_freq_afternoon ?? item.freqAfternoon,
             tcm_tmm_freq_evening: item.tcm_tmm_freq_evening ?? item.freqEvening,
@@ -344,6 +355,7 @@ function mapMedicationListForPrintPdf(medicines, idPrefix) {
             tmm_time: item.tmm_time ?? item.time_id,
             tmm_days: item.tmm_days ?? item.days,
             tmm_duration_type: item.tmm_duration_type ?? item.duration_type ?? '',
+            duration: item.duration ?? item.duration_text ?? item.tmm_duration ?? "",
             display_qty: item.display_qty ?? item.quantity ?? item.qty ?? '',
             tmm_remarks: item.tmm_remarks ?? item.notes ?? item.note ?? '',
         };
@@ -551,7 +563,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const showMode = printSettings?.header_footer?.show_header_footer_page || 'all';
 
     const medicationCaseOption = printSettings?.prescription?.case_option?.find(o => o.id === 4);
-    const medicationFormat = medicationCaseOption?.format;
 
     // For AI / digitised / voice flows, always derive medication from AI-flow
     // transformation; the view (inline/list/table) is decided by format.
@@ -715,12 +726,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     const formatFrequency = (morning, afternoon, evening, night, is_dosage_decimal) => {
 
-        const { morning: morningLabel, afternoon: afternoonLabel, evening: eveningLabel, night: nightLabel } = getFrequencyLanguageTitles(selectedLang);
+        const { morning: morningLabel, afternoon: afternoonLabel, night: nightLabel } = getFrequencyLanguageTitles(selectedLang);
 
         const frequencyParts = [
             morning > 0 ? `${morningLabel}(${medicine_freq_dosage_format(morning, is_dosage_decimal)})` : '',
             afternoon > 0 ? `${afternoonLabel}(${medicine_freq_dosage_format(afternoon, is_dosage_decimal)})` : '',
-            evening > 0 ? `${eveningLabel}(${medicine_freq_dosage_format(evening, is_dosage_decimal)})` : '',
+            evening > 0 ? `${nightLabel}(${medicine_freq_dosage_format(evening, is_dosage_decimal)})` : '',
             night > 0 ? `${nightLabel}(${medicine_freq_dosage_format(night, is_dosage_decimal)})` : ''
         ].filter(Boolean);
         const frequencyInWords = frequencyParts.join(' - ');
@@ -780,10 +791,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     }
     const medicationData = caseManagerData.medicine?.map((e, index) => ({ ...e, index: index })).reduce((acc, curr) => acc?.at(-1)?.tmm_id == curr.tmm_id ? acc : [...acc, curr], [])
 
-    const formatUnitPerDose = (tmm_dosage, is_dosage_decimal) => {
-        const unitPerDoseFormat = medicine_freq_dosage_format(tmm_dosage, is_dosage_decimal);
-        return unitPerDoseFormat;
-    }
+    const formatUnitPerDose = (d, dec) => medicine_freq_dosage_format(d, dec);
+
     function getAiMedicationFrequencyDisplay(item, option) {
         const hasSlotFrequency = !!(item?.tcm_tmm_freq_morning || item?.tcm_tmm_freq_afternoon || item?.tcm_tmm_freq_evening || item?.tcm_tmm_freq_night);
         const mappedFrequency = frequencyList?.find((x) => x.tmf_id === item?.tmm_freq_type)?.[frequencyLang()] || '';
@@ -794,19 +803,31 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 : formatFrequency(item?.tcm_tmm_freq_morning, item?.tcm_tmm_freq_afternoon, item?.tcm_tmm_freq_evening, item?.tcm_tmm_freq_night, option?.is_dosage_decimal))
             : '';
 
-        let chosenFrequency = '-';
-        // Requirement: show exact API value first when present (e.g. "1-0-1")
+        const freqTitleKey = frequencyLang();
+
         if (rawFrequency) {
-            chosenFrequency = rawFrequency;
-        } else if (item?.tmf_block === 0 || item?.tmf_block === '') {
-            chosenFrequency = slotFrequency || '-';
-        } else if (mappedFrequency) {
-            chosenFrequency = `(${mappedFrequency})`;
-        } else {
-            chosenFrequency = slotFrequency || '-';
+            const parsed = parseAiFrequencyLeadingPattern(rawFrequency);
+            if (option?.numeric_frequency) {
+                if (parsed) {
+                    const core = aiFrequencyNumericFromParsed(parsed, option?.is_dosage_decimal);
+                    return parsed.remainder ? `${core}\n${parsed.remainder}` : core;
+                }
+                return rawFrequency;
+            }
+            if (parsed) {
+                const textCore = formatFrequency(parsed.morning, parsed.afternoon, parsed.evening, parsed.night, option?.is_dosage_decimal);
+                return parsed.remainder ? [textCore, parsed.remainder].filter(Boolean).join("\n") : (textCore || rawFrequency);
+            }
+            if (frequencyList?.length) {
+                const entry = frequencyList.find((f) => (f?.tmf_title || "").toString().trim().toLowerCase() === rawFrequency.toLowerCase());
+                if (entry?.[freqTitleKey]) return entry[freqTitleKey];
+            }
+            return rawFrequency;
         }
 
-        return chosenFrequency;
+        if (item?.tmf_block === 0 || item?.tmf_block === '') return slotFrequency || '-';
+        if (mappedFrequency) return `(${mappedFrequency})`;
+        return slotFrequency || '-';
     }
 
     function getAiMedicationTimingDisplay(item) {
@@ -849,7 +870,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     function getAiMedicationQuantityDisplay(item) {
         const q = item.display_qty ?? item.quantity ?? item.qty;
-        return q !== undefined && q !== null && String(q).trim() !== '' ? q : '-';
+        return q !== undefined && q !== null && String(q).trim() !== '' && Number(q) !== 0 ? q : '-';
     }
 
     function getAiMedicationNotesDisplay(item) {
@@ -2300,6 +2321,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 const isGroupEnd = !key || key !== nextKey;
                                                                 const aiComputedFrequency = getAiMedicationFrequencyDisplay(item, option);
                                                                 const aiTimingDisplay = getAiMedicationTimingDisplay(item);
+                                                                const aiDurationDisplay = getAiMedicationDurationDisplay(item);
 
                                                                 return (
                                                                 <View style={[styles.row, !isGroupEnd ? { borderBottom: '0px' } : null]} key={item.tmm_id || item.unique_id || i} wrap={false}>
@@ -2351,7 +2373,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                         )}
                                                                         {option?.medicine_option?.includes('duration') && (
                                                                             <Text style={[styles.cell, { flex: 0.53, color: '#171725', fontFamily: getFont(), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }]}>
-                                                                                {getAiMedicationDurationDisplay(item)}
+                                                                                {aiDurationDisplay}
                                                                             </Text>
                                                                         )}
                                                                         {option?.medicine_option?.includes('quantity') && (
@@ -2396,6 +2418,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     const buildDetailsParts = (item) => {
                                                                         const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
                                                                         const aiTimingDisplay = getAiMedicationTimingDisplay(item);
+                                                                        const aiDur = getAiMedicationDurationDisplay(item);
                                                                         return Object.values(
                                                                             Object.fromEntries(
                                                                                 Object.entries({
@@ -2408,7 +2431,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     frequency: option?.medicine_option?.includes('frequency') ? aiInlineFrequency : '',
                                                                                     timing: aiTimingDisplay,
                                                                                     duration: option?.medicine_option?.includes('duration')
-                                                                                        ? getAiMedicationDurationDisplay(item)
+                                                                                        ? (aiDur !== '-' ? aiDur : '')
                                                                                         : '',
                                                                                     qty: option?.medicine_option?.includes('quantity') && getAiMedicationQuantityDisplay(item) !== '-'
                                                                                         ? `${getAiMedicationQuantityDisplay(item)} qty`
@@ -2469,6 +2492,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     const buildDetailsParts = (item) => {
                                                                         const aiInlineFrequency = getAiMedicationFrequencyDisplay(item, option);
                                                                         const aiTimingDisplay = getAiMedicationTimingDisplay(item);
+                                                                        const aiDur = getAiMedicationDurationDisplay(item);
                                                                         return Object.values(
                                                                             Object.fromEntries(
                                                                                 Object.entries({
@@ -2481,7 +2505,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     frequency: option?.medicine_option?.includes('frequency') ? aiInlineFrequency : '',
                                                                                     timing: aiTimingDisplay,
                                                                                     duration: option?.medicine_option?.includes('duration')
-                                                                                        ? getAiMedicationDurationDisplay(item)
+                                                                                        ? (aiDur !== '-' ? aiDur : '')
                                                                                         : '',
                                                                                     qty: option?.medicine_option?.includes('quantity') && getAiMedicationQuantityDisplay(item) !== '-'
                                                                                         ? `${getAiMedicationQuantityDisplay(item)} qty`

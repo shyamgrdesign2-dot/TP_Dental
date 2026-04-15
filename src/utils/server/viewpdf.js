@@ -1007,16 +1007,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
 
   const digitizedFont = getFont();
-  const getDigitizedFrequencyDisplay = (freqText) => {
-    if (!freqText || !frequencyList?.length) return freqText || "-";
-    const key = frequencyLang();
-    const entry = frequencyList.find(
-      (f) =>
-        (f?.tmf_title || "").toString().trim().toLowerCase() ===
-        freqText.toString().trim().toLowerCase(),
-    );
-    return entry && entry[key] ? entry[key] : freqText;
-  };
   const getDigitizedDurationDisplay = (durationText) => {
     if (!durationText) return "-";
     const s = durationText.toString().trim();
@@ -1385,7 +1375,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     );
   };
 
-  const showConsultSectionsWhenRx = !rx || (rx && isSnapRx);
+  const showConsultSectionsWhenRx = !rx || (rx && isSnapRx) || caseManagerData?.isCustomSSRX === "1";
 
   const getFrequencyLanguageTitles = (languageId) => {
     const languageMap = {
@@ -1493,6 +1483,131 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     return frequencyInWords;
   };
 
+
+  const parseAiFrequencyLeadingPattern = (fullRaw) => {
+    const leadingFrequencyMatch = (fullRaw || "")
+      .toString()
+      .trim()
+      .match(
+        /^((?:\d+(?:\.\d+)?)(?:\s*-\s*(?:\d+(?:\.\d+)?)){1,3})(?:\s+(.*))?$/,
+      );
+    if (!leadingFrequencyMatch) return null;
+    const frequencySlots = leadingFrequencyMatch[1]
+      .replace(/\s/g, "")
+      .split("-")
+      .map(Number);
+    if (
+      frequencySlots.length < 2 ||
+      frequencySlots.length > 4 ||
+      frequencySlots.some((slotValue) => Number.isNaN(slotValue))
+    )
+      return null;
+    const [morning = 0, afternoon = 0, evening = 0, night = 0] =
+      frequencySlots;
+    return {
+      morning,
+      afternoon,
+      evening,
+      night,
+      remainder: (leadingFrequencyMatch[2] || "").trim(),
+      slotCount: frequencySlots.length,
+    };
+  };
+
+  // Converts parsed slots back into the configured numeric display format.
+  // Example: { morning: 0.5, afternoon: 0, evening: 0.5 } -> "0.5 - 0 - 0.5"
+  const aiFrequencyNumericFromParsed = (parsedFrequency, isDosageDecimal) =>
+    parsedFrequency &&
+    [
+      parsedFrequency.morning,
+      parsedFrequency.afternoon,
+      parsedFrequency.evening,
+      parsedFrequency.night,
+    ]
+      .slice(0, parsedFrequency.slotCount)
+      .map((slotValue) =>
+        slotValue
+          ? medicine_freq_dosage_format(slotValue, isDosageDecimal)
+          : 0,
+      )
+      .join(" - ");
+
+  /** AI / digitized medication only — respects print option numeric vs text frequency. */
+  const getAiMedicationFrequencyDisplay = (item, medOption) => {
+    const hasSlotFrequency = !!(
+      item?.tcm_tmm_freq_morning ||
+      item?.tcm_tmm_freq_afternoon ||
+      item?.tcm_tmm_freq_evening ||
+      item?.tcm_tmm_freq_night
+    );
+    const mappedFrequency =
+      frequencyList?.find((x) => x.tmf_id === item?.tmm_freq_type)?.[
+        frequencyLang()
+      ] || "";
+    const rawFrequency = (
+      item?.frequency ||
+      item?.freq ||
+      item?.frequencyText ||
+      item?.frequency_text ||
+      ""
+    )
+      .toString()
+      .trim();
+    const slotFrequency = hasSlotFrequency
+      ? medOption?.numeric_frequency
+        ? `${item?.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, medOption?.is_dosage_decimal) : 0} - ${item?.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, medOption?.is_dosage_decimal) : 0}${item?.tcm_tmm_freq_evening ? " - " + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, medOption?.is_dosage_decimal) : ""} - ${item?.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, medOption?.is_dosage_decimal) : 0}`
+        : formatFrequency(
+            item?.tcm_tmm_freq_morning,
+            item?.tcm_tmm_freq_afternoon,
+            item?.tcm_tmm_freq_evening,
+            item?.tcm_tmm_freq_night,
+            medOption?.is_dosage_decimal,
+          )
+      : "";
+
+    const freqTitleKey = frequencyLang();
+
+    if (rawFrequency) {
+      const parsed = parseAiFrequencyLeadingPattern(rawFrequency);
+      if (medOption?.numeric_frequency) {
+        if (parsed) {
+          const core = aiFrequencyNumericFromParsed(
+            parsed,
+            medOption?.is_dosage_decimal,
+          );
+          return parsed.remainder ? `${core}\n${parsed.remainder}` : core;
+        }
+        return rawFrequency;
+      }
+      if (parsed) {
+        const textCore = formatFrequency(
+          parsed.morning,
+          parsed.afternoon,
+          parsed.evening,
+          parsed.night,
+          medOption?.is_dosage_decimal,
+        );
+        return parsed.remainder
+          ? [textCore, parsed.remainder].filter(Boolean).join("\n")
+          : textCore || rawFrequency;
+      }
+      if (frequencyList?.length) {
+        const entry = frequencyList.find(
+          (f) =>
+            (f?.tmf_title || "").toString().trim().toLowerCase() ===
+            rawFrequency.toLowerCase(),
+        );
+        if (entry?.[freqTitleKey]) return entry[freqTitleKey];
+      }
+      return rawFrequency;
+    }
+
+    if (item?.tmf_block === 0 || item?.tmf_block === "")
+      return slotFrequency || "-";
+    if (mappedFrequency) return `(${mappedFrequency})`;
+    return slotFrequency || "-";
+  };
+
   const formatUnitPerDose = (tmm_dosage, is_dosage_decimal) => {
     const unitPerDoseFormat = medicine_freq_dosage_format(
       tmm_dosage,
@@ -1536,52 +1651,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           [],
         )
     : [];
-
-  function getAiMedicationFrequencyDisplay(item, option) {
-    const hasSlotFrequency = !!(
-      item?.tcm_tmm_freq_morning ||
-      item?.tcm_tmm_freq_afternoon ||
-      item?.tcm_tmm_freq_evening ||
-      item?.tcm_tmm_freq_night
-    );
-    const mappedFrequency =
-      frequencyList?.find((x) => x.tmf_id === item?.tmm_freq_type)?.[
-        frequencyLang()
-      ] || "";
-    const rawFrequency = (
-      item?.frequency ||
-      item?.freq ||
-      item?.frequencyText ||
-      item?.frequency_text ||
-      ""
-    )
-      .toString()
-      .trim();
-    const slotFrequency = hasSlotFrequency
-      ? option?.numeric_frequency
-        ? `${item?.tcm_tmm_freq_morning ? medicine_freq_dosage_format(item.tcm_tmm_freq_morning, option?.is_dosage_decimal) : 0} - ${item?.tcm_tmm_freq_afternoon ? medicine_freq_dosage_format(item.tcm_tmm_freq_afternoon, option?.is_dosage_decimal) : 0}${item?.tcm_tmm_freq_evening ? " - " + medicine_freq_dosage_format(item.tcm_tmm_freq_evening, option?.is_dosage_decimal) : ""} - ${item?.tcm_tmm_freq_night ? medicine_freq_dosage_format(item.tcm_tmm_freq_night, option?.is_dosage_decimal) : 0}`
-        : formatFrequency(
-            item?.tcm_tmm_freq_morning,
-            item?.tcm_tmm_freq_afternoon,
-            item?.tcm_tmm_freq_evening,
-            item?.tcm_tmm_freq_night,
-            option?.is_dosage_decimal,
-          )
-      : "";
-
-    let chosenFrequency = "-";
-    if (rawFrequency) {
-      chosenFrequency = rawFrequency;
-    } else if (item?.tmf_block === 0 || item?.tmf_block === "") {
-      chosenFrequency = slotFrequency || "-";
-    } else if (mappedFrequency) {
-      chosenFrequency = `(${mappedFrequency})`;
-    } else {
-      chosenFrequency = slotFrequency || "-";
-    }
-
-    return chosenFrequency;
-  }
 
   function getAiMedicationTimingDisplay(item) {
     const mappedTiming = timingList?.find((x) => x.tmt_id === item?.tmm_time);
@@ -1642,7 +1711,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
   function getAiMedicationQuantityDisplay(item) {
     const q = item.display_qty ?? item.quantity ?? item.qty;
-    return q !== undefined && q !== null && String(q).trim() !== "" ? q : "-";
+    return q !== undefined && q !== null && String(q).trim() !== "" && Number(q) !== 0 ? q : "-";
   }
 
   function getAiMedicationNotesDisplay(item) {
@@ -7215,9 +7284,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   normalizeKey(getMedName(it));
                                 const getMedMeta = (item) => {
                                   const parts = [];
-                                  const freq = (item?.frequency || "")
-                                    .toString()
-                                    .trim();
                                   const dosage = (item?.dosage || "")
                                     .toString()
                                     .trim();
@@ -7245,10 +7311,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       ? `${item.quantity}`.toString().trim()
                                       : "";
 
-                                  if (freq)
-                                    parts.push(
-                                      getDigitizedFrequencyDisplay(freq),
-                                    );
+                                  {
+                                    const fDisp =
+                                      getAiMedicationFrequencyDisplay(
+                                        item,
+                                        option,
+                                      );
+                                    if (fDisp && fDisp !== "-")
+                                      parts.push(fDisp);
+                                  }
                                   if (dosage) parts.push(dosage);
                                   if (schedule)
                                     parts.push(
@@ -7784,19 +7855,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     rawQuantity === undefined
                                                       ? ""
                                                       : `${rawQuantity}`.trim();
-                                                  const freqRaw = (
-                                                    item?.frequency || ""
-                                                  )
-                                                    .toString()
-                                                    .trim();
                                                   const durationRaw = (
                                                     item?.duration || ""
                                                   )
                                                     .toString()
                                                     .trim();
                                                   const freqDisplay =
-                                                    getDigitizedFrequencyDisplay(
-                                                      freqRaw,
+                                                    getAiMedicationFrequencyDisplay(
+                                                      item,
+                                                      option,
                                                     );
                                                   const durationDisplay =
                                                     getDigitizedDurationDisplay(
@@ -8795,6 +8862,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }}
                                       >
                                         {item?.name || item?.lineItem || ""}
+                                        {item?.instruction || item?.notes || item?.note || item?.lineItem
+                                          ? ` (${item?.instruction || item?.notes || item?.note || item?.lineItem})`
+                                          : ""}
                                         &nbsp;
                                       </Text>
                                       <Text
@@ -8879,6 +8949,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }}
                                       >
                                         {item?.name || item?.lineItem || ""}
+                                        {item?.instruction || item?.notes || item?.note || item?.lineItem
+                                          ? ` (${item?.instruction || item?.notes || item?.note || item?.lineItem})`
+                                          : ""}
                                         &nbsp;
                                       </Text>
                                     </Text>

@@ -1358,7 +1358,7 @@ const ConsultationDrawer = ({
           const { instruction, ...restItem } = item;
           const mappedItem = {
             ...restItem,
-            notes: item.lineItem || item.instruction || item.notes ||''
+            notes: item.instruction || item.notes || ''
           };
           // Preserve hm_type and um_id at top level for API compatibility
           // Check both top level and metadata
