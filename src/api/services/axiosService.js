@@ -8,6 +8,51 @@ const instance = axios.create({
     timeout: 20000, // Set the timeout for requests
 });
 
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+
+const isVoiceEndpointRequest = (requestConfig = {}) => {
+    const requestUrl = requestConfig?.url || '';
+    return requestUrl.includes('/api/v1/digitization/voice')
+        || requestUrl.includes('/api/v1/voice-digitize')
+        || requestUrl.includes('/api/v1/ambient-voice-rx');
+};
+
+const isRetryableTransientError = (error) => {
+    if (axios.isCancel?.(error)) return false;
+    if ((error?.message || '').includes('Internet connection not available')) return false;
+    const status = error?.response?.status;
+    const isTimeout = error?.code === 'ECONNABORTED'
+        || (error?.message || '').toLowerCase().includes('timeout');
+    return !error?.response || isTimeout || (status >= 500 && status < 600);
+};
+
+const waitBeforeRetry = () => new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+const applyRetryIfEligible = async (error, originalRequest = {}) => {
+    if (!isRetryableTransientError(error)) return null;
+    originalRequest.__retryCount = originalRequest.__retryCount || 0;
+    window.__TATVA_VOICE_API_LAST_ERROR_MESSAGE =
+        error?.response?.data?.error
+        || error?.response?.data?.message
+        || error?.message
+        || 'Internal Server Error';
+    window.__TATVA_VOICE_API_LAST_RETRY_ATTEMPT = originalRequest.__retryCount;
+
+    if (originalRequest.__retryCount < MAX_RETRY_ATTEMPTS - 1) {
+        originalRequest.__retryCount += 1;
+        window.__TATVA_VOICE_API_LAST_RETRY_ATTEMPT = originalRequest.__retryCount;
+        if (isVoiceEndpointRequest(originalRequest)) {
+            console.warn(`[Voice API] Attempt ${originalRequest.__retryCount} failed, retrying...`, error);
+        }
+        await waitBeforeRetry();
+        return instance(originalRequest);
+    }
+    if (isVoiceEndpointRequest(originalRequest)) {
+        console.error('[Voice API] All 3 attempts failed', error);
+    }
+    return null;
+};
+
 // Request interceptor
 instance.interceptors.request.use(
     (config) => {
@@ -41,13 +86,36 @@ instance.interceptors.request.use(
 // Response interceptor
 instance.interceptors.response.use(
     (response) => {
+        if (isVoiceEndpointRequest(response?.config)) {
+            window.__TATVA_VOICE_API_LAST_ERROR_MESSAGE = '';
+            window.__TATVA_VOICE_API_LAST_RETRY_ATTEMPT = response?.config?.__retryCount || 0;
+            const responsePayload = response?.data || {};
+            const latestVoiceUploadUrl = responsePayload?.prescriptionUrl
+                || responsePayload?.voice_prescription_url
+                || responsePayload?.audioUrl
+                || responsePayload?.audio_url
+                || responsePayload?.url
+                || responsePayload?.data?.prescriptionUrl
+                || responsePayload?.data?.voice_prescription_url
+                || responsePayload?.data?.audioUrl
+                || responsePayload?.data?.audio_url
+                || responsePayload?.data?.url
+                || '';
+            if (latestVoiceUploadUrl) {
+                window.__TATVA_VOICE_API_LAST_UPLOAD_URL = latestVoiceUploadUrl;
+            }
+        }
         // You can modify the response data here
         if (response.data)
             return response.data;
         return response
     },
-    (error) => {
+    async (error) => {
         // You can handle errors globally here
+        const originalRequest = error?.config || {};
+        const retryResponse = await applyRetryIfEligible(error, originalRequest);
+        if (retryResponse) return retryResponse;
+
         let notificationParam = {
             message: ''
         }
