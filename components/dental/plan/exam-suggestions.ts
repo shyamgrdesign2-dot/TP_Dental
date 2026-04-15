@@ -3,7 +3,7 @@
  * (2) live examination chart rows persisted from DentalCanvas.
  */
 import { INITIAL_TOOTH_STATE } from "../mock-data"
-import { getRate, TREATMENT_NAMES } from "./treatments"
+import { TREATMENT_NAMES } from "./treatments"
 
 export const EXAM_CHART_STORAGE_PREFIX = "dental.exam.chart."
 
@@ -198,16 +198,20 @@ export function buildExamSuggestions(patientId: string): ExamSuggestion[] {
   for (const e of entries) {
     if (e.kind !== "procedure" && e.kind !== "planned")
       continue
-    const treatmentName = mapChartProcedureName(e.name)
-    if (!treatmentName || getRate(treatmentName) <= 0)
+    const rawName = (e.name ?? "").trim()
+    if (!rawName)
       continue
+    const mapped = mapChartProcedureName(e.name)
+    const treatmentName = mapped ?? rawName
     push({
       treatment: treatmentName,
       toothFdi: e.toothFdi,
       toothLabel: fdiToLabel(e.toothFdi),
       surfaces: [...(e.surfaces ?? [])],
       source: "chart",
-      hint: `Chart: “${e.name}” → ${treatmentName}`,
+      hint: mapped
+        ? `Examination: “${e.name}” → ${treatmentName}`
+        : `Examination: ${rawName} (T${e.toothFdi})`,
     })
   }
 

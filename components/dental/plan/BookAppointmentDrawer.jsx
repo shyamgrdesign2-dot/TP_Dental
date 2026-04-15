@@ -26,8 +26,8 @@ const CASE_TYPES = [
     { value: "follow-up", label: "Follow-up" },
 ];
 
-const INPUT_CLASS = "w-full h-[42px] rounded-[10px] border border-tp-slate-200 bg-white px-[14px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors";
-const LABEL_CLASS = "block font-sans text-[12px] font-semibold text-tp-slate-600 mb-[6px]";
+const INPUT_CLASS = "w-full h-[42px] rounded-[10px] border border-tp-slate-200 bg-white px-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors";
+const LABEL_CLASS = "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]";
 
 export function BookAppointmentDrawer() {
     const { state, closeDrawer, findService, findPlanForService, dispatch, patientId } = usePlanContext();
@@ -150,7 +150,7 @@ export function BookAppointmentDrawer() {
                         type: "button",
                         onClick: handleBook,
                         disabled: !doctor || !date || !time,
-                        className: "inline-flex h-[42px] min-w-[120px] items-center justify-center gap-[6px] rounded-[10px] px-[20px] font-sans text-[14px] font-semibold leading-none text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm",
+                        className: "inline-flex h-[42px] min-w-[120px] items-center justify-center gap-[6px] rounded-[10px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold leading-none text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm",
                         children: [
                             _jsx(Calendar2, { size: 16, variant: "Linear", className: "shrink-0" }),
                             _jsx("span", { className: "leading-none", children: editingAppointment ? "Save" : "Book" }),
@@ -164,9 +164,9 @@ export function BookAppointmentDrawer() {
                         service && _jsxs("div", {
                             className: "rounded-[10px] bg-tp-blue-50 px-[12px] py-[10px]",
                             children: [
-                                _jsx("p", { className: "font-sans text-[14px] font-semibold text-tp-blue-700", children: service.treatment }),
+                                _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-blue-700", children: service.treatment }),
                                 _jsx("p", {
-                                    className: "font-sans text-[12px] text-tp-blue-500",
+                                    className: "font-['Inter',sans-serif] text-[12px] text-tp-blue-500",
                                     children: service.toothFdi === "full-mouth"
                                         ? "Full Mouth"
                                         : `T${service.toothFdi} — ${service.toothLabel}`,
@@ -176,7 +176,7 @@ export function BookAppointmentDrawer() {
                         !service && _jsx("div", {
                             className: "rounded-[10px] bg-tp-slate-50 px-[12px] py-[10px]",
                             children: _jsx("p", {
-                                className: "font-sans text-[14px] text-tp-slate-500 italic",
+                                className: "font-['Inter',sans-serif] text-[14px] text-tp-slate-500 italic",
                                 children: "Open appointment booking module to schedule visits for this patient.",
                             }),
                         }),
@@ -240,7 +240,7 @@ export function BookAppointmentDrawer() {
                                     ? _jsx("div", {
                                         className: "flex h-[80px] w-full items-center justify-center rounded-[10px] border border-dashed border-tp-slate-200 bg-white",
                                         children: _jsx("p", {
-                                            className: "font-sans text-[12px] text-tp-slate-400",
+                                            className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-400",
                                             children: "Select doctor and date to view available time slots.",
                                         }),
                                     })
@@ -249,7 +249,7 @@ export function BookAppointmentDrawer() {
                                         children: timeSlots.map((slot) => _jsx("button", {
                                             type: "button",
                                             onClick: () => setTime(slot),
-                                            className: `h-[38px] rounded-[10px] font-sans text-[13px] font-medium transition-colors ${time === slot
+                                            className: `h-[38px] rounded-[10px] font-['Inter',sans-serif] text-[13px] font-medium transition-colors ${time === slot
                                                 ? "bg-tp-blue-600 text-white border-transparent"
                                                 : "bg-white text-tp-slate-600 border border-tp-slate-200 hover:border-tp-blue-400 hover:text-tp-blue-600"}`,
                                             children: slot,
@@ -265,7 +265,7 @@ export function BookAppointmentDrawer() {
                                     onChange: (e) => setNotes(e.target.value),
                                     placeholder: "Additional notes...",
                                     rows: 3,
-                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
+                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
                                 }),
                             ],
                         }),

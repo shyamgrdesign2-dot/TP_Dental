@@ -192,13 +192,17 @@ function WaveAnimation() {
           }}
         />
       ))}
-      <style jsx>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes wave-bar {
           0% { height: 4px; opacity: 0.4; }
           50% { height: 16px; opacity: 1; }
           100% { height: 6px; opacity: 0.5; }
         }
-      `}</style>
+      `,
+        }}
+      />
     </div>
   )
 }
@@ -458,7 +462,9 @@ export function ChatInput({
           )}
           style={{ padding: "8px 10.5px", gap: 12 }}
         >
-          <style jsx>{`
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
             .chat-input-border {
               border: 1px solid var(--tp-slate-200, #E2E2EA);
               transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -471,7 +477,6 @@ export function ChatInput({
               color: var(--tp-slate-300, #D0D5DD);
               line-height: 16px;
             }
-            /* Animated AI gradient border for pre-filled state */
             .chat-input-border.chat-input-prefilled {
               border-color: transparent;
               background-image: linear-gradient(white, white),
@@ -491,7 +496,9 @@ export function ChatInput({
               50% { background-position: 0% 0%, 100% 50%; }
               100% { background-position: 0% 0%, 0% 50%; }
             }
-          `}</style>
+          `,
+            }}
+          />
 
           {/* Row 1: Textarea — 12px font per Figma */}
           <textarea

@@ -31,6 +31,7 @@ import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm";
 import rxHeaderStyles from "@/components/tp-rxpad/imports/RxpadHeader.module.scss";
 import { TreatmentPlanEmbed } from "@/components/dental/plan/TreatmentPlanPage";
 import { getAppointmentPatient } from "@/lib/appointment-patients";
+import { DR_AGENT_MAIN_RESERVE_CLASS } from "@/components/tp-rxpad/DrAgentLayoutShell";
 import { cn } from "@/lib/utils";
 
 const HISTORY_VIOLET = "var(--tp-violet-500)";
@@ -744,6 +745,7 @@ function PatientDetailInner() {
         <div
           className={cn(
             "static flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden",
+            DR_AGENT_MAIN_RESERVE_CLASS,
             activeConfig.kind === "placeholder" || activeConfig.kind === "opd"
               ? "overflow-y-auto"
               : "overflow-hidden",

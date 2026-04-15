@@ -6,7 +6,8 @@ import { jsx as _jsx } from "react/jsx-runtime";
  * Provides: state, dispatch, and derived selectors (estimatePlans,
  * inProgressPlans, completedPlans, activePlan).
  */
-import React, { createContext, useContext, useMemo, useReducer } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useReducer } from "react";
+import { PLAN_CONSULTATION_FLUSH_EVENT, PLAN_CONSULTATION_QUEUE_PREFIX } from "@/lib/plan-consultation-queue";
 import { genId } from "./plan-types";
 import { getMockPlans } from "./plan-mock-data";
 // ─── Reducer ────────────────────────────────────────────────
@@ -43,6 +44,7 @@ function planReducer(state, action) {
                     sittings: [],
                     procedures: [],
                     appointments: [],
+                    consultations: [],
                     startedAt: undefined,
                     completedAt: undefined,
                 })),
@@ -77,8 +79,8 @@ function planReducer(state, action) {
                         updatedAt: now,
                         services: p.services.map((s) => ({
                             ...s,
-                            status: "in-progress",
-                            startedAt: s.startedAt ?? now,
+                            status: "planned",
+                            startedAt: undefined,
                         })),
                     };
                 }),
@@ -103,6 +105,7 @@ function planReducer(state, action) {
                             sittings: [],
                             procedures: [],
                             appointments: [],
+                            consultations: [],
                         })),
                     };
                 }),
@@ -163,6 +166,33 @@ function planReducer(state, action) {
                     services: p.services.map((s) => s.id === action.serviceId ? { ...s, ...action.patch } : s),
                 })),
             };
+        case "APPEND_SERVICE_CONSULTATION": {
+            const now = new Date().toISOString().slice(0, 10);
+            const { serviceId, consultation } = action;
+            return {
+                ...state,
+                plans: state.plans.map((p) => ({
+                    ...p,
+                    services: p.services.map((s) => {
+                        if (s.id !== serviceId)
+                            return s;
+                        const nextConsultations = [...(s.consultations ?? []), consultation];
+                        const next = {
+                            ...s,
+                            consultations: nextConsultations,
+                        };
+                        if (s.status === "planned") {
+                            return {
+                                ...next,
+                                status: "in-progress",
+                                startedAt: s.startedAt ?? now,
+                            };
+                        }
+                        return next;
+                    }),
+                })),
+            };
+        }
         case "REMOVE_SERVICE":
             return {
                 ...state,
@@ -356,5 +386,47 @@ export function PlanProvider({ patientId, children, onNavigateTab, initialDrawer
         closeDrawer,
         navigateTab: onNavigateTab,
     }), [patientId, embedInPatientShell, state, estimatePlans, inProgressPlans, completedPlans, activePlan, findPlanForService, findService, hasInProgressPlan, onNavigateTab]);
+    useEffect(() => {
+        const key = `${PLAN_CONSULTATION_QUEUE_PREFIX}${patientId || "apt-1"}`;
+        const flush = () => {
+            if (typeof window === "undefined")
+                return;
+            const raw = localStorage.getItem(key);
+            if (!raw)
+                return;
+            let queue = [];
+            try {
+                queue = JSON.parse(raw);
+                if (!Array.isArray(queue) || queue.length === 0)
+                    return;
+            }
+            catch {
+                return;
+            }
+            localStorage.removeItem(key);
+            for (const item of queue) {
+                if (!item || item.patientId !== patientId || !item.serviceId || !item.summaryText)
+                    continue;
+                dispatch({
+                    type: "APPEND_SERVICE_CONSULTATION",
+                    serviceId: item.serviceId,
+                    consultation: {
+                        id: item.id ?? `cns-${Date.now()}`,
+                        endedAt: item.endedAt ?? new Date().toISOString(),
+                        source: item.source === "appointment" ? "appointment" : "treatment-row",
+                        appointmentId: item.appointmentId,
+                        summaryText: item.summaryText,
+                    },
+                });
+            }
+        };
+        flush();
+        window.addEventListener("storage", flush);
+        window.addEventListener(PLAN_CONSULTATION_FLUSH_EVENT, flush);
+        return () => {
+            window.removeEventListener("storage", flush);
+            window.removeEventListener(PLAN_CONSULTATION_FLUSH_EVENT, flush);
+        };
+    }, [patientId]);
     return _jsx(PlanContext.Provider, { value: value, children: children });
 }

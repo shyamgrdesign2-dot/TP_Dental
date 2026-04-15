@@ -24,6 +24,9 @@ import { saveDentalPreviewSnapshot } from "@/components/tp-rxpad/rx-preview-stor
 import clsx from "clsx";
 import ex from "./ExaminationTab.module.scss";
 import ui from "./ExaminationTab.ui.module.scss";
+import { useBillingCatalog } from "@/lib/billing-catalog-context";
+import { getUniqueDentalBillItems, sortStringsForTypeahead } from "@/lib/billing-catalog";
+import { AddDentalBillItemDrawer } from "@/components/dental/AddDentalBillItemDrawer";
 // Score weights per diagnosis/finding severity (out of 100).
 const DIAG_WEIGHT = {
     Missing: 8, Implant: 2, RCT: 4, Crown: 2, Bridge: 3, Denture: 3,
@@ -250,7 +253,8 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
                                 ? "dentalCardExpand 380ms cubic-bezier(0.34, 1.2, 0.64, 1)"
                                 : "dentalCardCollapse 320ms cubic-bezier(0.2, 0.8, 0.2, 1)",
                             transformOrigin: "center top",
-                        }, children: isSingle && canvasState ? (_jsx("div", { className: ex.singleCol, children: _jsx("div", { className: ex.singleCard, children: _jsx(SingleToothPanel, { state: canvasState }) }) })) : (_jsx("div", { className: isGetStarted ? ex.scrollStarted : ex.scrollSplit, children: _jsx(DentitionPanel, { state: canvasState }) })) }, isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"), _jsx("style", { jsx: true, global: true, children: `
+                        }, children: isSingle && canvasState ? (_jsx("div", { className: ex.singleCol, children: _jsx("div", { className: ex.singleCard, children: _jsx(SingleToothPanel, { state: canvasState }) }) })) : (_jsx("div", { className: isGetStarted ? ex.scrollStarted : ex.scrollSplit, children: _jsx(DentitionPanel, { state: canvasState }) })) }, isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"), _jsx("style", { dangerouslySetInnerHTML: {
+                    __html: `
           @keyframes dentalCardExpand {
             0%   { opacity: 0; transform: scale(0.72) translateY(40px); }
             60%  { opacity: 1; }
@@ -260,7 +264,8 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             from { opacity: 0; transform: scale(1.04) translateY(-6px); }
             to   { opacity: 1; transform: scale(1) translateY(0); }
           }
-        ` })] })] }));
+        `,
+                } })] })] }));
 }
 /** Truncate one chip segment; join with commas for tooth-record pills (Dr Agent + chart). */
 const CHIP_SEGMENT_MAX = 22;
@@ -288,6 +293,22 @@ function joinChipLabels(parts, maxTotal = CHIP_JOIN_MAX) {
         s = `${s.slice(0, maxTotal - 1)}…`;
     return s;
 }
+/** Dedupe + trim part labels for dentition summary pills (full strings; truncation is CSS per segment). */
+function uniquePartList(raw) {
+    const seen = new Set();
+    const out = [];
+    for (const x of raw) {
+        const t = String(x ?? "").trim();
+        if (!t)
+            continue;
+        const k = t.toLowerCase();
+        if (seen.has(k))
+            continue;
+        seen.add(k);
+        out.push(t);
+    }
+    return out;
+}
 // ──────────────────────────────────────────────────────────────
 // Dentition panel: Patient Dental Score + per-tooth summary
 // Clicking any summary row → opens that tooth's single view.
@@ -308,7 +329,7 @@ function DentitionPanel({ state }) {
                 fdi,
                 diagnoses: [],
                 findingsFullParts: [],
-                treatmentProcFullParts: [],
+                procedureFullParts: [],
             };
             map.set(fdi, next);
             return next;
@@ -333,17 +354,6 @@ function DentitionPanel({ state }) {
                     row.findingsFullParts.push(t);
             }
         }
-        const thByTooth = state.treatmentHistoryDetailsByTooth ?? {};
-        for (const [fdi, detailMap] of Object.entries(thByTooth)) {
-            if (!detailMap || typeof detailMap !== "object")
-                continue;
-            const row = seed(fdi);
-            for (const name of Object.keys(detailMap)) {
-                const n = name?.trim();
-                if (n)
-                    row.treatmentProcFullParts.push(n);
-            }
-        }
         for (const e of state.allEntries) {
             const row = seed(e.toothFdi);
             if (e.kind === "finding") {
@@ -354,27 +364,30 @@ function DentitionPanel({ state }) {
             else if (e.kind === "procedure" || e.kind === "planned") {
                 const name = e.name?.trim();
                 if (name)
-                    row.treatmentProcFullParts.push(name);
+                    row.procedureFullParts.push(name);
             }
         }
         const notesByFdi = state.toothNotes ?? {};
         return Array.from(map.values())
             .map((e) => {
-                const findingParts = [...new Set(e.findingsFullParts.map((x) => String(x).trim()).filter(Boolean))];
-                const treatmentProcParts = [...new Set(e.treatmentProcFullParts.map((x) => String(x).trim()).filter(Boolean))];
+                const diagnosisParts = uniquePartList(e.diagnoses).sort((a, b) => a.localeCompare(b));
+                const findingParts = uniquePartList(e.findingsFullParts);
+                const procedureParts = uniquePartList(e.procedureFullParts);
                 return {
                     ...e,
-                    findingsLabel: findingParts.length ? joinChipLabels(findingParts) : "",
+                    diagnosisParts,
+                    findingParts,
+                    procedureParts,
                     findingsTitle: findingParts.length ? findingParts.join(", ") : undefined,
-                    treatmentPlanLabel: treatmentProcParts.length ? joinChipLabels(treatmentProcParts) : "",
-                    treatmentPlanTitle: treatmentProcParts.length ? treatmentProcParts.join(", ") : undefined,
+                    procedureTitle: procedureParts.length ? procedureParts.join(", ") : undefined,
+                    historyTitle: diagnosisParts.length ? diagnosisParts.join(", ") : undefined,
                 };
             })
             .filter(
                 (e) =>
-                    e.diagnoses.length > 0 ||
-                    Boolean(e.findingsLabel) ||
-                    Boolean(e.treatmentPlanLabel) ||
+                    e.diagnosisParts.length > 0 ||
+                    e.findingParts.length > 0 ||
+                    e.procedureParts.length > 0 ||
                     Boolean(notesByFdi[e.fdi]?.trim()),
             )
             .sort((a, b) => a.fdi.localeCompare(b.fdi));
@@ -426,7 +439,7 @@ function DentitionPanel({ state }) {
                             crownColor = "#9ca3af";
                             rootColor = "#6B7280";
                         }
-                        return (_jsxs("button", { type: "button", onClick: () => openTooth(entry.fdi), onMouseEnter: () => state?.onSetHoveredTooth(entry.fdi), onMouseLeave: () => state?.onSetHoveredTooth(null), className: clsx(ui.toothRow, enterFdis.has(entry.fdi) && ui.toothRowEnter, state?.agentApplyPulseFdis?.has(String(entry.fdi)) && ui.toothRowAgentPulse, state?.hoveredToothFdi === entry.fdi && ui.toothRowActive), children: [_jsxs("div", { className: ui.toothRowHeader, children: [_jsx("div", { className: ui.toothThumb, children: tooth && (_jsx(MiniToothCanvas, { tooth: tooth, size: 52, diagnoses: new Set(entry.diagnoses), isImplant: entry.diagnoses.includes("Implant"), findings: (state?.findingsByTooth?.[entry.fdi] ?? []) })) }), _jsxs("div", { className: ui.toothHeaderText, children: [_jsx("span", { className: ui.toothName, children: toothName }), _jsxs("span", { className: ui.toothFdiBelow, children: ["T", entry.fdi] })] }), _jsx("span", { className: ui.toothChevron, "aria-hidden": true, children: _jsx(ExpandIcon, { size: 17 }) })] }), _jsx("div", { className: ui.toothRowDivider, "aria-hidden": true }), _jsxs("div", { className: ui.toothChips, children: [entry.diagnoses.length > 0 && (_jsx(SummaryPill, { icon: "diagnosis", label: entry.diagnoses.join(", "), tone: "violet" })), Boolean(entry.findingsLabel) && (_jsx(SummaryPill, { icon: "stethoscope", label: entry.findingsLabel, title: entry.findingsTitle, tone: "violet" })), Boolean(entry.treatmentPlanLabel) && (_jsx(SummaryPill, { icon: "clipboard-activity", label: entry.treatmentPlanLabel, title: entry.treatmentPlanTitle, tone: "violet" })), Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) && (_jsx(SummaryPill, { icon: "note-2", label: "Notes", tone: "violet" }))] })] }, entry.fdi));
+                        return (_jsxs("button", { type: "button", onClick: () => openTooth(entry.fdi), onMouseEnter: () => state?.onSetHoveredTooth(entry.fdi), onMouseLeave: () => state?.onSetHoveredTooth(null), className: clsx(ui.toothRow, enterFdis.has(entry.fdi) && ui.toothRowEnter, state?.agentApplyPulseFdis?.has(String(entry.fdi)) && ui.toothRowAgentPulse, state?.hoveredToothFdi === entry.fdi && ui.toothRowActive), children: [_jsxs("div", { className: ui.toothRowHeader, children: [_jsx("div", { className: ui.toothThumb, children: tooth && (_jsx(MiniToothCanvas, { tooth: tooth, size: 52, diagnoses: new Set(entry.diagnoses), isImplant: entry.diagnoses.includes("Implant"), findings: (state?.findingsByTooth?.[entry.fdi] ?? []) })) }), _jsxs("div", { className: ui.toothHeaderText, children: [_jsx("span", { className: ui.toothName, children: toothName }), _jsxs("span", { className: ui.toothFdiBelow, children: ["T", entry.fdi] })] }), _jsx("span", { className: ui.toothChevron, "aria-hidden": true, children: _jsx(ExpandIcon, { size: 17 }) })] }), _jsx("div", { className: ui.toothRowDivider, "aria-hidden": true }), _jsxs("div", { className: ui.toothChips, children: [entry.diagnosisParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "clipboard-activity", parts: entry.diagnosisParts, title: entry.historyTitle, tone: "violet" })), entry.findingParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "diagnosis", parts: entry.findingParts, title: entry.findingsTitle, tone: "violet" })), entry.procedureParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "surgical-scissors-02", parts: entry.procedureParts, title: entry.procedureTitle, tone: "violet" })), Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) && (_jsx(SummaryPill, { icon: "note-2", label: "Notes", title: (state?.toothNotes ?? {})[entry.fdi]?.trim(), tone: "violet" }))] })] }, entry.fdi));
                     }) })] })) : (
         /* First-time user onboarding — polished educational panel */
         _jsx("div", { className: ui.onboardCol, children: _jsxs("div", { className: ui.onboardCard, children: [_jsxs("div", { className: ui.onboardHead, children: [_jsx("div", { className: ui.onboardIcon, children: _jsx(TPMedicalIcon, { name: "health care", variant: "bulk", size: 18, color: "#ffffff" }) }), _jsxs("div", { children: [_jsx("h3", { className: ui.onboardTitle, children: "Getting Started" }), _jsx("p", { className: ui.onboardSub, children: "4 simple steps to examine" })] })] }), _jsx("div", { className: ui.stepList, children: [
@@ -454,7 +467,21 @@ function SummaryPill({ icon, label, tone, title }) {
     };
     const t = tones[tone];
     const tip = title ?? label;
-    return (_jsxs("span", { className: clsx(ui.pill, t.pillTone), title: tip, children: [_jsx(TPMedicalIcon, { name: icon, variant: "bulk", size: 16, color: t.colour }), _jsx("span", { className: ui.pillLabel, children: label })] }));
+    return (_jsxs("span", { className: clsx(ui.pill, t.pillTone), title: tip, children: [_jsx(TPMedicalIcon, { name: icon, variant: "bulk", size: 16, color: t.colour }), _jsx("span", { className: ui.pillLabelPlain, children: label })] }));
+}
+/** Tooth record chip: icon + each value truncated individually, separated by | (matches section icons). */
+function SummaryPillSegmented({ icon, parts, tone, title }) {
+    const tones = {
+        violet: { pillTone: ui.pillViolet, colour: "var(--tp-violet-600)" },
+        amber: { pillTone: ui.pillAmber, colour: "var(--tp-violet-700)" },
+        blue: { pillTone: ui.pillBlue, colour: "var(--tp-blue-600)" },
+        slate: { pillTone: ui.pillSlate, colour: "var(--tp-slate-600)" },
+    };
+    const t = tones[tone];
+    const tip = title ?? parts.join(", ");
+    if (!parts.length)
+        return null;
+    return (_jsxs("span", { className: clsx(ui.pill, ui.pillSegmented, t.pillTone), title: tip, children: [_jsx(TPMedicalIcon, { name: icon, variant: "bulk", size: 16, color: t.colour, className: ui.pillIcon }), _jsx("span", { className: ui.pillSegments, children: parts.map((p, i) => (_jsxs(React.Fragment, { children: [i > 0 && _jsx("span", { className: ui.pillSegmentSep, "aria-hidden": true, children: "|" }), _jsx("span", { className: ui.pillSegment, title: p, children: p })] }, `seg-${i}-${p}`))) })] }));
 }
 // ──────────────────────────────────────────────────────────────
 // ScoreCard — full-circle gauge w/ interior gradient disc + animated score
@@ -667,7 +694,7 @@ function AccordionWrap({ open, header, children, onExpand, }) {
                     gridTemplateRows: open ? '1fr' : '0fr',
                     opacity: open ? 1 : 0,
                     flex: open ? '1 1 0%' : '0 0 0px'
-                }, children: _jsx("div", { className: ui.accordionGridInner, children: _jsx("div", { className: ui.accordionScroll, children: children }) }) })] }));
+                }, children: _jsx("div", { className: ui.accordionGridInner, children: children }) })] }));
 }
 // ──────────────────────────────────────────────────────────────
 // SectionHeader — TP medical icon + title + count + Template/Save/Clear
@@ -684,6 +711,9 @@ function SectionHeader({ title, count, medicalIcon, onTemplate, onSave, onClear,
 function EntryTab({ state, kind }) {
     const [activeCell, setActiveCell] = useState(null);
     const [query, setQuery] = useState("");
+    const { items: billingItems } = useBillingCatalog();
+    const [plannedCustomOpen, setPlannedCustomOpen] = useState(false);
+    const [plannedCustomInitial, setPlannedCustomInitial] = useState("");
     // Portal Dropdown Search States
     const [searchOpen, setSearchOpen] = useState(false);
     const [pos, setPos] = useState(null);
@@ -738,13 +768,19 @@ function EntryTab({ state, kind }) {
         "Desensitization therapy (quadrant)",
         "Periodontal maintenance",
     ];
+    const dentalProcedureNames = useMemo(() => {
+        const unique = getUniqueDentalBillItems(billingItems);
+        return sortStringsForTypeahead(unique.map((i) => i.name), "");
+    }, [billingItems]);
     const catalog = kind === "finding"
         ? (isGroupedScope ? groupedFindingCatalog : DIAGNOSES)
         : kind === "symptom"
             ? DENTAL_SYMPTOM_CATALOG
-            : (kind === "planned" || kind === "procedure")
-                ? (isGroupedScope ? groupedProcedureCatalog : PROCEDURE_CATALOG)
-                : PROCEDURE_CATALOG;
+            : kind === "planned"
+                ? dentalProcedureNames
+                : kind === "procedure"
+                    ? (isGroupedScope ? groupedProcedureCatalog : PROCEDURE_CATALOG)
+                    : PROCEDURE_CATALOG;
     const entries = state.currentToothEntries.filter((e) => e.kind === kind);
     const activeSurfaceRowId = activeCell?.colKey === "surfaces" ? activeCell.rowId : null;
     const activeRow = entries.find((e) => e.id === activeSurfaceRowId) ?? null;
@@ -784,19 +820,26 @@ function EntryTab({ state, kind }) {
         const q = query.toLowerCase().trim();
         const selected = new Set(entries.map((e) => e.name.toLowerCase()));
         const pool = q ? catalog.filter((c) => c.toLowerCase().includes(q)) : catalog;
-        return pool.filter((c) => !selected.has(c.toLowerCase())).slice(0, 12);
+        const filtered = pool.filter((c) => !selected.has(c.toLowerCase()));
+        const sorted = sortStringsForTypeahead(filtered, query);
+        return sorted.slice(0, 12);
     }, [query, catalog, entries]);
+    const queryTrim = query.trim();
+    const catalogHasExactName =
+        queryTrim.length > 0 && catalog.some((c) => c.toLowerCase() === queryTrim.toLowerCase());
     const quickSelectChips = useMemo(() => {
         const defaults = kind === "finding"
             ? (isGroupedScope
                 ? ["Generalized plaque accumulation", "Generalized gingival inflammation", "Quadrant-level calculus", "Widespread sensitivity"]
                 : ["Cavity/Caries", "Crack", "Fracture", "Sensitivity", "Plaque", "Calculus"])
-            : (isGroupedScope
-                ? ["Quadrant scaling and root planing", "Full-mouth scaling and polishing", "Oral prophylaxis", "Periodontal maintenance"]
-                : ["RCT", "Restoration", "Extraction", "Scaling", "Polishing", "Crown Prep", "Implant Placement", "Veneer"]);
+            : kind === "planned"
+                ? dentalProcedureNames.slice(0, 8)
+                : (isGroupedScope
+                    ? ["Quadrant scaling and root planing", "Full-mouth scaling and polishing", "Oral prophylaxis", "Periodontal maintenance"]
+                    : ["RCT", "Restoration", "Extraction", "Scaling", "Polishing", "Crown Prep", "Implant Placement", "Veneer"]);
         const selected = new Set(entries.map((e) => e.name.toLowerCase()));
         return defaults.filter((name) => catalog.includes(name) && !selected.has(name.toLowerCase()));
-    }, [catalog, entries, isGroupedScope, kind]);
+    }, [catalog, entries, isGroupedScope, kind, dentalProcedureNames]);
     const pendingActivateRef = useRef(false);
     const prevCountRef = useRef(entries.length);
     useEffect(() => {
@@ -827,7 +870,7 @@ function EntryTab({ state, kind }) {
         return (_jsx("div", { className: ui.missingWrap, children: _jsxs("p", { className: ui.missingText, children: ["Tooth marked as Missing \u2014 no surfaces to ", kind === "finding" ? "examine" : "treat", "."] }) }));
     }
     const hasStatus = kind === "procedure" || kind === "planned";
-    return (_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [entries.length > 0 && (_jsx("div", { className: ui.tableWrap, children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 150 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { width: 120, minWidth: 110 } }), hasStatus && _jsx("col", { style: { width: 120, minWidth: 110 } }), _jsx("col", { style: { minWidth: 120 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thCenter }), _jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "SURFACES" }), _jsx("th", { className: ui.th, children: kind === "finding" ? "SINCE" : "DATE" }), hasStatus && _jsx("th", { className: ui.th, children: "STATUS" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: entries.map((e) => {
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [entries.length > 0 && (_jsx("div", { className: ui.tableWrap, children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 150 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { width: 120, minWidth: 110 } }), hasStatus && _jsx("col", { style: { width: 120, minWidth: 110 } }), _jsx("col", { style: { minWidth: 120 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thCenter }), _jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "SURFACES" }), _jsx("th", { className: ui.th, children: kind === "finding" ? "SINCE" : "DATE" }), hasStatus && _jsx("th", { className: ui.th, children: "STATUS" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: entries.map((e) => {
                                 const isSurfaceActive = isCellActive(e.id, "surfaces");
                                 const isDateActive = isCellActive(e.id, kind === "finding" || kind === "symptom" ? "since" : "date");
                                 const isStatusActive = isCellActive(e.id, "status");
@@ -847,10 +890,19 @@ function EntryTab({ state, kind }) {
                                                     }, onToggleZone: state.onToggleZoneMultiSelect, onHover: state.onSetHighlightZones, multiSelectZones: state.multiSelectZones })] }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isDateActive ? ui.tdActive : ui.tdHover), onClick: (ev) => ev.stopPropagation(), children: [isDateActive ? _jsx("span", { className: ui.cellFocusRing }) : null, kind === "finding" || kind === "symptom" ? (_jsx(SinceDropdown, { value: e.since ?? "", onChange: (v) => state.onUpdateEntry(e.id, { since: v || undefined }), onFocusActivate: () => setCellActive(e.id, "since"), onBlurDeactivate: () => clearCellActive(e.id, "since") })) : (_jsxs("div", { className: ui.dateCellInner, children: [!e.plannedDate && (_jsxs("div", { className: ui.datePlaceholderRow, children: [_jsx("span", { className: ui.datePlaceholderText, children: "DD/MM/YYYY" }), _jsx(Calendar, { size: 14, color: "#94a3b8", variant: "Linear" })] })), _jsx("input", { type: "date", value: e.plannedDate ?? "", onChange: (ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined }), onFocus: () => setCellActive(e.id, "date"), onBlur: () => clearCellActive(e.id, "date"), className: clsx(ui.dateInput, e.plannedDate ? ui.dateInputFilled : ui.dateInputEmpty) })] }))] }), hasStatus && (_jsxs("td", { className: clsx(ui.td, ui.tdRel, isStatusActive && ui.tdActive), onClick: (ev) => ev.stopPropagation(), children: [isStatusActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsxs("select", { value: e.status ?? "planned", onChange: (ev) => state.onUpdateEntry(e.id, { status: ev.target.value }), onFocus: () => setCellActive(e.id, "status"), onBlur: () => clearCellActive(e.id, "status"), className: ui.selectNative, children: [_jsx("option", { value: "planned", children: "Planned" }), _jsx("option", { value: "in-progress", children: "In progress" }), _jsx("option", { value: "completed", children: "Completed" })] })] })), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isNoteActive ? ui.tdActive : ui.tdHover), onClick: (ev) => ev.stopPropagation(), children: [isNoteActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx("input", { type: "text", value: e.notes ?? "", onChange: (ev) => state.onUpdateEntry(e.id, { notes: ev.target.value }), onFocus: () => setCellActive(e.id, "note"), onBlur: () => clearCellActive(e.id, "note"), placeholder: "e.g. Monitor at next visit", className: ui.noteInput })] }), _jsx("td", { className: ui.tdStickyAct, onClick: (ev) => ev.stopPropagation(), children: _jsx("button", { type: "button", onClick: () => { if (activeSurfaceRowId === e.id)
                                                     setActiveCell(null); state.onRemoveEntry(e.id); }, title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 14, color: "currentColor", variant: "Linear" }) }) })] }, e.id));
                             }) })] }) })), _jsxs("div", { className: clsx(entries.length > 0 ? ui.searchBlock : ui.searchBlockFirst), children: [_jsxs("div", { className: ui.searchRel, children: [_jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }), _jsx("input", { ref: searchInputRef, type: "text", value: query, onChange: (e) => { setQuery(e.target.value); setSearchOpen(true); }, onFocus: () => setSearchOpen(true), onKeyDown: (e) => {
-                                    if (e.key === "Enter" && query.trim()) {
-                                        const match = catalog.find((c) => c.toLowerCase() === query.toLowerCase().trim());
+                                    if (e.key === "Enter" && queryTrim) {
+                                        const match = catalog.find((c) => c.toLowerCase() === queryTrim.toLowerCase());
                                         if (match) {
                                             addEntryFromName(match);
+                                            setSearchOpen(false);
+                                        }
+                                        else if (kind === "planned") {
+                                            setPlannedCustomInitial(queryTrim);
+                                            setPlannedCustomOpen(true);
+                                            setSearchOpen(false);
+                                        }
+                                        else if (kind === "finding" && !catalogHasExactName) {
+                                            addEntryFromName(queryTrim);
                                             setSearchOpen(false);
                                         }
                                     }
@@ -860,7 +912,16 @@ function EntryTab({ state, kind }) {
                                         ? "Search & Add Symptom"
                                         : kind === "planned"
                                             ? (isGroupedScope ? "Search & Add Group Planned Procedure" : "Search & Add Planned Procedure")
-                                            : (isGroupedScope ? "Search & Add Group Procedure" : "Search & Add Procedure"), className: ui.searchInput }), searchOpen && pos && typeof document !== "undefined" && (filteredCatalog.length > 0 || query.trim()) && createPortal(_jsxs("div", { ref: searchPopoverRef, className: ui.popover, style: { top: pos.top, left: pos.left, width: pos.width }, children: [filteredCatalog.map((c) => (_jsx("button", { type: "button", onClick: () => addEntryFromName(c), className: ui.popoverItem, children: c }, c))), query.trim() && !filteredCatalog.some((c) => c.toLowerCase() === query.toLowerCase().trim()) && (_jsx("button", { className: ui.popoverAdd, onClick: () => addEntryFromName(query.trim()), children: _jsxs("span", { className: ui.popoverAddInner, children: [_jsx(Add, { size: 14, color: "currentColor", variant: "Linear" }), " Add \"", query.trim(), "\""] }) }))] }), document.body)] }), query.length === 0 && quickSelectChips.length > 0 && (_jsx("div", { className: ui.chipRow, children: quickSelectChips.map((chip) => (_jsx("button", { type: "button", onClick: () => addEntryFromName(chip), className: ui.chipBtn, children: chip }, chip))) }))] })] }));
+                                            : (isGroupedScope ? "Search & Add Group Procedure" : "Search & Add Procedure"), className: ui.searchInput }), searchOpen && pos && typeof document !== "undefined" && (filteredCatalog.length > 0 || query.trim()) && createPortal(_jsxs("div", { ref: searchPopoverRef, className: ui.popover, style: { top: pos.top, left: pos.left, width: pos.width }, children: [(kind === "planned" || kind === "procedure") && (filteredCatalog.length > 0 || query.trim()) && (_jsx("div", { className: ui.popoverSectionHeader, children: _jsx("p", { className: ui.popoverSectionTitle, children: kind === "planned" ? "Dental service" : "Procedure" }) })), filteredCatalog.map((c) => (_jsx("button", { type: "button", onClick: () => addEntryFromName(c), className: ui.popoverItem, children: c }, c))), queryTrim && !catalogHasExactName && (_jsx("button", { className: ui.popoverAdd, onClick: () => {
+                                            if (kind === "planned") {
+                                                setPlannedCustomInitial(query.trim());
+                                                setPlannedCustomOpen(true);
+                                                setSearchOpen(false);
+                                            }
+                                            else {
+                                                addEntryFromName(query.trim());
+                                            }
+                                        }, children: kind === "planned" ? _jsxs("span", { className: ui.popoverAddInner, children: [_jsx(Add, { size: 16, color: "var(--tp-blue-600)", variant: "Bold" }), _jsxs("span", { children: ["Add \"", query.trim(), "\" as custom dental service"] })] }) : _jsxs("span", { className: ui.popoverAddInner, children: [_jsx(Add, { size: 14, color: "currentColor", variant: "Linear" }), " Add \"", query.trim(), "\""] }) }))] }), document.body)] }), query.length === 0 && quickSelectChips.length > 0 && (_jsx("div", { className: ui.chipRow, children: quickSelectChips.map((chip) => (_jsx("button", { type: "button", onClick: () => addEntryFromName(chip), className: ui.chipBtn, children: chip }, chip))) }))] })] }), kind === "planned" && _jsx(AddDentalBillItemDrawer, { open: plannedCustomOpen, onOpenChange: setPlannedCustomOpen, initialName: plannedCustomInitial, onSaved: (item) => { addEntryFromName(item.name); } })] }));
 }
 // ──────────────────────────────────────────────────────────────
 // SurfaceCellDropdown — in-cell dropdown with highlighted hint row
@@ -1327,6 +1388,10 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }) {
         const pool = q ? DENTAL_SYMPTOM_CATALOG.filter((s) => s.toLowerCase().includes(q)) : DENTAL_SYMPTOM_CATALOG;
         return pool.filter((s) => !selectedNames.has(s.toLowerCase())).slice(0, 12);
     }, [query, selectedNames]);
+    const symptomQueryTrim = query.trim();
+    const symptomCatalogExact = symptomQueryTrim.length > 0 &&
+        DENTAL_SYMPTOM_CATALOG.some((s) => s.toLowerCase() === symptomQueryTrim.toLowerCase());
+    const symptomAlreadyAdded = symptomQueryTrim.length > 0 && selectedNames.has(symptomQueryTrim.toLowerCase());
     const addSymptom = (name) => {
         onUpdateRows([...rows, { id: getSymId(), name, surfaces: [], since: "", severity: "", note: "" }]);
         setQuery("");
@@ -1342,8 +1407,13 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }) {
                             }) })] }) })), _jsx("div", { className: ui.searchBlockTop, children: _jsxs("div", { className: ui.searchRel, children: [_jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }), _jsx("input", { ref: searchInputRef, type: "text", value: query, onChange: (e) => {
                                 setQuery(e.target.value);
                                 setSearchOpen(true);
-                            }, onFocus: () => setSearchOpen(true), onKeyDown: (e) => { if (e.key === "Enter" && query.trim())
-                                addSymptom(query.trim()); }, placeholder: "Search & Add Dental Symptom", className: ui.searchInput14 }), searchOpen && filtered.length > 0 && (_jsx("div", { ref: searchPopoverRef, className: ui.popoverBelow, children: filtered.map((s) => (_jsx("button", { type: "button", onClick: () => addSymptom(s), className: ui.popoverItem, children: s }, s))) }))] }) })] }));
+                            }, onFocus: () => setSearchOpen(true), onKeyDown: (e) => {
+                                if (e.key === "Enter" && symptomQueryTrim && !symptomAlreadyAdded)
+                                    addSymptom(symptomQueryTrim);
+                            }, placeholder: "Search & Add Dental Symptom", className: ui.searchInput14 }), searchOpen && (filtered.length > 0 || symptomQueryTrim) && (_jsxs("div", { ref: searchPopoverRef, className: ui.popoverBelow, children: [
+                                filtered.map((s) => (_jsx("button", { type: "button", onClick: () => addSymptom(s), className: ui.popoverItem, children: s }, s))),
+                                symptomQueryTrim && !symptomCatalogExact && !symptomAlreadyAdded && (_jsx("button", { type: "button", className: ui.popoverAdd, onMouseDown: (e) => e.preventDefault(), onClick: () => addSymptom(symptomQueryTrim), children: _jsxs("span", { className: ui.popoverAddInner, children: [_jsx(Add, { size: 14, color: "currentColor", variant: "Linear" }), " Add \"", symptomQueryTrim, "\""] }) })),
+                            ] }))] }) })] }));
 }
 function PrimaryDiagnosisBody({ state }) {
     const [activeCell, setActiveCell] = useState(null);
@@ -1387,6 +1457,11 @@ function PrimaryDiagnosisBody({ state }) {
         const pool = q ? TOOTH_DIAGNOSES.filter((c) => c.toLowerCase().includes(q)) : TOOTH_DIAGNOSES;
         return pool.filter((c) => !activeSet.has(c.toLowerCase())).slice(0, 12);
     }, [query, activeRows]);
+    const queryTrim = query.trim();
+    const catalogHasExactName = queryTrim.length > 0 &&
+        TOOTH_DIAGNOSES.some((d) => d.toLowerCase() === queryTrim.toLowerCase());
+    const alreadyHasTypedTreatmentLabel = queryTrim.length > 0 &&
+        displayRows.some((r) => r.toLowerCase() === queryTrim.toLowerCase());
     useEffect(() => {
         if (!searchOpen)
             return;
@@ -1395,7 +1470,7 @@ function PrimaryDiagnosisBody({ state }) {
             return;
         const r = el.getBoundingClientRect();
         setPos({ top: r.bottom + 4, left: r.left, width: r.width });
-    }, [searchOpen, filteredCatalog]);
+    }, [searchOpen, filteredCatalog, query]);
     // Track most recently added diagnosis so we can auto-open its Since dropdown.
     const [lastAddedName, setLastAddedName] = useState(null);
     const addDiagnosis = (name) => {
@@ -1500,11 +1575,20 @@ function PrimaryDiagnosisBody({ state }) {
                             }) })] }) })), _jsxs("div", { className: ui.searchBlockTop, children: [_jsxs("div", { className: ui.searchRel, children: [_jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }), _jsx("input", { ref: searchInputRef, type: "text", value: query, onChange: (e) => {
                                     setQuery(e.target.value);
                                     setSearchOpen(true);
-                                }, onFocus: () => setSearchOpen(true), onKeyDown: (e) => { if (e.key === "Enter" && query.trim()) {
-                                    const match = TOOTH_DIAGNOSES.find((d) => d.toLowerCase() === query.toLowerCase().trim());
-                                    if (match)
+                                }, onFocus: () => setSearchOpen(true), onKeyDown: (e) => {
+                                    if (e.key !== "Enter" || !queryTrim)
+                                        return;
+                                    const match = TOOTH_DIAGNOSES.find((d) => d.toLowerCase() === queryTrim.toLowerCase());
+                                    if (match) {
                                         addDiagnosis(match);
-                                } }, placeholder: "Search & Add Treatment History", className: ui.searchInput }), searchOpen && pos && filteredCatalog.length > 0 && typeof document !== "undefined" && createPortal(_jsx("div", { ref: searchPopoverRef, className: ui.portalListPlain, style: { top: pos.top, left: pos.left, width: pos.width }, children: filteredCatalog.map((c) => (_jsx("button", { type: "button", onClick: () => addDiagnosis(c), className: ui.popoverItem, children: c }, c))) }), document.body)] }), query.length === 0 && (_jsx("div", { className: ui.diagQuickChips, children: ["Implant", "RCT", "Missing", "Crown", "Bridge", "Denture", "Extraction"].map(chip => {
+                                        return;
+                                    }
+                                    if (!alreadyHasTypedTreatmentLabel)
+                                        addDiagnosis(queryTrim);
+                                }, placeholder: "Search & Add Treatment History", className: ui.searchInput }), searchOpen && pos && (filteredCatalog.length > 0 || queryTrim) && typeof document !== "undefined" && createPortal(_jsxs("div", { ref: searchPopoverRef, className: ui.portalListPlain, style: { top: pos.top, left: pos.left, width: pos.width }, children: [
+                                    filteredCatalog.map((c) => (_jsx("button", { type: "button", onClick: () => addDiagnosis(c), className: ui.popoverItem, children: c }, c))),
+                                    queryTrim && !catalogHasExactName && !alreadyHasTypedTreatmentLabel && (_jsx("button", { type: "button", className: ui.popoverAdd, onMouseDown: (e) => e.preventDefault(), onClick: () => addDiagnosis(queryTrim), children: _jsxs("span", { className: ui.popoverAddInner, children: [_jsx(Add, { size: 14, color: "currentColor", variant: "Linear" }), " Add \"", queryTrim, "\""] }) })),
+                                ] }), document.body)] }), query.length === 0 && (_jsx("div", { className: ui.diagQuickChips, children: ["Implant", "RCT", "Missing", "Crown", "Bridge", "Denture", "Extraction"].map(chip => {
                             if (activeRows.includes(chip))
                                 return null;
                             return (_jsx("button", { type: "button", onClick: () => addDiagnosis(chip), className: ui.chipBtn, children: chip }, chip));

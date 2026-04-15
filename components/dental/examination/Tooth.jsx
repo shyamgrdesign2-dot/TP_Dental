@@ -1666,7 +1666,7 @@ export function Tooth({ selectedZone, onSelectZone, onClearSelectedZone, onHover
                 const occlusalOffsetY = arch === 'maxillary' ? -0.72 : 0.72;
                 return (_jsx(Html, { position: [0, occlusalOffsetY, 0], center: true, transform: compact, sprite: compact, scale: compact ? 0.35 : 1, style: { pointerEvents: 'none', whiteSpace: 'nowrap' }, zIndexRange: [80, 40], children: _jsx("div", { style: { display: 'flex', alignItems: 'center', gap: compact ? '2px' : '4px' }, children: wholeTags.map(tag => (_jsx("span", { style: {
                                 fontSize: compact ? '18px' : '11px', fontWeight: 600, padding: compact ? '2px 6px' : '3px 8px',
-                                borderRadius: '6px', fontFamily: 'Inter, system-ui, sans-serif',
+                                borderRadius: '6px', fontFamily: 'Inter, sans-serif',
                                 background: 'rgba(107, 114, 128, 0.85)', color: '#fff', lineHeight: '1.3',
                                 backdropFilter: 'blur(4px)', letterSpacing: '0.01em',
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1)',

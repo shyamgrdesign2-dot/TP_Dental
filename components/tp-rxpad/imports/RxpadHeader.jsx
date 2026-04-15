@@ -24,6 +24,7 @@ import { getComposedRxPreviewSnapshot } from "@/components/tp-rxpad/rx-preview-c
 import svgPaths from "./svg-gb0jbe9ifm"
 import styles from "./RxpadHeader.module.scss"
 import { getAppointmentPatient } from "@/lib/appointment-patients"
+import { pushPlanConsultationFromRxPage } from "@/lib/plan-consultation-queue"
 
 function buildProfileFields(patientId) {
   const p = getAppointmentPatient(patientId)
@@ -93,7 +94,18 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
 
   const openEndVisit = () => {
     const pid = getCurrentPatientId()
-    router.push(`/rxpad/end-visit?patientId=${pid}&snackbar=visit-ended`)
+    pushPlanConsultationFromRxPage(pid)
+    const src = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
+    const next = new URLSearchParams()
+    next.set("patientId", pid)
+    next.set("snackbar", "visit-ended")
+    const planId = src.get("planId")
+    const serviceId = src.get("serviceId")
+    const appointmentId = src.get("appointmentId")
+    if (planId) next.set("planId", planId)
+    if (serviceId) next.set("serviceId", serviceId)
+    if (appointmentId) next.set("appointmentId", appointmentId)
+    router.push(`/rxpad/end-visit?${next.toString()}`)
   }
 
   return (

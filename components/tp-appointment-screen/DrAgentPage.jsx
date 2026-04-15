@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
 import Slide from "@mui/material/Slide";
 import { Calendar2, CalendarAdd, ClipboardClose, ClipboardText, ClipboardTick, Clock, DocumentLike, DocumentSketch, Flash, Hospital, MessageProgramming, Messages2, Notification, Profile2User, Timer, ReceiptText, SearchNormal1, Shop, TickCircle, Video, } from "iconsax-reactjs";
-import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, LayoutList, ListFilter, MoreVertical, Plus, Search, Star, X } from "lucide-react";
+import { CalendarDays, CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight, Globe, LayoutList, ListFilter, LogOut, MoreVertical, Plus, Search, Settings, Sparkles, Star, User, UserCog, X, } from "lucide-react";
+import { DR_AGENT_MAIN_RESERVE_CLASS } from "@/components/tp-rxpad/DrAgentLayoutShell";
 import styles from "./DrAgentPage.module.scss";
 import { TPButton as Button, TPSplitButton } from "@/components/tp-ui/button-system";
 import { TPSecondaryNavPanel, TPTag } from "@/components/tp-ui";
@@ -17,6 +18,11 @@ import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm";
 import { BOOKED_APPT_EVENT, computeDateKey, formatHumanDate, loadBookedAppointments, } from "./booked-appointments-store";
 const REF_LOGO = "/assets/b38df11ad80d11b9c1d530142443a18c2f53d406.png";
 const REF_AVATAR = "/assets/52cb18088c5b8a5db6a7711c9900d7d08a1bac42.png";
+/** Shown in header avatar + profile menu (keep in sync with the profile image). */
+const HEADER_DOCTOR_PROFILE = {
+    displayName: "Dr. Ananya Mehta",
+    mobile: "+91 98765 43210",
+};
 const navItems = [
     { id: "appointments", label: "Appointments", icon: Calendar2 },
     {
@@ -289,16 +295,6 @@ export function DrAgentPage() {
             return { ...prev, [activeTab]: id };
         });
     }
-    const tableOverflowRef = useRef(null);
-    const [isTableScrolled, setIsTableScrolled] = useState(false);
-    useEffect(() => {
-        const el = tableOverflowRef.current;
-        if (!el)
-            return;
-        const handler = () => setIsTableScrolled(el.scrollLeft > 0);
-        el.addEventListener("scroll", handler, { passive: true });
-        return () => el.removeEventListener("scroll", handler);
-    }, []);
     // ── Column sort + unified filter ─────────────────────────────────────────
     const [slotSort, setSlotSort] = useState("none");
     const [slotConsult, setSlotConsult] = useState("all");
@@ -368,6 +364,26 @@ export function DrAgentPage() {
         }
         return rows;
     }, [activeTab, dateFilter, query, slotSort, slotConsult, vtFilter, appointments]);
+    const apptTableScrollRef = useRef(null);
+    const [apptActionColumnEdge, setApptActionColumnEdge] = useState(false);
+    const updateApptActionShadow = useCallback(() => {
+        const el = apptTableScrollRef.current;
+        if (!el) {
+            setApptActionColumnEdge(false);
+            return;
+        }
+        const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+        setApptActionColumnEdge(maxScroll > 1 && el.scrollLeft > 0 && el.scrollLeft < maxScroll - 0.5);
+    }, []);
+    useEffect(() => {
+        const el = apptTableScrollRef.current;
+        if (!el)
+            return;
+        updateApptActionShadow();
+        const ro = new ResizeObserver(updateApptActionShadow);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [updateApptActionShadow, visibleAppointments.length, appointmentViewMode]);
     // Calculate counts for each tab
     const getTabCount = (tabId) => {
         return appointments.filter((row) => {
@@ -433,7 +449,7 @@ export function DrAgentPage() {
         }}/>
         </aside>
 
-        <main className={styles.main}>
+        <main className={clsx(styles.main, DR_AGENT_MAIN_RESERVE_CLASS)}>
           <section className={styles.section}>
             <div className={styles.mobileNav}>
               <div className={styles.mobileNavRow}>
@@ -529,8 +545,8 @@ export function DrAgentPage() {
                   </div>)}
 
                 <div className={styles.bodyFlex}>
-                  {appointmentViewMode === "list" ? (<div ref={tableOverflowRef} className={styles.tableScroll}>
-                      <div className={styles.tableInner}>
+                  {appointmentViewMode === "list" ? (<div ref={apptTableScrollRef} className={styles.tableScroll} onScroll={updateApptActionShadow}>
+                        <div className={styles.tableInner}>
                         <table className={styles.table}>
                         <thead>
                           <tr className={styles.theadRow}>
@@ -552,7 +568,7 @@ export function DrAgentPage() {
                                 <ColumnSortIcon dir={slotSort}/>
                               </button>
                             </th>
-                            <th className={clsx(styles.thAction, isTableScrolled && styles.thActionShadow)}>
+                            <th className={clsx(styles.thAction, apptActionColumnEdge && styles.thActionEdgeShadow)}>
                               Action
                             </th>
                           </tr>
@@ -635,7 +651,7 @@ export function DrAgentPage() {
                                   </div>
                                 </td>
 
-                                <td className={clsx(styles.tdAction, isTableScrolled && styles.tdActionShadow)}>
+                                <td className={clsx(styles.tdAction, apptActionColumnEdge && styles.tdActionEdgeShadow)}>
                                   <div className={styles.actionRow}>
                                     <div className={styles.splitBtnWrap}>
                                       <TPSplitButton primaryAction={{
@@ -663,7 +679,7 @@ export function DrAgentPage() {
                               </tr>)))}
                         </tbody>
                         </table>
-                      </div>
+                        </div>
                     </div>) : (<div className={styles.calendarScroll}>
                       <AppointmentsCalendarView rows={visibleAppointments} granularity={calendarGranularity} onGranularityChange={setCalendarGranularity} datePreset={dateFilter} onDatePresetChange={setDateFilter} onCursorDateChange={setCalendarCursorDate} onUpdate={handleUpdateCalendarAppointment} onStart={handleCalendarStart} onAddVitals={handleCalendarAddVitals} onOpenReports={handleCalendarOpenReports} onInvite={handleCalendarInvite} onEndVisit={handleCalendarEndVisit} onDelete={handleCalendarDelete}/>
                     </div>)}
@@ -1212,10 +1228,14 @@ const DUMMY_CLINICS = [
 ];
 // ─── TopHeader ────────────────────────────────────────────────────────────────
 function TopHeader() {
+    const router = useRouter();
     const [isClinicMenuOpen, setClinicMenuOpen] = useState(false);
+    const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
+    const [settingsFlyoutOpen, setSettingsFlyoutOpen] = useState(false);
     const [activeClinic, setActiveClinic] = useState(DUMMY_CLINICS[0].id);
     const [clinicSearch, setClinicSearch] = useState("");
     const clinicMenuRef = useRef(null);
+    const profileMenuRef = useRef(null);
     const clinicSearchRef = useRef(null);
     const clinicListRef = useRef(null);
     const [clinicListCanScrollDown, setClinicListCanScrollDown] = useState(false);
@@ -1230,10 +1250,17 @@ function TopHeader() {
             if (!clinicMenuRef.current?.contains(event.target)) {
                 setClinicMenuOpen(false);
             }
+            if (!profileMenuRef.current?.contains(event.target)) {
+                setProfileMenuOpen(false);
+            }
         }
         document.addEventListener("mousedown", onPointerDown);
         return () => document.removeEventListener("mousedown", onPointerDown);
     }, []);
+    useEffect(() => {
+        if (!isProfileMenuOpen)
+            setSettingsFlyoutOpen(false);
+    }, [isProfileMenuOpen]);
     // Focus search input + init scroll indicator when dropdown opens
     useEffect(() => {
         if (isClinicMenuOpen) {
@@ -1314,15 +1341,80 @@ function TopHeader() {
             </div>)}
         </div>
 
-        <button type="button" className={styles.avatarBtn} aria-label="Profile">
-          <span className={styles.avatarRing} style={{
+        <div className={styles.profileWrap} ref={profileMenuRef}>
+          <button type="button" className={styles.avatarBtn} aria-label="Profile menu" aria-expanded={isProfileMenuOpen} aria-haspopup="true" onClick={() => setProfileMenuOpen((v) => !v)}>
+            <span className={styles.avatarRing} style={{
             background: "linear-gradient(to bottom, #FFDE00, #FD5900) padding-box, linear-gradient(to bottom, #FFDE00, #FD5900) border-box",
         }}>
-            <span className={styles.avatarInner}>
-              <img src={REF_AVATAR} alt="User" className={styles.avatarImg}/>
+              <span className={styles.avatarInner}>
+                <img src={REF_AVATAR} alt="" className={styles.avatarImg}/>
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+
+          {isProfileMenuOpen && (<div className={styles.profileDropdown} role="menu">
+              <div className={styles.profileDropdownHeader}>
+                <img src={REF_AVATAR} alt="" className={styles.profileDropdownAvatar} width={44} height={44}/>
+                <div className={styles.profileDropdownIdentity}>
+                  <p className={styles.profileDropdownName}>{HEADER_DOCTOR_PROFILE.displayName}</p>
+                  <p className={styles.profileDropdownMobile}>{HEADER_DOCTOR_PROFILE.mobile}</p>
+                </div>
+              </div>
+
+              <div className={styles.profileMenu}>
+                <button type="button" role="menuitem" className={styles.profileMenuBtn} onClick={() => setProfileMenuOpen(false)}>
+                  <User size={18} strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                  My profile
+                </button>
+                <button type="button" role="menuitem" className={styles.profileMenuBtn} onClick={() => {
+            setProfileMenuOpen(false);
+            window.open("https://tatvapractice.com", "_blank", "noopener,noreferrer");
+        }}>
+                  <Globe size={18} strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                  Visit my website
+                </button>
+                <button type="button" role="menuitem" className={styles.profileMenuBtn} onClick={() => setProfileMenuOpen(false)}>
+                  <CalendarClock size={18} strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                  My availability
+                </button>
+                <button type="button" role="menuitem" className={styles.profileMenuBtn} onClick={() => setProfileMenuOpen(false)}>
+                  <Sparkles size={18} strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                  Upgrade plan
+                </button>
+
+                <div className={clsx(styles.profileSettingsWrap, settingsFlyoutOpen && styles.profileSettingsWrapOpen)}>
+                  <button type="button" className={styles.profileSettingsTrigger} aria-expanded={settingsFlyoutOpen} onClick={() => setSettingsFlyoutOpen((v) => !v)}>
+                    <Settings size={18} strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                    <span className={styles.profileSettingsLabel}>Settings</span>
+                    <ChevronRight size={16} strokeWidth={1.5} className={styles.profileMenuChevron} aria-hidden/>
+                  </button>
+                  <div className={styles.profileSubmenu}>
+                    <button type="button" role="menuitem" className={styles.profileSubmenuBtn} onClick={() => setProfileMenuOpen(false)}>
+                      <UserCog size={16} strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                      Account settings
+                    </button>
+                    <button type="button" role="menuitem" className={styles.profileSubmenuBtn} onClick={() => {
+            setProfileMenuOpen(false);
+            router.push("/billing-settings");
+        }}>
+                      <ReceiptText size={16} variant="Linear" strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                      Billing settings
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.profileMenuFooter}>
+                <button type="button" role="menuitem" className={clsx(styles.profileMenuBtn, styles.profileMenuBtnLogout)} onClick={() => {
+            setProfileMenuOpen(false);
+            router.push("/");
+        }}>
+                  <LogOut size={18} strokeWidth={1.5} className={styles.profileMenuIcon} aria-hidden/>
+                  Logout
+                </button>
+              </div>
+            </div>)}
+        </div>
       </div>
     </header>);
 }

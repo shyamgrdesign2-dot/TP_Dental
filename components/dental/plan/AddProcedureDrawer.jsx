@@ -1,44 +1,31 @@
 "use client";
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 /**
  * AddProcedureDrawer — Add sub-procedures to a service.
  * Follows the examination procedures pattern: search → select → table with doctor/date/notes.
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, Plus } from "lucide-react";
 import { Calendar } from "iconsax-reactjs";
 import { TPDrawer, TPDrawerContent, } from "@/components/tp-ui/tp-drawer";
 import { usePlanContext } from "./plan-context";
 import { DrawerHeader } from "./plan-shared";
 import { genId } from "./plan-types";
 import { createPortal } from "react-dom";
+import { getUniqueDentalBillItems, sortStringsForTypeahead } from "@/lib/billing-catalog";
+import { useBillingCatalog } from "@/lib/billing-catalog-context";
+import { AddDentalBillItemDrawer } from "@/components/dental/AddDentalBillItemDrawer";
 const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
-// Common dental procedures for search
-const PROCEDURE_CATALOG = [
-    "Access Opening",
-    "Canal Shaping",
-    "Obturation",
-    "BMP Placement",
-    "Crown Preparation",
-    "Impression Taking",
-    "Crown Cementation",
-    "Temporary Crown",
-    "Post & Core",
-    "Tooth Preparation",
-    "Composite Layering",
-    "Etching & Bonding",
-    "Suture Placement",
-    "Suture Removal",
-    "Incision & Drainage",
-    "Flap Elevation",
-    "Bone Grafting",
-    "Socket Preservation",
-    "Splinting",
-    "Occlusal Adjustment",
-];
 export function AddProcedureDrawer() {
     const searchParams = useSearchParams();
+    const { items: billingItems } = useBillingCatalog();
+    const dentalNames = useMemo(() => {
+        const unique = getUniqueDentalBillItems(billingItems);
+        return sortStringsForTypeahead(unique.map((i) => i.name), "");
+    }, [billingItems]);
+    const [customDentalOpen, setCustomDentalOpen] = useState(false);
+    const [customDentalInitial, setCustomDentalInitial] = useState("");
     const { state, dispatch, closeDrawer, findService } = usePlanContext();
     const drawer = state.drawer;
     const isAdd = drawer.type === "add-procedure";
@@ -99,12 +86,15 @@ export function AddProcedureDrawer() {
         searchRef.current?.focus();
     }, [isOpen, searchParams]);
     const filteredProcedures = useMemo(() => {
-        return PROCEDURE_CATALOG.filter((p) => {
-            if (!searchQuery.trim())
-                return true;
-            return p.toLowerCase().includes(searchQuery.toLowerCase());
-        }).slice(0, 8);
-    }, [searchQuery]);
+        const q = searchQuery.trim();
+        const pool = dentalNames.filter((p) => !q || p.toLowerCase().includes(q.toLowerCase()));
+        return sortStringsForTypeahead(pool, q).slice(0, 25);
+    }, [searchQuery, dentalNames]);
+    const searchTrim = searchQuery.trim();
+    const catalogHasExactName = searchTrim.length > 0 &&
+        dentalNames.some((p) => p.toLowerCase() === searchTrim.toLowerCase());
+    const showAddCustomProcedure = searchTrim.length > 0 && !catalogHasExactName;
+    const listCount = filteredProcedures.length + (showAddCustomProcedure ? 1 : 0);
     useEffect(() => {
         if (!searchOpen || !searchRef.current)
             return;
@@ -149,16 +139,20 @@ export function AddProcedureDrawer() {
     const handleSearchKeyDown = (e) => {
         if (e.key === "ArrowDown") {
             e.preventDefault();
-            setHighlightedIndex((prev) => Math.min(prev + 1, filteredProcedures.length - 1));
+            if (listCount > 0)
+                setHighlightedIndex((prev) => Math.min(prev + 1, listCount - 1));
         }
         else if (e.key === "ArrowUp") {
             e.preventDefault();
-            setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+            if (listCount > 0)
+                setHighlightedIndex((prev) => Math.max(prev - 1, 0));
         }
         else if (e.key === "Enter") {
             e.preventDefault();
-            if (searchQuery.trim() && filteredProcedures.length === 0) {
-                addProcedure(searchQuery.trim());
+            if (showAddCustomProcedure && highlightedIndex === filteredProcedures.length) {
+                setCustomDentalInitial(searchQuery.trim());
+                setCustomDentalOpen(true);
+                setSearchOpen(false);
             }
             else if (filteredProcedures[highlightedIndex]) {
                 addProcedure(filteredProcedures[highlightedIndex]);
@@ -205,7 +199,16 @@ export function AddProcedureDrawer() {
         closeDrawer();
         setRows([]);
     };
-    return (_jsxs(TPDrawer, { open: isOpen, onOpenChange: (open) => !open && closeDrawer(), children: [_jsxs(TPDrawerContent, { side: "right", size: "full", className: "!rounded-none !sm:max-w-[65vw]", style: { background: "#F4F5F7" }, children: [_jsx(DrawerHeader, { title: isEdit ? "Edit Procedure" : "Add Procedures", onClose: closeDrawer, action: _jsx("button", { type: "button", onClick: handleSave, disabled: rows.length === 0, className: "h-[42px] min-w-[120px] rounded-[10px] px-[20px] font-sans text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm", children: isEdit ? "Save Procedure" : "Add Procedures" }) }), _jsxs("div", { className: "flex-1 overflow-y-auto px-[20px] py-[16px] space-y-[14px]", style: { background: "#F4F5F7" }, children: [service && (_jsxs("div", { className: "rounded-[10px] bg-tp-blue-50 px-[12px] py-[10px]", children: [_jsx("p", { className: "font-sans text-[14px] font-semibold text-tp-blue-700", children: service.treatment }), _jsx("p", { className: "font-sans text-[12px] text-tp-blue-500", children: service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi} — ${service.toothLabel}` })] })), _jsxs("div", { className: "rounded-[16px] border border-tp-slate-100 bg-white", children: [rows.length > 0 && (_jsx("div", { className: "px-[14px] py-[12px]", children: _jsx("div", { className: "overflow-x-auto rounded-[12px] border border-tp-slate-200", children: _jsxs("table", { className: "w-full min-w-[760px] table-fixed font-['Inter',sans-serif] text-[14px]", children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 180 } }), _jsx("col", { style: { width: 170, minWidth: 150 } }), _jsx("col", { style: { width: 130, minWidth: 120 } }), _jsx("col", { style: { minWidth: 140 } }), _jsx("col", { style: { width: 130, minWidth: 120 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: "h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: [_jsx("th", { className: "border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Procedure" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Doctor" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Date" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Note" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Status" }), _jsx("th", { className: "sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" })] }) }), _jsx("tbody", { children: rows.map((row) => {
+    const blockProcedureSheetDismissFromPortals = (e) => {
+        if (customDentalOpen) {
+            e.preventDefault();
+            return;
+        }
+        if (searchOpen && dropdownRef.current && e.target instanceof Node && dropdownRef.current.contains(e.target))
+            e.preventDefault();
+    };
+    return (_jsxs(_Fragment, { children: [_jsxs(TPDrawer, { open: isOpen, onOpenChange: (open) => !open && closeDrawer(), children: [_jsxs(TPDrawerContent, { side: "right", size: "full", className: "!rounded-none !sm:max-w-[65vw]", onPointerDownOutside: blockProcedureSheetDismissFromPortals, onInteractOutside: blockProcedureSheetDismissFromPortals, onFocusOutside: (e) => { if (customDentalOpen)
+                e.preventDefault(); }, style: { background: "#F4F5F7" }, children: [_jsx(DrawerHeader, { title: isEdit ? "Edit Procedure" : "Add Procedures", onClose: closeDrawer, action: _jsx("button", { type: "button", onClick: handleSave, disabled: rows.length === 0, className: "h-[42px] min-w-[120px] rounded-[10px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm", children: isEdit ? "Save Procedure" : "Add Procedures" }) }), _jsxs("div", { className: "flex-1 overflow-y-auto px-[20px] py-[16px] space-y-[14px]", style: { background: "#F4F5F7" }, children: [service && (_jsxs("div", { className: "rounded-[10px] bg-tp-blue-50 px-[12px] py-[10px]", children: [_jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-blue-700", children: service.treatment }), _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] text-tp-blue-500", children: service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi} — ${service.toothLabel}` })] })), _jsxs("div", { className: "rounded-[16px] border border-tp-slate-100 bg-white", children: [rows.length > 0 && (_jsx("div", { className: "px-[14px] py-[12px]", children: _jsx("div", { className: "overflow-x-auto rounded-[12px] border border-tp-slate-200", children: _jsxs("table", { className: "w-full min-w-[760px] table-fixed font-['Inter',sans-serif] text-[14px]", children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 180 } }), _jsx("col", { style: { width: 170, minWidth: 150 } }), _jsx("col", { style: { width: 130, minWidth: 120 } }), _jsx("col", { style: { minWidth: 140 } }), _jsx("col", { style: { width: 130, minWidth: 120 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: "h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: [_jsx("th", { className: "border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Procedure" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Doctor" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Date" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Note" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Status" }), _jsx("th", { className: "sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" })] }) }), _jsx("tbody", { children: rows.map((row) => {
                                                             const isDoctorActive = isCellActive(row.id, "doctor");
                                                             const isDateActive = isCellActive(row.id, "date");
                                                             const isNoteActive = isCellActive(row.id, "note");
@@ -214,11 +217,17 @@ export function AddProcedureDrawer() {
                                                             setSearchQuery(e.target.value);
                                                             setSearchOpen(true);
                                                             setHighlightedIndex(0);
-                                                        }, onFocus: () => setSearchOpen(true), onKeyDown: handleSearchKeyDown, placeholder: "Search procedures \u2014 e.g., Obturation, Crown Prep...", className: "w-full h-[42px] rounded-[10px] border border-tp-slate-200 bg-white pl-10 pr-3 text-[14px] font-sans text-tp-slate-700 placeholder:text-tp-slate-300 transition-colors hover:border-tp-slate-300 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20" })] }), !searchOpen && (_jsx("div", { className: "mt-[10px] flex flex-wrap gap-[6px]", children: PROCEDURE_CATALOG.slice(0, 8).map((p) => (_jsx("button", { type: "button", onClick: () => addProcedure(p), className: "inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-sans text-[12px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors", children: p }, p))) }))] }))] })] })] }), !isEdit && searchOpen && mounted && filteredProcedures.length > 0 && createPortal(_jsx("div", { ref: dropdownRef, style: {
+                                                        }, onFocus: () => setSearchOpen(true), onKeyDown: handleSearchKeyDown, placeholder: "Search procedures \u2014 e.g., Obturation, Crown Prep...", className: "w-full h-[42px] rounded-[10px] border border-tp-slate-200 bg-white pl-10 pr-3 text-[14px] font-['Inter',sans-serif] text-tp-slate-700 placeholder:text-tp-slate-300 transition-colors hover:border-tp-slate-300 focus:border-tp-blue-500 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20" })] }), !searchOpen && (_jsx("div", { className: "mt-[10px] flex flex-wrap gap-[6px]", children: dentalNames.slice(0, 8).map((p) => (_jsx("button", { type: "button", onClick: () => addProcedure(p), className: "inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors", children: p }, p))) }))] }))] })] })] }), !isEdit && searchOpen && mounted && (filteredProcedures.length > 0 || showAddCustomProcedure) && createPortal(_jsx("div", { ref: dropdownRef, style: {
                     position: "fixed",
                     top: dropdownPos.top,
                     left: dropdownPos.left,
                     width: dropdownPos.width,
                     zIndex: 9999,
-                }, className: "rounded-[10px] border border-tp-slate-200 bg-white shadow-lg overflow-hidden", children: _jsx("div", { className: "max-h-[200px] overflow-y-auto", children: filteredProcedures.map((p, i) => (_jsx("button", { type: "button", onClick: () => addProcedure(p), className: `w-full flex items-center px-[12px] py-[8px] text-left transition-colors ${i === highlightedIndex ? "bg-tp-blue-50" : "hover:bg-tp-slate-50"}`, children: _jsx("p", { className: "font-sans text-[12px] font-medium text-tp-slate-800", children: p }) }, p))) }) }), document.body)] }));
+                }, className: "rounded-[10px] border border-tp-slate-200 bg-white shadow-lg overflow-hidden", children: _jsx("div", { className: "max-h-[200px] overflow-y-auto", children: _jsxs(_Fragment, { children: [filteredProcedures.map((p, i) => (_jsx("button", { type: "button", onClick: () => addProcedure(p), className: `w-full flex items-center px-[12px] py-[8px] text-left transition-colors ${i === highlightedIndex ? "bg-tp-blue-50" : "hover:bg-tp-slate-50"}`, children: _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-800", children: p }) }, p))), showAddCustomProcedure && (_jsx("button", { type: "button", onClick: () => {
+                            setCustomDentalInitial(searchQuery.trim());
+                            setCustomDentalOpen(true);
+                            setSearchOpen(false);
+                        }, className: `w-full flex items-center gap-[8px] px-[12px] py-[9px] text-left font-['Inter',sans-serif] text-[13px] font-semibold transition-colors text-tp-blue-600 ${highlightedIndex === filteredProcedures.length ? "bg-tp-blue-50" : "hover:bg-tp-blue-50/70"}`, children: [_jsx(Plus, { size: 18, strokeWidth: 2, className: "shrink-0 text-tp-blue-600" }), _jsxs("span", { className: "min-w-0", children: ["Add \"", searchQuery.trim(), "\" as custom dental service"] })] }))] }) }) }), document.body) ] }), mounted && typeof document !== "undefined"
+        ? createPortal(_jsx(AddDentalBillItemDrawer, { open: customDentalOpen, onOpenChange: setCustomDentalOpen, initialName: customDentalInitial, onSaved: (item) => { addProcedure(item.name); } }), document.body)
+        : null] }));
 }

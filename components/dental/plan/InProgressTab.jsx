@@ -11,7 +11,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useState } from "react";
 import {
     TickCircle, ArrowRotateLeft, Printer, Receipt1, Add, Timer1,
-    Edit2, Trash, Calendar2, DocumentText, CloseCircle,
+    Edit2, Trash, Calendar2, DocumentSketch, CloseCircle,
 } from "iconsax-reactjs";
 import { ChevronDown, MoreVertical } from "lucide-react";
 import {
@@ -30,6 +30,16 @@ import dui from "../dental-ui.module.scss";
 
 const dropdownContentClass = "w-[220px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1";
 const dropdownItemClass = "rounded-[8px] focus:bg-tp-slate-100 focus:text-tp-slate-700 data-[highlighted]:bg-tp-slate-100 data-[highlighted]:text-tp-slate-700";
+
+function buildConsultationRxUrl(patientId, planId, serviceId, appointmentId) {
+    const p = new URLSearchParams();
+    p.set("patientId", patientId);
+    p.set("planId", planId);
+    p.set("serviceId", serviceId);
+    if (appointmentId)
+        p.set("appointmentId", appointmentId);
+    return `/rxpad?${p.toString()}`;
+}
 
 function renderStatusChip(status, size = "sm") {
     const cls = status === "completed"
@@ -53,7 +63,7 @@ function renderStatusChip(status, size = "sm") {
                         ? "Cancelled"
                         : "Yet to Start";
     return _jsx("span", {
-        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-sans font-semibold ${size === "md" ? "text-[12px]" : "text-[11px]"} ${cls}`,
+        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-['Inter',sans-serif] font-semibold ${size === "md" ? "text-[12px]" : "text-[11px]"} ${cls}`,
         children: label,
     });
 }
@@ -69,7 +79,7 @@ function getStatusSelectClasses(status) {
 
 // Explicit status options shown in the treatment status dropdown.
 // Order reflects typical flow. No "Auto" option — status is either
-// derived from activity (sittings/procedures) or explicitly chosen.
+// derived from activity (consultations / legacy sittings & procedures) or explicitly chosen.
 const STATUS_OPTIONS = [
     { value: "not-started", label: "Yet to start" },
     { value: "in-progress", label: "In Progress" },
@@ -91,7 +101,7 @@ function renderPlanCompletionChip(status) {
             ? "Partially Completed"
             : "Not Completed";
     return _jsx("span", {
-        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-sans text-[12px] font-semibold ${cls}`,
+        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold ${cls}`,
         children: label,
     });
 }
@@ -111,7 +121,7 @@ function buildServiceDescription(service) {
 
 // ─── Service Sub-Card ──────────────────────────────────────
 function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
-    const { dispatch, openDrawer } = usePlanContext();
+    const { dispatch, openDrawer, patientId } = usePlanContext();
     const [markDoneOpen, setMarkDoneOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     // Appointment cancellation dialog state
@@ -143,6 +153,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
         setMarkDoneOpen(false);
     };
     const appointmentItems = service.appointments ?? [];
+    const consultationItems = service.consultations ?? [];
     const toothText = service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`;
     const serviceDescription = buildServiceDescription(service);
     const planLineMeta = [
@@ -180,7 +191,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                     _jsx("div", {
                         className: "flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-tp-warning-100 shrink-0",
                         children: _jsx("span", {
-                            className: "font-sans text-[16px] font-bold text-tp-warning-700",
+                            className: "font-['Inter',sans-serif] text-[16px] font-bold text-tp-warning-700",
                             children: index + 1,
                         }),
                     }),
@@ -191,11 +202,11 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                 className: "flex flex-wrap items-center gap-[8px]",
                                 children: [
                                     _jsx("p", {
-                                        className: "font-sans text-[16px] font-bold text-tp-slate-900",
+                                        className: "font-['Inter',sans-serif] text-[16px] font-bold text-tp-slate-900",
                                         children: service.treatment,
                                     }),
                                     _jsxs("span", {
-                                        className: "font-sans text-[14px] font-medium text-tp-slate-500",
+                                        className: "font-['Inter',sans-serif] text-[14px] font-medium text-tp-slate-500",
                                         children: ["(", toothText, ")"],
                                     }),
                                 ],
@@ -204,14 +215,14 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                 className: "mt-[4px] flex flex-wrap items-center gap-[6px]",
                                 children: [
                                     _jsx("span", {
-                                        className: "inline-flex h-[24px] items-center rounded-[6px] bg-tp-slate-100 px-[8px] font-sans text-[12px] font-medium leading-none text-tp-slate-500",
+                                        className: "inline-flex h-[24px] items-center rounded-[6px] bg-tp-slate-100 px-[8px] font-['Inter',sans-serif] text-[12px] font-medium leading-none text-tp-slate-500",
                                         children: formatINR(service.amount),
                                     }),
                                     _jsx("select", {
                                         value: dropdownValue,
                                         onClick: (e) => e.stopPropagation(),
                                         onChange: (e) => handleServiceStatusChange(e.target.value),
-                                        className: `h-[24px] rounded-[6px] border-0 px-[6px] font-sans text-[11px] font-semibold leading-none focus:outline-none focus:ring-1 focus:ring-tp-blue-500/30 ${statusSelectClasses}`,
+                                        className: `h-[24px] rounded-[6px] border-0 px-[6px] font-['Inter',sans-serif] text-[11px] font-semibold leading-none focus:outline-none focus:ring-1 focus:ring-tp-blue-500/30 ${statusSelectClasses}`,
                                         children: STATUS_OPTIONS.map((opt) => _jsx("option", { value: opt.value, children: opt.label }, opt.value)),
                                     }),
                                 ],
@@ -287,8 +298,8 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                     _jsxs("div", {
                         className: "px-[2px] space-y-[4px]",
                         children: [
-                            _jsx("p", { className: "font-sans text-[14px] text-tp-slate-600", children: serviceDescription }),
-                            planLineMeta && _jsx("p", { className: "font-sans text-[12px] text-tp-slate-500", children: planLineMeta }),
+                            _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] text-tp-slate-600", children: serviceDescription }),
+                            planLineMeta && _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: planLineMeta }),
                         ],
                     }),
                     // ── Appointments block ─────────────────────
@@ -302,13 +313,13 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                         className: "inline-flex items-center gap-[6px]",
                                         children: [
                                             _jsx(Calendar2, { size: 14, variant: "Bulk", className: "text-tp-slate-500" }),
-                                            _jsxs("p", { className: "font-sans text-[13px] font-semibold text-tp-slate-700", children: ["Appointments (", appointmentItems.length, ")"] }),
+                                            _jsxs("p", { className: "font-['Inter',sans-serif] text-[13px] font-semibold text-tp-slate-700", children: ["Appointments (", appointmentItems.length, ")"] }),
                                         ],
                                     }),
                                     _jsxs("button", {
                                         type: "button",
                                         onClick: () => openDrawer({ type: "book-appointment", planId: plan.id, serviceId: service.id }),
-                                        className: "inline-flex items-center gap-[4px] font-sans text-[11px] font-semibold text-tp-blue-600 hover:text-tp-blue-700 transition-colors",
+                                        className: "inline-flex items-center gap-[4px] font-['Inter',sans-serif] text-[11px] font-semibold text-tp-blue-600 hover:text-tp-blue-700 transition-colors",
                                         children: [_jsx(Add, { size: 14, variant: "Linear" }), "Add Appointment"],
                                     }),
                                 ],
@@ -335,21 +346,21 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                         className: "flex items-center gap-[6px] flex-wrap",
                                                                         children: [
                                                                             _jsx("p", {
-                                                                                className: `font-sans text-[12px] font-semibold leading-[16px] ${isCancelled ? "text-tp-slate-400 line-through" : "text-tp-slate-700"}`,
+                                                                                className: `font-['Inter',sans-serif] text-[12px] font-semibold leading-[16px] ${isCancelled ? "text-tp-slate-400 line-through" : "text-tp-slate-700"}`,
                                                                                 children: appt.doctor,
                                                                             }),
                                                                             isCancelled && _jsx("span", {
-                                                                                className: "inline-flex items-center rounded-[4px] bg-tp-error-50 px-[6px] py-[1px] font-sans text-[10px] font-bold uppercase tracking-[0.3px] text-tp-error-600",
+                                                                                className: "inline-flex items-center rounded-[4px] bg-tp-error-50 px-[6px] py-[1px] font-['Inter',sans-serif] text-[10px] font-bold uppercase tracking-[0.3px] text-tp-error-600",
                                                                                 children: "Cancelled",
                                                                             }),
                                                                         ],
                                                                     }),
                                                                     _jsxs("p", {
-                                                                        className: `mt-[2px] font-sans text-[12px] ${isCancelled ? "text-tp-slate-400 line-through" : "text-tp-slate-500"}`,
+                                                                        className: `mt-[2px] font-['Inter',sans-serif] text-[12px] ${isCancelled ? "text-tp-slate-400 line-through" : "text-tp-slate-500"}`,
                                                                         children: ["(", appt.date, " | ", appt.time, appt.notes ? ` | ${appt.notes}` : "", ")"],
                                                                     }),
                                                                     isCancelled && appt.cancellationReason && _jsxs("p", {
-                                                                        className: "mt-[4px] font-sans text-[11px] text-tp-error-600",
+                                                                        className: "mt-[4px] font-['Inter',sans-serif] text-[11px] text-tp-error-600",
                                                                         children: [_jsx("span", { className: "font-semibold", children: "Reason: " }), appt.cancellationReason],
                                                                     }),
                                                                 ],
@@ -371,6 +382,14 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                         className: "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-tp-slate-500 hover:bg-tp-warning-50 hover:text-tp-warning-600",
                                                                         children: _jsx(CloseCircle, { size: 13, variant: "Linear" }),
                                                                     }),
+                                                                    !isCancelled && _jsx("a", {
+                                                                        href: buildConsultationRxUrl(patientId, plan.id, service.id, appt.id),
+                                                                        target: "_blank",
+                                                                        rel: "noopener noreferrer",
+                                                                        title: "Open RxPad for this appointment",
+                                                                        className: "inline-flex h-[22px] items-center rounded-[6px] px-[7px] font-['Inter',sans-serif] text-[10px] font-bold uppercase tracking-[0.2px] text-tp-blue-600 hover:bg-tp-blue-50",
+                                                                        children: "Type Rx",
+                                                                    }),
                                                                     _jsx("button", {
                                                                         type: "button",
                                                                         title: "Remove from history",
@@ -386,149 +405,68 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                             }, appt.id);
                                         }),
                                     })
-                                    : _jsx("p", { className: "font-sans text-[12px] text-tp-slate-400 italic", children: "No appointments booked yet" }),
+                                    : _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-400 italic", children: "No appointments booked yet" }),
                             }),
                         ],
                     }),
-                    // ── Sittings block ─────────────────────────
+                    // ── Consultation / digital Rx ──────────────
                     _jsxs("div", {
                         className: "rounded-[10px] bg-tp-slate-50 overflow-hidden",
                         children: [
                             _jsxs("div", {
-                                className: "sticky top-0 z-[1] flex items-center justify-between bg-tp-slate-100 px-[10px] py-[8px]",
+                                className: "sticky top-0 z-[1] flex items-center justify-between gap-[8px] bg-tp-slate-100 px-[10px] py-[8px]",
                                 children: [
                                     _jsxs("div", {
-                                        className: "inline-flex items-center gap-[6px]",
+                                        className: "inline-flex items-start gap-[6px] min-w-0",
                                         children: [
-                                            _jsx(Timer1, { size: 14, variant: "Bulk", className: "text-tp-slate-500" }),
-                                            _jsxs("p", { className: "font-sans text-[13px] font-semibold text-tp-slate-700", children: ["Sittings (", service.sittings.length, ")"] }),
+                                            _jsx(DocumentSketch, { size: 14, variant: "Bulk", className: "text-tp-slate-500 shrink-0 mt-[2px]" }),
+                                            _jsxs("div", { className: "min-w-0",
+                                                children: [
+                                                    _jsx("p", { className: "font-['Inter',sans-serif] text-[13px] font-semibold text-tp-slate-700", children: "Consultation (digital Rx)" }),
+                                                    _jsx("p", { className: "font-['Inter',sans-serif] text-[11px] text-tp-slate-500 leading-snug", children: "Document in RxPad and tap End Visit — notes appear below for this treatment." }),
+                                                ],
+                                            }),
                                         ],
                                     }),
-                                    _jsxs("button", {
-                                        type: "button",
-                                        onClick: () => openDrawer({ type: "add-sitting", serviceId: service.id }),
-                                        className: "inline-flex items-center gap-[4px] font-sans text-[11px] font-semibold text-tp-blue-600 hover:text-tp-blue-700 transition-colors",
-                                        children: [_jsx(Add, { size: 14, variant: "Linear" }), "Add Sitting"],
+                                    _jsx("a", {
+                                        href: buildConsultationRxUrl(patientId, plan.id, service.id),
+                                        target: "_blank",
+                                        rel: "noopener noreferrer",
+                                        className: "inline-flex items-center gap-[4px] font-['Inter',sans-serif] text-[11px] font-semibold text-tp-blue-600 hover:text-tp-blue-700 transition-colors shrink-0",
+                                        children: [_jsx(Add, { size: 14, variant: "Linear" }), "Type Rx"],
                                     }),
                                 ],
                             }),
                             _jsx("div", {
                                 className: "px-[10px] py-[10px]",
-                                children: service.sittings.length > 0
+                                children: consultationItems.length > 0
                                     ? _jsx("div", {
                                         className: "space-y-[12px]",
-                                        children: service.sittings.map((s, idx) => _jsxs("div", {
-                                            className: "relative pl-[18px]",
-                                            children: [
-                                                idx !== service.sittings.length - 1 && _jsx("span", { className: "absolute left-[3px] top-[13px] h-[calc(100%-2px)] border-l border-dashed border-tp-slate-300/60" }),
-                                                _jsx("span", { className: "absolute left-0 top-[5px] h-[8px] w-[8px] rounded-full bg-tp-slate-400" }),
-                                                _jsxs("div", {
-                                                    className: "flex items-start justify-between gap-[8px]",
-                                                    children: [
-                                                        _jsxs("div", {
-                                                            className: "min-w-0",
-                                                            children: [
-                                                                _jsx("p", { className: "font-sans text-[12px] font-semibold text-tp-slate-700 leading-[16px]", children: s.doctor }),
-                                                                _jsxs("p", { className: "mt-[2px] font-sans text-[12px] text-tp-slate-500", children: ["(", s.date, s.notes ? ` | ${s.notes}` : "", ")"] }),
-                                                            ],
-                                                        }),
-                                                        _jsxs("div", {
-                                                            className: "inline-flex items-center gap-[3px] shrink-0",
-                                                            children: [
-                                                                _jsx("button", {
-                                                                    type: "button",
-                                                                    onClick: () => openDrawer({ type: "edit-sitting", serviceId: service.id, sittingId: s.id }),
-                                                                    className: "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-tp-slate-500 hover:bg-tp-slate-100 hover:text-tp-slate-700",
-                                                                    children: _jsx(Edit2, { size: 13, variant: "Linear" }),
-                                                                }),
-                                                                _jsx("button", {
-                                                                    type: "button",
-                                                                    onClick: () => dispatch({ type: "REMOVE_SITTING", serviceId: service.id, sittingId: s.id }),
-                                                                    className: "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-tp-slate-500 hover:bg-red-50 hover:text-tp-error-600",
-                                                                    children: _jsx(Trash, { size: 13, variant: "Linear" }),
-                                                                }),
-                                                            ],
-                                                        }),
-                                                    ],
-                                                }),
-                                            ],
-                                        }, s.id)),
+                                        children: consultationItems.map((c, idx) => {
+                                            const fromAppt = c.source === "appointment" && c.appointmentId;
+                                            const appt = fromAppt ? appointmentItems.find((a) => a.id === c.appointmentId) : null;
+                                            const tag = fromAppt && appt
+                                                ? `Appointment · ${appt.date} ${appt.time}`
+                                                : "Treatment visit";
+                                            const ended = c.endedAt?.includes("T") ? c.endedAt.slice(0, 16).replace("T", " · ") : (c.endedAt ?? "");
+                                            const metaLine = `${tag}${ended ? ` · ${ended}` : ""}`;
+                                            return _jsxs("div", {
+                                                className: "relative pl-[18px]",
+                                                children: [
+                                                    idx !== consultationItems.length - 1 && _jsx("span", { className: "absolute left-[3px] top-[13px] h-[calc(100%-2px)] border-l border-dashed border-tp-slate-300/60" }),
+                                                    _jsx("span", { className: "absolute left-0 top-[5px] h-[8px] w-[8px] rounded-full bg-tp-blue-400" }),
+                                                    _jsxs("div", {
+                                                        className: "min-w-0",
+                                                        children: [
+                                                            _jsx("p", { className: "font-['Inter',sans-serif] text-[11px] font-semibold text-tp-slate-600", children: metaLine }),
+                                                            _jsx("p", { className: "mt-[6px] font-['Inter',sans-serif] text-[12px] text-tp-slate-700 whitespace-pre-wrap break-words", children: c.summaryText }),
+                                                        ],
+                                                    }),
+                                                ],
+                                            }, c.id);
+                                        }),
                                     })
-                                    : _jsx("p", { className: "font-sans text-[12px] text-tp-slate-400 italic", children: "No sittings recorded yet" }),
-                            }),
-                        ],
-                    }),
-                    // ── Procedures block ───────────────────────
-                    _jsxs("div", {
-                        className: "rounded-[10px] bg-tp-slate-50 overflow-hidden",
-                        children: [
-                            _jsxs("div", {
-                                className: "sticky top-0 z-[1] flex items-center justify-between bg-tp-slate-100 px-[10px] py-[8px]",
-                                children: [
-                                    _jsxs("div", {
-                                        className: "inline-flex items-center gap-[6px]",
-                                        children: [
-                                            _jsx(DocumentText, { size: 14, variant: "Bulk", className: "text-tp-slate-500" }),
-                                            _jsxs("p", { className: "font-sans text-[13px] font-semibold text-tp-slate-700", children: ["Procedures (", service.procedures.length, ")"] }),
-                                        ],
-                                    }),
-                                    _jsxs("button", {
-                                        type: "button",
-                                        onClick: () => openDrawer({ type: "add-procedure", serviceId: service.id }),
-                                        className: "inline-flex items-center gap-[4px] font-sans text-[11px] font-semibold text-tp-blue-600 hover:text-tp-blue-700 transition-colors",
-                                        children: [_jsx(Add, { size: 14, variant: "Linear" }), "Add Procedure"],
-                                    }),
-                                ],
-                            }),
-                            _jsx("div", {
-                                className: "px-[10px] py-[10px]",
-                                children: service.procedures.length > 0
-                                    ? _jsx("div", {
-                                        className: "space-y-[12px]",
-                                        children: service.procedures.map((p, idx) => _jsxs("div", {
-                                            className: "relative pl-[18px]",
-                                            children: [
-                                                idx !== service.procedures.length - 1 && _jsx("span", { className: "absolute left-[3px] top-[13px] h-[calc(100%-2px)] border-l border-dashed border-tp-slate-300/60" }),
-                                                _jsx("span", { className: "absolute left-0 top-[5px] h-[8px] w-[8px] rounded-full bg-tp-slate-400" }),
-                                                _jsxs("div", {
-                                                    className: "flex items-start justify-between gap-[8px]",
-                                                    children: [
-                                                        _jsxs("div", {
-                                                            className: "min-w-0",
-                                                            children: [
-                                                                _jsxs("div", {
-                                                                    className: "flex items-center gap-[6px]",
-                                                                    children: [
-                                                                        _jsx("p", { className: "font-sans text-[12px] font-semibold text-tp-slate-700 leading-[16px]", children: p.name }),
-                                                                        renderStatusChip(p.status ?? workflowStatus),
-                                                                    ],
-                                                                }),
-                                                                _jsxs("p", { className: "mt-[2px] font-sans text-[12px] text-tp-slate-500", children: ["(", p.doctor, " | ", p.date, p.notes ? ` | ${p.notes}` : "", ")"] }),
-                                                            ],
-                                                        }),
-                                                        _jsxs("div", {
-                                                            className: "inline-flex items-center gap-[3px] shrink-0",
-                                                            children: [
-                                                                _jsx("button", {
-                                                                    type: "button",
-                                                                    onClick: () => openDrawer({ type: "edit-procedure", serviceId: service.id, procedureId: p.id }),
-                                                                    className: "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-tp-slate-500 hover:bg-tp-slate-100 hover:text-tp-slate-700",
-                                                                    children: _jsx(Edit2, { size: 13, variant: "Linear" }),
-                                                                }),
-                                                                _jsx("button", {
-                                                                    type: "button",
-                                                                    onClick: () => dispatch({ type: "REMOVE_SUB_PROCEDURE", serviceId: service.id, procedureId: p.id }),
-                                                                    className: "inline-flex h-[22px] w-[22px] items-center justify-center rounded-[6px] text-tp-slate-500 hover:bg-red-50 hover:text-tp-error-600",
-                                                                    children: _jsx(Trash, { size: 13, variant: "Linear" }),
-                                                                }),
-                                                            ],
-                                                        }),
-                                                    ],
-                                                }),
-                                            ],
-                                        }, p.id)),
-                                    })
-                                    : _jsx("p", { className: "font-sans text-[12px] text-tp-slate-400 italic", children: "No procedures recorded yet" }),
+                                    : _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-400 italic", children: "No consultations yet. Use Type Rx (here or on an appointment) and complete End Visit in RxPad." }),
                             }),
                         ],
                     }),
@@ -617,7 +555,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                             className: "px-[4px] pb-[4px]",
                             children: [
                                 _jsx("label", {
-                                    className: "block font-sans text-[12px] font-semibold text-tp-slate-600 mb-[6px]",
+                                    className: "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]",
                                     children: "Reason for cancellation",
                                 }),
                                 _jsx("textarea", {
@@ -625,14 +563,14 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                     onChange: (e) => setCancelReason(e.target.value),
                                     placeholder: "e.g. Patient requested to reschedule due to travel",
                                     rows: 3,
-                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
+                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
                                 }),
                                 _jsxs("div", {
                                     className: "mt-[8px] flex flex-wrap gap-[6px]",
                                     children: ["Patient travel", "Doctor unavailable", "Patient no-show", "Rescheduled"].map((quick) => _jsx("button", {
                                         type: "button",
                                         onClick: () => setCancelReason(quick),
-                                        className: "inline-flex h-[26px] items-center rounded-[8px] bg-tp-slate-100 px-[10px] font-sans text-[11px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors",
+                                        className: "inline-flex h-[26px] items-center rounded-[8px] bg-tp-slate-100 px-[10px] font-['Inter',sans-serif] text-[11px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors",
                                         children: quick,
                                     }, quick)),
                                 }),
@@ -679,11 +617,11 @@ function PlanClusterCard({ plan }) {
                             }),
                             _jsxs("div", {
                                 children: [
-                                    _jsx("h4", { className: "font-sans text-[18px] font-bold text-tp-slate-900", children: plan.name }),
+                                    _jsx("h4", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: plan.name }),
                                     _jsx("div", {
                                         className: "mt-[2px] flex items-center gap-[6px]",
                                         children: _jsx("span", {
-                                            className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-500",
+                                            className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
                                             children: formatINR(total),
                                         }),
                                     }),
@@ -697,7 +635,7 @@ function PlanClusterCard({ plan }) {
                             _jsxs("button", {
                                 type: "button",
                                 onClick: () => setMarkAllOpen(true),
-                                className: "inline-flex items-center justify-center gap-[6px] rounded-[12px] px-[16px] h-[36px] min-w-[120px] font-sans text-[14px] font-semibold text-white bg-tp-success-600 hover:bg-tp-success-700 transition-colors shadow-sm",
+                                className: "inline-flex items-center justify-center gap-[6px] rounded-[12px] px-[16px] h-[36px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white bg-tp-success-600 hover:bg-tp-success-700 transition-colors shadow-sm",
                                 children: [_jsx(TickCircle, { size: 20, variant: "Linear" }), "Mark All Done"],
                             }),
                             _jsxs(DropdownMenu, {
@@ -798,7 +736,7 @@ function PlanClusterCard({ plan }) {
                                     children: [
                                         "This will revert ",
                                         _jsx("strong", { children: plan.name }),
-                                        " back to estimates. All sittings and procedures will be cleared.",
+                                        " back to estimates. Appointments, consultations, sittings, and procedures on this plan will be cleared.",
                                     ],
                                 }),
                             ],
@@ -841,7 +779,7 @@ export function InProgressTab() {
                                     className: "flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-warning-50",
                                     children: _jsx(Timer1, { size: 24, variant: "Bulk", className: "text-tp-warning-600" }),
                                 }),
-                                _jsx("h3", { className: "font-sans text-[18px] font-bold text-tp-slate-900", children: "Active Plans" }),
+                                _jsx("h3", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: "Active Plans" }),
                             ],
                         }),
                     }),

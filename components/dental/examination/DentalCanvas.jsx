@@ -111,8 +111,29 @@ function dentitionScopeIsActive(scopeId, selectionScope) {
 // Camera Controller — animates between dentition and single-tooth views
 // ══════════════════════════════════════════════════════════════
 const DENTITION_CAMERA = { position: new THREE.Vector3(0, 2.5, 16.5), target: new THREE.Vector3(0, -0.9, -0.3), fov: 35 };
-const SINGLE_TOOTH_CAMERA = { position: new THREE.Vector3(0.5, -0.15, 7.5), target: new THREE.Vector3(0, -0.35, 0), fov: 32 };
-function ZoneCameraRotator({ zone, toothFdi, quadrant, arch, controlsRef, radius = 7.5 }) {
+/** Same default radius as ZoneCameraRotator so “no surface picked” matches buccal framing. */
+const SINGLE_TOOTH_ORBIT_RADIUS = 6.28;
+/** Single-tooth orbit target; Y slightly above old -0.04 so the tooth sits higher in frame. */
+const SINGLE_TOOTH_TARGET = new THREE.Vector3(0, 0.04, 0);
+const SINGLE_TOOTH_FOV = 27;
+/** UR/UL/LR/LL + R/L: much closer Z than Max/Man/Full (see groupedScopeZ). */
+const QUADRANT_SIDE_SCOPE_EXTRA_ZOOM = 3.15;
+
+function getSingleToothBuccalCamera(fdi, width, height) {
+    const aspect = width / Math.max(1, height);
+    const widthFactor = (width - 980) / 980;
+    const widthAdjust = Math.max(-1.1, Math.min(1.1, -widthFactor * 1.5));
+    const aspectPull = aspect < 0.7 ? 2.0 : aspect < 0.9 ? 1.15 : aspect < 1.1 ? 0.6 : aspect < 1.4 ? 0.22 : 0;
+    const radius = SINGLE_TOOTH_ORBIT_RADIUS + aspectPull + widthAdjust * 0.35;
+    const frontAz = getFrontAzimuth(String(fdi)) ?? 0;
+    const offset = new THREE.Vector3().setFromSpherical(new THREE.Spherical(radius, Math.PI / 2, frontAz));
+    return {
+        position: new THREE.Vector3().copy(SINGLE_TOOTH_TARGET).add(offset),
+        target: SINGLE_TOOTH_TARGET.clone(),
+        fov: SINGLE_TOOTH_FOV,
+    };
+}
+function ZoneCameraRotator({ zone, toothFdi, quadrant, arch, controlsRef, radius = 6.28 }) {
     const { camera } = useThree();
     const target = useRef(null);
     useEffect(() => {
@@ -195,10 +216,17 @@ function shortestAngleDelta(from, to) {
         d += Math.PI * 2;
     return d;
 }
-function CameraController({ viewMode, patientType, selectionScopeType = 'tooth', dentitionCameraOverride, dentitionVerticalNudge, onDentitionVerticalNudgeChange, controlsRef, }) {
+function CameraController({ viewMode, patientType, selectionScopeType = 'tooth', selectionScopeId = null, dentitionCameraOverride, dentitionVerticalNudge, onDentitionVerticalNudgeChange, controlsRef, }) {
     const { camera, size } = useThree();
     const animRef = useRef({ active: false, t: 0, startPos: new THREE.Vector3(), endPos: new THREE.Vector3(), startTarget: new THREE.Vector3(), endTarget: new THREE.Vector3(), startFov: 32, endFov: 32 });
-    const prevMode = useRef(viewMode);
+    const cameraLayoutKey = useMemo(() => {
+        if (viewMode === 'dentition')
+            return 'dentition';
+        if (selectionScopeType === 'tooth')
+            return `single-tooth:${selectionScopeId ?? ''}`;
+        return `grouped:${selectionScopeType}:${selectionScopeId ?? ''}`;
+    }, [viewMode, selectionScopeType, selectionScopeId]);
+    const prevLayoutKey = useRef(cameraLayoutKey);
     const prevPatientType = useRef(patientType);
     const initialized = useRef(false);
     // Canvas-aspect-responsive dentition z: the narrower the canvas, the further
@@ -228,32 +256,26 @@ function CameraController({ viewMode, patientType, selectionScopeType = 'tooth',
             return base + 0.3 + widthAdjust;
         return base - 1.4 + widthAdjust;
     }, [size.width, size.height, patientType]);
-    // Same idea for single-tooth view — pull camera back when canvas narrows.
-    const singleToothZ = useMemo(() => {
-        const aspect = size.width / Math.max(1, size.height);
-        const widthFactor = (size.width - 980) / 980;
-        const widthAdjust = Math.max(-1.1, Math.min(1.1, -widthFactor * 1.5));
-        if (aspect < 0.7)
-            return 9.15 + widthAdjust;
-        if (aspect < 0.9)
-            return 8.15 + widthAdjust;
-        if (aspect < 1.1)
-            return 7.45 + widthAdjust;
-        if (aspect < 1.4)
-            return 6.85 + widthAdjust;
-        return 6.45 + widthAdjust;
-    }, [size.width, size.height]);
+    /** Extra Z + framing so UR/Full/… grouped views clear the bottom tooth-chart overlay and fit the arch. */
     const groupedScopeZ = useMemo(() => {
         const aspect = size.width / Math.max(1, size.height);
         const widthFactor = (size.width - 980) / 980;
         const widthAdjust = Math.max(-1.6, Math.min(1.6, -widthFactor * 2.0));
+        const zoomPad = 2.45;
+        const groupedZoomBase = 1.15;
         const base = aspect < 0.8 ? 22 : aspect < 1.1 ? 19.6 : 17.6;
+        let z;
         if (selectionScopeType === 'full-mouth')
-            return base + (patientType === 'mixed' ? 7.2 : 5.2) + widthAdjust;
-        if (selectionScopeType === 'arch')
-            return base + (patientType === 'mixed' ? 4.2 : 3.0) + widthAdjust;
-        return base + (patientType === 'mixed' ? 1.4 : 0.8) + widthAdjust;
-    }, [size.width, size.height, patientType, selectionScopeType]);
+            z = base + (patientType === 'mixed' ? 7.2 : 5.2) + widthAdjust + zoomPad;
+        else if (selectionScopeType === 'arch')
+            z = base + (patientType === 'mixed' ? 4.2 : 3.0) + widthAdjust + zoomPad;
+        else
+            z = base + (patientType === 'mixed' ? 1.4 : 0.8) + widthAdjust + zoomPad;
+        const isQuadrantOrSideArch = selectionScopeType === 'quadrant'
+            || (selectionScopeType === 'arch' && (selectionScopeId === 'RIGHT_ARCH' || selectionScopeId === 'LEFT_ARCH'));
+        const zoomTotal = groupedZoomBase + (isQuadrantOrSideArch ? QUADRANT_SIDE_SCOPE_EXTRA_ZOOM : 0);
+        return z - zoomTotal;
+    }, [size.width, size.height, patientType, selectionScopeType, selectionScopeId]);
     // Ctrl/Cmd + drag vertically nudges dentition framing (desktop).
     // iPad keeps native 2-finger panning through OrbitControls.
     useEffect(() => {
@@ -338,17 +360,29 @@ function CameraController({ viewMode, patientType, selectionScopeType = 'tooth',
             };
         }
         if (selectionScopeType !== 'tooth') {
+            const isNarrowGrouped = selectionScopeType === 'quadrant'
+                || (selectionScopeType === 'arch' && (selectionScopeId === 'RIGHT_ARCH' || selectionScopeId === 'LEFT_ARCH'));
+            if (isNarrowGrouped) {
+                return {
+                    cam: {
+                        position: new THREE.Vector3(0, 0.64, groupedScopeZ),
+                        target: new THREE.Vector3(0, -0.04, -0.35),
+                        fov: 30.5,
+                    },
+                };
+            }
             return {
-                cam: { position: new THREE.Vector3(0, 0.28, groupedScopeZ), target: new THREE.Vector3(0, -0.05, -0.35), fov: 35 },
+                cam: {
+                    position: new THREE.Vector3(0, 0.53, groupedScopeZ),
+                    target: new THREE.Vector3(0, -0.13, -0.35),
+                    fov: 34.5,
+                },
             };
         }
-        return {
-            cam: {
-                ...SINGLE_TOOTH_CAMERA,
-                position: new THREE.Vector3(SINGLE_TOOTH_CAMERA.position.x, SINGLE_TOOTH_CAMERA.position.y, singleToothZ),
-            },
-        };
-    }, [viewMode, patientType, selectionScopeType, dentitionZ, groupedScopeZ, singleToothZ, dentitionVerticalNudge, dentitionCameraOverride]);
+        const rawFdi = selectionScopeId != null ? String(selectionScopeId) : '';
+        const fdi = /^\d{2}$/.test(rawFdi) ? rawFdi : '11';
+        return { cam: getSingleToothBuccalCamera(fdi, size.width, size.height) };
+    }, [viewMode, patientType, selectionScopeType, selectionScopeId, dentitionZ, groupedScopeZ, dentitionVerticalNudge, dentitionCameraOverride, size.width, size.height]);
     // Set initial camera position based on initial viewMode
     useEffect(() => {
         if (initialized.current)
@@ -368,11 +402,23 @@ function CameraController({ viewMode, patientType, selectionScopeType = 'tooth',
     useEffect(() => {
         if (animRef.current.active)
             return;
-        camera.position.z = getCameraPreset().cam.position.z;
-        camera.updateProjectionMatrix();
-        if (controlsRef.current)
-            controlsRef.current.update();
-    }, [dentitionZ, singleToothZ, groupedScopeZ, viewMode, selectionScopeType, getCameraPreset, camera, controlsRef]);
+        const { cam } = getCameraPreset();
+        if (viewMode !== 'dentition' && selectionScopeType === 'tooth') {
+            camera.position.copy(cam.position);
+            camera.fov = cam.fov;
+            camera.updateProjectionMatrix();
+            if (controlsRef.current) {
+                controlsRef.current.target.copy(cam.target);
+                controlsRef.current.update();
+            }
+        }
+        else {
+            camera.position.z = cam.position.z;
+            camera.updateProjectionMatrix();
+            if (controlsRef.current)
+                controlsRef.current.update();
+        }
+    }, [dentitionZ, groupedScopeZ, viewMode, selectionScopeType, getCameraPreset, camera, controlsRef]);
     // Switching patient tabs should restore that tab's own view (or default),
     // rather than carrying over the previous tab's current camera transform.
     useEffect(() => {
@@ -392,16 +438,15 @@ function CameraController({ viewMode, patientType, selectionScopeType = 'tooth',
             controlsRef.current.update();
         }
     }, [patientType, viewMode, getCameraPreset, camera, controlsRef]);
-    // Animate on mode change
+    // Animate on dentition ↔ single-tooth, and when grouped scope id changes (UR→UL, Max→R, …).
     useEffect(() => {
-        if (prevMode.current === viewMode)
+        if (prevLayoutKey.current === cameraLayoutKey)
             return;
-        prevMode.current = viewMode;
+        prevLayoutKey.current = cameraLayoutKey;
         const { cam: target } = getCameraPreset();
         const a = animRef.current;
         a.startPos.copy(camera.position);
         a.endPos.copy(target.position);
-        a.endPos.z = target.position.z;
         a.startTarget.copy(controlsRef.current?.target || new THREE.Vector3());
         a.endTarget.copy(target.target);
         a.startFov = camera.fov;
@@ -410,7 +455,7 @@ function CameraController({ viewMode, patientType, selectionScopeType = 'tooth',
         a.active = true;
         if (controlsRef.current)
             controlsRef.current.enabled = false;
-    }, [viewMode, selectionScopeType, getCameraPreset, camera, controlsRef]);
+    }, [cameraLayoutKey, getCameraPreset, camera, controlsRef]);
     useFrame((_, delta) => {
         const a = animRef.current;
         if (!a.active)
@@ -937,20 +982,26 @@ export function DentalCanvas({ patientId, patientAge = 30, compact = false, onSt
         setSelectedZone(null);
         setViewMode('single-tooth');
     }, [activeTeeth, getScopeFdis]);
-    // Quick-scope for ToothSelector: if the currently selected tooth is
-    // already inside the clicked scope, keep it selected (no jump).
-    // Only jump to the first tooth of the scope when the current tooth
-    // is outside it.
+    // Tooth chart scope bar: same scope state as the dentition toolbar so the
+    // 3D preview (grouped DentitionView) updates. Preserve the current tooth when
+    // it already lies in the chosen scope; otherwise jump to the first tooth.
     const handleToothScopeJump = useCallback((scope) => {
         const fdis = getScopeFdis(scope);
-        if (fdis.length === 0) return;
+        if (fdis.length === 0)
+            return;
         setSelectedTooth((prev) => {
-            // Keep current tooth if it belongs to the target scope
-            if (prev && fdis.includes(prev.fdi)) return prev;
-            // Otherwise jump to the first tooth of the scope
+            if (prev && fdis.includes(prev.fdi))
+                return prev;
             return activeTeeth.find((t) => t.fdi === fdis[0]) ?? prev;
         });
+        setSelectionScope({
+            type: scope === 'FULL' ? 'full-mouth' : ARCH_SCOPE_IDS.has(scope) ? 'arch' : 'quadrant',
+            id: scope,
+            label: scope === 'FULL' ? 'Full mouth' : SCOPE_SELECTION_LABELS[scope],
+            fdis,
+        });
         setSelectedZone(null);
+        setViewMode('single-tooth');
     }, [activeTeeth, getScopeFdis]);
     const handlePatientTypeChange = useCallback((nextType) => {
         setPatientType(nextType);
@@ -1207,7 +1258,7 @@ export function DentalCanvas({ patientId, patientAge = 30, compact = false, onSt
         : patientType === 'pediatric'
             ? 'Full Pediatric Dentition View'
             : 'Full Mixed Dentition View';
-    return (_jsx("div", { className: `dental-canvas-root ${isDentitionView ? 'dentition-mode' : ''} ${compact ? 'compact' : ''}`, children: _jsxs("div", { className: "viewer", children: [_jsx("div", { className: "viewer-header", children: isDentitionView ? (_jsx("div", { className: "tooth-name tooth-name--dentition", children: _jsx("span", { className: "tooth-name-text", children: dentitionTitle }, patientType) })) : (_jsxs("div", { className: "tooth-name", style: { paddingLeft: 6, gap: 3, cursor: 'pointer' }, onClick: handleBackToDentition, title: "Back to full dentition view", role: "button", children: [_jsx("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", style: { flexShrink: 0 }, children: _jsx("path", { d: "M15 19.92L8.48 13.4c-.77-.77-.77-2.03 0-2.8L15 4.08", stroke: "#1e293b", strokeLinecap: "round", strokeLinejoin: "round", strokeMiterlimit: "10", strokeWidth: "2.2" }) }), selectionScope.type === 'tooth' ? (_jsxs(_Fragment, { children: [QUADRANT_LABELS[selectedTooth.quadrant], " ", selectedTooth.name, _jsxs("span", { className: "tooth-fdi", children: ["T", selectedTooth.fdi] })] })) : (_jsxs(_Fragment, { children: [selectionScope.type === 'full-mouth' ? 'Full Mouth View' : `${selectionScope.label} View`, _jsx("span", { className: "tooth-fdi", children: selectionScope.type === 'full-mouth' ? 'FULL' : (SCOPE_HEADER_BADGE[selectionScope.id] ?? selectionScope.id) })] }))] })) }), isDentitionView && (_jsx("div", { className: dc.patientTypeHost, children: _jsxs("div", { className: dc.patientTypeTrack, children: [_jsx("button", { type: "button", onClick: () => handlePatientTypeChange('adult'), className: clsx(dc.patientTypeBtn, patientType === 'adult' && dc.patientTypeBtnActive), children: "Adult" }), _jsx("button", { type: "button", onClick: () => handlePatientTypeChange('pediatric'), className: clsx(dc.patientTypeBtn, patientType === 'pediatric' && dc.patientTypeBtnActive), children: "Pediatric" }), _jsx("button", { type: "button", onClick: () => handlePatientTypeChange('mixed'), className: clsx(dc.patientTypeBtn, patientType === 'mixed' && dc.patientTypeBtnActive), children: "Mixed" })] }) })), isDentitionView && (_jsx("div", { className: dc.scopeHost, children: _jsx("div", { className: dc.scopeTrack, role: "toolbar", "aria-label": "Choose dentition scope", children: DENTITION_SCOPE_BUTTONS.flatMap((btn, i, arr) => {
+    return (_jsx("div", { className: `dental-canvas-root ${isDentitionView ? 'dentition-mode' : ''} ${!isDentitionView ? 'has-tooth-selector' : ''} ${compact ? 'compact' : ''}`, children: _jsxs("div", { className: "viewer", children: [_jsx("div", { className: "viewer-header", children: isDentitionView ? (_jsx("div", { className: "tooth-name tooth-name--dentition", children: _jsx("span", { className: "tooth-name-text", children: dentitionTitle }, patientType) })) : (_jsxs("div", { className: "tooth-name", style: { paddingLeft: 6, gap: 3, cursor: 'pointer' }, onClick: handleBackToDentition, title: "Back to full dentition view", role: "button", children: [_jsx("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", style: { flexShrink: 0 }, children: _jsx("path", { d: "M15 19.92L8.48 13.4c-.77-.77-.77-2.03 0-2.8L15 4.08", stroke: "#1e293b", strokeLinecap: "round", strokeLinejoin: "round", strokeMiterlimit: "10", strokeWidth: "2.2" }) }), selectionScope.type === 'tooth' ? (_jsxs(_Fragment, { children: [QUADRANT_LABELS[selectedTooth.quadrant], " ", selectedTooth.name, _jsxs("span", { className: "tooth-fdi", children: ["T", selectedTooth.fdi] })] })) : (_jsxs(_Fragment, { children: [selectionScope.type === 'full-mouth' ? 'Full Mouth View' : `${selectionScope.label} View`, _jsx("span", { className: "tooth-fdi", children: selectionScope.type === 'full-mouth' ? 'FULL' : (SCOPE_HEADER_BADGE[selectionScope.id] ?? selectionScope.id) })] }))] })) }), isDentitionView && (_jsx("div", { className: dc.patientTypeHost, children: _jsxs("div", { className: dc.patientTypeTrack, children: [_jsx("button", { type: "button", onClick: () => handlePatientTypeChange('adult'), className: clsx(dc.patientTypeBtn, patientType === 'adult' && dc.patientTypeBtnActive), children: "Adult" }), _jsx("button", { type: "button", onClick: () => handlePatientTypeChange('pediatric'), className: clsx(dc.patientTypeBtn, patientType === 'pediatric' && dc.patientTypeBtnActive), children: "Pediatric" }), _jsx("button", { type: "button", onClick: () => handlePatientTypeChange('mixed'), className: clsx(dc.patientTypeBtn, patientType === 'mixed' && dc.patientTypeBtnActive), children: "Mixed" })] }) })), isDentitionView && (_jsx("div", { className: dc.scopeHost, children: _jsx("div", { className: dc.scopeTrack, role: "toolbar", "aria-label": "Choose dentition scope", children: DENTITION_SCOPE_BUTTONS.flatMap((btn, i, arr) => {
                             const active = dentitionScopeIsActive(btn.id, selectionScope);
                             const btnClass = isDentitionView ? dc.scopeBtn : dc.scopeBtnCompact;
                             const button = (_jsx("button", { type: "button", title: btn.title, onClick: () => handleSelectScope(btn.id), className: clsx(btnClass, active && dc.scopeBtnActive), children: btn.label }, btn.id));
@@ -1228,7 +1279,7 @@ export function DentalCanvas({ patientId, patientAge = 30, compact = false, onSt
                         alignItems: 'center',
                         gap: '2px',
                         pointerEvents: 'none',
-                        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+                        fontFamily: 'Inter, sans-serif',
                     }, children: [_jsx(LottieIcon, { name: "arrow-up", size: 24, color: "#d5dde8" }), _jsx("span", { style: {
                                 fontSize: '14px',
                                 color: '#b7c3d4',
@@ -1236,7 +1287,7 @@ export function DentalCanvas({ patientId, patientAge = 30, compact = false, onSt
                                 opacity: 0.72,
                                 letterSpacing: '0.2px',
                                 whiteSpace: 'nowrap',
-                            }, children: "Click any tooth to examine" })] })), !isDentitionView && (_jsx(ToothSelector, { selectedTooth: selectedTooth, patientType: patientType, onSelectTooth: handleSelectTooth, toothDiagnoses: toothDiagnoses, viewMode: viewMode, onBackToDentition: handleBackToDentition, onSelectScope: handleToothScopeJump, surfaceSelector: (_jsx(QuickSurfaceSelector, { selectedZones: multiSelectActive
+                            }, children: "Click any tooth to examine" })] })), !isDentitionView && (_jsx(ToothSelector, { selectedTooth: selectedTooth, patientType: patientType, onSelectTooth: handleSelectTooth, toothDiagnoses: toothDiagnoses, viewMode: viewMode, onBackToDentition: handleBackToDentition, onSelectScope: handleToothScopeJump, selectionScope: selectionScope, getScopeFdis: getScopeFdis, findingsByTooth: findingsByTooth, implantTeeth: implantTeeth, allEntries: allEntries, toothNotes: toothNotes, surfaceSelector: (_jsx(QuickSurfaceSelector, { selectedZones: multiSelectActive
                             ? multiSelectZones
-                            : (selectedZone ? new Set([selectedZone]) : new Set()), onToggleZone: handleToggleZoneFromQuickSelector, arch: selectedTooth.arch, toothPosition: selectedTooth.position, zonesWithFindings: new Set(findings.map(f => f.zoneId)), disabled: currentToothDiagnoses.has('Missing') || currentToothDiagnoses.has('Extraction') })) })), _jsxs(Canvas, { camera: { position: [0, 2.5, 13], fov: 35 }, dpr: [1, 1.5], gl: { antialias: true, toneMapping: 3, toneMappingExposure: 1.3, powerPreference: 'high-performance' }, performance: { min: 0.5 }, children: [_jsx("ambientLight", { intensity: 0.8 }), _jsx("directionalLight", { position: [3, 5, 4], intensity: 1.0 }), _jsx("directionalLight", { position: [-2, 3, -2], intensity: 0.4 }), _jsx("directionalLight", { position: [0, -2, 1], intensity: 0.3 }), _jsx(CameraController, { viewMode: viewMode, patientType: patientType, selectionScopeType: selectionScope.type, dentitionCameraOverride: dentitionCameraOverride, dentitionVerticalNudge: dentitionVerticalNudge, onDentitionVerticalNudgeChange: handleDentitionVerticalNudgeChange, controlsRef: controlsRef }), !isDentitionView && selectionScope.type === 'tooth' && (_jsx(ZoneCameraRotator, { zone: selectedZone, toothFdi: selectedTooth.fdi, quadrant: selectedTooth.quadrant, arch: selectedTooth.arch, controlsRef: controlsRef })), _jsx(Suspense, { fallback: null, children: isDentitionView ? (_jsx(DentitionView, { patientType: patientType, layoutMode: "split", toothDiagnoses: toothDiagnoses, findingsByTooth: findingsByTooth, implantTeeth: implantTeeth, onSelectTooth: handleSelectTooth, onHoverTooth: setHoveredToothFdi, externalHoveredFdi: hoveredToothFdi, allEntries: allEntries, toothNotes: toothNotes, agentPulseFdis: agentApplyPulseFdis }, `dentition-${patientType}`)) : (selectionScope.type !== 'tooth' ? (_jsx(DentitionView, { patientType: patientType, visibleFdis: selectionScope.fdis, disableSelection: true, layoutMode: selectionScope.type === 'full-mouth' ? 'natural' : 'split', toothDiagnoses: toothDiagnoses, findingsByTooth: findingsByTooth, implantTeeth: implantTeeth, onSelectTooth: handleSelectTooth, onHoverTooth: setHoveredToothFdi, externalHoveredFdi: hoveredToothFdi, allEntries: allEntries, toothNotes: toothNotes, agentPulseFdis: agentApplyPulseFdis }, `scope-${patientType}-${selectionScope.type}-${selectionScope.id}`)) : (_jsx("group", { position: [0, -0.15, 0], children: _jsx(Tooth, { selectedZone: selectedZone, onSelectZone: handleSelectZone, onClearSelectedZone: handleClearSelectedZone, onHoverZone: setHoveredZone, modelPath: selectedTooth.modelPath, arch: selectedTooth.arch, mirrorX: selectedTooth.mirrorX, quadrant: selectedTooth.quadrant, toothPosition: selectedTooth.position, toothFdi: selectedTooth.fdi, isImplant: isImplant, findings: findings, zoneNotes: zoneNotes, toothDiagnoses: currentToothDiagnoses, multiSelectZones: multiSelectZones, multiSelectActive: multiSelectActive, hideTags: true, treatmentHistoryDetails: currentTreatmentHistoryDetails, toothEntries: currentToothEntries.map(e => ({ kind: e.kind, name: e.name, surfaces: e.surfaces })) }, `${selectedTooth.fdi}-${isImplant ? 'imp' : 'nat'}-${[...currentToothDiagnoses].sort().join(',')}`) }))) }), _jsx(OrbitControls, { ref: controlsRef, onEnd: handleDentitionControlsEnd, enableDamping: true, dampingFactor: 0.12, rotateSpeed: 0.8, minDistance: isDentitionView ? 6 : (selectionScope.type === 'tooth' ? 2.5 : 5), maxDistance: isDentitionView ? (patientType === 'mixed' ? 28 : 22) : (selectionScope.type === 'tooth' ? 10 : 30), enablePan: isDentitionView, touches: { ONE: 0, TWO: 2 } })] })] }) }));
+                            : (selectedZone ? new Set([selectedZone]) : new Set()), onToggleZone: handleToggleZoneFromQuickSelector, arch: selectedTooth.arch, toothPosition: selectedTooth.position, zonesWithFindings: new Set(findings.map(f => f.zoneId)), disabled: currentToothDiagnoses.has('Missing') || currentToothDiagnoses.has('Extraction') })) })), _jsxs(Canvas, { camera: { position: [0, 2.5, 13], fov: 35 }, dpr: [1, 1.5], gl: { antialias: true, toneMapping: 3, toneMappingExposure: 1.3, powerPreference: 'high-performance' }, performance: { min: 0.5 }, children: [_jsx("ambientLight", { intensity: 0.8 }), _jsx("directionalLight", { position: [3, 5, 4], intensity: 1.0 }), _jsx("directionalLight", { position: [-2, 3, -2], intensity: 0.4 }), _jsx("directionalLight", { position: [0, -2, 1], intensity: 0.3 }), _jsx(CameraController, { viewMode: viewMode, patientType: patientType, selectionScopeType: selectionScope.type, selectionScopeId: selectionScope.id, dentitionCameraOverride: dentitionCameraOverride, dentitionVerticalNudge: dentitionVerticalNudge, onDentitionVerticalNudgeChange: handleDentitionVerticalNudgeChange, controlsRef: controlsRef }), !isDentitionView && selectionScope.type === 'tooth' && (_jsx(ZoneCameraRotator, { zone: selectedZone, toothFdi: selectedTooth.fdi, quadrant: selectedTooth.quadrant, arch: selectedTooth.arch, controlsRef: controlsRef })), _jsx(Suspense, { fallback: null, children: isDentitionView ? (_jsx(DentitionView, { patientType: patientType, layoutMode: "split", toothDiagnoses: toothDiagnoses, findingsByTooth: findingsByTooth, implantTeeth: implantTeeth, onSelectTooth: handleSelectTooth, onHoverTooth: setHoveredToothFdi, externalHoveredFdi: hoveredToothFdi, allEntries: allEntries, toothNotes: toothNotes, agentPulseFdis: agentApplyPulseFdis }, `dentition-${patientType}`)) : (selectionScope.type !== 'tooth' ? (_jsx(DentitionView, { patientType: patientType, visibleFdis: selectionScope.fdis, disableSelection: true, layoutMode: selectionScope.type === 'full-mouth' ? 'natural' : 'split', toothDiagnoses: toothDiagnoses, findingsByTooth: findingsByTooth, implantTeeth: implantTeeth, onSelectTooth: handleSelectTooth, onHoverTooth: setHoveredToothFdi, externalHoveredFdi: hoveredToothFdi, allEntries: allEntries, toothNotes: toothNotes, agentPulseFdis: agentApplyPulseFdis }, `scope-${patientType}-${selectionScope.type}-${selectionScope.id}`)) : (_jsx("group", { position: [0, -0.17, 0], children: _jsx(Tooth, { selectedZone: selectedZone, onSelectZone: handleSelectZone, onClearSelectedZone: handleClearSelectedZone, onHoverZone: setHoveredZone, modelPath: selectedTooth.modelPath, arch: selectedTooth.arch, mirrorX: selectedTooth.mirrorX, quadrant: selectedTooth.quadrant, toothPosition: selectedTooth.position, toothFdi: selectedTooth.fdi, isImplant: isImplant, findings: findings, zoneNotes: zoneNotes, toothDiagnoses: currentToothDiagnoses, multiSelectZones: multiSelectZones, multiSelectActive: multiSelectActive, hideTags: true, treatmentHistoryDetails: currentTreatmentHistoryDetails, toothEntries: currentToothEntries.map(e => ({ kind: e.kind, name: e.name, surfaces: e.surfaces })) }, `${selectedTooth.fdi}-${isImplant ? 'imp' : 'nat'}-${[...currentToothDiagnoses].sort().join(',')}`) }))) }), _jsx(OrbitControls, { ref: controlsRef, onEnd: handleDentitionControlsEnd, enableDamping: true, dampingFactor: 0.12, rotateSpeed: 0.8, minDistance: isDentitionView ? 6 : selectionScope.type === 'tooth' ? 2.05 : (selectionScope.type === 'quadrant' || (selectionScope.type === 'arch' && (selectionScope.id === 'RIGHT_ARCH' || selectionScope.id === 'LEFT_ARCH'))) ? 3.5 : 5, maxDistance: isDentitionView ? (patientType === 'mixed' ? 28 : 22) : selectionScope.type === 'tooth' ? 10.5 : (selectionScope.type === 'quadrant' || (selectionScope.type === 'arch' && (selectionScope.id === 'RIGHT_ARCH' || selectionScope.id === 'LEFT_ARCH'))) ? 22 : 30, enablePan: isDentitionView, touches: { ONE: 0, TWO: 2 } })] })] }) }));
 }

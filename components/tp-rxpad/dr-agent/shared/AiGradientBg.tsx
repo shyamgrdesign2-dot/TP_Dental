@@ -26,7 +26,9 @@ export function AiGradientBg({
 }: AiGradientBgProps) {
   return (
     <>
-      <style jsx global>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes aiGradientFlow {
           0% {
             background-position: 0% 50%;
@@ -38,7 +40,9 @@ export function AiGradientBg({
             background-position: 0% 50%;
           }
         }
-      `}</style>
+      `,
+        }}
+      />
       <div
         className={className}
         style={{

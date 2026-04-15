@@ -8,8 +8,8 @@ import { genId } from "./plan-types";
 
 const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
 
-const INPUT_CLASS = "w-full h-[42px] rounded-[10px] border border-tp-slate-200 bg-white px-[14px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors";
-const LABEL_CLASS = "block font-sans text-[12px] font-semibold text-tp-slate-600 mb-[6px]";
+const INPUT_CLASS = "w-full h-[42px] rounded-[10px] border border-tp-slate-200 bg-white px-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors";
+const LABEL_CLASS = "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]";
 
 export function AddSittingDrawer() {
     const { state, dispatch, closeDrawer, findService } = usePlanContext();
@@ -78,7 +78,7 @@ export function AddSittingDrawer() {
                     action: _jsx("button", {
                         type: "button",
                         onClick: handleAdd,
-                        className: "h-[42px] min-w-[120px] rounded-[10px] px-[20px] font-sans text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 transition-colors shadow-sm",
+                        className: "h-[42px] min-w-[120px] rounded-[10px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 transition-colors shadow-sm",
                         children: isEdit ? "Save Sitting" : "Add Sitting",
                     }),
                 }),
@@ -89,13 +89,13 @@ export function AddSittingDrawer() {
                         service && _jsxs("div", {
                             className: "rounded-[10px] bg-tp-blue-50 px-[12px] py-[10px]",
                             children: [
-                                _jsx("p", { className: "font-sans text-[14px] font-semibold text-tp-blue-700", children: service.treatment }),
+                                _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-blue-700", children: service.treatment }),
                                 _jsx("p", {
-                                    className: "font-sans text-[12px] text-tp-blue-500",
+                                    className: "font-['Inter',sans-serif] text-[12px] text-tp-blue-500",
                                     children: service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi} — ${service.toothLabel}`,
                                 }),
                                 _jsxs("p", {
-                                    className: "font-sans text-[12px] text-tp-blue-400 mt-[2px]",
+                                    className: "font-['Inter',sans-serif] text-[12px] text-tp-blue-400 mt-[2px]",
                                     children: ["Current sittings: ", service.sittings.length],
                                 }),
                             ],
@@ -131,7 +131,7 @@ export function AddSittingDrawer() {
                                     onChange: (e) => setNotes(e.target.value),
                                     placeholder: "What was done in this sitting...",
                                     rows: 3,
-                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-sans text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
+                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
                                 }),
                             ],
                         }),

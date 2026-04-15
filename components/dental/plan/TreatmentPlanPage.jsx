@@ -90,7 +90,7 @@ function TreatmentPlanEmbedInner({ patientId }) {
 }
 /** Inline dental plan for patient detail — no standalone page chrome. */
 export function TreatmentPlanEmbed({ patientId }) {
-    return (_jsx(Suspense, { fallback: _jsx("div", { className: "flex min-h-[200px] items-center justify-center font-sans text-sm text-tp-slate-500", children: "Loading\u2026" }), children: _jsx(TreatmentPlanEmbedInner, { patientId: patientId }) }));
+    return (_jsx(Suspense, { fallback: _jsx("div", { className: "flex min-h-[200px] items-center justify-center font-['Inter',sans-serif] text-sm text-tp-slate-500", children: "Loading\u2026" }), children: _jsx(TreatmentPlanEmbedInner, { patientId: patientId }) }));
 }
 export function TreatmentPlanPage() {
     return (_jsx(Suspense, { children: _jsx(TreatmentPlanInner, {}) }));

@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import clsx from "clsx"
 import { Search, XCircle } from "lucide-react"
 import { Eraser, Grid5, Ram, Trash } from "iconsax-reactjs"
 import styles from "./RxPadSection.module.scss"
@@ -119,9 +120,37 @@ export function ChipSearchInput({ placeholder, suggestions, selectedItems, onAdd
 }
 
 export function MedicationTable({ rows, onRemove }) {
+  const medTableScrollRef = useRef(null)
+  const [medActionOverflow, setMedActionOverflow] = useState(false)
+  const [medActionEdge, setMedActionEdge] = useState(false)
+
+  const updateMedSticky = useCallback(() => {
+    const el = medTableScrollRef.current
+    if (!el) return
+    const hasOverflow = el.scrollWidth > el.clientWidth + 1
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+    setMedActionOverflow(hasOverflow)
+    setMedActionEdge(hasOverflow && maxScroll > 1 && el.scrollLeft > 0 && el.scrollLeft < maxScroll - 0.5)
+  }, [])
+
+  useEffect(() => {
+    const el = medTableScrollRef.current
+    if (!el) return
+    updateMedSticky()
+    const ro = new ResizeObserver(updateMedSticky)
+    ro.observe(el)
+    const table = el.querySelector("table")
+    if (table) ro.observe(table)
+    window.addEventListener("resize", updateMedSticky)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener("resize", updateMedSticky)
+    }
+  }, [updateMedSticky, rows.length])
+
   return (
     <div className={styles.medStack}>
-      <div className={styles.tableScroll}>
+      <div ref={medTableScrollRef} className={styles.tableScroll} onScroll={updateMedSticky}>
         <table className={styles.table}>
           <thead>
             <tr className={styles.theadRow}>
@@ -132,7 +161,14 @@ export function MedicationTable({ rows, onRemove }) {
               <th className={`${styles.th} ${styles.thWhen}`}>WHEN</th>
               <th className={`${styles.th} ${styles.thDur}`}>DURATION</th>
               <th className={`${styles.th} ${styles.thNote}`}>NOTE</th>
-              <th className={`${styles.th} ${styles.thTrash}`} />
+              <th
+                className={clsx(
+                  styles.th,
+                  styles.thTrash,
+                  medActionOverflow && styles.medActionTh,
+                  medActionEdge && styles.medActionThEdge,
+                )}
+              />
             </tr>
           </thead>
           <tbody>
@@ -162,7 +198,13 @@ export function MedicationTable({ rows, onRemove }) {
                 <td className={styles.td}>
                   <span className={styles.notePill}>{row.note || "Note"}</span>
                 </td>
-                <td className={styles.td}>
+                <td
+                  className={clsx(
+                    styles.td,
+                    medActionOverflow && styles.medActionTd,
+                    medActionEdge && styles.medActionTdEdge,
+                  )}
+                >
                   <button type="button" onClick={() => onRemove(row.id)} className={styles.rowDelete}>
                     <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" />
                   </button>

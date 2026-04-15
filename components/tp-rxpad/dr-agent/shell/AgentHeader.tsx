@@ -119,11 +119,11 @@ export function AgentHeader({
 
   return (
     <div className={cn("relative z-20", className)}>
-      {/* Header — Figma spec: 42px, gradient 270deg */}
+      {/* Header — 46px, gradient 270deg */}
       <div
         className="relative overflow-visible flex items-center justify-between px-[12px]"
         style={{
-          height: 52,
+          height: 46,
           background: "linear-gradient(270deg, #8C33A0 0%, #2B2A64 100%)",
         }}
       >

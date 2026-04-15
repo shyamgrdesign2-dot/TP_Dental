@@ -254,7 +254,8 @@ function EditableTableModule({ id, title, icon, columns, primaryKey, rows, onCha
     const [dragOverRowId, setDragOverRowId] = useState(null);
     const [activeCell, setActiveCell] = useState(null);
     const [editingCellValues, setEditingCellValues] = useState({});
-    const [isActionSticky, setIsActionSticky] = useState(false);
+    const [hasActionColumnOverflow, setHasActionColumnOverflow] = useState(false);
+    const [showActionColumnEdge, setShowActionColumnEdge] = useState(false);
     const [menuIndicator, setMenuIndicator] = useState({
         hasOverflow: false,
         thumbTop: 0,
@@ -776,12 +777,16 @@ function EditableTableModule({ id, title, icon, columns, primaryKey, rows, onCha
     useEffect(() => {
         const wrapper = tableWrapRef.current;
         if (!wrapper || rows.length === 0) {
-            setIsActionSticky(false);
+            setHasActionColumnOverflow(false);
+            setShowActionColumnEdge(false);
             return;
         }
         const updateStickyState = () => {
             const hasOverflow = wrapper.scrollWidth > wrapper.clientWidth + 1;
-            setIsActionSticky(hasOverflow);
+            const maxScroll = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+            setHasActionColumnOverflow(hasOverflow);
+            /* Edge only while scrolled (content under the column) but not parked at the far end */
+            setShowActionColumnEdge(hasOverflow && maxScroll > 1 && wrapper.scrollLeft > 0 && wrapper.scrollLeft < maxScroll - 0.5);
         };
         updateStickyState();
         window.addEventListener("resize", updateStickyState);
@@ -801,8 +806,10 @@ function EditableTableModule({ id, title, icon, columns, primaryKey, rows, onCha
             observer?.disconnect();
         };
     }, [rows.length, columns.length]);
-    const stickyActionHeaderClass = isActionSticky ? rx.stickyTh : "";
-    const stickyActionCellClass = isActionSticky ? rx.stickyTd : "";
+    const stickyActionHeaderClass = hasActionColumnOverflow ? rx.stickyTh : "";
+    const stickyActionHeaderEdgeClass = showActionColumnEdge ? rx.stickyThEdge : "";
+    const stickyActionCellClass = hasActionColumnOverflow ? rx.stickyTd : "";
+    const stickyActionCellEdgeClass = showActionColumnEdge ? rx.stickyTdEdge : "";
     const menuPosition = activeMenu
         ? (() => {
             const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
@@ -858,7 +865,7 @@ function EditableTableModule({ id, title, icon, columns, primaryKey, rows, onCha
                             if (withinX && withinY)
                                 return;
                             setDragOverRowId(null);
-                        }, children: _jsxs("table", { className: rx.dataTable, children: [_jsxs("colgroup", { children: [_jsx("col", { style: sideColumnStyle }), columns.map((column) => (_jsx("col", { style: getResponsiveColumnStyle(column) }, `col-${column.key}`))), _jsx("col", { style: sideColumnStyle })] }), _jsx("thead", { children: _jsxs("tr", { className: rx.theadRow, children: [_jsx("th", { className: rx.thSide, style: sideColumnStyle }), columns.map((column) => (_jsx("th", { className: rx.thData, style: getResponsiveColumnStyle(column), children: column.label }, column.key))), _jsx("th", { className: clsx(rx.thSticky, stickyActionHeaderClass), style: sideColumnStyle })] }) }), _jsx("tbody", { children: rows.map((row, rowIndex) => ((() => {
+                        }, children: _jsxs("table", { className: rx.dataTable, children: [_jsxs("colgroup", { children: [_jsx("col", { style: sideColumnStyle }), columns.map((column) => (_jsx("col", { style: getResponsiveColumnStyle(column) }, `col-${column.key}`))), _jsx("col", { style: sideColumnStyle })] }), _jsx("thead", { children: _jsxs("tr", { className: rx.theadRow, children: [_jsx("th", { className: rx.thSide, style: sideColumnStyle }), columns.map((column) => (_jsx("th", { className: rx.thData, style: getResponsiveColumnStyle(column), children: column.label }, column.key))), _jsx("th", { className: clsx(rx.thSticky, stickyActionHeaderClass, stickyActionHeaderEdgeClass), style: sideColumnStyle })] }) }), _jsx("tbody", { children: rows.map((row, rowIndex) => ((() => {
                                         const isDraggingRow = draggingRowId === row.id;
                                         const isDropTargetRow = dragOverRowId === row.id && !isDraggingRow;
                                         return (_jsxs("tr", { "data-row-id": row.id, className: clsx(rx.tr, pulseRowIds.includes(row.id) && rx.trRxEnter, isDraggingRow && rx.trDragging, !isDraggingRow && isDropTargetRow && rx.trDrop, !isDraggingRow && !isDropTargetRow && rx.trHover), onDragOver: (event) => {
@@ -1167,7 +1174,7 @@ function EditableTableModule({ id, title, icon, columns, primaryKey, rows, onCha
                                                                             inputNode.focus();
                                                                             openCellMenu(row, column, inputNode.getBoundingClientRect(), value, value, !shouldFilterCellOnOpen(column));
                                                                         }, children: _jsx(ChevronDown, { size: 14, strokeWidth: 1.5, className: clsx(rx.chevron, isMenuOpen && rx.chevronOpen) }) }) })) : null] }) }, column.key));
-                                                }), _jsx("td", { className: clsx(rx.tdAction, stickyActionCellClass), style: sideColumnStyle, children: _jsx("button", { type: "button", onClick: () => removeRow(row.id), className: rx.deleteRow, "aria-label": "Delete row", children: _jsx(Trash, { color: "currentColor", size: 18, strokeWidth: 1.5, variant: "Linear" }) }) })] }, row.id));
+                                                }), _jsx("td", { className: clsx(rx.tdAction, stickyActionCellClass, stickyActionCellEdgeClass), style: sideColumnStyle, children: _jsx("button", { type: "button", onClick: () => removeRow(row.id), className: rx.deleteRow, "aria-label": "Delete row", children: _jsx(Trash, { color: "currentColor", size: 18, strokeWidth: 1.5, variant: "Linear" }) }) })] }, row.id));
                                     })())) })] }) })) : null, _jsx(TPRxPadSearchInput, { ref: searchInputRef, "data-rx-module-search": "true", value: searchText, onFocus: () => {
                             openSearchMenu(searchText);
                         }, onClick: () => {

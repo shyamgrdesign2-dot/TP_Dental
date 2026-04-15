@@ -30,6 +30,17 @@ export interface AppointmentRecord {
   caseType?: string
 }
 
+/** Saved when a visit is ended from RxPad with plan + treatment context in the URL. */
+export type ConsultationSource = "appointment" | "treatment-row"
+
+export interface ConsultationRecord {
+  id: string
+  endedAt: string
+  source: ConsultationSource
+  appointmentId?: string
+  summaryText: string
+}
+
 export interface SubProcedure {
   id: string
   name: string
@@ -116,6 +127,8 @@ export interface PlanService {
   sittings: SittingRecord[]
   procedures: SubProcedure[]
   appointments?: AppointmentRecord[]
+  /** Consultation / Rx summaries linked from this treatment (or from an appointment under it). */
+  consultations?: ConsultationRecord[]
   /** Planned surgery / procedure date for this line (from plan builder) */
   procedureDate?: string
   startedAt?: string
@@ -162,6 +175,7 @@ export type PlanAction =
   | { type: "REVERT_PLAN_TO_PROGRESS"; planId: string }
   | { type: "ADD_SERVICE"; planId: string; service: PlanService }
   | { type: "UPDATE_SERVICE"; serviceId: string; patch: Partial<PlanService> }
+  | { type: "APPEND_SERVICE_CONSULTATION"; serviceId: string; consultation: ConsultationRecord }
   | { type: "REMOVE_SERVICE"; serviceId: string }
   | { type: "MARK_SERVICE_COMPLETED"; serviceId: string }
   | { type: "REVERT_SERVICE_TO_PROGRESS"; serviceId: string }

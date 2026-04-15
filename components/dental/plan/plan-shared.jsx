@@ -8,7 +8,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import dui from "../dental-ui.module.scss";
 import { usePlanContext } from "./plan-context";
 import { SURFACE_ABBR, SURFACE_COLORS, getPlanSurfaceLabel } from "./plan-types";
-const PLAN_SURFACE_CHIP_CLASS = "inline-flex h-[18px] cursor-default items-center rounded-[4px] px-[5px] font-sans text-[12px] font-bold text-white tabular-nums outline-none transition-[filter,box-shadow] duration-150 hover:brightness-110 hover:shadow-[0_0_0_2px_rgba(59,130,246,0.45)] focus-visible:shadow-[0_0_0_2px_var(--tp-blue-500,#3b82f6)]";
+const PLAN_SURFACE_CHIP_CLASS = "inline-flex h-[18px] cursor-default items-center rounded-[4px] px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-white tabular-nums outline-none transition-[filter,box-shadow] duration-150 hover:brightness-110 hover:shadow-[0_0_0_2px_rgba(59,130,246,0.45)] focus-visible:shadow-[0_0_0_2px_var(--tp-blue-500,#3b82f6)]";
 /** Abbreviated surface pills with hover ring + tooltip (full surface name). */
 export function PlanSurfaceAbbrTags({ surfaces, gapClass = "gap-[3px]", wrap = false }) {
     if (!surfaces?.length)
@@ -43,8 +43,8 @@ export function ClipboardTickIcon({ size = 24, className }) {
 export function CloseSquareIcon({ size = 24, color = "var(--tp-slate-700)" }) {
     return (_jsx("svg", { width: size, height: size, viewBox: "0 0 24 24", fill: color, xmlns: "http://www.w3.org/2000/svg", children: _jsx("path", { d: "M16.19 2H7.81C4.17 2 2 4.17 2 7.81V16.18C2 19.83 4.17 22 7.81 22H16.18C19.82 22 21.99 19.83 21.99 16.19V7.81C22 4.17 19.83 2 16.19 2ZM15.36 14.3C15.65 14.59 15.65 15.07 15.36 15.36C15.21 15.51 15.02 15.58 14.83 15.58C14.64 15.58 14.45 15.51 14.3 15.36L12 13.06L9.7 15.36C9.55 15.51 9.36 15.58 9.17 15.58C8.98 15.58 8.79 15.51 8.64 15.36C8.35 15.07 8.35 14.59 8.64 14.3L10.94 12L8.64 9.7C8.35 9.41 8.35 8.93 8.64 8.64C8.93 8.35 9.41 8.35 9.7 8.64L12 10.94L14.3 8.64C14.59 8.35 15.07 8.35 15.36 8.64C15.65 8.93 15.65 9.41 15.36 9.7L13.06 12L15.36 14.3Z" }) }));
 }
-export function DrawerHeader({ title, onClose, action }) {
-    return (_jsxs("div", { className: dui.drawerHeader, children: [_jsx("button", { type: "button", onClick: onClose, className: dui.drawerCloseBtn, children: _jsx(CloseSquareIcon, { size: 24, color: "var(--tp-slate-700)" }) }), _jsx("div", { className: dui.drawerDivider }), _jsx("h2", { className: dui.drawerTitle, children: title }), action && _jsx("div", { className: dui.drawerAction, children: action })] }));
+export function DrawerHeader({ title, onClose, action, titleClassName }) {
+    return (_jsxs("div", { className: dui.drawerHeader, children: [_jsx("button", { type: "button", onClick: onClose, className: dui.drawerCloseBtn, children: _jsx(CloseSquareIcon, { size: 24, color: "var(--tp-slate-700)" }) }), _jsx("div", { className: dui.drawerDivider }), _jsx("h2", { className: clsx(dui.drawerTitle, titleClassName), children: title }), action && _jsx("div", { className: dui.drawerAction, children: action })] }));
 }
 export function computePlanTotal(services) {
     return services.reduce((sum, s) => sum + s.amount, 0);
@@ -64,8 +64,10 @@ export function getServiceWorkflowStatus(service) {
     if (service.status === "in-progress")
         return "in-progress";
     // Booked appointments do NOT count as activity — scheduling a visit is
-    // intent, not execution. Only sittings and procedures advance status.
-    const hasActivity = service.sittings.length > 0 || service.procedures.length > 0;
+    // intent, not execution. Consultations (Rx / end visit), sittings, or
+    // procedures count as activity for the workflow chip.
+    const consultCount = service.consultations?.length ?? 0;
+    const hasActivity = consultCount > 0 || service.sittings.length > 0 || service.procedures.length > 0;
     return hasActivity ? "in-progress" : "not-started";
 }
 export function getPlanCompletionStatus(services) {

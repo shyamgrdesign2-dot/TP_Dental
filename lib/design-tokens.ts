@@ -692,7 +692,7 @@ export interface CtaSizeSpec {
 
 export const ctaSizes: CtaSizeSpec[] = [
   { name: "Small", token: "sm", height: 36, iconSize: 18, paddingX: 12, usage: "Compact actions, table row actions" },
-  { name: "Medium", token: "md", height: 42, iconSize: 20, paddingX: 16, usage: "Default CTA size" },
+  { name: "Medium", token: "md", height: 36, iconSize: 20, paddingX: 16, usage: "Default CTA size" },
   { name: "Large", token: "lg", height: 48, iconSize: 22, paddingX: 20, usage: "Hero CTAs, primary page actions" },
 ]
 

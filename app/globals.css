@@ -255,3 +255,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Dr. Agent (DrAgentLayoutShell): reserve space for fixed panel — see `dr-agent-main-reserve` on primary columns */
+@media (max-width: 767px) {
+  html[data-dr-agent-open="true"] .dr-agent-main-reserve {
+    padding-bottom: min(52vh, 560px);
+  }
+}
+@media (min-width: 768px) {
+  html[data-dr-agent-open="true"] .dr-agent-main-reserve {
+    padding-right: clamp(350px, 25vw, 400px);
+  }
+}

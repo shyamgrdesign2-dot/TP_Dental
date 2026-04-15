@@ -52,23 +52,13 @@
   font-weight: 600;
 }
 
+/* Sticky action column when table overflows horizontally */
 .stickyTh {
   position: sticky;
   right: 0;
   z-index: 40;
   border-left: 1px solid rgb(226 232 240 / 0.8);
   background: tp.$slate-50;
-  box-shadow: -8px 7px 14px -12px rgb(15 23 42 / 0.18);
-
-  &::before {
-    content: "";
-    pointer-events: none;
-    position: absolute;
-    inset-block: 0;
-    left: -8px;
-    width: 8px;
-    background: linear-gradient(to left, rgb(15 23 42 / 0.06), transparent);
-  }
 }
 
 .stickyTd {
@@ -77,6 +67,10 @@
   z-index: 40;
   border-left: 1px solid rgb(226 232 240 / 0.8);
   background: #fff;
+}
+
+/* Linear edge treatment only while content is scrolled under the action column */
+.stickyThEdge {
   box-shadow: -8px 7px 14px -12px rgb(15 23 42 / 0.18);
 
   &::before {
@@ -86,7 +80,21 @@
     inset-block: 0;
     left: -8px;
     width: 8px;
-    background: linear-gradient(to left, rgb(15 23 42 / 0.06), transparent);
+    background: linear-gradient(to left, rgb(15 23 42 / 0.08), transparent);
+  }
+}
+
+.stickyTdEdge {
+  box-shadow: -8px 7px 14px -12px rgb(15 23 42 / 0.18);
+
+  &::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset-block: 0;
+    left: -8px;
+    width: 8px;
+    background: linear-gradient(to left, rgb(15 23 42 / 0.08), transparent);
   }
 }
 
@@ -258,7 +266,7 @@
 }
 
 .tdAction {
-  position: relative;
+  /* Do not set position here — it would override `.stickyTd` (later in cascade). */
   padding: 0;
   text-align: center;
   vertical-align: middle;

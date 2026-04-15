@@ -11,7 +11,7 @@
 }
 
 .recordsTitle {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800;
@@ -25,7 +25,7 @@
   justify-content: center;
   border-radius: 9999px;
   background: tp.$slate-200;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: tp.$slate-600;
@@ -195,7 +195,7 @@
   border-radius: 4px;
   background: tp.$slate-100;
   padding: 0 8px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: "Inter", sans-serif;
   font-size: 11px;
   font-weight: 700;
   color: tp.$slate-600;
@@ -210,7 +210,7 @@
 }
 
 .toothName {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800;
@@ -228,7 +228,7 @@
   border-radius: 5px;
   background: tp.$slate-100;
   padding: 0 7px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: tp.$slate-700;
@@ -249,7 +249,7 @@
   border-radius: 5px;
   background: var(--tp-violet-50);
   padding: 2px 6px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: var(--tp-violet-700);
@@ -322,14 +322,14 @@
 }
 
 .onboardTitle {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 15px;
   font-weight: 700;
   color: tp.$slate-900;
 }
 
 .onboardSub {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-400;
 }
@@ -386,14 +386,14 @@
 }
 
 .stepCardTitle {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800;
 }
 
 .stepCardDesc {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-400;
   line-height: 1.4;
@@ -452,7 +452,7 @@
   gap: 4px;
   border-radius: 5px;
   padding: 2px 6px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
 }
@@ -478,12 +478,63 @@
 }
 
 .pillLabel {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 180px;
+}
+
+/** Notes chip — short label; avoid the long-text ellipsis width from `.pillLabel` */
+.pillLabelPlain {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/** Treatment history / findings / procedures — icon + segmented values */
+.pillSegmented {
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+}
+
+.pillIcon {
+  flex-shrink: 0;
+}
+
+.pillSegments {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  row-gap: 2px;
+}
+
+.pillSegment {
+  display: inline-block;
+  max-width: 7.5rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  vertical-align: bottom;
+}
+
+.pillSegmentSep {
+  flex-shrink: 0;
+  padding: 0 5px;
+  color: color-mix(in srgb, tp.$slate-400 85%, tp.$slate-200);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  user-select: none;
 }
 
 // ── Score card ───────────────────────────────────────────────────────────────
@@ -503,7 +554,7 @@
   display: inline-flex;
   align-items: center;
   padding: 5px 11px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -531,13 +582,13 @@
 }
 
 .scoreHuge {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 .scoreSub {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: tp.$slate-500;
@@ -550,7 +601,7 @@
   gap: 5px;
   border-radius: 9999px;
   padding: 3px 12px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
@@ -574,7 +625,7 @@
 }
 
 .tooltipTitle {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: rgb(255 255 255 / 0.95);
@@ -582,7 +633,7 @@
 
 .tooltipLead {
   margin-top: 2px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   line-height: 14px;
   color: rgb(255 255 255 / 0.55);
@@ -605,14 +656,14 @@
 }
 
 .tooltipFooterMuted {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: rgb(255 255 255 / 0.6);
 }
 
 .tooltipFooterVal {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -626,14 +677,14 @@
 }
 
 .tooltipRowLabel {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: rgb(255 255 255 / 0.8);
 }
 
 .tooltipRowVal {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -701,7 +752,7 @@
   font-weight: 600;
   line-height: 20px;
   color: tp.$slate-800;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   letter-spacing: 0.1px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -716,7 +767,7 @@
   border-radius: 4px;
   background: tp.$slate-100;
   padding: 0 6px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 11px;
   font-weight: 700;
   color: tp.$slate-700;
@@ -834,14 +885,14 @@
 }
 
 .clearDialogTitle {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 16px;
   font-weight: 600;
   color: tp.$slate-900;
 }
 
 .clearDialogDesc {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 13px;
   color: tp.$slate-500;
   line-height: 1.5;
@@ -864,7 +915,7 @@
   border-radius: 10px;
   border: 1px solid tp.$slate-200;
   background: #fff;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 13px;
   font-weight: 600;
   color: tp.$slate-700;
@@ -881,7 +932,7 @@
   border-radius: 10px;
   border: 0;
   background: #ef4444;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 13px;
   font-weight: 600;
   color: #fff;
@@ -900,7 +951,7 @@
 
 // Notes textarea wrap
 .notesPad {
-  padding: 14px;
+  padding: 0 12px 12px;
 }
 
 .notesArea {
@@ -911,7 +962,7 @@
   border: 1px solid tp.$slate-200;
   background: #fff;
   padding: 10px 12px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   color: tp.$slate-800;
 
@@ -961,14 +1012,11 @@
 }
 
 .accordionGridInner {
-  overflow: hidden;
+  width: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-.accordionScroll {
-  flex: 1;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -977,7 +1025,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px 8px;
+  padding: 12px 14px 12px;
 }
 
 .secHeadClick {
@@ -995,7 +1043,7 @@
 }
 
 .secTitle {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800;
@@ -1010,7 +1058,7 @@
   border-radius: 9999px;
   background: tp.$slate-100;
   padding: 0 5px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: tp.$slate-600;
@@ -1068,7 +1116,8 @@
 
 // ── Entry tab / table ─────────────────────────────────────────────────────────
 .entryRoot {
-  padding: 12px;
+  height: fit-content;
+  padding: 0 12px 12px;
 }
 
 .missingWrap {
@@ -1077,7 +1126,7 @@
 }
 
 .missingText {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-500;
 }
@@ -1092,7 +1141,7 @@
 .table {
   width: 100%;
   table-layout: fixed;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
 }
 
@@ -1100,7 +1149,7 @@
   height: 38px;
   background: tp.$slate-50;
   text-align: left;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-500;
 }
@@ -1204,7 +1253,7 @@
 }
 
 .datePlaceholderText {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   line-height: 18px;
   color: #a2a2a8;
@@ -1219,7 +1268,7 @@
   border: 0;
   background: transparent;
   padding: 0 12px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
@@ -1257,7 +1306,7 @@
   border: 0;
   background: transparent;
   padding: 0 12px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
   color: #454551;
@@ -1279,7 +1328,7 @@
   border: 0;
   background: transparent;
   padding: 0 12px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
   color: #454551;
@@ -1362,7 +1411,7 @@
   border: 1px solid tp.$slate-200;
   background: #fff;
   padding: 0 12px 0 32px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-700;
 
@@ -1376,6 +1425,23 @@
   }
 }
 
+.popoverSectionHeader {
+  flex-shrink: 0;
+  padding: 5px 12px 6px;
+  border-bottom: 1px solid tp.$slate-100;
+  background: rgb(248 250 252 / 0.95);
+}
+
+.popoverSectionTitle {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: tp.$slate-500;
+  font-family: "Inter", sans-serif;
+}
+
 .popover {
   position: fixed;
   z-index: 9999;
@@ -1384,9 +1450,9 @@
   border-radius: 12px;
   border: 1px solid tp.$slate-200;
   background: #fff;
-  padding: 6px 0;
+  padding: 0;
   box-shadow: 0 8px 20px -4px rgb(15 23 42 / 0.12);
-  max-height: 260px;
+  max-height: min(52vh, 260px);
   overflow-y: auto;
 
   &::-webkit-scrollbar {
@@ -1404,9 +1470,9 @@
 }
 
 .popoverItem {
-  padding: 10px 14px;
+  padding: 9px 14px;
   text-align: left;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 13px;
   color: tp.$slate-700;
   border: 0;
@@ -1421,9 +1487,9 @@
 }
 
 .popoverAdd {
-  padding: 10px 14px;
+  padding: 9px 14px;
   text-align: left;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: var(--tp-blue-600);
@@ -1458,7 +1524,7 @@
   border-radius: 10px;
   background: tp.$slate-100;
   padding: 0 12px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: tp.$slate-600;
@@ -1486,7 +1552,7 @@
   border: 0;
   background: transparent;
   padding: 0 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800;
@@ -1562,7 +1628,7 @@
   width: 100%;
   align-items: center;
   padding: 0 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   border-radius: 8px;
   border: 0;
@@ -1598,7 +1664,7 @@
   width: 100%;
   align-items: center;
   padding: 6px 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-700;
   border: 0;
@@ -1646,7 +1712,7 @@
   border-radius: 6px;
   border: 1px dashed var(--tp-blue-300);
   padding: 6px 8px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
   color: var(--tp-blue-700);
@@ -1683,7 +1749,7 @@
 }
 
 .editIdleLabel {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800;
@@ -1706,7 +1772,7 @@
   border: 0;
   background: transparent;
   padding: 0 12px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
   color: #454551;
@@ -1771,7 +1837,7 @@
 }
 
 .surfaceHintText {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 400;
   color: var(--tp-amber-800);
@@ -1808,7 +1874,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   color: tp.$slate-700;
   border: 0;
@@ -1870,7 +1936,7 @@
   border: 0;
   background: transparent;
   padding: 0 30px 0 12px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
   color: #454551;
@@ -1922,7 +1988,7 @@
   border-radius: 10px;
   border: 1px solid transparent;
   padding: 0 12px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -1954,7 +2020,7 @@
   border-radius: 5px;
   background: tp.$slate-100;
   padding: 2px 6px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: tp.$slate-600;
@@ -1973,7 +2039,7 @@
   gap: 3px;
   border-radius: 4px;
   padding: 0 5px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: #fff;
@@ -1994,7 +2060,7 @@
   border-radius: 4px;
   background: tp.$slate-100;
   padding: 0 5px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: tp.$slate-600;
@@ -2018,7 +2084,7 @@
   gap: 6px;
   border-radius: 4px;
   padding: 0 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   border: 0;
   background: #fff;
@@ -2042,7 +2108,7 @@
 .thUpper {
   border-right: 1px solid tp.$slate-100;
   padding: 8px 12px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: tp.$slate-500;
@@ -2068,7 +2134,7 @@
   width: 100%;
   align-items: center;
   padding: 0 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: tp.$slate-800;
@@ -2081,7 +2147,7 @@
   border: 0;
   background: #fff;
   padding: 0 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   color: tp.$slate-700;
 
@@ -2105,7 +2171,7 @@
   border: 0;
   background: #fff;
   padding: 0 10px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
 
   &:focus {
@@ -2130,7 +2196,7 @@
 }
 
 .searchBlockTop {
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .searchInput14 {
@@ -2140,7 +2206,7 @@
   border: 1px solid tp.$slate-200;
   background: #fff;
   padding: 0 12px 0 32px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   color: tp.$slate-700;
 
@@ -2181,7 +2247,7 @@
   border: 0;
   background: transparent;
   padding: 0 12px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
   color: #454551;

@@ -47,7 +47,7 @@ function renderStatusChip(status) {
                         ? "Cancelled"
                         : "Yet to Start";
     return _jsx("span", {
-        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-sans text-[11px] font-semibold ${cls}`,
+        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-['Inter',sans-serif] text-[11px] font-semibold ${cls}`,
         children: label,
     });
 }
@@ -64,7 +64,7 @@ function renderPlanCompletionChip(status) {
             ? "Partially Completed"
             : "Not Completed";
     return _jsx("span", {
-        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-sans text-[12px] font-semibold ${cls}`,
+        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold ${cls}`,
         children: label,
     });
 }
@@ -90,27 +90,27 @@ function CompletedServiceRow({ service, plan, index }) {
     return _jsxs("tr", {
         className: "border-t border-tp-slate-100/70 hover:bg-tp-slate-50/50 transition-colors",
         children: [
-            _jsx("td", { className: "px-[14px] py-[9px] font-sans text-[12px] text-tp-slate-400", children: index + 1 }),
+            _jsx("td", { className: "px-[14px] py-[9px] font-['Inter',sans-serif] text-[12px] text-tp-slate-400", children: index + 1 }),
             _jsx("td", {
                 className: "px-[8px] py-[9px]",
                 children: _jsxs("div", {
                     className: "space-y-[2px]",
                     children: [
-                        _jsx("p", { className: "font-sans text-[14px] font-medium text-tp-slate-800", children: service.treatment }),
-                        _jsx("p", { className: "font-sans text-[11px] text-tp-slate-400", children: serviceDescription }),
+                        _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-medium text-tp-slate-800", children: service.treatment }),
+                        _jsx("p", { className: "font-['Inter',sans-serif] text-[11px] text-tp-slate-400", children: serviceDescription }),
                     ],
                 }),
             }),
             _jsx("td", {
                 className: "px-[8px] py-[9px]",
                 children: _jsx("span", {
-                    className: "inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[5px] py-[1px] font-sans text-[12px] font-bold text-tp-slate-600",
+                    className: "inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[5px] py-[1px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600",
                     children: service.toothFdi === "full-mouth" ? "Full" : `T${service.toothFdi}`,
                 }),
             }),
-            _jsx("td", { className: "px-[8px] py-[9px] font-sans text-[12px] text-tp-slate-500", children: service.completedAt ?? "—" }),
+            _jsx("td", { className: "px-[8px] py-[9px] font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: service.completedAt ?? "—" }),
             _jsx("td", { className: "px-[8px] py-[9px]", children: renderStatusChip(workflowStatus) }),
-            _jsx("td", { className: "px-[14px] py-[9px] text-right font-sans text-[14px] font-semibold text-tp-slate-800", children: formatINR(service.amount) }),
+            _jsx("td", { className: "px-[14px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-800", children: formatINR(service.amount) }),
             _jsx("td", {
                 className: "px-[8px] py-[9px] text-right",
                 children: _jsxs(DropdownMenu, {
@@ -165,7 +165,7 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                             _jsx("div", {
                                 className: "flex h-[42px] w-[42px] items-center justify-center rounded-[10px] bg-tp-success-50 shrink-0",
                                 children: _jsx("span", {
-                                    className: "font-sans text-[16px] font-bold text-tp-success-700",
+                                    className: "font-['Inter',sans-serif] text-[16px] font-bold text-tp-success-700",
                                     children: index + 1,
                                 }),
                             }),
@@ -173,12 +173,12 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                 className: "flex-1 min-w-0 flex flex-wrap items-center gap-[12px]",
                                 children: _jsxs("div", {
                                     children: [
-                                        _jsx("h4", { className: "font-sans text-[16px] font-bold text-tp-slate-900 shrink-0", children: plan.name }),
+                                        _jsx("h4", { className: "font-['Inter',sans-serif] text-[16px] font-bold text-tp-slate-900 shrink-0", children: plan.name }),
                                         _jsxs("div", {
                                             className: "mt-[2px] flex items-center gap-[6px]",
                                             children: [
                                                 _jsx("span", {
-                                                    className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-500",
+                                                    className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
                                                     children: formatINR(total),
                                                 }),
                                                 renderPlanCompletionChip(planStatus),
@@ -255,12 +255,12 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                 children: _jsxs("tr", {
                                     className: "bg-tp-slate-50/60",
                                     children: [
-                                        _jsx("th", { className: "px-[14px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[36px]", children: "#" }),
-                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400", children: "Service" }),
-                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]", children: "Tooth" }),
-                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Completed" }),
-                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[110px]", children: "Status" }),
-                                        _jsx("th", { className: "px-[14px] py-[7px] text-right font-sans text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]", children: "Amount" }),
+                                        _jsx("th", { className: "px-[14px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[36px]", children: "#" }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400", children: "Service" }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]", children: "Tooth" }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Completed" }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[110px]", children: "Status" }),
+                                        _jsx("th", { className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]", children: "Amount" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] w-[40px]" }),
                                     ],
                                 }),
@@ -331,7 +331,7 @@ export function CompletedTab() {
                                     className: "flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-success-50",
                                     children: _jsx(ClipboardTickIcon, { size: 24, className: "text-tp-success-600" }),
                                 }),
-                                _jsx("h3", { className: "font-sans text-[18px] font-bold text-tp-slate-900", children: "Completed Plans" }),
+                                _jsx("h3", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: "Completed Plans" }),
                             ],
                         }),
                     }),
@@ -370,9 +370,9 @@ export function CompletedTab() {
                                 }),
                                 _jsxs("div", {
                                     children: [
-                                        _jsx("h3", { className: "font-sans text-[18px] font-bold text-tp-slate-900", children: "Completed Plans" }),
+                                        _jsx("h3", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: "Completed Plans" }),
                                         _jsx("div", {
-                                            className: "mt-[2px] inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-sans text-[12px] font-medium text-tp-slate-500",
+                                            className: "mt-[2px] inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
                                             children: formatINR(grandTotal),
                                         }),
                                     ],

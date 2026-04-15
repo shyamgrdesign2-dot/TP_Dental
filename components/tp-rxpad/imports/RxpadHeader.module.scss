@@ -365,14 +365,18 @@
 
 .toolGrey {
   background: #f1f1f5;
-  display: flex;
+  display: inline-flex;
+  box-sizing: border-box;
+  flex: 0 0 42px;
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
   height: 42px;
   align-items: center;
   justify-content: center;
   padding: 8.4px;
   position: relative;
   border-radius: 10.5px;
-  flex-shrink: 0;
   transition: background-color 0.15s;
   border: none;
   cursor: pointer;
@@ -384,7 +388,12 @@
 
 .toolGreyAlt {
   background: rgb(233, 233, 239);
-  display: flex;
+  display: inline-flex;
+  box-sizing: border-box;
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  flex: 0 0 42px;
   height: 42px;
   align-items: center;
   justify-content: center;
