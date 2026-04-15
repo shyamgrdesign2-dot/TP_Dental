@@ -82,6 +82,11 @@ function PatientDetails() {
     const navigate = useNavigate();
     const locationState = location.state || {};
     const { patient_data, sidebarKey: initialSidebarKey } = locationState || {};
+    const resolvedMrno =
+      patient_data?.mrno ||
+      patient_data?.pm_reference_id ||
+      patient_data?.tpml_refrence_id ||
+      null;
     const stateMrnNo = locationState?.mrnNo;
     const queryMrnNo = new URLSearchParams(location.search).get("mrnNo");
     const mrnNo = queryMrnNo || stateMrnNo;
@@ -309,7 +314,7 @@ function PatientDetails() {
         ) {
           getIpdBillPrintSettings();
         }
-    }, [patient_data?.patient_unique_id, patient_data?.mrno, isZydusUserAccessableFromGB]);
+    }, [patient_data?.patient_unique_id, resolvedMrno, isZydusUserAccessableFromGB]);
 
     // Check patient admission status on mount
     useEffect(() => {
@@ -371,17 +376,17 @@ function PatientDetails() {
         if (
             tokenData?.hospital_business_id == env.zydus_business_id &&
             isZydusUserAccessableFromGB &&
-            patient_data?.mrno != null
+            resolvedMrno != null
         ) {
             dispatch(
                 zydusDocsList({
-                    mrno: patient_data.mrno,
+                    mrno: resolvedMrno,
                     um_id: tokenData?.user_id,
                 })
             );
             dispatch(
                 zydusRadioList({
-                    mrno: patient_data.mrno,
+                    mrno: resolvedMrno,
                     um_id: tokenData?.user_id,
                 })
             );
