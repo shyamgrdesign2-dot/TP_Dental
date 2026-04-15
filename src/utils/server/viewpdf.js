@@ -1483,37 +1483,53 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     return frequencyInWords;
   };
 
+
   const parseAiFrequencyLeadingPattern = (fullRaw) => {
-    const m = (fullRaw || "")
+    const leadingFrequencyMatch = (fullRaw || "")
       .toString()
       .trim()
       .match(
         /^((?:\d+(?:\.\d+)?)(?:\s*-\s*(?:\d+(?:\.\d+)?)){1,3})(?:\s+(.*))?$/,
       );
-    if (!m) return null;
-    const parts = m[1].replace(/\s/g, "").split("-").map(Number);
+    if (!leadingFrequencyMatch) return null;
+    const frequencySlots = leadingFrequencyMatch[1]
+      .replace(/\s/g, "")
+      .split("-")
+      .map(Number);
     if (
-      parts.length < 2 ||
-      parts.length > 4 ||
-      parts.some((x) => Number.isNaN(x))
+      frequencySlots.length < 2 ||
+      frequencySlots.length > 4 ||
+      frequencySlots.some((slotValue) => Number.isNaN(slotValue))
     )
       return null;
-    const [morning = 0, afternoon = 0, evening = 0, night = 0] = parts;
+    const [morning = 0, afternoon = 0, evening = 0, night = 0] =
+      frequencySlots;
     return {
       morning,
       afternoon,
       evening,
       night,
-      remainder: (m[2] || "").trim(),
-      slotCount: parts.length,
+      remainder: (leadingFrequencyMatch[2] || "").trim(),
+      slotCount: frequencySlots.length,
     };
   };
 
-  const aiFrequencyNumericFromParsed = (p, dec) =>
-    p &&
-    [p.morning, p.afternoon, p.evening, p.night]
-      .slice(0, p.slotCount)
-      .map((v) => (v ? medicine_freq_dosage_format(v, dec) : 0))
+  // Converts parsed slots back into the configured numeric display format.
+  // Example: { morning: 0.5, afternoon: 0, evening: 0.5 } -> "0.5 - 0 - 0.5"
+  const aiFrequencyNumericFromParsed = (parsedFrequency, isDosageDecimal) =>
+    parsedFrequency &&
+    [
+      parsedFrequency.morning,
+      parsedFrequency.afternoon,
+      parsedFrequency.evening,
+      parsedFrequency.night,
+    ]
+      .slice(0, parsedFrequency.slotCount)
+      .map((slotValue) =>
+        slotValue
+          ? medicine_freq_dosage_format(slotValue, isDosageDecimal)
+          : 0,
+      )
       .join(" - ");
 
   /** AI / digitized medication only — respects print option numeric vs text frequency. */
