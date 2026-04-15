@@ -94,6 +94,7 @@ export const GB_OPTHAL_MODULE = "opthal-module";
 export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
 export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const GB_VOICE_RX_FREE = "free-voice-rx";
+export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
@@ -449,7 +450,7 @@ export const HIDE_ROUTES = {
   TALKATIVE: ["/snap-rx"],
 };
 
-// WhatsApp enabled doctors for Zydus Hospital
+// WhatsApp enabled doctors for Zydus Hospital (fallback when GrowthBook flag is off)
 export const ZYDUS_WHATSAPP_ENABLED_DOCTORS = [
   "9825181439",
   "9925179799", 
