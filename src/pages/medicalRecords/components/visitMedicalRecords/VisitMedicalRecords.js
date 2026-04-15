@@ -34,11 +34,11 @@ const VisitMedicalRecords = ({
     category_id: -1,
     category_name: "All",
   };
-  const newCategory1 = {
+  const zydusLabCategory = {
     category_id: -2,
     category_name: "Zydus Lab",
   };
-  const newCategory2 = {
+  const zydusRadioCategory = {
     category_id: -3,
     category_name: "Zydus Radio",
   };
@@ -48,7 +48,7 @@ const VisitMedicalRecords = ({
   const updatedCategory =
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB
-      ? [newCategory, newCategory1, newCategory2, ...uploadDocCategories]
+      ? [newCategory, zydusLabCategory, zydusRadioCategory, ...uploadDocCategories]
       : [newCategory, ...uploadDocCategories];
 
   const [activeCategory, setActiveCategory] = useState(-1);
