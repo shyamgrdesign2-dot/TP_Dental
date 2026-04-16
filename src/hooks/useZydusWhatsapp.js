@@ -1,6 +1,6 @@
-import { useMemo, useEffect } from "react";
+import { useEffect } from "react";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ZYDUS_WHATSAPP, ZYDUS_WHATSAPP_ENABLED_DOCTORS } from "../utils/constants";
+import { GB_ZYDUS_WHATSAPP } from "../utils/constants";
 
 /**
  * Determines if Zydus WhatsApp should be shown for the current doctor.
@@ -21,11 +21,6 @@ export function useZydusWhatsapp(doctorPhone) {
     console.log("[useZydusWhatsapp] um_contact / doctorPhone:", doctorPhone, "| last10:", normalized);
   }, [doctorPhone]);
 
-  const isEnabledByPhoneList = useMemo(() => {
-    if (!doctorPhone) return false;
-    const normalizedPhone = String(doctorPhone).replace(/\D/g, "").slice(-10);
-    return normalizedPhone.length === 10 && ZYDUS_WHATSAPP_ENABLED_DOCTORS.includes(normalizedPhone);
-  }, [doctorPhone]);
 
-  return isEnabledByGrowthBook || isEnabledByPhoneList;
+  return isEnabledByGrowthBook;
 }
