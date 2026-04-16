@@ -39,9 +39,9 @@ import {
   WHATS_APP_API,
   WTSAP_ERR_MESSAGE,
   ZYDUS_WHATS_APP_API,
-  ZYDUS_WHATSAPP_ENABLED_DOCTORS,
   FETCH_SMART_RX,
 } from "../../../../utils/constants";
+import { useZydusWhatsapp } from "../../../../hooks/useZydusWhatsapp";
 import { env } from "../../../../EnvironmentConfig";
 import CreateBill from "../../../opdBilling/components/createBill/CreateBill";
 import RecentBills from "../../../opdBilling/components/recentBills/RecentBills";
@@ -141,6 +141,7 @@ function TabRxPrescriptionPrintView() {
   const { userId, profile, defaultPrintSettings } = useSelector(
     (state) => state.doctors,
   );
+  const isZydusWhatsappEnabled = useZydusWhatsapp();
   const { servicesList } = useSelector((state) => state.doctors);
   const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);
@@ -1081,16 +1082,8 @@ function TabRxPrescriptionPrintView() {
                   const decodedToken = getDecodedToken();
                   const tokenData = decodedToken?.result;
 
-                  // Check if current doctor has WhatsApp enabled
-                  const currentDoctorPhone = profile?.um_contact
-                    ?.toString()
-                    .replace(/\D/g, "")
-                    .slice(-10);
-                  const isWhatsAppEnabled =
-                    ZYDUS_WHATSAPP_ENABLED_DOCTORS.includes(currentDoctorPhone);
-
                   return tokenData?.hospital_business_id ==
-                    env.zydus_business_id && isWhatsAppEnabled ? (
+                    env.zydus_business_id && isZydusWhatsappEnabled ? (
                     <>
                       <div className="bg-body d-flex p-3 rounded-10px border">
                         <img
