@@ -141,7 +141,7 @@ function TabRxPrescriptionPrintView() {
   const { userId, profile, defaultPrintSettings } = useSelector(
     (state) => state.doctors,
   );
-  const isZydusWhatsappEnabled = useZydusWhatsapp(profile?.um_contact);
+  const isZydusWhatsappEnabled = useZydusWhatsapp();
   const { servicesList } = useSelector((state) => state.doctors);
   const RX_DIGITIZATION_planDetails = servicesList?.find(e => e.service_name === S_RX_DIGITIZATION)
   const { isOpdBillChecked } = useSelector((state) => state.billing);

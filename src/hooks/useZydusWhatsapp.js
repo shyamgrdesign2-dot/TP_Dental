@@ -1,26 +1,11 @@
-import { useEffect } from "react";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_WHATSAPP } from "../utils/constants";
 
 /**
  * Determines if Zydus WhatsApp should be shown for the current doctor.
- * Returns true if EITHER:
- * 1. GrowthBook feature `zydus-doctor-whatsapp-enablement` (GB_ZYDUS_WHATSAPP) is on, OR
- * 2. Doctor's phone (last 10 digits) is in the hardcoded ZYDUS_WHATSAPP_ENABLED_DOCTORS list
- * 
- * This additive approach ensures no regression - existing doctors keep working via fallback list.
+ * GrowthBook feature `zydus-doctor-whatsapp-enablement` (GB_ZYDUS_WHATSAPP) is on
  */
-export function useZydusWhatsapp(doctorPhone) {
+export function useZydusWhatsapp() {
   const isEnabledByGrowthBook = useFeatureIsOn(GB_ZYDUS_WHATSAPP);
-
-  useEffect(() => {
-    const normalized =
-      doctorPhone != null && doctorPhone !== ""
-        ? String(doctorPhone).replace(/\D/g, "").slice(-10)
-        : "";
-    console.log("[useZydusWhatsapp] um_contact / doctorPhone:", doctorPhone, "| last10:", normalized);
-  }, [doctorPhone]);
-
-
   return isEnabledByGrowthBook;
 }

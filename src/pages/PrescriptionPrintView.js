@@ -66,7 +66,7 @@ function PrescriptionPrintView() {
 
     const navigate = useNavigate();
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
-    const isZydusWhatsappEnabled = useZydusWhatsapp(profile?.um_contact);
+    const isZydusWhatsappEnabled = useZydusWhatsapp();
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
