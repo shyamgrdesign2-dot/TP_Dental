@@ -1,11 +1,15 @@
 "use client";
 
 import { Building2 } from "lucide-react";
-import { Printer } from "iconsax-reactjs";
+import { Printer, DocumentDownload } from "iconsax-reactjs";
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getAppointmentPatient } from "@/lib/appointment-patients";
 import { usePlanContext } from "./plan-context";
 import { DrawerHeader, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared";
+
+const RX_ACTION_ICON_CLASS =
+    "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200";
 
 function formatProcedureStatus(status) {
     switch (status) {
@@ -62,14 +66,38 @@ export function RxPreviewDrawer() {
                     title="Dental prescription"
                     onClose={closeDrawer}
                     action={
-                        <button
-                            type="button"
-                            onClick={() => window.print()}
-                            className="inline-flex h-[42px] min-w-[120px] items-center gap-[6px] rounded-[10px] bg-tp-blue-600 px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700"
-                        >
-                            <Printer size={16} variant="Linear" />
-                            Print RX
-                        </button>
+                        <div className="flex items-center gap-[8px]">
+                            <Tooltip delayDuration={200}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={() => window.print()}
+                                        className={RX_ACTION_ICON_CLASS}
+                                        aria-label="Download Rx"
+                                    >
+                                        <DocumentDownload size={18} variant="Linear" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" sideOffset={6}>
+                                    Download Rx
+                                </TooltipContent>
+                            </Tooltip>
+                            <Tooltip delayDuration={200}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={() => window.print()}
+                                        className={RX_ACTION_ICON_CLASS}
+                                        aria-label="Print Rx"
+                                    >
+                                        <Printer size={18} variant="Linear" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" sideOffset={6}>
+                                    Print Rx
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
                     }
                 />
                 <div className="min-h-0 flex-1 overflow-y-auto bg-tp-slate-50/80 px-[24px] py-[16px]">

@@ -152,6 +152,8 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
     const { dispatch, openDrawer } = usePlanContext();
     const [revertPlanOpen, setRevertPlanOpen] = useState(false);
     const total = computePlanTotal(plan.services);
+    const additionalDiscount = plan.additionalDiscount ?? 0;
+    const finalTotal = Math.max(0, total - additionalDiscount);
     const planStatus = getPlanCompletionStatus(plan.services);
     return _jsxs("div", {
         className: "overflow-hidden rounded-[14px] border border-tp-slate-100/70 bg-white",
@@ -175,12 +177,22 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                 children: _jsxs("div", {
                                     children: [
                                         _jsx("h4", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-900 shrink-0", children: plan.name }),
-                                        _jsx("div", {
-                                            className: "mt-[2px] flex items-center gap-[6px]",
-                                            children: _jsx("span", {
-                                                className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
-                                                children: formatINR(total),
-                                            }),
+                                        _jsxs("div", {
+                                            className: "mt-[2px] flex items-center gap-[6px] flex-wrap",
+                                            children: [
+                                                additionalDiscount > 0 && _jsx("span", {
+                                                    className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-400 line-through tabular-nums",
+                                                    children: formatINR(total),
+                                                }),
+                                                additionalDiscount > 0 && _jsxs("span", {
+                                                    className: "inline-flex items-center rounded-[6px] bg-tp-success-50 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-success-700 tabular-nums",
+                                                    children: ["\u2212 ", formatINR(additionalDiscount)],
+                                                }),
+                                                _jsx("span", {
+                                                    className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-700 tabular-nums",
+                                                    children: formatINR(finalTotal),
+                                                }),
+                                            ],
                                         }),
                                     ],
                                 }),
@@ -319,7 +331,7 @@ export function CompletedTab() {
             }),
         });
     }
-    const grandTotal = completedPlans.reduce((sum, p) => sum + computePlanTotal(p.services), 0);
+    const grandTotal = completedPlans.reduce((sum, p) => sum + Math.max(0, computePlanTotal(p.services) - (p.additionalDiscount ?? 0)), 0);
     return _jsx(SectionFrame, {
         children: _jsxs("div", {
             className: `flex h-full min-h-0 flex-col overflow-hidden ${dui.planClusterShell}`,

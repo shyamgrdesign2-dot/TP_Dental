@@ -8,7 +8,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
  * Status dropdown exposes all explicit states (Yet to start, In Progress,
  * Completed, No-Show, Not Interested, Cancelled).
  */
-import { useEffect, useState, Children } from "react";
+import { useEffect, useState, useCallback, Children } from "react";
 import {
     TickCircle, ArrowRotateLeft, Printer, Receipt1, Add, Timer1,
     Edit2, Trash, Calendar2, DocumentDownload, DocumentText,
@@ -1845,7 +1845,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
 }
 
 // ─── Plan Cluster Card ─────────────────────────────────────
-function PlanClusterCard({ plan }) {
+function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
     const { dispatch, openDrawer, patientId } = usePlanContext();
     const [markAllOpen, setMarkAllOpen] = useState(false);
     const [revertAllOpen, setRevertAllOpen] = useState(false);
@@ -1853,8 +1853,10 @@ function PlanClusterCard({ plan }) {
     const [openServiceIndex, setOpenServiceIndex] = useState(0);
     const services = plan.services;
     const total = computePlanTotal(plan.services);
+    const additionalDiscount = plan.additionalDiscount ?? 0;
+    const finalTotal = Math.max(0, total - additionalDiscount);
     return _jsxs("div", {
-        className: `flex h-full min-h-0 flex-col overflow-hidden ${dui.planClusterShell}`,
+        className: `flex min-h-0 flex-col overflow-hidden rounded-[16px] bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)] ${dui.planClusterShell} !h-auto`,
         children: [
             _jsxs("div", {
                 className: `shrink-0 flex items-center justify-between px-[16px] py-[14px] ${dui.planClusterHeaderActive}`,
@@ -1869,12 +1871,22 @@ function PlanClusterCard({ plan }) {
                             _jsxs("div", {
                                 children: [
                                     _jsx("h4", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: plan.name }),
-                                    _jsx("div", {
-                                        className: "mt-[3px] flex items-center gap-[6px]",
-                                        children: _jsx("span", {
-                                            className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
-                                            children: formatINR(total),
-                                        }),
+                                    _jsxs("div", {
+                                        className: "mt-[3px] flex items-center gap-[6px] flex-wrap",
+                                        children: [
+                                            additionalDiscount > 0 && _jsx("span", {
+                                                className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-400 line-through tabular-nums",
+                                                children: formatINR(total),
+                                            }),
+                                            additionalDiscount > 0 && _jsxs("span", {
+                                                className: "inline-flex items-center rounded-[6px] bg-tp-success-50 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-success-700 tabular-nums",
+                                                children: ["\u2212 ", formatINR(additionalDiscount)],
+                                            }),
+                                            _jsx("span", {
+                                                className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-700 tabular-nums",
+                                                children: formatINR(finalTotal),
+                                            }),
+                                        ],
                                     }),
                                 ],
                             }),
@@ -1883,6 +1895,17 @@ function PlanClusterCard({ plan }) {
                     _jsxs("div", {
                         className: "flex items-center gap-[6px]",
                         children: [
+                            _jsx("button", {
+                                type: "button",
+                                onClick: () => onToggleCollapse?.(),
+                                "aria-label": collapsed ? "Expand plan" : "Collapse plan",
+                                className: "flex h-9 w-9 items-center justify-center rounded-[10px] text-tp-slate-500 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-700",
+                                children: _jsx(ChevronDown, {
+                                    size: 18,
+                                    strokeWidth: 2,
+                                    className: `transition-transform duration-200 ${collapsed ? "-rotate-90" : ""}`,
+                                }),
+                            }),
                             _jsxs("button", {
                                 type: "button",
                                 onClick: () => setMarkAllOpen(true),
@@ -1924,7 +1947,7 @@ function PlanClusterCard({ plan }) {
                     }),
                 ],
             }),
-            _jsx("div", {
+            !collapsed && _jsx("div", {
                 className: `flex min-h-0 min-w-0 flex-1 flex-col space-y-[8px] overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-b-[16px] p-[12px] ${dui.planClusterInnerSurface}`,
                 children: services.map((svc, idx) => _jsx(ServiceSubCard, {
                     service: svc,
@@ -1967,7 +1990,16 @@ function PlanClusterCard({ plan }) {
 // ─── Tab Content ────────────────────────────────────────────
 export function InProgressTab() {
     const { inProgressPlans } = usePlanContext();
-    const activePlan = inProgressPlans[0];
+    // Track collapsed state per plan. Default: all expanded. Users can collapse
+    // individual plans when several are active to keep the page navigable.
+    const [collapsedPlanIds, setCollapsedPlanIds] = useState(() => new Set());
+    const toggleCollapse = useCallback((planId) => {
+        setCollapsedPlanIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(planId)) next.delete(planId); else next.add(planId);
+            return next;
+        });
+    }, []);
     if (inProgressPlans.length === 0) {
         return _jsx(SectionFrame, {
             children: _jsxs("div", {
@@ -2000,8 +2032,15 @@ export function InProgressTab() {
     }
     return _jsx(SectionFrame, {
         children: _jsx("div", {
-            className: "h-full min-h-0",
-            children: activePlan && _jsx(PlanClusterCard, { plan: activePlan }, activePlan.id),
+            className: "h-full min-h-0 overflow-y-auto",
+            children: _jsx("div", {
+                className: "flex flex-col gap-[14px]",
+                children: inProgressPlans.map((plan) => _jsx(PlanClusterCard, {
+                    plan,
+                    collapsed: collapsedPlanIds.has(plan.id),
+                    onToggleCollapse: () => toggleCollapse(plan.id),
+                }, plan.id)),
+            }),
         }),
     });
 }

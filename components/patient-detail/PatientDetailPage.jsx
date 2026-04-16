@@ -369,15 +369,13 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
         ) : (
           <div className="space-y-6">
             <section>
-              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Medication:</h4>
-              <ol className="mt-2 list-decimal space-y-1 pl-5 font-sans text-[12px] leading-relaxed text-tp-slate-600">
-                {MEDICATIONS.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
+              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Chief Complaints</h4>
+              <ol className="mt-2 list-decimal pl-5 font-sans text-[12px] text-tp-slate-600">
+                <li>Mild symptom (Mild, patient should be on home isolation)</li>
               </ol>
             </section>
             <section>
-              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Lab Investigation</h4>
+              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Investigations</h4>
               <ol className="mt-2 list-decimal space-y-1 pl-5 font-sans text-[12px] text-tp-slate-600">
                 {LAB_TESTS.map((t) => (
                   <li key={t}>{t}</li>
@@ -385,9 +383,11 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
               </ol>
             </section>
             <section>
-              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Symptoms</h4>
-              <ol className="mt-2 list-decimal pl-5 font-sans text-[12px] text-tp-slate-600">
-                <li>Mild Symptom (Mild, Patient should be on home isolation)</li>
+              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Medication</h4>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 font-sans text-[12px] leading-relaxed text-tp-slate-600">
+                {MEDICATIONS.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
               </ol>
             </section>
             <section>
@@ -399,15 +399,15 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
               </ol>
             </section>
             <section>
+              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Follow-up</h4>
+              <p className="mt-2 font-sans text-[12px] text-tp-slate-600">03/07/2024</p>
+            </section>
+            <section>
               <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Vitals &amp; Body Compositions</h4>
               <p className="mt-2 font-sans text-[12px] leading-relaxed text-tp-slate-600">
                 Temperature: 95Frh, Pulse: 68/min, Resp. Rate: 95/min, Systolic:120mmHg, Diastolic: 75mmHg, SPO2:
                 95%, Height: 175cms, Weight: 68kgs, BMI: 22.20kg/m², BMR : 1693.75kcals, BSA: 1.82m²
               </p>
-            </section>
-            <section>
-              <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Follow up</h4>
-              <p className="mt-2 font-sans text-[12px] text-tp-slate-600">03/07/2024</p>
             </section>
           </div>
         )}

@@ -155,6 +155,12 @@ export interface TreatmentPlan {
   status: PlanStatus
   services: PlanService[]
   notes?: string
+  /**
+   * Plan-level additional discount in ₹ (flat), deducted from the sum of
+   * per-service amounts. Independent of per-service discounts — clinic-wide
+   * "package deal" or goodwill reduction across the whole plan.
+   */
+  additionalDiscount?: number
 }
 
 // ─── Drawer State ───────────────────────────────────────────

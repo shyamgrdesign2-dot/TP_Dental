@@ -22,7 +22,7 @@ import { createPortal } from "react-dom";
 import { TPDrawer, TPDrawerContent, } from "@/components/tp-ui/tp-drawer";
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons/TPMedicalIcon";
 import { usePlanContext } from "./plan-context";
-import { DrawerHeader, formatINR, PlanSurfaceAbbrTags, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared";
+import { DrawerHeader, formatINR, PlanSurfaceAbbrTags, PLAN_DRAWER_WIDE_PANEL_CLASS } from "./plan-shared";
 import { genId } from "./plan-types";
 import { SURFACE_OPTIONS, SURFACE_COLORS, SURFACE_ABBR, getDefaultPlanSurfaces } from "./plan-types";
 import { getRate } from "./treatments";
@@ -143,6 +143,9 @@ export function AddEditPlanDrawer() {
     const editPlan = editPlanId ? state.plans.find((p) => p.id === editPlanId) : null;
     const [planName, setPlanName] = useState("");
     const [rows, setRows] = useState([]);
+    // Plan-level additional discount (flat ₹, applied over the sum of
+    // service-level amounts). Stored as a string in the input so empty = 0.
+    const [additionalDiscount, setAdditionalDiscount] = useState("");
     // Active-cell state — gives each Services-table cell an input-shell
     // focus ring matching the TP design system (see AddProcedureDrawer).
     const [activeCell, setActiveCell] = useState(null);
@@ -188,6 +191,7 @@ export function AddEditPlanDrawer() {
     useEffect(() => {
         if (isEdit && editPlan) {
             setPlanName(editPlan.name);
+            setAdditionalDiscount(editPlan.additionalDiscount ? String(editPlan.additionalDiscount) : "");
             const grouped = new Map();
             for (const svc of editPlan.services) {
                 const existing = grouped.get(svc.treatment);
@@ -217,6 +221,7 @@ export function AddEditPlanDrawer() {
         else if (!isEdit && isOpen) {
             setPlanName("");
             setRows([]);
+            setAdditionalDiscount("");
         }
         setSearchQuery("");
         setSearchOpen(false);
@@ -388,6 +393,7 @@ export function AddEditPlanDrawer() {
         }
         return services;
     };
+    const additionalDiscountAmount = Math.max(0, parseInt(additionalDiscount || "0", 10) || 0);
     const handleSave = () => {
         if (!planName.trim() || rows.length === 0)
             return;
@@ -396,7 +402,7 @@ export function AddEditPlanDrawer() {
             dispatch({
                 type: "UPDATE_PLAN",
                 planId: editPlanId,
-                patch: { name: planName.trim(), services },
+                patch: { name: planName.trim(), services, additionalDiscount: additionalDiscountAmount || undefined },
             });
         }
         else {
@@ -408,6 +414,7 @@ export function AddEditPlanDrawer() {
                 updatedAt: new Date().toISOString().slice(0, 10),
                 status: "draft",
                 services: [],
+                additionalDiscount: additionalDiscountAmount || undefined,
             };
             newPlan.services = services.map((s) => ({ ...s, planId: newPlan.id }));
             dispatch({ type: "ADD_PLAN", plan: newPlan });
@@ -420,7 +427,6 @@ export function AddEditPlanDrawer() {
         const discAmt = computeDiscount(r);
         return sum + Math.max(0, r.rate - discAmt) * teeth;
     }, 0);
-    const totalServices = rows.reduce((sum, r) => sum + Math.max(1, r.teeth.length), 0);
     const canSave = planName.trim().length > 0 && rows.length > 0;
     // Validation state
     const [showNameError, setShowNameError] = useState(false);
@@ -440,12 +446,12 @@ export function AddEditPlanDrawer() {
     const initialSnapshotRef = useRef(null);
     useEffect(() => {
         if (isOpen && initialSnapshotRef.current == null) {
-            initialSnapshotRef.current = JSON.stringify({ planName, rows });
+            initialSnapshotRef.current = JSON.stringify({ planName, rows, additionalDiscount });
         }
         if (!isOpen) initialSnapshotRef.current = null;
     }, [isOpen]);
     const isDirty = isOpen && initialSnapshotRef.current != null
-        && JSON.stringify({ planName, rows }) !== initialSnapshotRef.current;
+        && JSON.stringify({ planName, rows, additionalDiscount }) !== initialSnapshotRef.current;
     const guard = useDirtyDrawerGuard({
         isDirty,
         onClose: () => { closeDrawer(); setShowNameError(false); },
@@ -470,7 +476,7 @@ export function AddEditPlanDrawer() {
         if (searchOpen && dropdownRef.current && e.target instanceof Node && dropdownRef.current.contains(e.target))
             e.preventDefault();
     };
-    return (_jsxs(_Fragment, { children: [_jsxs(TPDrawer, { open: isOpen, onOpenChange: (open) => { if (!open) guard.attemptClose(); }, children: [_jsxs(TPDrawerContent, { side: "right", size: "lg", className: `${PLAN_DRAWER_PANEL_CLASS} flex flex-col`, onPointerDownOutside: blockPlanSheetDismissFromPortals, onInteractOutside: blockPlanSheetDismissFromPortals, onFocusOutside: (e) => { if (catalogDentalDrawerOpen)
+    return (_jsxs(_Fragment, { children: [_jsxs(TPDrawer, { open: isOpen, onOpenChange: (open) => { if (!open) guard.attemptClose(); }, children: [_jsxs(TPDrawerContent, { side: "right", size: "lg", className: `${PLAN_DRAWER_WIDE_PANEL_CLASS} flex flex-col`, onPointerDownOutside: blockPlanSheetDismissFromPortals, onInteractOutside: blockPlanSheetDismissFromPortals, onFocusOutside: (e) => { if (catalogDentalDrawerOpen)
                 e.preventDefault(); }, style: { background: "#F4F5F7" }, children: [_jsx(DrawerHeader, { title: isEdit ? "Edit Plan" : "Create Treatment Plan", onClose: () => guard.attemptClose(), action: _jsxs("div", { className: "flex items-center gap-[10px]", children: [_jsx("button", { type: "button", title: "Templates", className: iconBtnClass, children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Save as template", className: iconBtnClass, children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Erase", onClick: clearAllRows, disabled: rows.length === 0, className: iconBtnClass, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("div", { className: "w-px self-stretch bg-[linear-gradient(180deg,rgba(226,226,234,0.1)_0%,rgba(226,226,234,1)_50%,rgba(226,226,234,0.1)_100%)] mx-[2px]" }), _jsx("button", { type: "button", onClick: handleSaveWithValidation, className: "h-[42px] min-w-[120px] rounded-[12px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm", children: isEdit ? "Save Changes" : "Create Plan" })] }) }), _jsxs("div", { className: "flex-1 overflow-y-auto px-[24px] pt-[20px] pb-[24px] space-y-[20px]", style: { background: "#F4F5F7" }, children: [_jsxs("div", { children: [_jsxs("label", { className: "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]", children: ["Plan Name ", _jsx("span", { className: "text-tp-error-500", children: "*" })] }), _jsx("input", { ref: nameInputRef, type: "text", value: planName, onChange: handleNameChange, placeholder: "e.g., Wisdom Tooth Removal", className: `w-full h-[42px] rounded-[10px] border bg-white px-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-300 focus:outline-none focus:ring-2 transition-colors ${showNameError
                                             ? "border-tp-error-400 focus:ring-tp-error-500/30 focus:border-tp-error-400"
         : "border-tp-slate-200 focus:ring-tp-blue-500/30 focus:border-tp-blue-400"}` }), showNameError && (_jsxs("p", { className: "mt-[6px] font-['Inter',sans-serif] text-[12px] text-tp-error-500 flex items-center gap-[5px]", children: [_jsxs("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", children: [_jsx("circle", { cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "1.5" }), _jsx("path", { d: "M12 8v5", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }), _jsx("circle", { cx: "12", cy: "16", r: "0.75", fill: "currentColor" })] }), "Please enter a plan name to create a plan."] }))] }), _jsxs("div", { className: "rounded-[16px] bg-white overflow-hidden", children: [_jsxs("header", { className: "flex items-center gap-[10px] px-[16px] py-[14px]", children: [_jsx(TPMedicalIcon, { name: "first-aid", variant: "bulk", size: 22, color: "var(--tp-violet-500)" }), _jsx("h3", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: "Services" }), rows.length > 0 && (_jsx("span", { className: "inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-tp-slate-100 px-[6px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600 tabular-nums", children: rows.length })), _jsxs("div", { className: "ml-auto flex items-center gap-[8px]", children: [_jsx("button", { type: "button", title: "Templates", className: iconBtnClass, children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Save as template", className: iconBtnClass, children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Clear all", onClick: clearAllRows, disabled: rows.length === 0, className: iconBtnClass, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })] })] }), rows.length > 0 && (_jsx("div", { className: "px-[14px] py-[12px]", children: _jsx("div", { className: "rounded-[10px] border border-tp-slate-200 overflow-hidden w-full overflow-x-auto min-w-0", children: _jsxs("table", { className: "w-full min-w-[880px] max-w-full table-fixed font-['Inter',sans-serif] text-[14px]", children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 40, minWidth: 36 } }), _jsx("col", { style: { minWidth: 132, maxWidth: 200 } }), _jsx("col", { style: { width: 104, minWidth: 96 } }), _jsx("col", { style: { width: 108, minWidth: 100 } }), _jsx("col", { style: { width: 118, minWidth: 108 } }), _jsx("col", { style: { minWidth: 112, maxWidth: 200 } }), _jsx("col", { style: { width: 88, minWidth: 76 } }), _jsx("col", { style: { width: 72, minWidth: 64 } }), _jsx("col", { style: { width: 84, minWidth: 72 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: "h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: [_jsx("th", { className: "border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Service" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Teeth" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Surfaces" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Surgery date" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Notes" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-right font-semibold uppercase tracking-[0.5px]", children: "Rate" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-right font-semibold uppercase tracking-[0.5px]", children: "Disc." }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-right font-semibold uppercase tracking-[0.5px]", children: "Amount" }), _jsx("th", { className: "sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" })] }) }), _jsx("tbody", { children: rows.map((row, idx) => {
@@ -486,7 +492,35 @@ export function AddEditPlanDrawer() {
                                                                 setSearchQuery(e.target.value);
                                                                 setSearchOpen(true);
                                                                 setHighlightedIndex(0);
-                                                            }, onFocus: () => setSearchOpen(true), onKeyDown: handleSearchKeyDown, placeholder: "Search & Add Service", className: "h-[42px] w-full rounded-[10px] border border-tp-slate-200 bg-white pl-[36px] pr-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none" })] }), _jsxs("div", { className: "space-y-[14px] mt-[14px]", children: [remainingExamSuggestions.length > 0 && (_jsxs("div", { className: "rounded-[14px] bg-tp-blue-50/70 px-[14px] py-[12px]", children: [_jsxs("div", { className: "mb-[10px] flex items-center gap-[6px]", children: [_jsx(TPMedicalIcon, { name: "tooth", variant: "bulk", size: 18, color: "var(--tp-blue-600)" }), _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-800", children: "From today\u2019s dental examination" }), _jsx(TooltipProvider, { delayDuration: 120, children: _jsxs(Tooltip, { children: [_jsx(TooltipTrigger, { asChild: true, children: _jsx("button", { type: "button", "aria-label": "About this section", className: "inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-tp-slate-400 hover:text-tp-blue-600 transition-colors", children: _jsx(InfoCircle, { size: 14, variant: "Linear", color: "currentColor" }) }) }), _jsx(TooltipContent, { side: "top", align: "start", className: "max-w-[280px] rounded-[10px] px-[12px] py-[8px] text-[12px] leading-[1.5] font-medium", children: "These are treatments suggested from findings charted in today\u2019s dental examination. Each chip is already linked to the tooth it was recorded on \u2014 tap to add it to this plan in one click." })] }) })] }), _jsx("div", { className: "flex flex-wrap gap-[6px]", children: remainingExamSuggestions.map((sug, i) => (_jsxs("button", { type: "button", title: sug.hint, onClick: () => addTreatmentRow(sug.treatment, [sug.toothFdi], sug.surfaces), className: "inline-flex min-h-[38px] max-w-[min(100%,280px)] items-center gap-[8px] rounded-[10px] bg-white pl-[6px] pr-[12px] py-[4px] text-left transition-colors hover:bg-tp-blue-100/70", children: [_jsxs("span", { className: "inline-flex h-[22px] min-w-[24px] items-center justify-center rounded-[6px] bg-tp-blue-100 px-[5px] font-['Inter',sans-serif] text-[10px] font-bold text-tp-blue-700 tabular-nums", children: ["T", sug.toothFdi] }), _jsxs("span", { className: "flex min-w-0 flex-col leading-tight", children: [_jsx("span", { className: "truncate font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-700", children: sug.treatment }), sug.surfaces.length > 0 && _jsx("span", { className: "flex items-center gap-[4px]", children: sug.surfaces.map((s, si) => _jsxs("span", { className: "inline-flex items-center gap-[2px]", children: [_jsx("span", { className: "inline-block h-[6px] w-[6px] rounded-full shrink-0", style: { backgroundColor: SURFACE_COLORS[s] || "#94a3b8" } }), _jsx("span", { className: "font-['Inter',sans-serif] text-[10px] font-semibold uppercase tracking-[0.3px] text-tp-slate-500", children: SURFACE_ABBR[s] || s })] }, `sf-${si}`)) })] })] }, `exam-chip-${i}`))) })] })), remainingCatalogChips.length > 0 && (_jsxs("div", { children: [_jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500 mb-[8px]", children: "Dental service" }), _jsx("div", { className: "flex flex-wrap gap-[6px]", children: remainingCatalogChips.map((t) => (_jsx("button", { type: "button", onClick: () => addTreatmentRow(t.name, [], [], t), className: "inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors", children: t.name }, t.id))) })] }))] })] }) })] })] }), rows.length > 0 && (_jsx("div", { className: "shrink-0 border-t border-tp-slate-200 bg-white px-[24px] py-[16px]", children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("div", { className: "flex items-center gap-[8px]", children: [_jsxs("span", { className: "inline-flex h-[26px] items-center gap-[6px] rounded-[8px] bg-tp-slate-100 px-[10px] font-['Inter',sans-serif] text-[12px] text-tp-slate-600", children: [_jsx("span", { className: "font-semibold text-tp-slate-800 tabular-nums", children: totalServices }), totalServices === 1 ? "service" : "services"] }), _jsxs("span", { className: "inline-flex h-[26px] items-center gap-[6px] rounded-[8px] bg-tp-slate-100 px-[10px] font-['Inter',sans-serif] text-[12px] text-tp-slate-600", children: [_jsx("span", { className: "font-semibold text-tp-slate-800 tabular-nums", children: rows.length }), rows.length === 1 ? "treatment" : "treatments"] })] }), _jsxs("div", { className: "flex items-center gap-[14px]", children: [_jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-600", children: "Estimated Total" }), _jsx("p", { className: "font-['Inter',sans-serif] text-[22px] font-bold text-tp-blue-700", children: formatINR(totalAmount) })] })] }) }))] }), searchOpen && mounted && !catalogDentalDrawerOpen && (showChartDropdownSection || showDentalServiceDropdownSection || showSearchEmptyHint) && createPortal(_jsxs("div", { ref: dropdownRef, style: {
+                                                            }, onFocus: () => setSearchOpen(true), onKeyDown: handleSearchKeyDown, placeholder: "Search & Add Service", className: "h-[42px] w-full rounded-[10px] border border-tp-slate-200 bg-white pl-[36px] pr-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-700 placeholder:text-tp-slate-400 focus:border-tp-blue-500 focus:outline-none" })] }), _jsxs("div", { className: "space-y-[14px] mt-[14px]", children: [remainingExamSuggestions.length > 0 && (_jsxs("div", { className: "rounded-[14px] bg-tp-blue-50/70 px-[14px] py-[12px]", children: [_jsxs("div", { className: "mb-[10px] flex items-center gap-[6px]", children: [_jsx(TPMedicalIcon, { name: "tooth", variant: "bulk", size: 18, color: "var(--tp-blue-600)" }), _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-800", children: "From today\u2019s dental examination" }), _jsx(TooltipProvider, { delayDuration: 120, children: _jsxs(Tooltip, { children: [_jsx(TooltipTrigger, { asChild: true, children: _jsx("button", { type: "button", "aria-label": "About this section", className: "inline-flex h-[18px] w-[18px] items-center justify-center rounded-full text-tp-slate-400 hover:text-tp-blue-600 transition-colors", children: _jsx(InfoCircle, { size: 14, variant: "Linear", color: "currentColor" }) }) }), _jsx(TooltipContent, { side: "top", align: "start", className: "max-w-[280px] rounded-[10px] px-[12px] py-[8px] text-[12px] leading-[1.5] font-medium", children: "These are treatments suggested from findings charted in today\u2019s dental examination. Each chip is already linked to the tooth it was recorded on \u2014 tap to add it to this plan in one click." })] }) })] }), _jsx("div", { className: "flex flex-wrap gap-[6px]", children: remainingExamSuggestions.map((sug, i) => (_jsxs("button", { type: "button", title: sug.hint, onClick: () => addTreatmentRow(sug.treatment, [sug.toothFdi], sug.surfaces), className: "inline-flex min-h-[38px] max-w-[min(100%,280px)] items-center gap-[8px] rounded-[10px] bg-white pl-[6px] pr-[12px] py-[4px] text-left transition-colors hover:bg-tp-blue-100/70", children: [_jsxs("span", { className: "inline-flex h-[22px] min-w-[24px] items-center justify-center rounded-[6px] bg-tp-blue-100 px-[5px] font-['Inter',sans-serif] text-[10px] font-bold text-tp-blue-700 tabular-nums", children: ["T", sug.toothFdi] }), _jsxs("span", { className: "flex min-w-0 flex-col leading-tight", children: [_jsx("span", { className: "truncate font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-700", children: sug.treatment }), sug.surfaces.length > 0 && _jsx("span", { className: "flex items-center gap-[4px]", children: sug.surfaces.map((s, si) => _jsxs("span", { className: "inline-flex items-center gap-[2px]", children: [_jsx("span", { className: "inline-block h-[6px] w-[6px] rounded-full shrink-0", style: { backgroundColor: SURFACE_COLORS[s] || "#94a3b8" } }), _jsx("span", { className: "font-['Inter',sans-serif] text-[10px] font-semibold uppercase tracking-[0.3px] text-tp-slate-500", children: SURFACE_ABBR[s] || s })] }, `sf-${si}`)) })] })] }, `exam-chip-${i}`))) })] })), remainingCatalogChips.length > 0 && (_jsxs("div", { children: [_jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500 mb-[8px]", children: "Dental service" }), _jsx("div", { className: "flex flex-wrap gap-[6px]", children: remainingCatalogChips.map((t) => (_jsx("button", { type: "button", onClick: () => addTreatmentRow(t.name, [], [], t), className: "inline-flex h-[30px] items-center rounded-[10px] bg-tp-slate-100 px-[12px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-600 hover:bg-tp-slate-200 transition-colors", children: t.name }, t.id))) })] }))] })] }) })] })] }), rows.length > 0 && (_jsx("div", { className: "shrink-0 border-t border-tp-slate-200 bg-white px-[24px] py-[14px]", children: _jsxs("div", { className: "flex items-center justify-between gap-[16px]", children: [
+    _jsxs("label", { className: "flex items-center gap-[10px]", children: [
+        _jsx("span", { className: "font-['Inter',sans-serif] text-[13px] font-semibold text-tp-slate-600", children: "Additional discount" }),
+        _jsxs("div", { className: "relative", children: [
+            _jsx("span", { className: "pointer-events-none absolute left-[12px] top-1/2 -translate-y-1/2 font-['Inter',sans-serif] text-[14px] text-tp-slate-400", children: "\u20B9" }),
+            _jsx("input", {
+                type: "text",
+                inputMode: "numeric",
+                pattern: "[0-9]*",
+                autoComplete: "off",
+                value: additionalDiscount,
+                onChange: (e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    setAdditionalDiscount(v);
+                },
+                placeholder: "0",
+                className: "h-[38px] w-[140px] rounded-[10px] border border-tp-slate-200 bg-white pl-[28px] pr-[12px] font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-800 placeholder:text-tp-slate-300 focus:border-tp-blue-400 focus:outline-none focus:ring-2 focus:ring-tp-blue-500/20 [appearance:textfield]",
+            }),
+        ] }),
+    ] }),
+    _jsxs("div", { className: "flex items-center gap-[14px]", children: [
+        additionalDiscountAmount > 0 && _jsxs(_Fragment, { children: [
+            _jsx("span", { className: "font-['Inter',sans-serif] text-[13px] text-tp-slate-500 line-through tabular-nums", children: formatINR(totalAmount) }),
+            _jsxs("span", { className: "inline-flex h-[24px] items-center rounded-[8px] bg-tp-success-50 px-[8px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-success-700 tabular-nums", children: ["\u2212 ", formatINR(additionalDiscountAmount)] }),
+        ] }),
+        _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-600", children: additionalDiscountAmount > 0 ? "Final Total" : "Estimated Total" }),
+        _jsx("p", { className: "font-['Inter',sans-serif] text-[22px] font-bold text-tp-blue-700 tabular-nums", children: formatINR(Math.max(0, totalAmount - additionalDiscountAmount)) }),
+    ] }),
+] }) }))] }), searchOpen && mounted && !catalogDentalDrawerOpen && (showChartDropdownSection || showDentalServiceDropdownSection || showSearchEmptyHint) && createPortal(_jsxs("div", { ref: dropdownRef, style: {
                     position: "fixed",
                     top: dropdownPos.top,
                     left: dropdownPos.left,

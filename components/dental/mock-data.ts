@@ -86,7 +86,23 @@ export const INITIAL_TOOTH_STATE: Record<string, InitialToothState> = {
   "apt-new": {},
   "apt-1": {},
   "apt-2": {},
-  "apt-6": {},
+  // Anjali Patel — returning patient with an active restoration on 26, a
+  // completed RCT + crown on 36, and an early caries lesion on 16 that's
+  // been monitored since last visit.
+  "apt-6": {
+    toothDiagnoses: {
+      "26": ["Filling"],
+      "36": ["RCT", "Crown"],
+    },
+    findingsByTooth: {
+      "26": [{ zoneId: "occlusal", type: "Filling" }],
+      "16": [
+        { zoneId: "occlusal", type: "Caries" },
+        { zoneId: "buccal", type: "Caries" },
+      ],
+      "47": [{ zoneId: "cervical", type: "Staining" }],
+    },
+  },
 }
 
 /** Dental history entries keyed by patientId (apt-* from appointment screen) */

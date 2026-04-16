@@ -27,15 +27,12 @@ const dropdownItemClass = "rounded-[8px] !gap-[6px] focus:bg-tp-slate-100 focus:
 
 // ─── Plan Sub-Card ────────────────────────────────────────────
 function PlanSubCard({ plan, index, isOpen, onToggle }) {
-    const { dispatch, openDrawer, hasInProgressPlan, navigateTab } = usePlanContext();
+    const { dispatch, openDrawer, navigateTab } = usePlanContext();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [startOpen, setStartOpen] = useState(false);
     const total = computePlanTotal(plan.services);
     const handleActivateClick = () => {
-        if (hasInProgressPlan) {
-            showSnackbar("An active plan already exists. Complete it before activating another.", "warning");
-            return;
-        }
+        // Multiple plans can be active concurrently — no longer gated.
         setStartOpen(true);
     };
     const handleActivate = () => {
@@ -193,14 +190,30 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                     ],
                                 }, svc.id)),
                             }),
-                            _jsx("tfoot", {
-                                children: _jsxs("tr", {
-                                    className: "border-t border-tp-slate-100/80 bg-tp-slate-50/50",
-                                    children: [
-                                        _jsx("td", { colSpan: 6, className: "px-[14px] py-[9px] text-right font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600", children: "Plan Total" }),
-                                        _jsx("td", { className: "px-[14px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] font-bold text-tp-slate-700", children: formatINR(total) }),
-                                    ],
-                                }),
+                            _jsxs("tfoot", {
+                                children: [
+                                    (plan.additionalDiscount ?? 0) > 0 && _jsxs("tr", {
+                                        className: "border-t border-tp-slate-100/80 bg-tp-slate-50/50",
+                                        children: [
+                                            _jsx("td", { colSpan: 6, className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: "Subtotal" }),
+                                            _jsx("td", { className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[13px] text-tp-slate-500 tabular-nums", children: formatINR(total) }),
+                                        ],
+                                    }),
+                                    (plan.additionalDiscount ?? 0) > 0 && _jsxs("tr", {
+                                        className: "bg-tp-slate-50/50",
+                                        children: [
+                                            _jsx("td", { colSpan: 6, className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] text-tp-success-700", children: "Additional discount" }),
+                                            _jsxs("td", { className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[13px] font-semibold text-tp-success-700 tabular-nums", children: ["\u2212 ", formatINR(plan.additionalDiscount)] }),
+                                        ],
+                                    }),
+                                    _jsxs("tr", {
+                                        className: (plan.additionalDiscount ?? 0) > 0 ? "border-t border-tp-slate-200 bg-tp-slate-50" : "border-t border-tp-slate-100/80 bg-tp-slate-50/50",
+                                        children: [
+                                            _jsx("td", { colSpan: 6, className: "px-[14px] py-[9px] text-right font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600", children: (plan.additionalDiscount ?? 0) > 0 ? "Final Total" : "Plan Total" }),
+                                            _jsx("td", { className: "px-[14px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] font-bold text-tp-slate-800 tabular-nums", children: formatINR(Math.max(0, total - (plan.additionalDiscount ?? 0))) }),
+                                        ],
+                                    }),
+                                ],
                             }),
                         ],
                     }),
@@ -291,7 +304,7 @@ export function PlanEstimatesTab() {
             }),
         });
     }
-    const grandTotal = estimatePlans.reduce((sum, p) => sum + computePlanTotal(p.services), 0);
+    const grandTotal = estimatePlans.reduce((sum, p) => sum + Math.max(0, computePlanTotal(p.services) - (p.additionalDiscount ?? 0)), 0);
     return _jsx(SectionFrame, {
         children: _jsxs("div", {
             className: `flex h-full min-h-0 flex-col overflow-hidden ${dui.planClusterShell}`,
