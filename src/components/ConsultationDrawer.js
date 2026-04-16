@@ -198,6 +198,12 @@ const ConsultationDrawer = ({
   const lastDigitizeDataRef = useRef(null);
   const micBeingUsedRef = useRef((micBeingUsedFromVoiceConsult || "").trim() || "Unknown");
   const voiceSessionIdRef = useRef(`voice-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  // Session-level aggregation used for `TP_Voice_endVisit`
+  const voiceSessionStartTimeRef = useRef(null); // set on first submit click
+  const voiceApiSuccessRef = useRef(false);
+  const voiceApiFailedRef = useRef(false);
+  const prescriptionUrlsForSessionRef = useRef(new Set());
+  const editedModulesByUserRef = useRef(new Set());
   const voiceCallCountRef = useRef(0);
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
@@ -1322,6 +1328,9 @@ const ConsultationDrawer = ({
           } else {
             if (!isRecording && !(inputText || editableQuery)) return;
             submitCountRef.current += 1;
+            if (!voiceSessionStartTimeRef.current) {
+              voiceSessionStartTimeRef.current = Date.now();
+            }
             // Increment typed messages count if it's a typed message (not recording)
             if (!isRecording && (inputText || editableQuery)) {
               typedMessagesCountRef.current += 1;
@@ -1731,6 +1740,9 @@ const ConsultationDrawer = ({
           try {
             const uploadResponse = await uploadVoiceAudio(audioFile);
             prescriptionUrl = uploadResponse?.data?.prescriptionUrl ?? uploadResponse?.prescriptionUrl;
+            if (prescriptionUrl) {
+              prescriptionUrlsForSessionRef.current.add(prescriptionUrl);
+            }
           } catch (uploadError) {
             trackVoiceSubmitClickEvent({
               voiceApiCalled: false,
@@ -2192,6 +2204,9 @@ const ConsultationDrawer = ({
           try {
             const uploadResponse = await uploadVoiceAudio(audioFile);
             prescriptionUrl = uploadResponse?.data?.prescriptionUrl ?? uploadResponse?.prescriptionUrl;
+            if (prescriptionUrl) {
+              prescriptionUrlsForSessionRef.current.add(prescriptionUrl);
+            }
           } catch (uploadError) {
             trackVoiceSubmitClickEvent({
               voiceApiCalled: false,
@@ -2533,6 +2548,11 @@ const ConsultationDrawer = ({
         }
       }
       if (voiceApiAttempted) {
+        voiceApiSuccessRef.current = true;
+        voiceApiFailedRef.current = false;
+        if (prescriptionUrlForApiResult) {
+          prescriptionUrlsForSessionRef.current.add(prescriptionUrlForApiResult);
+        }
         trackVoiceApiResultEvent({
           voiceFailed: false,
           errorMessage: "",
@@ -2554,6 +2574,11 @@ const ConsultationDrawer = ({
     } catch (error) {
       console.error("Error in voice digitization:", error?.message || error);
       if (voiceApiAttempted) {
+        voiceApiFailedRef.current = true;
+        voiceApiSuccessRef.current = false;
+        if (prescriptionUrlForApiResult) {
+          prescriptionUrlsForSessionRef.current.add(prescriptionUrlForApiResult);
+        }
         trackVoiceApiResultEvent({
           voiceFailed: true,
           errorMessage: error?.message || "",
@@ -2754,6 +2779,7 @@ const ConsultationDrawer = ({
 
   const handleInputChange = (e) => {
     setEditableText(e.target.value);
+    editedModulesByUserRef.current.add("dynamicFields");
     setIsRxEdited(true);
   };
 
@@ -2780,6 +2806,7 @@ const ConsultationDrawer = ({
 
         return updatedData;
       });
+      editedModulesByUserRef.current.add("dynamicFields");
       setIsRxEdited(true);
     }
 
@@ -3076,6 +3103,7 @@ const ConsultationDrawer = ({
       ...prevData,
       symptoms: Array.isArray(symptomsArray) ? symptomsArray : [],
     }));
+    editedModulesByUserRef.current.add("symptoms");
     setIsRxEdited(true);
   }, []);
 
@@ -3084,6 +3112,7 @@ const ConsultationDrawer = ({
       ...prevData,
       vaccinations: Array.isArray(vaccinationsArray) ? vaccinationsArray : [],
     }));
+    editedModulesByUserRef.current.add("vaccinations");
     setIsRxEdited(true);
   }, []);
 
@@ -3092,6 +3121,7 @@ const ConsultationDrawer = ({
       ...prevData,
       examinations: Array.isArray(examinationsArray) ? examinationsArray : [],
     }));
+    editedModulesByUserRef.current.add("examinations");
     setIsRxEdited(true);
   }, []);
 
@@ -3100,6 +3130,7 @@ const ConsultationDrawer = ({
       ...prevData,
       diagnosis: Array.isArray(diagnosisArray) ? diagnosisArray : [],
     }));
+    editedModulesByUserRef.current.add("diagnosis");
     setIsRxEdited(true);
   }, []);
 
@@ -3108,6 +3139,7 @@ const ConsultationDrawer = ({
       ...prevData,
       labInvestigation: investigationArray,
     }));
+    editedModulesByUserRef.current.add("labInvestigation");
     setIsRxEdited(true);
   }, []);
 
@@ -3116,6 +3148,7 @@ const ConsultationDrawer = ({
       ...prevData,
       advice: Array.isArray(adviceArray) ? adviceArray : [],
     }));
+    editedModulesByUserRef.current.add("advice");
     setIsRxEdited(true);
   }, []);
 
@@ -3124,6 +3157,7 @@ const ConsultationDrawer = ({
       ...prevData,
       vitalsAndBodyComposition: vitalsObject && typeof vitalsObject === "object" ? vitalsObject : {},
     }));
+    editedModulesByUserRef.current.add("vitalsAndBodyComposition");
     setIsRxEdited(true);
   }, []);
 
@@ -3132,6 +3166,7 @@ const ConsultationDrawer = ({
       ...prevData,
       medicalHistory: Array.isArray(medicalHistoryArray) ? medicalHistoryArray : [],
     }));
+    editedModulesByUserRef.current.add("medicalHistory");
     setIsRxEdited(true);
     if (medicalHistoryArray && Array.isArray(medicalHistoryArray) && medicalHistoryArray.length > 0 && setMedicalHistoryData) {
       const convertedData = convertMedicalHistoryToContextFormat(medicalHistoryArray, medicalHistoryData);
@@ -3245,6 +3280,7 @@ const ConsultationDrawer = ({
       ...prevData,
       followUp: typeof followUpText === "string" ? followUpText : "",
     }));
+    editedModulesByUserRef.current.add("followUp");
     setIsRxEdited(true);
   }, []);
 
@@ -3253,6 +3289,7 @@ const ConsultationDrawer = ({
       ...prevData,
       labResults: Array.isArray(labResultsArray) ? labResultsArray : [],
     }));
+    editedModulesByUserRef.current.add("labResults");
     setIsRxEdited(true);
   }, []);
 
@@ -3261,6 +3298,7 @@ const ConsultationDrawer = ({
       ...prevData,
       others: Array.isArray(othersArray) ? othersArray : [],
     }));
+    editedModulesByUserRef.current.add("others");
     setIsRxEdited(true);
   }, []);
 
@@ -3269,6 +3307,7 @@ const ConsultationDrawer = ({
       ...prevData,
       medications: medicationsArray,
     }));
+    editedModulesByUserRef.current.add("medications");
     setIsRxEdited(true);
   }, []);
 
@@ -3279,6 +3318,88 @@ const ConsultationDrawer = ({
       stopAllActiveRecorders();
       const isAmbientRx = isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX || genRxDetails?.type === 'ambient';
     const rxType = isAmbientRx ? "ambient" : "voice_rx";  
+      const prescriptionTypeForEvent = isAmbientRx ? "ambient" : "dictate";
+      const wholeSessionDurationMs = voiceSessionStartTimeRef.current
+        ? Date.now() - voiceSessionStartTimeRef.current
+        : 0;
+      const wholeSessionDurationSeconds = Math.round(wholeSessionDurationMs / 1000);
+
+      const modulesDetails = getFilledRxModulesDetails(prescriptionData || {});
+      const totalSubmitCount = submitCountRef.current;
+      const typedSubmitCount = typedMessagesCountRef.current;
+      const audioSubmitCount = Math.max(totalSubmitCount - typedSubmitCount, 0);
+
+      // Try to infer which modules were edited (best-effort).
+      const editedModulesFromFlags = new Set();
+      const checkEditedArray = (arr, moduleKey) => {
+        if (!Array.isArray(arr)) return;
+        if (arr.some((item) => item?.edited === true || item?.lineItem?.edited === true)) {
+          editedModulesFromFlags.add(moduleKey);
+        }
+      };
+      checkEditedArray(prescriptionData?.symptoms, "symptoms");
+      checkEditedArray(prescriptionData?.surgeries, "surgeries");
+      checkEditedArray(prescriptionData?.vaccinations, "vaccinations");
+      checkEditedArray(prescriptionData?.medicalHistory, "medicalHistory");
+      checkEditedArray(prescriptionData?.examinations, "examinations");
+      checkEditedArray(prescriptionData?.diagnosis, "diagnosis");
+      checkEditedArray(prescriptionData?.medications, "medications");
+      checkEditedArray(prescriptionData?.labResults, "labResults");
+      checkEditedArray(prescriptionData?.labInvestigation, "labInvestigation");
+      checkEditedArray(prescriptionData?.others, "others");
+
+      const editedModules = new Set([
+        ...editedModulesByUserRef.current,
+        ...editedModulesFromFlags,
+      ]);
+
+      const prescriptionUrlsUploadedInSession = Array.from(
+        prescriptionUrlsForSessionRef.current
+      );
+
+      window.Moengage.track_event("TP_Voice_endVisit", {
+        doctorId: profile?.doctor_unique_id || "",
+        doctorName: profile?.um_name || "",
+        patientId: patient_data?.patient_unique_id || "",
+        patientName: patient_data?.pm_fullname || "",
+        hospitalId: clinic?.hm_id || "",
+        hospitalName: clinic?.hm_name || "",
+
+        sessionId: voiceSessionIdRef.current,
+        timestamp: new Date().toISOString(),
+
+        prescription_type: prescriptionTypeForEvent, // dictate | ambient
+
+        duration_of_whole_session_ms: wholeSessionDurationMs,
+        duration_of_whole_session_seconds: wholeSessionDurationSeconds,
+
+        no_of_submit_ids_total: totalSubmitCount,
+        no_of_typed_submit_ids: typedSubmitCount,
+        no_of_audio_submit_ids: audioSubmitCount,
+
+        total_modules_filled: modulesDetails.rxModulesFilledCount,
+        filled_modules: Array.isArray(modulesDetails.filledModules)
+          ? modulesDetails.filledModules.join(",")
+          : "",
+
+        edited_modules: Array.from(editedModules).join(","),
+        is_empty_rx: modulesDetails.rxModulesFilledCount === 0 ? 1 : 0,
+
+        prescription_urls_uploaded: prescriptionUrlsUploadedInSession.join(","),
+        prescription_urls_uploaded_count: prescriptionUrlsUploadedInSession.length,
+
+        voice_api_failed: voiceApiFailedRef.current ? 1 : 0,
+        voice_api_success: voiceApiSuccessRef.current ? 1 : 0,
+        voice_api_status:
+          voiceApiFailedRef.current && !voiceApiSuccessRef.current
+            ? "failed"
+            : voiceApiSuccessRef.current
+            ? "successful"
+            : "unknown",
+
+        voicecall: voiceCallCountRef.current,
+      });
+
     const totalAudioDuration = queries
       .filter(query => query.isAudio && query.duration)
       .reduce((total, query) => {
