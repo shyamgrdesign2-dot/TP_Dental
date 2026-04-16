@@ -514,6 +514,7 @@ const VoiceRxConsult = () => {
           fromVoiceRecording: true,
           audioBlob: blob,
           audioBlobUrl: audioUrl,
+          micBeingUsed: activeMicLabel,
           consent: consentRef.current,
           audioBlobArrayBuffer: arrayBuffer,
           mode: activeMode,

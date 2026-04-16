@@ -18,6 +18,15 @@ const isVoiceEndpointRequest = (requestConfig = {}) => {
         || requestUrl.includes('/api/v1/ambient-voice-rx');
 };
 
+const isVoiceUploadRequest = (requestConfig = {}) => {
+    const requestUrl = requestConfig?.url || '';
+    return requestUrl.includes('/api/v1/digitization/voice/upload');
+};
+
+const isVoiceDigitizeRequest = (requestConfig = {}) => {
+    return isVoiceEndpointRequest(requestConfig) && !isVoiceUploadRequest(requestConfig);
+};
+
 const isRetryableTransientError = (error) => {
     if (axios.isCancel?.(error)) return false;
     if ((error?.message || '').includes('Internet connection not available')) return false;
@@ -41,6 +50,9 @@ const applyRetryIfEligible = async (error, originalRequest = {}) => {
     if (originalRequest.__retryCount < MAX_RETRY_ATTEMPTS - 1) {
         originalRequest.__retryCount += 1;
         window.__TATVA_VOICE_API_LAST_RETRY_ATTEMPT = originalRequest.__retryCount;
+        if (isVoiceDigitizeRequest(originalRequest)) {
+            window.__TATVA_VOICE_API_LAST_DIGITIZE_RETRY_ATTEMPT = originalRequest.__retryCount;
+        }
         if (isVoiceEndpointRequest(originalRequest)) {
             console.warn(`[Voice API] Attempt ${originalRequest.__retryCount} failed, retrying...`, error);
         }
@@ -89,6 +101,9 @@ instance.interceptors.response.use(
         if (isVoiceEndpointRequest(response?.config)) {
             window.__TATVA_VOICE_API_LAST_ERROR_MESSAGE = '';
             window.__TATVA_VOICE_API_LAST_RETRY_ATTEMPT = response?.config?.__retryCount || 0;
+            if (isVoiceDigitizeRequest(response?.config)) {
+                window.__TATVA_VOICE_API_LAST_DIGITIZE_RETRY_ATTEMPT = response?.config?.__retryCount || 0;
+            }
             const responsePayload = response?.data || {};
             const latestVoiceUploadUrl = responsePayload?.prescriptionUrl
                 || responsePayload?.voice_prescription_url
