@@ -179,7 +179,6 @@
 .tabPillActive {
   background: #fff;
   color: tp.$slate-900;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
 
 .tabPillCount {
@@ -216,7 +215,8 @@
   height: 100%;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  /* Single scroll: plan cluster inner surface scrolls; avoid nested scroll traps. */
+  overflow: hidden;
   padding: 16px 20px;
 }
 
@@ -314,18 +314,18 @@
   height: 100%;
   flex-direction: column;
   overflow: hidden;
-  background: #f4f5f7;
+  /* Outer shell stays white; neutral tint lives only on {@link planClusterInnerSurface}. */
+  background: #fff;
 }
 
 .tpTabRootEmbed {
-  /* Patient detail: white content surface; page chrome is tp-slate-50 outside the shell. */
   background: #fff;
 }
 
 .tpTabHeader {
   flex-shrink: 0;
   padding: 20px 24px 8px;
-  background: #f4f5f7;
+  background: #fff;
 }
 
 .tpTabHeaderEmbed {
@@ -353,7 +353,6 @@
   flex-shrink: 0;
   background: #fff;
   border-bottom: 1px solid tp.$slate-100;
-  box-shadow: 0 1px 8px rgb(15 23 42 / 0.06);
 }
 
 .tpPageHeaderRow {
@@ -400,17 +399,11 @@
   flex-direction: column;
   overflow: hidden;
   border-radius: 16px;
-  background: #fff;
-  border: 1px solid color-mix(in srgb, tp.$slate-300 28%, #fff 72%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 0.06);
+  background: color-mix(in srgb, tp.$slate-100 42%, #fff 58%);
 }
 
 .planClusterInnerSurface {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, tp.$slate-50 88%, #fff 12%) 0%,
-    color-mix(in srgb, tp.$slate-100 32%, #f4f5f8 68%) 100%
-  );
+  background: color-mix(in srgb, tp.$slate-200 32%, tp.$slate-50 68%);
 }
 
 .planClusterHeaderEstimates {
@@ -419,7 +412,7 @@
 }
 
 .planClusterHeaderActive {
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.11) 0%, rgba(255, 255, 255, 0.97) 100%);
+  background: #fff;
   border-bottom: 1px solid color-mix(in srgb, tp.$slate-100 88%, transparent);
 }
 

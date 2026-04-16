@@ -193,6 +193,18 @@ function planReducer(state, action) {
                 })),
             };
         }
+        case "REMOVE_SERVICE_CONSULTATION": {
+            const { serviceId, consultationId } = action;
+            return {
+                ...state,
+                plans: state.plans.map((p) => ({
+                    ...p,
+                    services: p.services.map((s) => s.id !== serviceId
+                        ? s
+                        : { ...s, consultations: (s.consultations ?? []).filter((c) => c.id !== consultationId) }),
+                })),
+            };
+        }
         case "REMOVE_SERVICE":
             return {
                 ...state,

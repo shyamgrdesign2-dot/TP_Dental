@@ -106,7 +106,7 @@
 }
 
 .avatarRing {
-  background: #f1f1f5;
+  background: tp.$slate-200;
   position: relative;
   border-radius: 1250px;
   flex-shrink: 0;
@@ -154,8 +154,27 @@
   font-style: normal;
   position: relative;
   flex-shrink: 0;
-  color: tp.$slate-700;
+  color: tp.$slate-900;
   font-size: 14px;
+}
+
+.planProcedureChip {
+  max-width: 160px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: tp.$blue-700;
+  background: tp.$blue-50;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  cursor: default;
+  flex-shrink: 1;
 }
 
 .chevronWrap {
@@ -175,7 +194,7 @@
 
 .metaRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   line-height: 18px;
   position: relative;
   flex-shrink: 0;
@@ -184,13 +203,13 @@
   width: 100%;
   font-family: "Inter", ui-sans-serif, sans-serif;
   font-weight: 500;
-  color: tp.$slate-600;
 }
 
 .metaItem {
   position: relative;
   flex-shrink: 0;
   white-space: nowrap;
+  color: tp.$slate-500;
 }
 
 .metaSep {
@@ -198,7 +217,7 @@
   flex-shrink: 0;
   color: tp.$slate-300;
   text-align: center;
-  width: 8px;
+  width: 14px;
 }
 
 .menuContent {

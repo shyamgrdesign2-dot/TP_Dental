@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import clsx from "clsx";
 import {
@@ -163,7 +163,7 @@ function CardShell({ children, className }) {
 
 function HistorySectionCard({ title, iconName, onOpenSidebar, children }) {
   return (
-    <CardShell className="overflow-hidden">
+    <CardShell className="overflow-hidden border border-tp-slate-200">
       <div className="flex w-full items-center gap-3 border-b border-tp-slate-200 px-3 py-[10px] sm:px-[14px]">
         <span className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center">
           <TPMedicalIcon name={iconName} variant="bulk" size={20} color={HISTORY_VIOLET} />
@@ -173,11 +173,11 @@ function HistorySectionCard({ title, iconName, onOpenSidebar, children }) {
         </span>
         <button
           type="button"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-md text-tp-slate-500 transition-colors hover:bg-tp-slate-50/80 hover:text-tp-slate-700"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-[10px] border border-tp-slate-200 bg-white text-tp-slate-500 transition-colors hover:border-tp-slate-300 hover:bg-tp-slate-50/90 hover:text-tp-slate-700"
           aria-label={`Open ${title} in sidebar`}
           onClick={() => onOpenSidebar?.()}
         >
-          <ArrowRight2 size={18} variant="Linear" color="currentColor" />
+          <ArrowRight2 size={18} variant="Linear" color="currentColor" strokeWidth={1.75} />
         </button>
       </div>
       <div className="p-0">{children}</div>
@@ -424,6 +424,7 @@ function EmptyModuleBody({ title, message, icon: Icon }) {
 function PatientDetailContentShell({ children, className, bodyClassName }) {
   return (
     <div
+      data-tp-figma-capture="patient-detail-module-shell"
       className={cn(
         "relative z-10 mt-[-62px] flex h-full min-h-0 min-w-0 w-full flex-1 flex-col rounded-[16px] bg-white shadow-[0_1px_3px_rgba(23,23,37,0.06)]",
         bodyClassName,
@@ -449,7 +450,7 @@ const NAV_CONFIG = [
   {
     id: "dental-plan",
     label: "Dental plan",
-    bannerTitle: "Dental plan",
+    bannerTitle: "Dental treatment plan",
     kind: "dental-plan",
   },
   {
@@ -469,44 +470,46 @@ const NAV_CONFIG = [
 ];
 
 function SecondaryNavIcon({ item, selected }) {
-  const muted = "var(--tp-slate-600)";
-  const activeTone = selected ? "var(--tp-blue-600)" : muted;
+  /** Match primary sidebar (`SecondaryNavPanel` / appointments): Bulk + inverse on blue pill, Linear + slate on slate pill. */
+  const iconSize = 20;
+  const idleColor = "var(--tp-slate-700)";
+  const activeColor = "var(--tp-slate-0)";
 
   if (item.id === "opd-summary") {
     return (
       <DocumentText
-        size={selected ? 22 : 18}
-        variant={selected ? "Bold" : "Linear"}
-        color={selected ? "#FFFFFF" : muted}
+        size={iconSize}
+        variant={selected ? "Bulk" : "Linear"}
+        color={selected ? activeColor : idleColor}
       />
     );
   }
   if (item.id === "reports") {
-    return <Note1 size={18} variant={selected ? "Bold" : "Linear"} color={activeTone} />;
+    return <Note1 size={iconSize} variant={selected ? "Bulk" : "Linear"} color={selected ? activeColor : idleColor} />;
   }
   if (item.id === "certificates") {
-    return <MedalStar size={18} variant={selected ? "Bold" : "Linear"} color={activeTone} />;
+    return <MedalStar size={iconSize} variant={selected ? "Bulk" : "Linear"} color={selected ? activeColor : idleColor} />;
   }
   if (item.id === "add-edit-bill") {
-    return <ReceiptText size={18} variant={selected ? "Bold" : "Linear"} color={activeTone} />;
+    return <ReceiptText size={iconSize} variant={selected ? "Bulk" : "Linear"} color={selected ? activeColor : idleColor} />;
   }
   if (item.id === "dental-plan") {
     return (
       <TPMedicalIcon
         name="surgical-scissors-02"
         variant={selected ? "bulk" : "line"}
-        size={20}
-        color={selected ? "#FFFFFF" : "var(--tp-slate-500)"}
+        size={iconSize}
+        color={selected ? activeColor : idleColor}
       />
     );
   }
   if (item.id === "ipd-discharge") {
-    return <Hospital size={18} variant={selected ? "Bold" : "Linear"} color={activeTone} />;
+    return <Hospital size={iconSize} variant={selected ? "Bulk" : "Linear"} color={selected ? activeColor : idleColor} />;
   }
   if (item.id === "daycare-discharge") {
-    return <Buildings2 size={18} variant={selected ? "Bold" : "Linear"} color={activeTone} />;
+    return <Buildings2 size={iconSize} variant={selected ? "Bulk" : "Linear"} color={selected ? activeColor : idleColor} />;
   }
-  return <DocumentText size={18} variant="Linear" color={muted} />;
+  return <DocumentText size={iconSize} variant="Linear" color={idleColor} />;
 }
 
 const PLACEHOLDER_COPY = {
@@ -547,6 +550,14 @@ function PatientDetailInner() {
   const [rxTab, setRxTab] = useState("digital");
   const [visitIndex, setVisitIndex] = useState(0);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const navFromUrl = searchParams?.get("nav");
+  useEffect(() => {
+    if (!navFromUrl) return;
+    if (NAV_CONFIG.some((n) => n.id === navFromUrl)) {
+      setActiveNav(navFromUrl);
+    }
+  }, [navFromUrl]);
 
   const headerPatient = useMemo(() => getAppointmentPatient(patientId), [patientId]);
   const profileFields = useMemo(() => buildPatientHeaderProfileFields(patientId), [patientId]);
@@ -632,22 +643,26 @@ function PatientDetailInner() {
           className="relative flex w-[220px] shrink-0 flex-col overflow-hidden border-r border-tp-slate-100 bg-white"
           aria-label="Patient sections"
         >
-          <div className="shrink-0 border-b border-tp-slate-200 bg-tp-slate-100/85 px-3 py-3">
+          <div className="shrink-0 px-3 pt-3">
             <DropdownMenu open={isProfileOpen} onOpenChange={setIsProfileOpen}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2.5 rounded-[10px] px-1 py-1 text-left transition-colors hover:bg-tp-slate-200/50"
+                  className="flex w-full items-center gap-2.5 rounded-[10px] bg-tp-slate-100/85 px-2 py-2 text-left transition-colors hover:bg-tp-slate-200/70"
                 >
                   <div className={rxHeaderStyles.avatarRing} data-name="Profile Image">
                     <div className={rxHeaderStyles.avatarIcon} data-name="User">
-                      <User color="#545460" size={22.857} variant="Bulk" />
+                      <User color="var(--tp-slate-500)" size={22.857} variant="Bulk" />
                     </div>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-sans text-[14px] font-semibold text-tp-slate-900">{headerPatient.name}</p>
-                    <p className="font-sans text-[12px] text-tp-slate-500">
-                      {headerPatient.genderLabel} | {headerPatient.age}y
+                    <p className="flex items-center font-sans text-[12px] font-medium">
+                      <span className="text-tp-slate-500">{headerPatient.genderShort}</span>
+                      <span className="w-[14px] shrink-0 text-center text-tp-slate-300" aria-hidden>
+                        ·
+                      </span>
+                      <span className="text-tp-slate-500">{`${headerPatient.age}Y`}</span>
                     </p>
                   </div>
                   <div
@@ -682,14 +697,6 @@ function PatientDetailInner() {
                     className={rxHeaderStyles.menuActionBtn}
                     onClick={() => setIsProfileOpen(false)}
                   >
-                    <DocumentText color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
-                    <span className={rxHeaderStyles.menuActionLabel}>Patient overview</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={rxHeaderStyles.menuActionBtn}
-                    onClick={() => setIsProfileOpen(false)}
-                  >
                     <Edit2 color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
                     <span className={rxHeaderStyles.menuActionLabel}>Edit patient details</span>
                   </button>
@@ -698,7 +705,7 @@ function PatientDetailInner() {
             </DropdownMenu>
           </div>
 
-          <div className="h-px shrink-0 bg-tp-slate-200" aria-hidden />
+          <div className="h-px shrink-0" aria-hidden />
 
           <div className="flex min-h-0 flex-1 flex-col gap-0 overflow-y-auto overflow-x-hidden pb-4 pt-1">
             {NAV_CONFIG.map((item) => {
@@ -710,26 +717,26 @@ function PatientDetailInner() {
                   onClick={() => onNavClick(item)}
                   className={cn(
                     "relative flex w-full flex-row items-center gap-3 px-3 py-2.5 text-left transition-colors",
-                    active ? "bg-[#EEEEFF]" : "hover:bg-tp-slate-50",
+                    active ? "bg-[rgba(75,74,213,0.12)]" : "hover:bg-tp-slate-50",
                   )}
                 >
                   {active ? (
-                    <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-r-full bg-tp-blue-500" aria-hidden />
+                    <span
+                      className="absolute bottom-0 left-0 top-0 w-[3px] rounded-r-[12px] bg-tp-blue-500"
+                      aria-hidden
+                    />
                   ) : null}
                   <span
                     className={cn(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]",
-                      active && (item.id === "opd-summary" || item.id === "dental-plan")
-                        ? "bg-tp-blue-500"
-                        : "bg-tp-slate-100",
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] transition-colors",
+                      active ? "bg-tp-blue-500" : "bg-tp-slate-100",
                     )}
                   >
                     <SecondaryNavIcon item={item} selected={active} />
                   </span>
                   <span
                     className={cn(
-                      "min-w-0 flex-1 truncate font-sans text-[13px] leading-snug",
-                      active ? "font-semibold text-tp-blue-600" : "font-medium text-tp-slate-700",
+                      "min-w-0 flex-1 truncate font-sans text-[13px] font-medium leading-snug text-tp-slate-700",
                     )}
                     title={item.label}
                   >
@@ -808,7 +815,10 @@ function PatientDetailInner() {
                   </section>
                 </div>
               ) : activeConfig.kind === "dental-plan" ? (
-                <PatientDetailContentShell bodyClassName="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white">
+                <PatientDetailContentShell
+                  className="border border-tp-slate-200/80 shadow-none"
+                  bodyClassName="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-white"
+                >
                   <TreatmentPlanEmbed patientId={patientId} />
                 </PatientDetailContentShell>
               ) : (

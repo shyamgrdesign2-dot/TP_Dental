@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import clsx from "clsx"
 import {
   ArrowDown2,
@@ -9,6 +9,8 @@ import {
   CallCalling,
   Card,
   DocumentSketch,
+  DocumentText,
+  Edit2,
   Eye,
   Grid5,
   Ram,
@@ -17,6 +19,7 @@ import {
 } from "iconsax-reactjs"
 import { ChevronLeft, MoreVertical } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer"
 import { TPSplitButton } from "@/components/tp-ui/button-system"
 import { RxPreviewDocument } from "@/components/tp-rxpad/RxPreviewDocument"
@@ -74,6 +77,8 @@ function EndVisitIcon({ size = 24 }) {
 
 export default function RxpadHeader({ className, onBack, patientId: patientIdProp }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const ctxTreatment = searchParams?.get("ctxTreatment")?.trim() ?? ""
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewSnapshot, setPreviewSnapshot] = useState(null)
@@ -102,9 +107,13 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
     const planId = src.get("planId")
     const serviceId = src.get("serviceId")
     const appointmentId = src.get("appointmentId")
+    const returnTo = src.get("returnTo")
+    const ctx = src.get("ctxTreatment")
     if (planId) next.set("planId", planId)
     if (serviceId) next.set("serviceId", serviceId)
     if (appointmentId) next.set("appointmentId", appointmentId)
+    if (returnTo) next.set("returnTo", returnTo)
+    if (ctx) next.set("ctxTreatment", ctx)
     router.push(`/rxpad/end-visit?${next.toString()}`)
   }
 
@@ -132,12 +141,25 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                   <button type="button" className={styles.profileTrigger} data-name="Container">
                     <div className={styles.avatarRing} data-name="Profile Image">
                       <div className={styles.avatarIcon} data-name="User">
-                        <User color="#545460" size={22.857} variant="Bulk" />
+                        <User color="var(--tp-slate-500)" size={22.857} variant="Bulk" />
                       </div>
                     </div>
                     <div className={styles.userTextCol} data-name="User Details">
                       <div className={styles.nameRow} data-name="Header">
                         <p className={styles.patientName}>{headerPatient.name}</p>
+                        {ctxTreatment ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className={styles.planProcedureChip} tabIndex={0}>
+                                {ctxTreatment}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" sideOffset={6} className="max-w-[280px] text-left text-xs leading-snug">
+                              Consultation for this dental plan line: {ctxTreatment}. Use End Visit when finished to attach notes to
+                              the treatment plan.
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : null}
                         <div
                           className={clsx(styles.chevronWrap, styles.chevronSpin, isProfileOpen && styles.chevronSpinOpen)}
                           data-name="Dropdown Icon"
@@ -146,9 +168,11 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                         </div>
                       </div>
                       <div className={styles.metaRow} data-name="Age & gender">
-                        <p className={styles.metaItem}>{headerPatient.genderLabel}</p>
-                        <p className={styles.metaSep}>|</p>
-                        <p className={styles.metaItem}>{headerPatient.age}y</p>
+                        <p className={styles.metaItem}>{headerPatient.genderShort}</p>
+                        <p className={styles.metaSep} aria-hidden>
+                          ·
+                        </p>
+                        <p className={styles.metaItem}>{`${headerPatient.age}Y`}</p>
                       </div>
                     </div>
                   </button>
@@ -166,6 +190,31 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                         </div>
                       </div>
                     ))}
+                  </div>
+                  <div className={styles.menuActions}>
+                    <button
+                      type="button"
+                      className={styles.menuActionBtn}
+                      onClick={() => {
+                        setIsProfileOpen(false)
+                        const pid = getCurrentPatientId()
+                        const qs = new URLSearchParams()
+                        if (pid) qs.set("patientId", pid)
+                        const suffix = qs.toString() ? `?${qs.toString()}` : ""
+                        router.push(`/patient-detail${suffix}`)
+                      }}
+                    >
+                      <DocumentText color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
+                      <span className={styles.menuActionLabel}>View patient summary</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.menuActionBtn}
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      <Edit2 color="currentColor" size={20} strokeWidth={1.5} variant="Linear" />
+                      <span className={styles.menuActionLabel}>Edit patient details</span>
+                    </button>
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>

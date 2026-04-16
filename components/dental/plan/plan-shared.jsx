@@ -8,7 +8,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import dui from "../dental-ui.module.scss";
 import { usePlanContext } from "./plan-context";
 import { SURFACE_ABBR, SURFACE_COLORS, getPlanSurfaceLabel } from "./plan-types";
-const PLAN_SURFACE_CHIP_CLASS = "inline-flex h-[18px] cursor-default items-center rounded-[4px] px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-white tabular-nums outline-none transition-[filter,box-shadow] duration-150 hover:brightness-110 hover:shadow-[0_0_0_2px_rgba(59,130,246,0.45)] focus-visible:shadow-[0_0_0_2px_var(--tp-blue-500,#3b82f6)]";
+const PLAN_SURFACE_CHIP_CLASS = "inline-flex h-[18px] cursor-default items-center rounded-[4px] px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-white tabular-nums outline-none transition-[filter] duration-150 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tp-blue-500/45 focus-visible:ring-offset-1";
 /** Abbreviated surface pills with hover ring + tooltip (full surface name). */
 export function PlanSurfaceAbbrTags({ surfaces, gapClass = "gap-[3px]", wrap = false }) {
     if (!surfaces?.length)
@@ -79,4 +79,27 @@ export function getPlanCompletionStatus(services) {
     if (completedCount === services.length)
         return "completed";
     return "partially-completed";
+}
+
+/** Return path after RxPad so the user lands back on the dental plan. */
+export function buildPlanRxReturnPath(embedInPatientShell, patientId) {
+    if (embedInPatientShell) {
+        const q = new URLSearchParams({ patientId, nav: "dental-plan", planTab: "progress" });
+        return `/patient-detail?${q.toString()}`;
+    }
+    const q = new URLSearchParams({ patientId, tab: "progress" });
+    return `/treatment-plan?${q.toString()}`;
+}
+/** Opens RxPad with plan context; `returnTo` returns user to the dental plan they came from. */
+export function buildConsultationRxUrl(patientId, planId, serviceId, appointmentId, embedInPatientShell, treatmentName) {
+    const p = new URLSearchParams();
+    p.set("patientId", patientId);
+    p.set("planId", planId);
+    p.set("serviceId", serviceId);
+    if (appointmentId)
+        p.set("appointmentId", appointmentId);
+    p.set("returnTo", buildPlanRxReturnPath(embedInPatientShell, patientId));
+    if (treatmentName)
+        p.set("ctxTreatment", treatmentName);
+    return `/rxpad?${p.toString()}`;
 }

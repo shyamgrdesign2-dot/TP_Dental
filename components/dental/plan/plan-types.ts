@@ -14,6 +14,9 @@ export interface SittingRecord {
   id: string
   date: string
   doctor: string
+  visitType?: string
+  /** ISO timestamp used for timeline ordering when quick-visit records are added. */
+  createdAt?: string
   notes?: string
 }
 

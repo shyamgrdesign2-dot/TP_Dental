@@ -51,7 +51,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
     };
     const handleEdit = () => openDrawer({ type: "edit-plan", planId: plan.id });
     return _jsxs("div", {
-        className: "overflow-hidden rounded-[16px] border border-tp-slate-100/70 bg-white shadow-[0_10px_24px_-18px_rgba(15,23,42,0.22)]",
+        className: "overflow-hidden rounded-[16px] border border-tp-slate-200/80 bg-white",
         children: [
             _jsxs("div", {
                 className: "sticky top-0 z-[2] shrink-0 flex items-center gap-[10px] border-b border-tp-slate-100/70 bg-[linear-gradient(180deg,rgba(75,74,213,0.06),rgba(75,74,213,0))] px-[14px] py-[14px] cursor-pointer",
@@ -286,7 +286,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
 function showSnackbar(message, variant = "info") {
     const bgColor = variant === "warning" ? "var(--tp-warning-600, #dc6803)" : "var(--tp-slate-800, #1e293b)";
     const el = document.createElement("div");
-    el.className = "fixed top-6 left-1/2 -translate-x-1/2 z-[9999] inline-flex items-center gap-3 rounded-[12px] px-5 py-3 font-['Inter',sans-serif] text-[14px] font-medium text-white shadow-lg transition-all animate-in fade-in slide-in-from-top-4";
+    el.className = "fixed top-6 left-1/2 -translate-x-1/2 z-[9999] inline-flex items-center gap-3 rounded-[12px] border border-white/25 px-5 py-3 font-['Inter',sans-serif] text-[14px] font-medium text-white transition-all animate-in fade-in slide-in-from-top-4";
     el.style.background = bgColor;
     el.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><path d="M12 9v4" stroke="white" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="16" r="0.75" fill="white"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${message}</span>`;
     document.body.appendChild(el);
@@ -333,7 +333,7 @@ export function PlanEstimatesTab() {
                             action: _jsxs("button", {
                                 type: "button",
                                 onClick: () => openDrawer({ type: "add-plan" }),
-                                className: "inline-flex items-center justify-center gap-[5px] rounded-[12px] bg-tp-blue-600 px-[16px] h-[42px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700 shadow-sm",
+                                className: "inline-flex items-center justify-center gap-[5px] rounded-[12px] bg-tp-blue-600 px-[16px] h-[42px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700",
                                 children: [_jsx(Add, { size: 20, variant: "Linear" }), "Create Plan"],
                             }),
                         }),
@@ -374,7 +374,7 @@ export function PlanEstimatesTab() {
                                 _jsxs("button", {
                                     type: "button",
                                     onClick: () => openDrawer({ type: "add-plan" }),
-                                    className: "inline-flex items-center justify-center gap-[5px] rounded-[12px] bg-tp-blue-600 px-[16px] h-[42px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700 shadow-sm",
+                                    className: "inline-flex items-center justify-center gap-[5px] rounded-[12px] bg-tp-blue-600 px-[16px] h-[42px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700",
                                     children: [_jsx(Add, { size: 20, variant: "Linear" }), "Create Plan"],
                                 }),
                                 _jsxs(DropdownMenu, {

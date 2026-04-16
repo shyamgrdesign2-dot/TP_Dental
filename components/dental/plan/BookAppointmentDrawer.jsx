@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer";
 import { Calendar2 } from "iconsax-reactjs";
 import { usePlanContext } from "./plan-context";
-import { DrawerHeader } from "./plan-shared";
+import { DrawerHeader, buildConsultationRxUrl } from "./plan-shared";
 import { genId } from "./plan-types";
 import {
     saveBookedAppointment,
@@ -29,16 +29,28 @@ const CASE_TYPES = [
 const INPUT_CLASS = "w-full h-[42px] rounded-[10px] border border-tp-slate-200 bg-white px-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors";
 const LABEL_CLASS = "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]";
 
+function consultTimelinePreview(raw) {
+    const s = String(raw ?? "").trim();
+    if (!s)
+        return "No summary captured yet.";
+    const one = s.split(/\n/).map((l) => l.trim()).filter(Boolean)[0] ?? s;
+    return one.length > 200 ? `${one.slice(0, 200)}…` : one;
+}
+
 export function BookAppointmentDrawer() {
-    const { state, closeDrawer, findService, findPlanForService, dispatch, patientId } = usePlanContext();
+    const { state, closeDrawer, findService, findPlanForService, dispatch, patientId, embedInPatientShell } = usePlanContext();
     const drawer = state.drawer;
     const isOpen = drawer.type === "book-appointment";
     const serviceId = isOpen ? drawer.serviceId : undefined;
     const appointmentId = isOpen ? drawer.appointmentId : undefined;
     const service = serviceId ? findService(serviceId) : undefined;
+    const plan = serviceId ? findPlanForService(serviceId) : undefined;
     const editingAppointment = appointmentId
         ? service?.appointments?.find((a) => a.id === appointmentId)
         : undefined;
+    const linkedConsultationsForAppt = editingAppointment && service?.consultations?.length
+        ? service.consultations.filter((c) => c.appointmentId === editingAppointment.id)
+        : [];
     const [patientCategory, setPatientCategory] = useState("returning");
     const [caseType, setCaseType] = useState("consultation");
     const [date, setDate] = useState("");
@@ -150,11 +162,18 @@ export function BookAppointmentDrawer() {
                         type: "button",
                         onClick: handleBook,
                         disabled: !doctor || !date || !time,
-                        className: "inline-flex h-[42px] min-w-[120px] items-center justify-center gap-[6px] rounded-[10px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold leading-none text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm",
+                        className: "inline-flex h-[42px] min-w-[120px] items-center justify-center gap-[6px] rounded-[10px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold leading-none text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors",
                         children: [
                             _jsx(Calendar2, { size: 16, variant: "Linear", className: "shrink-0" }),
                             _jsx("span", { className: "leading-none", children: editingAppointment ? "Save" : "Book" }),
                         ],
+                    }),
+                }),
+                _jsx("div", {
+                    className: "shrink-0 border-b border-red-200 bg-red-50 px-[24px] py-[12px]",
+                    children: _jsx("p", {
+                        className: "font-['Inter',sans-serif] text-[12px] font-medium leading-relaxed text-red-800",
+                        children: "Note: Use your main Book Appointment flow to reserve the slot in the live schedule. After the appointment is booked there, return to this same page (patient overview or Dental Treatment Plan) so the visit stays linked to this treatment line.",
                     }),
                 }),
                 _jsxs("div", {
@@ -162,11 +181,11 @@ export function BookAppointmentDrawer() {
                     style: { background: "#F4F5F7" },
                     children: [
                         service && _jsxs("div", {
-                            className: "rounded-[10px] bg-tp-blue-50 px-[12px] py-[10px]",
+                            className: "rounded-[10px] border border-tp-slate-200/80 bg-white px-[12px] py-[10px]",
                             children: [
-                                _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-blue-700", children: service.treatment }),
+                                _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-800/95", children: service.treatment }),
                                 _jsx("p", {
-                                    className: "font-['Inter',sans-serif] text-[12px] text-tp-blue-500",
+                                    className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-500/85",
                                     children: service.toothFdi === "full-mouth"
                                         ? "Full Mouth"
                                         : `T${service.toothFdi} — ${service.toothLabel}`,
@@ -267,6 +286,61 @@ export function BookAppointmentDrawer() {
                                     rows: 3,
                                     className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
                                 }),
+                            ],
+                        }),
+                        editingAppointment && plan && service && patientId && _jsxs("div", {
+                            className: "rounded-[10px] border border-tp-slate-200/80 bg-white px-[14px] py-[12px]",
+                            children: [
+                                _jsx("p", {
+                                    className: "mb-[10px] font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-wide text-tp-slate-500/85",
+                                    children: "Rx linked to this appointment",
+                                }),
+                                linkedConsultationsForAppt.length === 0
+                                    ? _jsx("p", {
+                                        className: "font-['Inter',sans-serif] text-[12px] leading-relaxed text-tp-slate-500/80",
+                                        children: "No Rx has been saved against this visit yet. Open RxPad after the appointment to record the consultation.",
+                                    })
+                                    : _jsx("div", {
+                                        className: "space-y-0",
+                                        children: linkedConsultationsForAppt.map((c, idx) => {
+                                            const rxOpen = buildConsultationRxUrl(patientId, plan.id, service.id, c.appointmentId ?? editingAppointment.id, embedInPatientShell, service.treatment);
+                                            const endedShort = c.endedAt?.includes("T")
+                                                ? c.endedAt.slice(0, 16).replace("T", " · ")
+                                                : (c.endedAt ?? "");
+                                            return _jsxs("div", {
+                                                className: "relative pl-[18px] pb-[14px] last:pb-0",
+                                                children: [
+                                                    idx !== linkedConsultationsForAppt.length - 1 && _jsx("span", {
+                                                        className: "absolute left-[5px] top-[18px] h-[calc(100%-10px)] border-l border-dashed border-tp-slate-300/80",
+                                                        "aria-hidden": true,
+                                                    }),
+                                                    _jsx("span", {
+                                                        className: "absolute left-0 top-[4px] h-[10px] w-[10px] rounded-full bg-tp-blue-500 ring-2 ring-white",
+                                                        "aria-hidden": true,
+                                                    }),
+                                                    _jsxs("div", {
+                                                        className: "rounded-[10px] border border-tp-slate-100 bg-tp-slate-50/50 px-[10px] py-[8px]",
+                                                        children: [
+                                                            endedShort && _jsx("p", {
+                                                                className: "font-['Inter',sans-serif] text-[10px] font-medium uppercase tracking-wide text-tp-slate-400/95",
+                                                                children: ["Saved · ", endedShort],
+                                                            }),
+                                                            _jsx("p", {
+                                                                className: "mt-[4px] font-['Inter',sans-serif] text-[13px] leading-[1.55] text-tp-slate-700/88",
+                                                                children: consultTimelinePreview(c.summaryText),
+                                                            }),
+                                                            _jsx("button", {
+                                                                type: "button",
+                                                                onClick: () => window.location.assign(rxOpen),
+                                                                className: "mt-[8px] inline-flex h-[30px] items-center justify-center rounded-[8px] border border-tp-slate-200 bg-white px-[10px] font-['Inter',sans-serif] text-[11px] font-semibold text-tp-slate-700 shadow-sm transition-colors hover:bg-tp-slate-50",
+                                                                children: "Open in RxPad",
+                                                            }),
+                                                        ],
+                                                    }),
+                                                ],
+                                            }, c.id);
+                                        }),
+                                    }),
                             ],
                         }),
                     ],

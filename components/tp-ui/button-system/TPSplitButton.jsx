@@ -175,8 +175,13 @@ export const TPSplitButton = forwardRef(function TPSplitButton({ primaryAction, 
                         boxShadow: "0 12px 24px -4px rgba(23,23,37,0.08), 0 4px 8px -4px rgba(23,23,37,0.04)",
                         backgroundColor: "#FFFFFF",
                         border: "1px solid #E2E2EA",
-                    }, children: secondaryActions.map((action) => (_jsxs("button", { type: "button", disabled: action.disabled, onClick: () => {
-                            action.onClick?.();
-                            setOpen(false);
-                        }, className: "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-tp-slate-700 transition-colors hover:bg-tp-slate-50 disabled:cursor-not-allowed disabled:opacity-50", children: [action.icon && _jsx(TPButtonIcon, { size: 16, children: action.icon }), _jsx("span", { className: "flex-1", children: action.label }), action.shortcut ? (_jsx("span", { className: "font-mono text-[11px] text-tp-slate-400", children: action.shortcut })) : (_jsx(ChevronRight, { size: 14, strokeWidth: 1.5, className: "text-tp-slate-400" }))] }, action.id))) }), document.body)] }));
+                    }, children: secondaryActions.map((action) => {
+                        if (action.separator) {
+                            return _jsx("div", { className: "h-px bg-tp-slate-200/90 mx-2 my-1.5" }, action.id);
+                        }
+                        return (_jsxs("button", { type: "button", disabled: action.disabled, onClick: () => {
+                                action.onClick?.();
+                                setOpen(false);
+                            }, className: "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-tp-slate-700 transition-colors hover:bg-tp-slate-50 disabled:cursor-not-allowed disabled:opacity-50", children: [action.icon && _jsx(TPButtonIcon, { size: 16, children: action.icon }), _jsx("span", { className: "flex-1", children: action.label }), action.shortcut ? (_jsx("span", { className: "font-mono text-[11px] text-tp-slate-400", children: action.shortcut })) : (_jsx(ChevronRight, { size: 14, strokeWidth: 1.5, className: "text-tp-slate-400" }))] }, action.id));
+                    }) }), document.body)] }));
 });

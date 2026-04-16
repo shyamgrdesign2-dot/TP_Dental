@@ -95,6 +95,15 @@ function RxPadInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const patientId = searchParams?.get("patientId") ?? "apt-1"
+  const returnTo = searchParams?.get("returnTo")
+
+  const handleRxBack = useCallback(() => {
+    if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+      router.push(returnTo)
+      return
+    }
+    router.push("/appointments")
+  }, [returnTo, router])
   const [activeTab, setActiveTab] = useState("base")
   const { setRxPadExamTab } = useRxPadChrome()
 
@@ -240,7 +249,7 @@ function RxPadInner() {
           <TPRxPadTopNav
             className={styles.topNav}
             patientId={patientId}
-            onBack={() => router.push("/appointments")}
+            onBack={handleRxBack}
           />
         }
         sidebar={<TPRxPadSecondarySidebar />}

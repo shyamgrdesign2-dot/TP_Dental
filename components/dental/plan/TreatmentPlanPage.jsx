@@ -55,7 +55,7 @@ function TreatmentPlanInner() {
     const searchParams = useSearchParams();
     const patientId = searchParams?.get("patientId") ?? "apt-1";
     const fromPage = searchParams?.get("from") ?? "rxpad";
-    const tabParam = searchParams?.get("tab");
+    const tabParam = searchParams?.get("planTab") || searchParams?.get("tab");
     const drawerParam = searchParams?.get("drawer");
     const initialTab = tabParam === "progress" || tabParam === "completed" || tabParam === "estimates"
         ? tabParam
@@ -79,7 +79,7 @@ function TreatmentPlanInner() {
 function TreatmentPlanEmbedInner({ patientId }) {
     const pid = patientId ?? "apt-1";
     const searchParams = useSearchParams();
-    const tabParam = searchParams?.get("tab");
+    const tabParam = searchParams?.get("planTab") || searchParams?.get("tab");
     const drawerParam = searchParams?.get("drawer");
     const initialTab = tabParam === "progress" || tabParam === "completed" || tabParam === "estimates"
         ? tabParam
