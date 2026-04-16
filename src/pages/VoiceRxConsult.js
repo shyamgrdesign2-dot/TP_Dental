@@ -507,6 +507,8 @@ const VoiceRxConsult = () => {
 
       const audioUrl = URL.createObjectURL(blob);
       const arrayBuffer = await blob.arrayBuffer();
+      const activeMicLabel =
+        audioStreamRef.current?.getAudioTracks?.()?.[0]?.label || "Unknown";
 
       navigate('/prescription', {
         state: {
