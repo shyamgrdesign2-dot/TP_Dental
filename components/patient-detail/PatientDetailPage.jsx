@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import clsx from "clsx";
 import {
+  Add,
   ArrowDown2,
   ArrowLeft2,
   ArrowRight2,
@@ -12,6 +13,7 @@ import {
   CallCalling,
   Card,
   DocumentText,
+  DocumentUpload,
   Edit2,
   Hospital,
   MedalStar,
@@ -27,6 +29,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/compon
 import { TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TPClinicalTable } from "@/components/tp-ui/tp-clinical-table";
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons";
+import { TPButton as Button, TPSplitButton } from "@/components/tp-ui/button-system";
+import { AppointmentBanner } from "@/components/appointments/AppointmentBanner";
 import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm";
 import rxHeaderStyles from "@/components/tp-rxpad/imports/RxpadHeader.module.scss";
 import { TreatmentPlanEmbed } from "@/components/dental/plan/TreatmentPlanPage";
@@ -540,6 +544,65 @@ const PLACEHOLDER_COPY = {
   },
 };
 
+/** Shared styling for every banner CTA — matches the appointments page action buttons. */
+const BANNER_GHOST_BTN_CLASS =
+  "!bg-white/[0.13] !text-white !backdrop-blur-[4px] hover:!bg-white/[0.22] whitespace-nowrap";
+const BANNER_SOLID_BTN_CLASS = "whitespace-nowrap";
+
+/**
+ * Builds the CTA(s) shown on the right of the banner for the currently-selected nav item.
+ * Each module gets a contextual action (Type RX dropdown, Add bill, Upload report, etc.),
+ * mirroring how the appointments page decorates its own banner with page-specific actions.
+ */
+function renderBannerActions(activeConfig, { goTypeRx }) {
+  if (!activeConfig) return null;
+
+  // OPD summary + Dental plan both live in the Rx authoring flow → offer the
+  // Type RX split button (primary = TypeRx; dropdown = Voice/Snap/SmartSync).
+  if (activeConfig.kind === "opd" || activeConfig.kind === "dental-plan") {
+    return (
+      <TPSplitButton
+        size="md"
+        variant="solid"
+        theme="primary"
+        surface="dark"
+        className={BANNER_SOLID_BTN_CLASS}
+        primaryAction={{ label: "Type RX", onClick: goTypeRx }}
+        secondaryActions={[
+          { id: "type-rx", label: "Type RX", onClick: goTypeRx },
+          { id: "voice-rx", label: "Voice RX", onClick: goTypeRx },
+          { id: "snap-rx", label: "Snap RX", onClick: goTypeRx },
+          { id: "smart-sync", label: "SmartSync", onClick: goTypeRx },
+        ]}
+      />
+    );
+  }
+
+  // Simple page-specific CTAs for the remaining sections.
+  const actionByKey = {
+    reports: { label: "Upload report", icon: <DocumentUpload size={20} variant="Linear" strokeWidth={1.5} /> },
+    certificates: { label: "Add new certificate", icon: <Add size={20} strokeWidth={1.5} /> },
+    bill: { label: "Add new bill", icon: <Add size={20} strokeWidth={1.5} /> },
+    ipd: { label: "Add IPD summary", icon: <Add size={20} strokeWidth={1.5} /> },
+    daycare: { label: "Add daycare summary", icon: <Add size={20} strokeWidth={1.5} /> },
+  };
+  const key = activeConfig.placeholderKey;
+  const meta = actionByKey[key];
+  if (!meta) return null;
+  return (
+    <Button
+      variant="outline"
+      theme="primary"
+      size="md"
+      surface="dark"
+      className={BANNER_GHOST_BTN_CLASS}
+      leftIcon={meta.icon}
+    >
+      {meta.label}
+    </Button>
+  );
+}
+
 function PatientDetailInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -584,66 +647,27 @@ function PatientDetailInner() {
     setActiveNav(item.id);
   };
 
+  const bannerActions = renderBannerActions(activeConfig, { goTypeRx });
+
   return (
     <div className="flex h-screen w-full flex-col overflow-hidden bg-tp-slate-100">
-      {/* Top bar — matches Rxpad / SmartScribe header */}
-      <header className="shrink-0 border-b border-tp-slate-100 bg-white">
-        <div className="flex h-[62px] min-w-0 items-center pr-4">
-          <button
-            type="button"
-            onClick={handleBack}
-            aria-label="Go back"
-            className="flex h-[60px] w-[80px] shrink-0 items-center justify-center border-r border-b border-tp-slate-100 bg-white hover:bg-tp-slate-50"
-          >
-            <ArrowLeft2 size={24} color="var(--tp-slate-700)" variant="Linear" />
-          </button>
-
-          <div className="min-w-0 flex-1 px-3">
-            <h1 className="font-sans text-[18px] font-semibold leading-tight text-tp-slate-900">Patient overview</h1>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-3">
-            <button type="button" aria-label="Tutorial" className={rxHeaderStyles.iconBtn} data-name="Tutorial">
-              <svg className={rxHeaderStyles.tutorialSvg} fill="none" preserveAspectRatio="none" viewBox="0 0 42 42">
-                <g id="Tutorial">
-                  <g id="Union" opacity="0.8">
-                    <path
-                      clipRule="evenodd"
-                      d={svgPaths.p3172ac80}
-                      fill="var(--fill-0, #8A4DBB)"
-                      fillRule="evenodd"
-                    />
-                    <path
-                      clipRule="evenodd"
-                      d={svgPaths.p2ee5cec0}
-                      fill="var(--fill-0, #8A4DBB)"
-                      fillRule="evenodd"
-                    />
-                  </g>
-                </g>
-              </svg>
-            </button>
-            <div className={rxHeaderStyles.toolbarDivider} data-name="Divider" aria-hidden />
-            <button
-              type="button"
-              onClick={goTypeRx}
-              className="flex h-[42px] min-w-[140px] items-center justify-center gap-2 rounded-[10px] bg-tp-blue-500 px-3 font-sans text-[14px] font-semibold text-white shadow-sm hover:bg-tp-blue-600"
-            >
-              <span className="flex-1 text-center">Type RX</span>
-              <span className="h-4 w-px bg-white/20" aria-hidden />
-              <ArrowDown2 size={18} variant="Linear" color="#fff" />
-            </button>
-          </div>
-        </div>
-      </header>
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Secondary nav — wide rail with patient block + horizontal icon + label */}
+        {/* Secondary nav — wide rail with back button + patient block + horizontal icon + label */}
         <nav
           className="relative flex w-[220px] shrink-0 flex-col overflow-hidden border-r border-tp-slate-100 bg-white"
           aria-label="Patient sections"
         >
           <div className="shrink-0 px-3 pt-3">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Go back"
+              className="mb-2 inline-flex h-[36px] w-[36px] items-center justify-center rounded-[10px] border border-tp-slate-200 bg-white text-tp-slate-700 transition-colors hover:border-tp-slate-300 hover:bg-tp-slate-50"
+            >
+              <ArrowLeft2 size={20} color="currentColor" variant="Linear" />
+            </button>
+          </div>
+          <div className="shrink-0 px-3">
             <DropdownMenu open={isProfileOpen} onOpenChange={setIsProfileOpen}>
               <DropdownMenuTrigger asChild>
                 <button
@@ -759,28 +783,10 @@ function PatientDetailInner() {
             (activeConfig.kind === "placeholder" || activeConfig.kind === "dental-plan") && "bg-tp-slate-50",
           )}
         >
-          <div
-            className="relative z-0 h-[120px] w-full shrink-0 overflow-hidden rounded-b-2xl px-[18px] pb-8 pt-0 shadow-[0_8px_28px_rgba(26,13,46,0.35)]"
-            style={{
-              background:
-                "radial-gradient(ellipse 120% 160% at 82% 110%, #6c4f90 0%, #3d2560 42%, #1a0d2e 100%)",
-            }}
-          >
-            <div className="relative h-full min-h-0 w-full">
-              <div
-                className="pointer-events-none absolute -right-16 -top-20 h-[280px] w-[280px] rounded-full opacity-[0.12]"
-                style={{
-                  background: "radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%)",
-                }}
-                aria-hidden
-              />
-              <div className="relative flex h-full min-h-0 w-full flex-col justify-center leading-[6px] px-3 sm:px-4 md:px-5 lg:px-[18px]">
-                <h1 className="absolute top-[20px] h-[23px] font-sans text-[18px] font-semibold leading-tight text-white">
-                  {activeConfig.bannerTitle}
-                </h1>
-              </div>
-            </div>
-          </div>
+          <AppointmentBanner
+            title={activeConfig.bannerTitle}
+            actions={bannerActions}
+          />
 
           <div
             className={cn(

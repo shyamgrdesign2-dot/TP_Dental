@@ -55,7 +55,7 @@ export function ReferralCard({ data, onPillTap }: Props) {
                   </span>
                 </div>
                 <button
-                  className="shrink-0 ml-2 rounded-[6px] border border-tp-violet-200 bg-white px-2 py-[2px] text-[14px] font-medium text-tp-violet-600 hover:bg-tp-violet-50 transition-colors"
+                  className="shrink-0 ml-2 rounded-[6px] border border-tp-blue-200 bg-white px-2 py-[2px] text-[14px] font-medium text-tp-blue-600 hover:bg-tp-blue-50 transition-colors"
                   onClick={() => onPillTap?.(`Contact ${item.doctorName}`)}
                 >
                   Contact

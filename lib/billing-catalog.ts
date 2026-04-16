@@ -8,7 +8,12 @@ export interface BillingItem {
   priceUnit: string
   discount: number
   discountUnit: "inr" | "percent"
+  /** Combined GST% (CGST + SGST). Retained for backwards compatibility. */
   gstPct: number
+  /** CGST share of the GST total. When absent, half of {@link gstPct} is used. */
+  cgstPct?: number
+  /** SGST share of the GST total. When absent, half of {@link gstPct} is used. */
+  sgstPct?: number
 }
 
 export const BILLING_CATALOG_STORAGE_KEY = "tp.billing.catalog.v1"

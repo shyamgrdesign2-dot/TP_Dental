@@ -18,6 +18,13 @@ export interface SittingRecord {
   /** ISO timestamp used for timeline ordering when quick-visit records are added. */
   createdAt?: string
   notes?: string
+  /**
+   * Quick-visit row on the merged timeline.
+   * Omit or `"completed"` — saved visit with notes / Rx CTAs.
+   * `"scheduled"` — upcoming quick record (TypeRx).
+   * `"cancelled"` — no primary CTAs.
+   */
+  status?: "scheduled" | "completed" | "cancelled"
 }
 
 export interface AppointmentRecord {

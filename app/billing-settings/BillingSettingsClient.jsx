@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TPConfirmDialog } from "@/components/ui/tp-confirm-dialog";
 import dui from "@/components/dental/dental-ui.module.scss";
 import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm";
 import rxHeaderStyles from "@/components/tp-rxpad/imports/RxpadHeader.module.scss";
@@ -69,8 +70,70 @@ const BILLING_TYPE_OPTS = [
 
 const DRAWER_TYPES = BILLING_TYPE_OPTS;
 
-const TYPE_FIELD_HELP =
-  "Clinical services are OPD-style billables (consultation, procedures, diagnostics). Consumables & stock covers supplies and pharmacy-style items. Dental procedures are treatments charted under the dental workflow.";
+function TypeFieldHelpContent() {
+  return (
+    <div className="space-y-[8px] text-[12px] leading-[1.45] text-tp-slate-700">
+      <p className="font-semibold text-tp-slate-900">Pick the right item type</p>
+      <ul className="space-y-[6px] pl-[2px]">
+        <li className="flex gap-[6px]">
+          <span aria-hidden className="mt-[5px] h-[4px] w-[4px] shrink-0 rounded-full bg-tp-slate-400" />
+          <span>
+            <strong className="font-semibold text-tp-slate-900">Clinical services</strong>
+            <span className="text-tp-slate-600"> — OPD‑style billables: consultations, procedures, diagnostics.</span>
+          </span>
+        </li>
+        <li className="flex gap-[6px]">
+          <span aria-hidden className="mt-[5px] h-[4px] w-[4px] shrink-0 rounded-full bg-tp-slate-400" />
+          <span>
+            <strong className="font-semibold text-tp-slate-900">Consumables</strong>
+            <span className="text-tp-slate-600"> — supplies &amp; pharmacy‑style stock items.</span>
+          </span>
+        </li>
+        <li className="flex gap-[6px]">
+          <span aria-hidden className="mt-[5px] h-[4px] w-[4px] shrink-0 rounded-full bg-tp-slate-400" />
+          <span>
+            <strong className="font-semibold text-tp-slate-900">Dental services</strong>
+            <span className="text-tp-slate-600"> — treatments charted under the dental workflow.</span>
+          </span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+function CatalogHelpContent() {
+  return (
+    <div className="space-y-[8px] text-[12px] leading-[1.45] text-tp-slate-700">
+      <p className="font-semibold text-tp-slate-900">Shared billing catalog</p>
+      <p className="text-tp-slate-600">
+        Items saved here are reused across TatvaPractice wherever procedures are billed.
+      </p>
+      <div>
+        <p className="mb-[4px] text-[10px] font-semibold uppercase tracking-[0.08em] text-tp-slate-400">
+          Where it shows up
+        </p>
+        <ul className="space-y-[4px] pl-[2px]">
+          <li className="flex gap-[6px]">
+            <span aria-hidden className="mt-[5px] h-[4px] w-[4px] shrink-0 rounded-full bg-tp-slate-400" />
+            <span className="text-tp-slate-600">Dental examination &amp; charting</span>
+          </li>
+          <li className="flex gap-[6px]">
+            <span aria-hidden className="mt-[5px] h-[4px] w-[4px] shrink-0 rounded-full bg-tp-slate-400" />
+            <span className="text-tp-slate-600">Treatment plans &amp; estimates</span>
+          </li>
+          <li className="flex gap-[6px]">
+            <span aria-hidden className="mt-[5px] h-[4px] w-[4px] shrink-0 rounded-full bg-tp-slate-400" />
+            <span className="text-tp-slate-600">Bills &amp; invoices</span>
+          </li>
+        </ul>
+      </div>
+      <p className="text-tp-slate-500">
+        Use <strong className="font-semibold text-tp-slate-700">clear names</strong> and{" "}
+        <strong className="font-semibold text-tp-slate-700">accurate pricing</strong> so estimates stay consistent.
+      </p>
+    </div>
+  );
+}
 
 function typeLabel(key) {
   if (key === "service") return "Clinical services";
@@ -112,6 +175,19 @@ function formatGstCell(row) {
   return `${n}%`;
 }
 
+/** Returns CGST or SGST percent for a row, falling back to half of the legacy total `gstPct`. */
+function formatSplitGstCell(row, which) {
+  const key = which === "cgst" ? "cgstPct" : "sgstPct";
+  const explicit = row[key];
+  if (explicit !== undefined && explicit !== null && explicit !== "") {
+    const n = Number(explicit);
+    if (Number.isFinite(n) && n > 0) return `${n}%`;
+  }
+  const total = Number(row.gstPct);
+  if (!Number.isFinite(total) || total <= 0) return "—";
+  return `${total / 2}%`;
+}
+
 export default function BillingSettingsClient() {
   const formId = useId();
   const { items, setItems } = useBillingCatalog();
@@ -122,7 +198,8 @@ export default function BillingSettingsClient() {
   const [formType, setFormType] = useState("service");
   const [formName, setFormName] = useState("");
   const [formPrice, setFormPrice] = useState("");
-  const [formGst, setFormGst] = useState("");
+  const [formCgst, setFormCgst] = useState("");
+  const [formSgst, setFormSgst] = useState("");
   const [formDiscount, setFormDiscount] = useState("");
   const [formDiscountUnit, setFormDiscountUnit] = useState("inr");
   const [formErrors, setFormErrors] = useState({ name: "", price: "" });
@@ -139,6 +216,8 @@ export default function BillingSettingsClient() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSnackbarOpen, setDeleteSnackbarOpen] = useState(false);
   const [deleteSnackbarMessage, setDeleteSnackbarMessage] = useState("");
+  const [saveSnackbarOpen, setSaveSnackbarOpen] = useState(false);
+  const [saveSnackbarMessage, setSaveSnackbarMessage] = useState("");
 
   const updateActionColumnShadow = useCallback(() => {
     const el = tableScrollRef.current;
@@ -203,7 +282,8 @@ export default function BillingSettingsClient() {
     setFormType("service");
     setFormName("");
     setFormPrice("");
-    setFormGst("");
+    setFormCgst("");
+    setFormSgst("");
     setFormDiscount("");
     setFormDiscountUnit("inr");
     setFormErrors({ name: "", price: "" });
@@ -221,8 +301,23 @@ export default function BillingSettingsClient() {
     setFormType(row.type);
     setFormName(row.name);
     setFormPrice(row.price === 0 ? "0" : String(row.price));
-    const g = row.gstPct;
-    setFormGst(g === undefined || g === null || Number(g) === 0 ? "" : String(g));
+    // Prefer explicit CGST/SGST if stored; otherwise split legacy total GST 50/50.
+    const cg = row.cgstPct;
+    const sg = row.sgstPct;
+    if (cg !== undefined || sg !== undefined) {
+      setFormCgst(cg === undefined || cg === null || Number(cg) === 0 ? "" : String(cg));
+      setFormSgst(sg === undefined || sg === null || Number(sg) === 0 ? "" : String(sg));
+    } else {
+      const gTotal = Number(row.gstPct);
+      if (!Number.isFinite(gTotal) || gTotal === 0) {
+        setFormCgst("");
+        setFormSgst("");
+      } else {
+        const half = gTotal / 2;
+        setFormCgst(String(half));
+        setFormSgst(String(half));
+      }
+    }
     setFormDiscount(row.discount === 0 || row.discount === undefined ? "" : String(row.discount));
     setFormDiscountUnit(row.discountUnit === "percent" ? "percent" : "inr");
     setFormErrors({ name: "", price: "" });
@@ -249,7 +344,9 @@ export default function BillingSettingsClient() {
       return;
     }
 
-    const gstPct = formGst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formGst))) || 0;
+    const cgstPct = formCgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formCgst))) || 0;
+    const sgstPct = formSgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formSgst))) || 0;
+    const gstPct = cgstPct + sgstPct;
     const discountRaw = sanitizeDecimal(String(formDiscount));
     const discount = discountRaw === "" ? 0 : Number(discountRaw);
     if (!Number.isFinite(discount) || discount < 0) return;
@@ -261,6 +358,8 @@ export default function BillingSettingsClient() {
       priceUnit: "per_unit",
       discount,
       discountUnit: formDiscountUnit,
+      cgstPct,
+      sgstPct,
       gstPct,
     };
 
@@ -278,6 +377,8 @@ export default function BillingSettingsClient() {
     setDrawerOpen(false);
     setEditingId(null);
     setFormErrors({ name: "", price: "" });
+    setSaveSnackbarMessage(editingId ? `"${name}" has been updated successfully.` : `"${name}" has been added successfully.`);
+    setSaveSnackbarOpen(true);
   }
 
   function removeRow(id) {
@@ -297,12 +398,14 @@ export default function BillingSettingsClient() {
   const drawerPreviewTotal = useMemo(() => {
     const priceNum = Number(sanitizeDecimal(String(formPrice)));
     if (!Number.isFinite(priceNum) || priceNum <= 0) return null;
-    const gstPct = formGst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formGst))) || 0;
+    const cgstPct = formCgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formCgst))) || 0;
+    const sgstPct = formSgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formSgst))) || 0;
+    const gstPct = cgstPct + sgstPct;
     const discountRaw = sanitizeDecimal(String(formDiscount));
     const discount = discountRaw === "" ? 0 : Number(discountRaw);
     if (!Number.isFinite(discount) || discount < 0) return null;
     return computeBillingLineTotal(priceNum, discount, gstPct, formDiscountUnit);
-  }, [formPrice, formGst, formDiscount, formDiscountUnit]);
+  }, [formPrice, formCgst, formSgst, formDiscount, formDiscountUnit]);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -420,7 +523,8 @@ export default function BillingSettingsClient() {
                     <th className={styles.thType}>Type</th>
                     <th className={styles.thPrice}>Price per unit</th>
                     <th className={styles.thDisc}>Discount</th>
-                    <th className={styles.thGst}>GST (%)</th>
+                    <th className={styles.thGst}>CGST (%)</th>
+                    <th className={styles.thGst}>SGST (%)</th>
                     <th className={styles.thTotal}>Total amount</th>
                     <th className={clsx(styles.thAction, actionColumnEdgeShadow && styles.thActionEdgeShadow)}>Action</th>
                   </tr>
@@ -428,7 +532,7 @@ export default function BillingSettingsClient() {
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className={styles.emptyCell}>
+                      <td colSpan={9} className={styles.emptyCell}>
                         <div className={styles.emptyState}>
                           <p className={styles.emptyText}>
                             {activeFilterCount > 0 || search.trim() ? "No items matching your filters." : "No billing items yet."}
@@ -460,7 +564,8 @@ export default function BillingSettingsClient() {
                         <td className={clsx(styles.tdMiddle, styles.tdType)}>{typeLabel(row.type)}</td>
                         <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatInr(row.price)}</td>
                         <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatDiscountCell(row)}</td>
-                        <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatGstCell(row)}</td>
+                        <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatSplitGstCell(row, "cgst")}</td>
+                        <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatSplitGstCell(row, "sgst")}</td>
                         <td className={clsx(styles.tdMiddle, styles.tdNum)}>
                           {formatInr(
                             computeBillingLineTotal(row.price, row.discount, row.gstPct, row.discountUnit ?? "inr"),
@@ -501,42 +606,41 @@ export default function BillingSettingsClient() {
         />
       )}
 
-      <AlertDialog
+      <TPConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null);
         }}
-      >
-        <AlertDialogContent className="border border-tp-slate-200 sm:rounded-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this bill item?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget ? (
-                <>
-                  Are you sure you want to delete <strong>{deleteTarget.name}</strong>? It will be removed from your billing catalog. This
-                  action cannot be undone.
-                </>
-              ) : (
-                "This action cannot be undone."
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-tp-error-600 text-white hover:bg-tp-error-700 focus-visible:ring-tp-error-600"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="Delete this bill item?"
+        warning={
+          deleteTarget
+            ? `Deletes "${deleteTarget.name}" from the billing catalog. This action cannot be undone.`
+            : "This action cannot be undone."
+        }
+        secondaryLabel="Cancel"
+        primaryLabel="Delete"
+        primaryTone="destructive"
+        onPrimary={handleConfirmDelete}
+      />
 
       <TPDrawer open={drawerOpen} onOpenChange={handleDrawerOpenChange}>
         <TPDrawerContent side="right" size="lg" className={clsx("!gap-0 !p-0 !rounded-none", styles.drawerSheet)}>
           <DrawerHeader
-            title={isEdit ? "Edit bill item" : "Add new bill item"}
+            title={
+              <span className={styles.billingDrawerTitleRow}>
+                <span>{isEdit ? "Edit bill item" : "Add new bill item"}</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className={styles.infoIconBtn} aria-label="About shared billing catalog">
+                      <InfoCircle size={16} variant="Linear" color="var(--tp-slate-500)" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="start" className="max-w-[320px] rounded-[12px] p-[12px]">
+                    <CatalogHelpContent />
+                  </TooltipContent>
+                </Tooltip>
+              </span>
+            }
             titleClassName={styles.billingDrawerTitle}
             onClose={() => handleDrawerOpenChange(false)}
             action={
@@ -571,8 +675,8 @@ export default function BillingSettingsClient() {
                         <InfoCircle size={16} variant="Linear" color="var(--tp-slate-500)" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" align="start" className="max-w-[300px] text-xs leading-relaxed">
-                      {TYPE_FIELD_HELP}
+                    <TooltipContent side="top" align="start" className="max-w-[320px] rounded-[12px] p-[12px]">
+                      <TypeFieldHelpContent />
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -645,45 +749,64 @@ export default function BillingSettingsClient() {
               </div>
 
               <div className={styles.field}>
-                <span className={styles.label}>Price, GST &amp; discount</span>
+                <label className={styles.label} htmlFor={`${formId}-price`}>
+                  Price (₹)
+                  <span className={styles.requiredMark} aria-hidden>
+                    {" "}
+                    *
+                  </span>
+                </label>
+                <div className={clsx(styles.inputAffix, formErrors.price && styles.inputAffixError)}>
+                  <span className={styles.inputAffixPrefix} aria-hidden>
+                    ₹
+                  </span>
+                  <input
+                    id={`${formId}-price`}
+                    className={styles.drawerInputAffixed}
+                    inputMode="decimal"
+                    value={formPrice}
+                    onChange={(e) => {
+                      setFormPrice(sanitizeDecimal(e.target.value));
+                      if (formErrors.price) setFormErrors((e2) => ({ ...e2, price: "" }));
+                    }}
+                    placeholder="0"
+                  />
+                </div>
+                {formErrors.price ? <p className={styles.fieldError}>{formErrors.price}</p> : null}
+              </div>
+
+              <div className={styles.field}>
                 <div className={styles.drawerPricingTriple}>
                   <div className={styles.pricingCol}>
-                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-price`}>
-                      Price (₹)
-                      <span className={styles.requiredMark} aria-hidden>
-                        {" "}
-                        *
-                      </span>
-                    </label>
-                    <div className={clsx(styles.inputAffix, formErrors.price && styles.inputAffixError)}>
-                      <span className={styles.inputAffixPrefix} aria-hidden>
-                        ₹
-                      </span>
-                      <input
-                        id={`${formId}-price`}
-                        className={styles.drawerInputAffixed}
-                        inputMode="decimal"
-                        value={formPrice}
-                        onChange={(e) => {
-                          setFormPrice(sanitizeDecimal(e.target.value));
-                          if (formErrors.price) setFormErrors((e2) => ({ ...e2, price: "" }));
-                        }}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-                  <div className={styles.pricingCol}>
-                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-gst`}>
-                      GST (%)
+                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-cgst`}>
+                      CGST (%)
                     </label>
                     <div className={styles.inputAffix}>
                       <input
-                        id={`${formId}-gst`}
+                        id={`${formId}-cgst`}
                         className={styles.drawerInputAffixedGst}
                         inputMode="decimal"
-                        value={formGst}
-                        onChange={(e) => setFormGst(sanitizeDecimal(e.target.value))}
-                        placeholder="—"
+                        value={formCgst}
+                        onChange={(e) => setFormCgst(sanitizeDecimal(e.target.value))}
+                        placeholder="0"
+                      />
+                      <span className={styles.inputAffixSuffix} aria-hidden>
+                        %
+                      </span>
+                    </div>
+                  </div>
+                  <div className={styles.pricingCol}>
+                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-sgst`}>
+                      SGST (%)
+                    </label>
+                    <div className={styles.inputAffix}>
+                      <input
+                        id={`${formId}-sgst`}
+                        className={styles.drawerInputAffixedGst}
+                        inputMode="decimal"
+                        value={formSgst}
+                        onChange={(e) => setFormSgst(sanitizeDecimal(e.target.value))}
+                        placeholder="0"
                       />
                       <span className={styles.inputAffixSuffix} aria-hidden>
                         %
@@ -720,31 +843,14 @@ export default function BillingSettingsClient() {
                     </div>
                   </div>
                 </div>
-                {formErrors.price ? <p className={styles.fieldError}>{formErrors.price}</p> : null}
               </div>
             </form>
-            <div className={styles.drawerTotalFooter} aria-live="polite">
-              <div>
-                <p className={styles.drawerTotalLabel}>Total amount (incl. GST)</p>
-                {drawerPreviewTotal === null ? (
-                  <p className={styles.drawerTotalHint}>Enter a valid price to see the total.</p>
-                ) : null}
-              </div>
-              <p className={styles.drawerTotalValue}>
-                {drawerPreviewTotal === null ? "—" : formatInr(drawerPreviewTotal)}
-              </p>
-            </div>
-            <div className={styles.drawerCatalogCallout} role="note">
-              <InfoCircle size={18} variant="Bold" className={styles.drawerCatalogCalloutIcon} aria-hidden />
-              <div>
-                <p className={styles.drawerCatalogCalloutTitle}>Shared billing catalog</p>
-                <p className={styles.drawerCatalogCalloutText}>
-                  Items you save here are available when adding procedures in <strong>dental examination</strong>,{" "}
-                  <strong>treatment plans</strong>, and anywhere else the catalog is used. Use clear names and accurate
-                  pricing so estimates stay consistent.
-                </p>
-              </div>
-            </div>
+          </div>
+          <div className={styles.drawerTotalFooter} aria-live="polite">
+            <p className={styles.drawerTotalLabel}>Total amount (incl. GST)</p>
+            <p className={styles.drawerTotalValue}>
+              {drawerPreviewTotal === null ? "—" : formatInr(drawerPreviewTotal)}
+            </p>
           </div>
         </TPDrawerContent>
       </TPDrawer>
@@ -758,6 +864,17 @@ export default function BillingSettingsClient() {
         onClose={(_, reason) => {
           if (reason === "clickaway") return;
           setDeleteSnackbarOpen(false);
+        }}
+      />
+      <TPSnackbar
+        open={saveSnackbarOpen}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        autoHideDuration={3000}
+        severity="success"
+        message={saveSnackbarMessage}
+        onClose={(_, reason) => {
+          if (reason === "clickaway") return;
+          setSaveSnackbarOpen(false);
         }}
       />
     </div>

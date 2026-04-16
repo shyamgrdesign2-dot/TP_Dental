@@ -78,43 +78,15 @@ export interface InitialToothState {
   findingsByTooth?: Record<string, Array<{ zoneId: string; type: string }>>
 }
 
+/**
+ * No pre-seeded tooth records. Every patient's dental exam starts empty —
+ * findings, diagnoses, implants and notes are charted live in the session.
+ */
 export const INITIAL_TOOTH_STATE: Record<string, InitialToothState> = {
-  /** Ria Kapoor — first visit; empty chart until you chart in the session */
   "apt-new": {},
-  "apt-1": {
-    // Shyam GR — RCT on 36, Crown on 26, Caries on 16 buccal
-    toothDiagnoses: {
-      "36": ["RCT"],
-      "26": ["Crown"],
-    },
-    findingsByTooth: {
-      "16": [{ zoneId: "buccal", type: "Cavity/Caries" }, { zoneId: "occlusal", type: "Staining" }],
-      "36": [{ zoneId: "root", type: "Sensitivity" }],
-      "41": [{ zoneId: "lingual", type: "Calculus" }],
-    },
-  },
-  "apt-6": {
-    // Anjali — Bridge spanning 24-25-26, implant on 46
-    toothDiagnoses: {
-      "24": ["Bridge"],
-      "25": ["Bridge"],
-      "26": ["Bridge"],
-    },
-    implantTeeth: ["46"],
-    findingsByTooth: {
-      "11": [{ zoneId: "occlusal", type: "Staining" }],
-    },
-  },
-  "apt-2": {
-    // Sita Menon — Missing 18, Denture partial
-    toothDiagnoses: {
-      "18": ["Missing"],
-      "28": ["Missing"],
-    },
-    findingsByTooth: {
-      "22": [{ zoneId: "labial", type: "Crack" }],
-    },
-  },
+  "apt-1": {},
+  "apt-2": {},
+  "apt-6": {},
 }
 
 /** Dental history entries keyed by patientId (apt-* from appointment screen) */

@@ -144,16 +144,23 @@ export function DocumentBottomSheet({
             /* ── Empty state — vertically + horizontally centered ── */
             <div className="flex h-full flex-col items-center justify-center px-[24px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/icons/dr-agent/empty-docs.svg" width={100} height={100} alt="" className="mb-[16px] opacity-60" draggable={false} />
-              <h4 className="text-[14px] font-semibold text-tp-slate-600 mb-[4px]">No Medical Records</h4>
-              <p className="text-[14px] text-tp-slate-400 text-center leading-[16px] mb-[16px]" style={{ maxWidth: 220 }}>
+              <img
+                src="/icons/dr-agent/empty-docs.svg"
+                width={120}
+                height={120}
+                alt=""
+                className="mb-[16px] opacity-60"
+                draggable={false}
+              />
+              <h4 className="text-[16px] font-semibold text-tp-slate-600 mb-[4px]">No Medical Records</h4>
+              <p className="text-[15px] text-tp-slate-400 text-center leading-[18px] mb-[16px]" style={{ maxWidth: 220 }}>
                 {patientFirstName
                   ? `No medical records have been added for ${patientFirstName}. Upload one to get started.`
                   : "No medical records have been added yet. Upload one to get started."}
               </p>
               <button type="button" onClick={onUploadNew}
-                className="flex items-center justify-center gap-[6px] rounded-[8px] border border-tp-blue-200 bg-white px-[16px] py-[8px] text-[14px] font-medium text-tp-blue-500 transition-colors hover:bg-tp-blue-50/60 hover:border-tp-blue-300">
-                <DocumentUpload size={14} variant="Linear" />
+                className="flex items-center justify-center gap-[6px] rounded-[8px] border border-tp-blue-200 bg-white px-[16px] h-[46px] text-[15px] font-medium text-tp-blue-500 transition-colors hover:bg-tp-blue-50/60 hover:border-tp-blue-300">
+                <DocumentUpload size={16} variant="Linear" />
                 <span>Add New Medical Record</span>
               </button>
             </div>

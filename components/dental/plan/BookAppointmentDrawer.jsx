@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer";
 import { Calendar2 } from "iconsax-reactjs";
 import { usePlanContext } from "./plan-context";
-import { DrawerHeader, buildConsultationRxUrl } from "./plan-shared";
+import { DrawerHeader, buildConsultationRxUrl, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared";
 import { genId } from "./plan-types";
 import {
     saveBookedAppointment,
     updateBookedAppointment,
 } from "@/components/tp-appointment-screen/booked-appointments-store";
+import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
+import { TPConfirmDialog } from "@/components/ui/tp-confirm-dialog";
 
 const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
 const PATIENT_CATEGORIES = [
@@ -38,7 +40,7 @@ function consultTimelinePreview(raw) {
 }
 
 export function BookAppointmentDrawer() {
-    const { state, closeDrawer, findService, findPlanForService, dispatch, patientId, embedInPatientShell } = usePlanContext();
+    const { state, closeDrawer, findService, findPlanForService, dispatch, patientId, embedInPatientShell, showSnackbar } = usePlanContext();
     const drawer = state.drawer;
     const isOpen = drawer.type === "book-appointment";
     const serviceId = isOpen ? drawer.serviceId : undefined;
@@ -81,6 +83,24 @@ export function BookAppointmentDrawer() {
         resetForm();
     }, [isOpen, editingAppointment]);
 
+    const isDirty = (() => {
+        if (!isOpen) return false;
+        if (editingAppointment) {
+            return (
+                date !== editingAppointment.date ||
+                time !== editingAppointment.time ||
+                doctor !== editingAppointment.doctor ||
+                String(notes ?? "").trim() !== String(editingAppointment.notes ?? "").trim() ||
+                patientCategory !== (editingAppointment.patientCategory ?? "returning") ||
+                caseType !== (editingAppointment.caseType ?? "consultation")
+            );
+        }
+        return Boolean(
+            date || time || String(doctor).trim() || String(notes).trim() ||
+            patientCategory !== "returning" || caseType !== "consultation"
+        );
+    })();
+    const guard = useDirtyDrawerGuard({ isDirty, onClose: () => closeDrawer() });
     const handleBook = () => {
         if (!serviceId) return;
         const plan = findPlanForService(serviceId);
@@ -142,22 +162,25 @@ export function BookAppointmentDrawer() {
         }
         closeDrawer();
         resetForm();
+        showSnackbar?.(editingAppointment ? "Appointment updated successfully." : "Appointment booked successfully.");
     };
 
     const timeSlots = ["10:00 AM", "10:30 AM", "11:15 AM", "12:00 PM", "02:30 PM", "03:45 PM", "05:00 PM", "06:15 PM"];
 
-    return _jsx(TPDrawer, {
-        open: isOpen,
-        onOpenChange: (open) => !open && closeDrawer(),
+    return _jsxs(_Fragment, {
+        children: [
+            _jsx(TPDrawer, {
+                open: isOpen,
+                onOpenChange: (open) => { if (!open) guard.attemptClose(); },
         children: _jsxs(TPDrawerContent, {
             side: "right",
-            size: "md",
-            className: "!rounded-none",
+            size: "lg",
+            className: `${PLAN_DRAWER_PANEL_CLASS} flex flex-col`,
             style: { background: "#F4F5F7" },
             children: [
                 _jsx(DrawerHeader, {
                     title: editingAppointment ? "Reschedule Appointment" : "Book Appointment",
-                    onClose: closeDrawer,
+                    onClose: () => guard.attemptClose(),
                     action: _jsxs("button", {
                         type: "button",
                         onClick: handleBook,
@@ -268,7 +291,7 @@ export function BookAppointmentDrawer() {
                                         children: timeSlots.map((slot) => _jsx("button", {
                                             type: "button",
                                             onClick: () => setTime(slot),
-                                            className: `h-[38px] rounded-[10px] font-['Inter',sans-serif] text-[13px] font-medium transition-colors ${time === slot
+                                            className: `h-[38px] rounded-[10px] font-['Inter',sans-serif] text-[12px] font-medium transition-colors ${time === slot
                                                 ? "bg-tp-blue-600 text-white border-transparent"
                                                 : "bg-white text-tp-slate-600 border border-tp-slate-200 hover:border-tp-blue-400 hover:text-tp-blue-600"}`,
                                             children: slot,
@@ -326,13 +349,13 @@ export function BookAppointmentDrawer() {
                                                                 children: ["Saved · ", endedShort],
                                                             }),
                                                             _jsx("p", {
-                                                                className: "mt-[4px] font-['Inter',sans-serif] text-[13px] leading-[1.55] text-tp-slate-700/88",
+                                                                className: "mt-[4px] font-['Inter',sans-serif] text-[12px] leading-[1.55] text-tp-slate-700/88",
                                                                 children: consultTimelinePreview(c.summaryText),
                                                             }),
                                                             _jsx("button", {
                                                                 type: "button",
                                                                 onClick: () => window.location.assign(rxOpen),
-                                                                className: "mt-[8px] inline-flex h-[30px] items-center justify-center rounded-[8px] border border-tp-slate-200 bg-white px-[10px] font-['Inter',sans-serif] text-[11px] font-semibold text-tp-slate-700 shadow-sm transition-colors hover:bg-tp-slate-50",
+                                                                className: "mt-[8px] inline-flex h-[30px] items-center justify-center rounded-[8px] border border-tp-slate-200 bg-white px-[10px] font-['Inter',sans-serif] text-[10px] font-semibold text-tp-slate-700 shadow-sm transition-colors hover:bg-tp-slate-50",
                                                                 children: "Open in RxPad",
                                                             }),
                                                         ],
@@ -347,5 +370,18 @@ export function BookAppointmentDrawer() {
                 }),
             ],
         }),
+            }),
+            _jsx(TPConfirmDialog, {
+                open: guard.confirmOpen,
+                onOpenChange: (open) => { if (!open) guard.cancelDiscard(); },
+                title: "Are you sure you want to go back?",
+                warning: "If you go back now, your changes will not be saved.",
+                secondaryLabel: "Yes, Go Back",
+                onSecondary: guard.confirmDiscard,
+                primaryLabel: "No, Stay",
+                primaryTone: "primary",
+                onPrimary: guard.cancelDiscard,
+            }),
+        ],
     });
 }

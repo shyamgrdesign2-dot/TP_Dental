@@ -1,11 +1,13 @@
 "use client";
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer";
 import { ChevronDown } from "lucide-react";
 import { usePlanContext } from "./plan-context";
-import { DrawerHeader } from "./plan-shared";
+import { DrawerHeader, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared";
 import { genId } from "./plan-types";
+import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
+import { TPConfirmDialog } from "@/components/ui/tp-confirm-dialog";
 
 const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
 const VISIT_TYPES = ["Follow-up", "Procedure", "Emergency", "Review"];
@@ -63,8 +65,16 @@ const INPUT_CLASS =
 const SELECT_CLASS = `${INPUT_CLASS} appearance-none pr-[44px] cursor-pointer`;
 const LABEL_CLASS = "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]";
 
+function formatSurfaceLabel(surface) {
+    return String(surface ?? "")
+        .trim()
+        .charAt(0)
+        .toUpperCase()
+        .concat(String(surface ?? "").trim().slice(1));
+}
+
 export function AddSittingDrawer() {
-    const { state, dispatch, closeDrawer, findService } = usePlanContext();
+    const { state, dispatch, closeDrawer, findService, showSnackbar } = usePlanContext();
     const drawer = state.drawer;
     const isAdd = drawer.type === "add-sitting";
     const isEdit = drawer.type === "edit-sitting";
@@ -79,6 +89,17 @@ export function AddSittingDrawer() {
     const [doctor, setDoctor] = useState(DOCTORS[0]);
     const [visitType, setVisitType] = useState(VISIT_TYPES[0]);
     const [notes, setNotes] = useState("");
+    const surfaceSummary = service?.surfaces?.length
+        ? service.surfaces.map(formatSurfaceLabel).join(", ")
+        : "All surfaces";
+    const toothSummary = service?.toothFdi === "full-mouth"
+        ? "Full Mouth"
+        : service
+            ? `T${service.toothFdi} — ${service.toothLabel}`
+            : "—";
+    const notesPreview = String(notes ?? "").trim()
+        ? String(notes ?? "").trim().split("\n")[0].trim()
+        : "—";
     const resetForm = () => {
         const current = new Date();
         setVisitDate(toDateInputValue(current));
@@ -102,6 +123,23 @@ export function AddSittingDrawer() {
         }
         resetForm();
     }, [isOpen, isEdit, editingSitting]);
+    const isDirty = (() => {
+        if (!isOpen) return false;
+        if (isEdit && editingSitting) {
+            const parsed = parseSittingDateToInputParts(editingSitting);
+            const origDate = parsed?.date ?? toDateInputValue(new Date());
+            const origTime = parsed?.time ?? toTimeInputValue(new Date());
+            return (
+                visitDate !== origDate ||
+                visitTime !== origTime ||
+                doctor !== editingSitting.doctor ||
+                visitType !== (editingSitting.visitType ?? VISIT_TYPES[0]) ||
+                String(notes ?? "").trim() !== String(editingSitting.notes ?? "").trim()
+            );
+        }
+        return Boolean(String(notes ?? "").trim()) || doctor !== DOCTORS[0] || visitType !== VISIT_TYPES[0];
+    })();
+    const guard = useDirtyDrawerGuard({ isDirty, onClose: () => closeDrawer() });
     const handleAdd = () => {
         if (!serviceId) return;
         const chosen = composeVisitDateTime(visitDate, visitTime) ?? new Date();
@@ -130,18 +168,21 @@ export function AddSittingDrawer() {
         }
         closeDrawer();
         resetForm();
+        showSnackbar?.(isEdit ? "Quick visit record updated successfully." : "Quick visit record added successfully.");
     };
-    return _jsx(TPDrawer, {
-        open: isOpen,
-        onOpenChange: (open) => !open && closeDrawer(),
-        children: _jsxs(TPDrawerContent, {
+    return _jsxs(_Fragment, {
+        children: [
+            _jsx(TPDrawer, {
+                open: isOpen,
+                onOpenChange: (open) => { if (!open) guard.attemptClose(); },
+                children: _jsxs(TPDrawerContent, {
             side: "right",
             size: "lg",
-            className: "!rounded-none bg-white",
+            className: `${PLAN_DRAWER_PANEL_CLASS} flex flex-col bg-white`,
             children: [
                 _jsx(DrawerHeader, {
                     title: isEdit ? "Edit visit" : "Record visit",
-                    onClose: closeDrawer,
+                    onClose: () => guard.attemptClose(),
                     action: _jsx("button", {
                         type: "button",
                         onClick: handleAdd,
@@ -153,17 +194,23 @@ export function AddSittingDrawer() {
                     className: "flex-1 overflow-y-auto bg-white px-[24px] py-[16px] space-y-[14px]",
                     children: [
                         service && _jsxs("div", {
-                            className: "rounded-[12px] border border-tp-slate-200 bg-gradient-to-r from-white to-tp-blue-50/35 px-[14px] py-[12px] shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+                            className: "rounded-[12px] border border-tp-slate-200 bg-tp-slate-50 px-[14px] py-[12px] shadow-none",
                             children: [
-                                _jsx("p", { className: "font-['Inter',sans-serif] text-[15px] font-semibold text-tp-slate-900", children: service.treatment }),
-                                _jsx("p", {
-                                    className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-600",
-                                    children: service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi} — ${service.toothLabel}`,
-                                }),
-                                _jsxs("p", {
-                                    className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-500 mt-[2px]",
-                                    children: ["Recorded visits: ", service.sittings.length],
-                                }),
+                                _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-900", children: service.treatment }),
+                                _jsxs("div", { className: "mt-[6px] space-y-[7px]", children: [
+                                    _jsxs("p", { className: "font-['Inter',sans-serif] text-[12px] leading-[1.4]", children: [
+                                        _jsx("span", { className: "font-semibold text-tp-slate-700", children: "Tooth:" }),
+                                        _jsx("span", { className: "ml-[6px] font-medium text-tp-slate-600 break-words", children: toothSummary }),
+                                    ] }),
+                                    _jsxs("p", { className: "font-['Inter',sans-serif] text-[12px] leading-[1.4]", children: [
+                                        _jsx("span", { className: "font-semibold text-tp-slate-700", children: "Surface:" }),
+                                        _jsx("span", { className: "ml-[6px] font-medium text-tp-slate-600 break-words", children: surfaceSummary }),
+                                    ] }),
+                                    _jsxs("p", { className: "font-['Inter',sans-serif] text-[12px] leading-[1.4]", children: [
+                                        _jsx("span", { className: "font-semibold text-tp-slate-700", children: "Notes:" }),
+                                        _jsx("span", { className: "ml-[6px] text-tp-slate-500 break-words", children: notesPreview }),
+                                    ] }),
+                                ] }),
                             ],
                         }),
                         _jsxs("div", {
@@ -240,8 +287,8 @@ export function AddSittingDrawer() {
                                     value: notes,
                                     onChange: (e) => setNotes(e.target.value),
                                     placeholder: "Chairside findings, procedures done, follow-up for this visit…",
-                                    rows: 5,
-                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[10px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
+                                    rows: 7,
+                                    className: "w-full rounded-[10px] border border-tp-slate-200 bg-white px-[14px] py-[12px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-400 focus:outline-none focus:border-tp-blue-500 focus:ring-2 focus:ring-tp-blue-500/20 transition-colors resize-none",
                                 }),
                             ],
                         }),
@@ -249,5 +296,18 @@ export function AddSittingDrawer() {
                 }),
             ],
         }),
+            }),
+            _jsx(TPConfirmDialog, {
+                open: guard.confirmOpen,
+                onOpenChange: (open) => { if (!open) guard.cancelDiscard(); },
+                title: "Are you sure you want to go back?",
+                warning: "If you go back now, your changes will not be saved.",
+                secondaryLabel: "Yes, Go Back",
+                onSecondary: guard.confirmDiscard,
+                primaryLabel: "No, Stay",
+                primaryTone: "primary",
+                onPrimary: guard.cancelDiscard,
+            }),
+        ],
     });
 }

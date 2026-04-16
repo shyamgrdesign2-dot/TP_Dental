@@ -235,7 +235,7 @@ export function AgentHeader({
                                 "rounded-full px-[8px] py-[3px] text-[12px] leading-[1.3] transition-all duration-100",
                                 isActive
                                   ? "bg-tp-violet-600 text-white font-medium"
-                                  : "bg-tp-slate-50 text-tp-slate-500 hover:bg-tp-violet-50 hover:text-tp-violet-700",
+                                  : "bg-tp-slate-50 text-tp-slate-500 hover:bg-tp-blue-50 hover:text-tp-blue-700",
                               )}
                             >
                               {opt.label}

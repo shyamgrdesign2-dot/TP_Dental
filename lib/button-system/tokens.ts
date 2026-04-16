@@ -171,9 +171,9 @@ export function getButtonTokens(
 /** Size dimensions (from hard constraints). Icon-Text gap: 6px. Linear icon strokeWidth: 1.5. */
 export const BUTTON_SIZE_TOKENS: Record<
   TPButtonSize,
-  { height: number; paddingX: number; iconSize: number; iconTextGap: number }
+  { height: number; paddingX: number; iconSize: number; iconTextGap: number; fontSize: number }
 > = {
-  sm: { height: 36, paddingX: 14, iconSize: 18, iconTextGap: 6 },
-  md: { height: 42, paddingX: 18, iconSize: 20, iconTextGap: 6 },
-  lg: { height: 48, paddingX: 22, iconSize: 24, iconTextGap: 6 },
+  sm: { height: 36, paddingX: 14, iconSize: 18, iconTextGap: 6, fontSize: 12 },
+  md: { height: 42, paddingX: 18, iconSize: 20, iconTextGap: 6, fontSize: 14 },
+  lg: { height: 48, paddingX: 22, iconSize: 24, iconTextGap: 6, fontSize: 14 },
 }

@@ -682,6 +682,12 @@
   font-weight: 600;
 }
 
+.billingDrawerTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .drawerBody {
   flex: 1;
   min-height: 0;
@@ -693,24 +699,25 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 22px;
   max-width: 100%;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
 }
 
-/* Type label sits flush above tab pills — no gap before the switcher */
+/* Type label sits above tab pills with a small breathing gap */
 .fieldTypeTabs {
-  gap: 0;
+  gap: 6px;
 }
 
 .fieldTypeTabs .labelRow {
   margin-bottom: 0;
+  gap: 2px; /* tight label ↔ info icon */
 }
 
 .fieldTypeTabs .drawerTabPills {
@@ -753,7 +760,7 @@
 }
 
 .pricingMiniLabel {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--tp-slate-600);
@@ -788,7 +795,7 @@
 
 .drawerCatalogCalloutTitle {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.35;
   color: var(--tp-slate-900);
@@ -822,12 +829,12 @@
   color: var(--tp-slate-600);
 }
 
+/* Sticky footer under the drawer body — always visible while scrolling the form. */
 .drawerTotalFooter {
-  margin-top: 16px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--tp-slate-200, #e2e8f0);
-  background: var(--tp-slate-50, #f8fafc);
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-top: 1px solid var(--tp-slate-200, #e2e8f0);
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -843,7 +850,7 @@
 
 .drawerTotalHint {
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.35;
   color: var(--tp-slate-500);
 }
@@ -898,23 +905,25 @@
 }
 
 .drawerTabPills {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-self: flex-start;
-  width: fit-content;
+  display: flex;
+  align-self: stretch;
+  width: 100%;
   max-width: 100%;
-  gap: 6px;
+  gap: 4px;
   margin-top: 0;
 
   button[role="tab"] {
-    height: 32px;
-    min-height: 32px;
-    padding: 0 10px;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 12px;
     font-size: 12px;
     font-weight: 600;
     line-height: 1.2;
     border-radius: 8px;
     letter-spacing: -0.01em;
+    justify-content: center;
   }
 }
 
@@ -1041,13 +1050,16 @@
   background: var(--tp-slate-0);
   transition: border-color 0.15s, box-shadow 0.15s;
 
+  /* Hover first, then focus — cascade lets focus override hover so the
+     active state persists while the caret is inside, even when the mouse
+     drifts off the input. Matches TP canonical pattern (.drawerInput). */
+  &:hover {
+    border-color: var(--tp-slate-300);
+  }
+
   &:focus-within {
     border-color: var(--tp-blue-300);
     box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.15);
-  }
-
-  &:hover {
-    border-color: var(--tp-slate-300);
   }
 }
 
@@ -1121,13 +1133,14 @@
   box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s;
 
+  /* Hover first, focus-within second — see .inputAffix comment. */
+  &:hover {
+    border-color: var(--tp-slate-300);
+  }
+
   &:focus-within {
     border-color: var(--tp-blue-300);
     box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.15);
-  }
-
-  &:hover {
-    border-color: var(--tp-slate-300);
   }
 }
 
@@ -1195,13 +1208,14 @@
   overflow: hidden;
   transition: border-color 0.15s, box-shadow 0.15s;
 
+  /* Hover first, focus-within second — see .inputAffix comment. */
+  &:hover {
+    border-color: var(--tp-slate-300);
+  }
+
   &:focus-within {
     border-color: var(--tp-blue-300);
     box-shadow: 0 0 0 2px rgba(75, 74, 213, 0.15);
-  }
-
-  &:hover {
-    border-color: var(--tp-slate-300);
   }
 }
 

@@ -13,6 +13,7 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TPConfirmDialog } from "@/components/ui/tp-confirm-dialog";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuSeparator, DropdownMenuTrigger,
@@ -22,7 +23,7 @@ import { SectionFrame, EmptyState, formatINR, computePlanTotal, PlanSurfaceAbbrT
 import dui from "../dental-ui.module.scss";
 
 const dropdownContentClass = "w-[220px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1";
-const dropdownItemClass = "rounded-[8px] focus:bg-tp-slate-100 focus:text-tp-slate-700 data-[highlighted]:bg-tp-slate-100 data-[highlighted]:text-tp-slate-700";
+const dropdownItemClass = "rounded-[8px] !gap-[6px] focus:bg-tp-slate-100 focus:text-tp-slate-700 data-[highlighted]:bg-tp-slate-100 data-[highlighted]:text-tp-slate-700";
 
 // ─── Plan Sub-Card ────────────────────────────────────────────
 function PlanSubCard({ plan, index, isOpen, onToggle }) {
@@ -97,25 +98,24 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                         className: "w-[200px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1",
                                         children: [
                                             _jsxs(DropdownMenuItem, {
-                                                onClick: handleEdit,
+                                                onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
                                                 className: dropdownItemClass,
-                                                children: [_jsx(Edit2, { size: 16, variant: "Linear", className: "mr-2" }), "Edit Plan"],
+                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Bill"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
-                                                onClick: () => window.print(),
+                                                onClick: handleEdit,
                                                 className: dropdownItemClass,
-                                                children: [_jsx(Printer, { size: 16, variant: "Linear", className: "mr-2" }), "Print Estimation"],
+                                                children: [_jsx(Edit2, { size: 16, variant: "Linear" }), "Edit Plan"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: handleDuplicate,
                                                 className: dropdownItemClass,
-                                                children: [_jsx(Copy, { size: 16, variant: "Linear", className: "mr-2" }), "Duplicate Plan"],
+                                                children: [_jsx(Copy, { size: 16, variant: "Linear" }), "Duplicate Plan"],
                                             }),
-                                            _jsx(DropdownMenuSeparator, {}),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => setDeleteOpen(true),
-                                                className: "text-tp-error-600 focus:bg-red-50 focus:text-tp-error-600 data-[highlighted]:bg-red-50 data-[highlighted]:text-tp-error-600 rounded-[8px]",
-                                                children: [_jsx(Trash, { size: 20, variant: "Linear", className: "mr-2 text-tp-error-500" }), "Delete Plan"],
+                                                className: "text-tp-error-600 !gap-[6px] focus:bg-red-50 focus:text-tp-error-600 data-[highlighted]:bg-red-50 data-[highlighted]:text-tp-error-600 rounded-[8px]",
+                                                children: [_jsx(Trash, { size: 20, variant: "Linear", className: "text-tp-error-500" }), "Delete Plan"],
                                             }),
                                         ],
                                     }),
@@ -167,7 +167,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                                 className: "space-y-[2px]",
                                                 children: [
                                                     _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-medium text-tp-slate-800", children: svc.treatment }),
-                                                    _jsx("p", { className: "font-['Inter',sans-serif] text-[11px] text-tp-slate-400", children: svc.toothLabel }),
+                                                    _jsx("p", { className: "font-['Inter',sans-serif] text-[10px] text-tp-slate-400", children: svc.toothLabel }),
                                                 ],
                                             }),
                                         }),
@@ -210,73 +210,25 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                 className: "px-[14px] py-[16px] text-center",
                 children: _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-400", children: "No services added yet. Edit this plan to add services." }),
             }),
-            _jsx(AlertDialog, {
+            _jsx(TPConfirmDialog, {
                 open: startOpen,
                 onOpenChange: setStartOpen,
-                children: _jsxs(AlertDialogContent, {
-                    children: [
-                        _jsxs(AlertDialogHeader, {
-                            children: [
-                                _jsx(AlertDialogTitle, { children: "Activate Plan" }),
-                                _jsxs(AlertDialogDescription, {
-                                    children: [
-                                        "Activate ",
-                                        _jsx("strong", { children: plan.name }),
-                                        "? All ",
-                                        plan.services.length,
-                                        " service",
-                                        plan.services.length !== 1 ? "s" : "",
-                                        " will move to active status.",
-                                    ],
-                                }),
-                            ],
-                        }),
-                        _jsxs(AlertDialogFooter, {
-                            children: [
-                                _jsx(AlertDialogCancel, { children: "Cancel" }),
-                                _jsx(AlertDialogAction, {
-                                    onClick: handleActivate,
-                                    className: "bg-tp-success-600 text-white hover:bg-tp-success-700",
-                                    children: "Activate Plan",
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
+                title: "Activate Plan",
+                warning: `Activates ${plan.name}. All ${plan.services.length} service${plan.services.length === 1 ? "" : "s"} will move to the active-plans list.`,
+                secondaryLabel: "Cancel",
+                primaryLabel: "Activate Plan",
+                primaryTone: "success",
+                onPrimary: handleActivate,
             }),
-            _jsx(AlertDialog, {
+            _jsx(TPConfirmDialog, {
                 open: deleteOpen,
                 onOpenChange: setDeleteOpen,
-                children: _jsxs(AlertDialogContent, {
-                    children: [
-                        _jsxs(AlertDialogHeader, {
-                            children: [
-                                _jsx(AlertDialogTitle, { children: "Delete Plan" }),
-                                _jsxs(AlertDialogDescription, {
-                                    children: [
-                                        "Are you sure you want to delete ",
-                                        _jsx("strong", { children: plan.name }),
-                                        "? This will remove all ",
-                                        plan.services.length,
-                                        " service",
-                                        plan.services.length !== 1 ? "s" : "",
-                                        " in this plan. This action cannot be undone.",
-                                    ],
-                                }),
-                            ],
-                        }),
-                        _jsxs(AlertDialogFooter, {
-                            children: [
-                                _jsx(AlertDialogCancel, { children: "Cancel" }),
-                                _jsx(AlertDialogAction, {
-                                    onClick: handleDelete,
-                                    className: "bg-tp-error-600 text-white hover:bg-tp-error-700",
-                                    children: "Delete",
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
+                title: "Delete Plan",
+                warning: `Deletes ${plan.name} and all ${plan.services.length} service${plan.services.length === 1 ? "" : "s"}. This action cannot be undone.`,
+                secondaryLabel: "Cancel",
+                primaryLabel: "Delete",
+                primaryTone: "destructive",
+                onPrimary: handleDelete,
             }),
         ],
     });
@@ -324,16 +276,42 @@ export function PlanEstimatesTab() {
                     _jsx("div", {
                         className: `flex flex-1 flex-col rounded-b-[16px] p-[12px] ${dui.planClusterInnerSurface}`,
                         children: _jsx(EmptyState, {
-                            icon: _jsx("svg", {
-                                width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", "aria-hidden": true,
-                                children: _jsx("path", { d: "M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }),
+                            icon: _jsxs("svg", {
+                                xmlns: "http://www.w3.org/2000/svg",
+                                width: "96", height: "96", viewBox: "0 0 80 80", fill: "none", "aria-hidden": true,
+                                className: "opacity-60",
+                                children: [
+                                    _jsxs("g", { clipPath: "url(#clip0_913_26868)", children: [
+                                            _jsx("path", { d: "M71.9803 14.6484H9.57474C8.73282 14.649 7.92552 14.9836 7.33019 15.579C6.73486 16.1743 6.40018 16.9816 6.39966 17.8235V75.0812C6.40018 75.9231 6.73486 76.7304 7.33019 77.3258C7.92552 77.9211 8.73282 78.2558 9.57474 78.2563H71.9803C72.8223 78.2559 73.6297 77.9212 74.2251 77.3259C74.8205 76.7305 75.1552 75.9232 75.1557 75.0812V17.8235C75.1552 16.9815 74.8205 16.1742 74.2251 15.5789C73.6297 14.9835 72.8223 14.6489 71.9803 14.6484Z", fill: "#C6C6C6" }),
+                                            _jsx("path", { d: "M67.8722 58.3622H13.6836C11.9302 58.3622 10.5085 56.9406 10.5085 55.1871V4.59696C10.5085 2.84351 11.9302 1.42188 13.6836 1.42188H67.8722C69.6256 1.42188 71.0472 2.84351 71.0472 4.59696V55.1871C71.0472 56.9406 69.6256 58.3622 67.8722 58.3622Z", fill: "#F9F9F9" }),
+                                            _jsx("path", { d: "M11.5138 56.192V5.6022C11.5138 3.84876 12.9354 2.42712 14.6889 2.42712H68.8774C69.4967 2.42712 70.0725 2.60712 70.5607 2.91368C69.9994 2.0186 69.0066 1.42188 67.8722 1.42188H13.6836C11.9302 1.42188 10.5085 2.84351 10.5085 4.59696V55.1871C10.5085 56.3219 11.1053 57.3143 12.0003 57.876C11.6938 57.3874 11.5138 56.8117 11.5138 56.1924V56.192Z", fill: "url(#paint0_linear_913_26868)" }),
+                                            _jsx("path", { d: "M61.2048 12.1094H20.3513V14.4376H61.2048V12.1094ZM61.2048 20.9992H20.3513V23.3274H61.2048V20.9992ZM61.2048 29.891H20.3513V32.2192H61.2048V29.891ZM61.2048 38.7808H20.3513V41.1094H61.2048V38.7808Z", fill: "white" }),
+                                            _jsx("path", { d: "M25.2197 31.2656L35.4856 41.5319H25.2197V31.2656Z", fill: "url(#paint1_linear_913_26868)" }),
+                                            _jsx("path", { d: "M75.1559 42.3779V18.7573L71.0474 14.6484V42.3776H75.1559V42.3779Z", fill: "#C6C6C6" }),
+                                            _jsx("path", { d: "M79.9682 44.5123L75.5416 75.8474C75.3203 77.4139 73.9796 78.5782 72.3977 78.5782H9.15767C7.57571 78.5782 6.23505 77.4139 6.01374 75.8474L0.0317719 33.5061C-0.238064 31.5946 1.24521 29.8867 3.17571 29.8867H22.7055C24.2875 29.8867 25.6282 31.051 25.8495 32.6172L26.6334 38.1621C26.8547 39.7287 28.1954 40.8929 29.7773 40.8929H76.8249C78.7547 40.8929 80.2383 42.6008 79.9685 44.5123H79.9682Z", fill: "url(#paint2_linear_913_26868)" }),
+                                            _jsx("path", { d: "M64.2844 64.6016H17.2716C17.0139 64.6015 16.7651 64.5074 16.5718 64.337C16.3785 64.1667 16.2539 63.9316 16.2214 63.676L15.6332 59.0189C15.6145 58.87 15.6278 58.7187 15.672 58.5752C15.7162 58.4317 15.7904 58.2993 15.8897 58.1867C15.9891 58.0741 16.1112 57.9839 16.248 57.922C16.3848 57.8602 16.5333 57.8282 16.6834 57.8281H64.8726C65.0227 57.8282 65.1711 57.8602 65.308 57.922C65.4448 57.9839 65.5669 58.0741 65.6662 58.1867C65.7655 58.2993 65.8398 58.4316 65.884 58.5752C65.9282 58.7187 65.9414 58.87 65.9227 59.0189L65.3345 63.676C65.3021 63.9316 65.1775 64.1667 64.9842 64.337C64.7909 64.5074 64.5421 64.6015 64.2844 64.6016Z", fill: "#D5D5D5" })
+                                        ] }),
+                                    _jsxs("defs", { children: [
+                                            _jsx("linearGradient", { id: "paint0_linear_913_26868", x1: "42.6397", y1: "31.7504", x2: "2.4856", y2: "-8.40403", gradientUnits: "userSpaceOnUse", children: _jsx("stop", { stopColor: "white" }) }),
+                                            _jsxs("linearGradient", { id: "paint1_linear_913_26868", x1: "32.0024", y1: "43.1791", x2: "19.5935", y2: "30.7705", gradientUnits: "userSpaceOnUse", children: [
+                                                    _jsx("stop", { stopColor: "#C2CECE", stopOpacity: "0" }),
+                                                    _jsx("stop", { offset: "0.179", stopColor: "#AFBCBC", stopOpacity: "0.179" }),
+                                                    _jsx("stop", { offset: "1", stopColor: "#5B6A6A" })
+                                                ] }),
+                                            _jsxs("linearGradient", { id: "paint2_linear_913_26868", x1: "40", y1: "29.8867", x2: "40", y2: "78.5782", gradientUnits: "userSpaceOnUse", children: [
+                                                    _jsx("stop", { stopColor: "#EEF0F4" }),
+                                                    _jsx("stop", { offset: "0.927", stopColor: "#E4E4E4" })
+                                                ] }),
+                                            _jsxs("clipPath", { id: "clip0_913_26868", children: _jsx("rect", { width: "80", height: "80", fill: "white" }) })
+                                        ] })
+                                ]
                             }),
                             title: "No treatment plans yet",
                             description: "Create a new plan to start estimating treatments for this patient.",
                             action: _jsxs("button", {
                                 type: "button",
                                 onClick: () => openDrawer({ type: "add-plan" }),
-                                className: "inline-flex items-center justify-center gap-[5px] rounded-[12px] bg-tp-blue-600 px-[16px] h-[42px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700",
+                                className: "inline-flex items-center justify-center gap-[5px] rounded-[12px] bg-tp-blue-600 px-[16px] h-[46px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700",
                                 children: [_jsx(Add, { size: 20, variant: "Linear" }), "Create Plan"],
                             }),
                         }),

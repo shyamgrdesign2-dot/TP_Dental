@@ -147,6 +147,12 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                     <div className={styles.userTextCol} data-name="User Details">
                       <div className={styles.nameRow} data-name="Header">
                         <p className={styles.patientName}>{headerPatient.name}</p>
+                        <div
+                          className={clsx(styles.chevronWrap, styles.chevronSpin, isProfileOpen && styles.chevronSpinOpen)}
+                          data-name="Dropdown Icon"
+                        >
+                          <ArrowDown2 color="var(--tp-slate-700)" size={20} strokeWidth={2} variant="Linear" />
+                        </div>
                         {ctxTreatment ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -154,18 +160,21 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                                 {ctxTreatment}
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent side="bottom" sideOffset={6} className="max-w-[280px] text-left text-xs leading-snug">
-                              Consultation for this dental plan line: {ctxTreatment}. Use End Visit when finished to attach notes to
-                              the treatment plan.
+                            <TooltipContent
+                              side="bottom"
+                              sideOffset={8}
+                              className={styles.planProcedureTooltip}
+                              arrowClassName="bg-white fill-white"
+                            >
+                              <div className={styles.planProcedureTooltipTitle}>Plan Context</div>
+                              <p className={styles.planProcedureTooltipSummary}>{ctxTreatment}</p>
+                              <ul className={styles.planProcedureTooltipList}>
+                                <li>This Rx session is linked to this treatment line.</li>
+                                <li>Use End Visit to attach notes back to the treatment plan.</li>
+                              </ul>
                             </TooltipContent>
                           </Tooltip>
                         ) : null}
-                        <div
-                          className={clsx(styles.chevronWrap, styles.chevronSpin, isProfileOpen && styles.chevronSpinOpen)}
-                          data-name="Dropdown Icon"
-                        >
-                          <ArrowDown2 color="var(--tp-slate-700)" size={20} strokeWidth={2} variant="Linear" />
-                        </div>
                       </div>
                       <div className={styles.metaRow} data-name="Age & gender">
                         <p className={styles.metaItem}>{headerPatient.genderShort}</p>

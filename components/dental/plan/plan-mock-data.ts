@@ -43,6 +43,15 @@ const PRIMARY_CARE_PLAN: TreatmentPlan = {
           doctor: "Dr. Sheela B R",
           notes: "Canal shaping + obturation completed",
         },
+        {
+          id: "sit-cancel-demo",
+          date: "1 Apr 2026, 2:00 PM",
+          doctor: "Dr. Riya Kapoor",
+          visitType: "Review",
+          status: "cancelled",
+          notes: "Patient rescheduled — no treatment performed.",
+          createdAt: "2026-04-01T14:00:00.000Z",
+        },
       ],
       procedures: [
         {
@@ -79,7 +88,16 @@ const PRIMARY_CARE_PLAN: TreatmentPlan = {
       discount: 0,
       amount: 2000,
       status: "planned",
-      sittings: [],
+      sittings: [
+        {
+          id: "sit-upcoming-demo",
+          date: "24 Apr 2026, 10:30 AM",
+          doctor: "Dr. Sheela B R",
+          visitType: "Follow-up",
+          status: "scheduled",
+          createdAt: "2026-04-24T05:00:00.000Z",
+        },
+      ],
       procedures: [],
     },
     {
@@ -346,16 +364,7 @@ const ANJALI_IN_PROGRESS_PLAN: TreatmentPlan = {
       amount: 8000,
       status: "in-progress",
       startedAt: "2026-04-01",
-      sittings: [
-        {
-          id: "sit-new-003",
-          date: "12 Apr 2026, 10:35 AM",
-          createdAt: "2026-04-12T10:35:00+05:30",
-          doctor: "Dr. Sheela B R",
-          visitType: "Quick record",
-          notes: "T46 access checked; canals remained dry; temporary seal intact; patient comfortable with mild tenderness only.",
-        },
-      ],
+      sittings: [],
       appointments: [
         { id: "appt-new-001", date: "14 Apr 2026", time: "11:15 AM", doctor: "Dr. Sheela B R", notes: "Review and obturation planning" },
         { id: "appt-new-003", date: "18 Apr 2026", time: "10:30 AM", doctor: "Dr. Sheela B R", notes: "Master cone trial and final obturation" },

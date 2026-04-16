@@ -21,7 +21,7 @@ export function SourceInfoIcon({ sources }: { sources: string[] }) {
     >
       <button
         type="button"
-        className="flex h-[20px] w-[20px] items-center justify-center rounded-full text-tp-violet-400 transition-colors hover:text-tp-violet-600 hover:bg-tp-violet-50"
+        className="flex h-[20px] w-[20px] items-center justify-center rounded-full text-tp-slate-500 transition-colors hover:text-tp-blue-600 hover:bg-tp-slate-100"
         aria-label="Data sources"
       >
         <InfoCircle size={14} variant="Bold" />

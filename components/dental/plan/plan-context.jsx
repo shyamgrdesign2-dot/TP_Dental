@@ -1,12 +1,13 @@
 "use client";
-import { jsx as _jsx } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { TPSnackbar } from "@/components/tp-ui/tp-snackbar";
 /**
  * plan-context.tsx — React context + useReducer for treatment plan state.
  *
  * Provides: state, dispatch, and derived selectors (estimatePlans,
  * inProgressPlans, completedPlans, activePlan).
  */
-import React, { createContext, useContext, useEffect, useMemo, useReducer } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
 import { PLAN_CONSULTATION_FLUSH_EVENT, PLAN_CONSULTATION_QUEUE_PREFIX } from "@/lib/plan-consultation-queue";
 import { genId } from "./plan-types";
 import { getMockPlans } from "./plan-mock-data";
@@ -366,6 +367,12 @@ export function PlanProvider({ patientId, children, onNavigateTab, initialDrawer
         plans: getMockPlans(patientId),
         drawer: initialDrawer ?? { type: "closed" },
     });
+    const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+    const showSnackbar = useCallback((message) => {
+        if (!message) return;
+        setSnackbar({ open: true, message });
+    }, []);
+    const closeSnackbar = useCallback(() => setSnackbar((s) => ({ ...s, open: false })), []);
     const estimatePlans = useMemo(() => state.plans.filter((p) => p.status === "draft" || p.status === "active"), [state.plans]);
     const inProgressPlans = useMemo(() => state.plans.filter((p) => p.status === "in-progress"), [state.plans]);
     const completedPlans = useMemo(() => state.plans.filter((p) => p.status === "completed"), [state.plans]);
@@ -397,7 +404,10 @@ export function PlanProvider({ patientId, children, onNavigateTab, initialDrawer
         openDrawer,
         closeDrawer,
         navigateTab: onNavigateTab,
-    }), [patientId, embedInPatientShell, state, estimatePlans, inProgressPlans, completedPlans, activePlan, findPlanForService, findService, hasInProgressPlan, onNavigateTab]);
+        showSnackbar,
+        snackbar,
+        closeSnackbar,
+    }), [patientId, embedInPatientShell, state, estimatePlans, inProgressPlans, completedPlans, activePlan, findPlanForService, findService, hasInProgressPlan, onNavigateTab, showSnackbar, snackbar, closeSnackbar]);
     useEffect(() => {
         const key = `${PLAN_CONSULTATION_QUEUE_PREFIX}${patientId || "apt-1"}`;
         const flush = () => {
@@ -440,5 +450,21 @@ export function PlanProvider({ patientId, children, onNavigateTab, initialDrawer
             window.removeEventListener(PLAN_CONSULTATION_FLUSH_EVENT, flush);
         };
     }, [patientId]);
-    return _jsx(PlanContext.Provider, { value: value, children: children });
+    return _jsxs(PlanContext.Provider, {
+        value: value,
+        children: [
+            children,
+            _jsx(TPSnackbar, {
+                open: snackbar.open,
+                anchorOrigin: { vertical: "top", horizontal: "center" },
+                autoHideDuration: 3000,
+                severity: "success",
+                message: snackbar.message,
+                onClose: (_e, reason) => {
+                    if (reason === "clickaway") return;
+                    closeSnackbar();
+                },
+            }),
+        ],
+    });
 }

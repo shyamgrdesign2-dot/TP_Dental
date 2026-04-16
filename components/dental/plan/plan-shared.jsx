@@ -8,6 +8,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import dui from "../dental-ui.module.scss";
 import { usePlanContext } from "./plan-context";
 import { SURFACE_ABBR, SURFACE_COLORS, getPlanSurfaceLabel } from "./plan-types";
+/** Standard width (600px) for Dental Treatment Plan right drawers (bill, Rx, booking, visits, etc.). */
+export const PLAN_DRAWER_PANEL_CLASS =
+    "!gap-0 !rounded-none !min-h-0 !w-[min(100vw,600px)] !max-w-[600px] sm:!w-[600px] sm:!max-w-[600px]";
 const PLAN_SURFACE_CHIP_CLASS = "inline-flex h-[18px] cursor-default items-center rounded-[4px] px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-white tabular-nums outline-none transition-[filter] duration-150 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tp-blue-500/45 focus-visible:ring-offset-1";
 /** Abbreviated surface pills with hover ring + tooltip (full surface name). */
 export function PlanSurfaceAbbrTags({ surfaces, gapClass = "gap-[3px]", wrap = false }) {

@@ -111,7 +111,7 @@ export const TPButton = forwardRef(function TPButton({ variant = "solid", theme 
         paddingLeft: variant === "link" ? 0 : dims.paddingX,
         paddingRight: variant === "link" ? 0 : dims.paddingX,
         borderRadius: variant === "link" ? 0 : 10,
-        fontSize: 14,
+        fontSize: dims.fontSize,
         fontWeight: 600,
         fontFamily: "Inter, sans-serif",
         cursor: isDisabled ? "not-allowed" : "pointer",

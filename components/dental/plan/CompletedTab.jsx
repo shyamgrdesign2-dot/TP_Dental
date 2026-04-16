@@ -11,6 +11,7 @@ import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TPConfirmDialog } from "@/components/ui/tp-confirm-dialog";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuSeparator, DropdownMenuTrigger,
@@ -47,7 +48,7 @@ function renderStatusChip(status) {
                         ? "Cancelled"
                         : "Yet to Start";
     return _jsx("span", {
-        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-['Inter',sans-serif] text-[11px] font-semibold ${cls}`,
+        className: `inline-flex items-center rounded-[6px] px-[8px] py-[2px] font-['Inter',sans-serif] text-[10px] font-semibold ${cls}`,
         children: label,
     });
 }
@@ -97,7 +98,7 @@ function CompletedServiceRow({ service, plan, index }) {
                     className: "space-y-[2px]",
                     children: [
                         _jsx("p", { className: "font-['Inter',sans-serif] text-[14px] font-medium text-tp-slate-800", children: service.treatment }),
-                        _jsx("p", { className: "font-['Inter',sans-serif] text-[11px] text-tp-slate-400", children: serviceDescription }),
+                        _jsx("p", { className: "font-['Inter',sans-serif] text-[10px] text-tp-slate-400", children: serviceDescription }),
                     ],
                 }),
             }),
@@ -128,14 +129,14 @@ function CompletedServiceRow({ service, plan, index }) {
                             className: "w-[200px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1",
                             children: [
                                 _jsxs(DropdownMenuItem, {
-                                    onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
-                                    className: dropdownItemClass,
-                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "mr-2" }), "View Bill Preview"],
-                                }),
-                                _jsxs(DropdownMenuItem, {
                                     onClick: () => openDrawer({ type: "rx-preview", planId: plan.id, serviceId: service.id }),
                                     className: dropdownItemClass,
-                                    children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "mr-2" }), "View / Print RX"],
+                                    children: [_jsx(DocumentText, { size: 16, variant: "Linear" }), "View Rx"],
+                                }),
+                                _jsxs(DropdownMenuItem, {
+                                    onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
+                                    className: dropdownItemClass,
+                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Bill"],
                                 }),
                             ],
                         }),
@@ -174,15 +175,12 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                 children: _jsxs("div", {
                                     children: [
                                         _jsx("h4", { className: "font-['Inter',sans-serif] text-[16px] font-bold text-tp-slate-900 shrink-0", children: plan.name }),
-                                        _jsxs("div", {
+                                        _jsx("div", {
                                             className: "mt-[2px] flex items-center gap-[6px]",
-                                            children: [
-                                                _jsx("span", {
-                                                    className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
-                                                    children: formatINR(total),
-                                                }),
-                                                renderPlanCompletionChip(planStatus),
-                                            ],
+                                            children: _jsx("span", {
+                                                className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
+                                                children: formatINR(total),
+                                            }),
                                         }),
                                     ],
                                 }),
@@ -210,19 +208,13 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
                                                 className: dropdownItemClass,
-                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "mr-2" }), "View Plan Bill"],
+                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Bill"],
                                             }),
-                                            _jsxs(DropdownMenuItem, {
-                                                onClick: () => openDrawer({ type: "rx-preview", planId: plan.id }),
-                                                className: dropdownItemClass,
-                                                children: [_jsx(Printer, { size: 16, variant: "Linear", className: "mr-2" }), "Print Plan RX"],
-                                            }),
-                                            _jsx(DropdownMenuSeparator, {}),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => setRevertPlanOpen(true),
-                                                className: "rounded-[8px] focus:bg-tp-warning-50 data-[highlighted]:bg-tp-warning-50",
+                                                className: "rounded-[8px] !gap-[6px] focus:bg-tp-warning-50 data-[highlighted]:bg-tp-warning-50",
                                                 children: [
-                                                    _jsx(ArrowRotateLeft, { size: 16, variant: "Linear", className: "mr-2 text-tp-warning-600" }),
+                                                    _jsx(ArrowRotateLeft, { size: 16, variant: "Linear", className: "text-tp-warning-600" }),
                                                     _jsx("span", { className: "text-tp-warning-600", children: "Move to Active Plans" }),
                                                 ],
                                             }),
@@ -276,38 +268,18 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                     }),
                 }),
             }),
-            _jsx(AlertDialog, {
+            _jsx(TPConfirmDialog, {
                 open: revertPlanOpen,
                 onOpenChange: setRevertPlanOpen,
-                children: _jsxs(AlertDialogContent, {
-                    children: [
-                        _jsxs(AlertDialogHeader, {
-                            children: [
-                                _jsx(AlertDialogTitle, { children: "Move Plan to Active Plans" }),
-                                _jsxs(AlertDialogDescription, {
-                                    children: [
-                                        "This will move ",
-                                        _jsx("strong", { children: plan.name }),
-                                        " and all its services back to active status.",
-                                    ],
-                                }),
-                            ],
-                        }),
-                        _jsxs(AlertDialogFooter, {
-                            children: [
-                                _jsx(AlertDialogCancel, { children: "Cancel" }),
-                                _jsx(AlertDialogAction, {
-                                    onClick: () => {
-                                        dispatch({ type: "REVERT_PLAN_TO_PROGRESS", planId: plan.id });
-                                        setRevertPlanOpen(false);
-                                    },
-                                    className: "bg-tp-warning-600 text-white hover:bg-tp-warning-700",
-                                    children: "Revert",
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
+                title: "Move Plan to Active Plans",
+                warning: `This moves ${plan.name} and all its services back to active status. Appointments and visits become editable again.`,
+                secondaryLabel: "Cancel",
+                primaryLabel: "Move to Active",
+                primaryTone: "warning",
+                onPrimary: () => {
+                    dispatch({ type: "REVERT_PLAN_TO_PROGRESS", planId: plan.id });
+                    setRevertPlanOpen(false);
+                },
             }),
         ],
     });

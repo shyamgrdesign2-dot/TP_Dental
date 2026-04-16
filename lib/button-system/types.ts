@@ -162,6 +162,8 @@ export interface TPSplitButtonAction {
 }
 
 export interface TPSplitButtonProps extends TPButtonBaseProps {
+  /** Classes for the inner connected track (border/shadow wrapper), not the outer positioning root. */
+  trackClassName?: string
   /** Primary action (main button). */
   primaryAction: {
     label: string

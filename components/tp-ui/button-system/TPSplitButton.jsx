@@ -9,7 +9,7 @@ import { TPButtonIcon } from "./TPButtonIcon";
  * Split CTA — Material UI-style divider between primary action and dropdown.
  * Menu is rendered in a portal so it is never clipped by table/scroll containers.
  */
-export const TPSplitButton = forwardRef(function TPSplitButton({ primaryAction, secondaryActions, variant = "solid", theme = "primary", size = "md", disabled = false, loading = false, surface = "light", open: controlledOpen, onOpenChange, className = "", }, ref) {
+export const TPSplitButton = forwardRef(function TPSplitButton({ primaryAction, secondaryActions, variant = "solid", theme = "primary", size = "md", disabled = false, loading = false, surface = "light", open: controlledOpen, onOpenChange, className = "", trackClassName = "", }, ref) {
     const [internalOpen, setInternalOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, minWidth: 0 });
@@ -100,7 +100,7 @@ export const TPSplitButton = forwardRef(function TPSplitButton({ primaryAction, 
                             : textColor;
     const baseButtonStyle = {
         height: dims.height,
-        fontSize: 14,
+        fontSize: dims.fontSize,
         fontWeight: 600,
         fontFamily: "Inter, sans-serif",
         cursor: isDisabled ? "not-allowed" : "pointer",
@@ -126,7 +126,7 @@ export const TPSplitButton = forwardRef(function TPSplitButton({ primaryAction, 
                 ref(node);
             else if (ref)
                 ref.current = node;
-        }, className: `relative inline-flex ${className}`, children: [_jsxs("div", { className: "inline-flex overflow-hidden rounded-[10px] transition-shadow hover:shadow-md", style: {
+        }, className: `relative inline-flex ${className}`, children: [_jsxs("div", { className: `inline-flex overflow-hidden rounded-[10px] transition-shadow hover:shadow-md ${trackClassName}`.trim(), style: {
                     border: variant === "outline"
                         ? `1.5px solid ${borderColor}`
                         : variant === "ghost" || variant === "tonal"
@@ -170,7 +170,7 @@ export const TPSplitButton = forwardRef(function TPSplitButton({ primaryAction, 
                         top: menuPosition.top,
                         left: menuPosition.left,
                         minWidth: menuPosition.minWidth,
-                        borderRadius: 12,
+                        borderRadius: 10,
                         zIndex: 2100,
                         boxShadow: "0 12px 24px -4px rgba(23,23,37,0.08), 0 4px 8px -4px rgba(23,23,37,0.04)",
                         backgroundColor: "#FFFFFF",
@@ -182,6 +182,6 @@ export const TPSplitButton = forwardRef(function TPSplitButton({ primaryAction, 
                         return (_jsxs("button", { type: "button", disabled: action.disabled, onClick: () => {
                                 action.onClick?.();
                                 setOpen(false);
-                            }, className: "flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-tp-slate-700 transition-colors hover:bg-tp-slate-50 disabled:cursor-not-allowed disabled:opacity-50", children: [action.icon && _jsx(TPButtonIcon, { size: 16, children: action.icon }), _jsx("span", { className: "flex-1", children: action.label }), action.shortcut ? (_jsx("span", { className: "font-mono text-[11px] text-tp-slate-400", children: action.shortcut })) : (_jsx(ChevronRight, { size: 14, strokeWidth: 1.5, className: "text-tp-slate-400" }))] }, action.id));
+                            }, className: "flex w-full items-center gap-2 px-4 py-2.5 text-left font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-700 transition-colors hover:bg-tp-slate-50 disabled:cursor-not-allowed disabled:opacity-50", children: [action.icon && _jsx(TPButtonIcon, { size: 16, children: action.icon }), _jsx("span", { className: "flex-1", children: action.label }), action.shortcut ? (_jsx("span", { className: "font-mono text-[11px] text-tp-slate-400", children: action.shortcut })) : (_jsx(ChevronRight, { size: 14, strokeWidth: 1.5, className: "text-tp-slate-400" }))] }, action.id));
                     }) }), document.body)] }));
 });
