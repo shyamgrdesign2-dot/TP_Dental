@@ -14,6 +14,8 @@ import { isMobile } from "react-device-detect";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import Lottie from "lottie-react";
 import { ASSETS } from "../assets";
+import { loadJsonAsset } from "../utils/loadJsonAsset";
+
 const tipIcon = ASSETS.images.tip;
 const genRxMentionHeadings = ASSETS.lotties.genrxmentionheadingstip;
 const genRxFocused = ASSETS.lotties.genrxstayfocusedtip;
@@ -124,6 +126,7 @@ const GenRxTips = ({ isKnowMore }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [jsonAnimationsByUrl, setJsonAnimationsByUrl] = useState({});
   const progressInterval = useRef(null);
   const carouselRef = useRef(null);
 
@@ -200,6 +203,26 @@ const GenRxTips = ({ isKnowMore }) => {
       setTimeout(() => startProgress(), 0);
     });
   }, [tips, startProgress]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    tips.forEach((tip) => {
+      const url = `${tip.animationData}`;
+      if (!url.endsWith(".json")) return;
+
+      loadJsonAsset(url)
+        .then((json) => {
+          if (!mounted) return;
+          setJsonAnimationsByUrl((prev) => ({ ...prev, [url]: json }));
+        })
+        .catch(() => {});
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [tips]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -294,21 +317,22 @@ const GenRxTips = ({ isKnowMore }) => {
               <p style={textStyle}>{tip.description}</p>
             </div>
 
-            {["mention-headings", "stay-focused"].includes(tip.key) ? (
+            {`${tip.animationData}`.endsWith(".lottie") ? (
               <DotLottieReact
                 src={tip.animationData}
                 loop
                 autoplay
                 style={{ width: "240px", height: "140px" }}
               />
-            ) : (
+            ) : `${tip.animationData}`.endsWith(".json") &&
+              jsonAnimationsByUrl[`${tip.animationData}`] ? (
               <Lottie
-                animationData={tip.animationData}
+                animationData={jsonAnimationsByUrl[`${tip.animationData}`]}
                 loop
                 autoplay
                 style={{ width: "240px", height: "140px" }}
               />
-            )}
+            ) : null}
           </div>
         ))}
       </Carousel>
