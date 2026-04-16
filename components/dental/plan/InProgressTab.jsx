@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePlanContext } from "./plan-context";
 import {
-    SectionFrame, EmptyState, formatINR, computePlanTotal, getServiceWorkflowStatus,
+    SectionFrame, EmptyState, PlanEmptyIcon, formatINR, computePlanTotal, getServiceWorkflowStatus,
     buildConsultationRxUrl, CloseSquareIcon, PLAN_DRAWER_PANEL_CLASS,
 } from "./plan-shared";
 import { TPSplitButton } from "@/components/tp-ui/button-system";
@@ -1015,7 +1015,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                         className: "flex min-w-0 flex-wrap items-center gap-[8px]",
                                         children: [
                                             _jsx("p", {
-                                                className: "font-['Inter',sans-serif] text-[14px] font-bold leading-[1.25] text-tp-slate-900",
+                                                className: "font-['Inter',sans-serif] text-[14px] font-semibold leading-[1.25] text-tp-slate-900",
                                                 children: service.treatment,
                                             }),
                                             _jsx("span", {
@@ -1737,7 +1737,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                             : _jsxs("div", {
                                                 className: "flex flex-col items-center px-2 py-8 text-center",
                                                 children: [
-                                                    _jsx(Timer1, { size: 36, variant: "Bulk", className: "text-tp-slate-300" }),
+                                                    _jsx(PlanEmptyIcon, { size: 96 }),
                                                     _jsx("p", { className: "mt-3 font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-700", children: "No visits recorded yet" }),
                                                     _jsx("p", {
                                                         className: "mt-1.5 max-w-[360px] font-['Inter',sans-serif] text-[12px] leading-[1.65] text-tp-slate-500",
@@ -1868,7 +1868,7 @@ function PlanClusterCard({ plan }) {
                             }),
                             _jsxs("div", {
                                 children: [
-                                    _jsx("h4", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: plan.name }),
+                                    _jsx("h4", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: plan.name }),
                                     _jsx("div", {
                                         className: "mt-[3px] flex items-center gap-[6px]",
                                         children: _jsx("span", {
@@ -1982,20 +1982,14 @@ export function InProgressTab() {
                                     className: "flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-gradient-to-b from-tp-warning-100/80 to-tp-warning-50/90",
                                     children: _jsx(Timer1, { size: 24, variant: "Bulk", className: "text-tp-warning-700" }),
                                 }),
-                                _jsx("h3", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: "Active Plans" }),
+                                _jsx("h3", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: "Active Plans" }),
                             ],
                         }),
                     }),
                     _jsx("div", {
                         className: `flex flex-1 flex-col rounded-b-[16px] p-[12px] ${dui.planClusterInnerSurface}`,
                         children: _jsx(EmptyState, {
-                            icon: _jsxs("svg", {
-                                width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", "aria-hidden": true,
-                                children: [
-                                    _jsx("path", { d: "M12 8v4l3 3", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }),
-                                    _jsx("circle", { cx: "12", cy: "12", r: "9", stroke: "currentColor", strokeWidth: "1.5" }),
-                                ],
-                            }),
+                            icon: _jsx(PlanEmptyIcon, { size: 120 }),
                             title: "No active plans yet",
                             description: "Activate a plan from Plan Estimates to see services here.",
                         }),

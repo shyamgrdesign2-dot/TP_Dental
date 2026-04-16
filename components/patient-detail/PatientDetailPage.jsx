@@ -214,65 +214,69 @@ function HistorySectionCards() {
 }
 
 function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
-  const navIcon = "var(--tp-slate-500)";
-  const actionIcon = "var(--tp-slate-700)";
   const isDigital = rxTab === "digital";
   const docKind = isDigital ? "digital Rx" : "transcript";
 
   return (
     <CardShell className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 bg-white">
-        <div className="flex h-[52px] items-center bg-tp-slate-100 px-4">
-          <div className="grid h-[52px] w-full grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
+        {/* Row 1 — visit identity: doctor | pagination | date */}
+        <div className="flex h-[48px] items-center px-4">
+          <div className="grid h-full w-full grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_1fr]">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-self-start">
-              <p className="font-sans text-[13px] font-semibold leading-tight text-tp-slate-900">Dr Umesh</p>
-              <span className="inline-flex shrink-0 rounded-md bg-tp-slate-100 px-2 py-0.5 font-sans text-[11px] font-medium leading-tight text-tp-slate-600">
+              <p className="font-sans text-[14px] font-semibold leading-tight text-tp-slate-900">Dr Umesh</p>
+              <span className="inline-flex shrink-0 items-center rounded-[6px] bg-tp-slate-100 px-2 py-[2px] font-sans text-[12px] font-medium leading-tight text-tp-slate-600">
                 Cardiology
               </span>
             </div>
 
-            <div className="flex items-center justify-center gap-0.5 sm:justify-self-center">
+            <div className="flex items-center justify-center gap-[2px] sm:justify-self-center">
               <button
                 type="button"
                 aria-label="Previous visit"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-tp-slate-500 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-700 disabled:pointer-events-none disabled:opacity-30"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-[8px] text-tp-slate-500 transition-colors hover:bg-tp-slate-50 hover:text-tp-slate-700 disabled:pointer-events-none disabled:opacity-30"
                 disabled={visitIndex <= 0}
                 onClick={() => setVisitIndex((i) => Math.max(0, i - 1))}
               >
-                <ArrowLeft2 size={18} variant="Bulk" color={navIcon} />
+                <ArrowLeft2 size={16} variant="Linear" color="currentColor" />
               </button>
-              <span className="min-w-[40px] text-center font-sans text-[12px] font-semibold tabular-nums text-tp-slate-700">
-                {visitIndex + 1}/{VISIT_PAGES}
+              <span className="min-w-[44px] text-center font-sans text-[12px] font-semibold tabular-nums text-tp-slate-700">
+                {visitIndex + 1} / {VISIT_PAGES}
               </span>
               <button
                 type="button"
                 aria-label="Next visit"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-tp-slate-500 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-700 disabled:pointer-events-none disabled:opacity-30"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-[8px] text-tp-slate-500 transition-colors hover:bg-tp-slate-50 hover:text-tp-slate-700 disabled:pointer-events-none disabled:opacity-30"
                 disabled={visitIndex >= VISIT_PAGES - 1}
                 onClick={() => setVisitIndex((i) => Math.min(VISIT_PAGES - 1, i + 1))}
               >
-                <ArrowRight2 size={18} variant="Bulk" color={navIcon} />
+                <ArrowRight2 size={16} variant="Linear" color="currentColor" />
               </button>
             </div>
 
             <div className="text-left font-sans sm:text-right sm:justify-self-end">
-              <p className="whitespace-nowrap text-[12px] font-medium leading-tight text-tp-slate-700">
+              <p className="whitespace-nowrap text-[12px] font-medium leading-tight text-tp-slate-500">
                 {RX_VISIT_DATETIME}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex h-[52px] flex-col gap-2 px-3 py-0 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid h-[32px] w-full max-w-[216px] shrink-0 grid-cols-2 overflow-hidden rounded-[10px] border border-tp-blue-400/35">
+        {/* Hairline separator between identity row and controls row */}
+        <div className="h-px w-full shrink-0 bg-tp-slate-100" aria-hidden />
+
+        {/* Row 2 — view toggle + actions */}
+        <div className="flex h-[48px] items-center justify-between px-4">
+          {/* Segmented pill toggle — floating white active pane on slate-100 track */}
+          <div className="inline-flex h-[32px] items-center rounded-[10px] bg-tp-slate-100 p-[3px]">
             <button
               type="button"
               onClick={() => setRxTab("digital")}
               className={cn(
-                "w-full px-2 py-1 text-center font-sans text-[11px] font-medium leading-tight transition-colors",
+                "inline-flex h-[26px] items-center rounded-[8px] px-[14px] font-sans text-[12px] font-semibold transition-colors",
                 rxTab === "digital"
-                  ? "bg-gradient-to-b from-[#6a69ff] to-[#3a39b2] text-white"
-                  : "bg-gradient-to-b from-white to-[#f0f0ff] text-tp-slate-700",
+                  ? "bg-white text-tp-blue-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
+                  : "text-tp-slate-600 hover:text-tp-slate-900",
               )}
             >
               Digital Rx
@@ -281,10 +285,10 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
               type="button"
               onClick={() => setRxTab("transcript")}
               className={cn(
-                "w-full border-l border-tp-slate-200 px-2 py-1 text-center font-sans text-[11px] font-medium leading-tight transition-colors",
+                "inline-flex h-[26px] items-center rounded-[8px] px-[14px] font-sans text-[12px] font-semibold transition-colors",
                 rxTab === "transcript"
-                  ? "bg-gradient-to-b from-[#6a69ff] to-[#3a39b2] text-white"
-                  : "bg-gradient-to-b from-white to-[#f0f0ff] text-tp-slate-700",
+                  ? "bg-white text-tp-blue-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
+                  : "text-tp-slate-600 hover:text-tp-slate-900",
               )}
             >
               Transcript
@@ -292,15 +296,15 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
           </div>
 
           <TooltipProvider delayDuration={280}>
-            <div className="flex flex-wrap items-center justify-start gap-0.5 sm:justify-end">
+            <div className="flex items-center gap-[2px]">
               <TooltipPrimitive.Root>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     aria-label={`Repeat this ${docKind}`}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+                    className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900"
                   >
-                    <Refresh2 size={17} variant="Linear" color={actionIcon} />
+                    <Refresh2 size={16} variant="Linear" color="currentColor" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={6} className="max-w-[240px] text-balance">
@@ -314,9 +318,9 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
                   <button
                     type="button"
                     aria-label={isDigital ? "Print this digital Rx" : "Print this transcript"}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+                    className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900"
                   >
-                    <Printer size={17} variant="Linear" color={actionIcon} />
+                    <Printer size={16} variant="Linear" color="currentColor" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={6}>
@@ -328,23 +332,24 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
                   <button
                     type="button"
                     aria-label={isDigital ? "Edit this digital Rx" : "Edit this transcript"}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+                    className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900"
                   >
-                    <Edit2 size={17} variant="Linear" color={actionIcon} />
+                    <Edit2 size={16} variant="Linear" color="currentColor" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={6}>
                   {isDigital ? "Edit this digital Rx" : "Edit this transcript"}
                 </TooltipContent>
               </TooltipPrimitive.Root>
+              <div className="mx-[2px] h-[18px] w-px bg-tp-slate-200" aria-hidden />
               <TooltipPrimitive.Root>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     aria-label="More options"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tp-slate-700 transition-colors hover:bg-tp-slate-100"
+                    className="inline-flex h-[32px] w-[32px] items-center justify-center rounded-[8px] text-tp-slate-600 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-900"
                   >
-                    <MoreVertical size={17} strokeWidth={1.75} className="text-tp-slate-700" aria-hidden />
+                    <MoreVertical size={16} strokeWidth={1.75} className="text-tp-slate-600" aria-hidden />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={6}>
@@ -354,7 +359,7 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
             </div>
           </TooltipProvider>
         </div>
-        <div className="h-px w-full shrink-0 bg-tp-slate-200" aria-hidden />
+        <div className="h-px w-full shrink-0 bg-tp-slate-100" aria-hidden />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white px-4 pt-4 pb-[18px]">
         {rxTab === "transcript" ? (
@@ -657,22 +662,24 @@ function PatientDetailInner() {
           className="relative flex w-[220px] shrink-0 flex-col overflow-hidden border-r border-tp-slate-100 bg-white"
           aria-label="Patient sections"
         >
-          <div className="shrink-0 px-3 pt-3">
+          <div className="shrink-0 px-3 pt-3 pb-2">
             <button
               type="button"
               onClick={handleBack}
               aria-label="Go back"
-              className="mb-2 inline-flex h-[36px] w-[36px] items-center justify-center rounded-[10px] border border-tp-slate-200 bg-white text-tp-slate-700 transition-colors hover:border-tp-slate-300 hover:bg-tp-slate-50"
+              className="inline-flex h-[32px] items-center gap-[6px] rounded-[8px] pl-[6px] pr-[10px] font-sans text-[14px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-50 hover:text-tp-blue-600"
             >
-              <ArrowLeft2 size={20} color="currentColor" variant="Linear" />
+              <ArrowLeft2 size={16} color="currentColor" variant="Linear" />
+              <span>Back</span>
             </button>
           </div>
-          <div className="shrink-0 px-3">
+          <div className="h-px shrink-0 bg-tp-slate-100" aria-hidden />
+          <div className="shrink-0 px-3 pt-3 pb-3">
             <DropdownMenu open={isProfileOpen} onOpenChange={setIsProfileOpen}>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2.5 rounded-[10px] bg-tp-slate-100/85 px-2 py-2 text-left transition-colors hover:bg-tp-slate-200/70"
+                  className="flex w-full items-center gap-2.5 rounded-[10px] bg-tp-slate-100 px-2 py-2 text-left transition-colors hover:bg-tp-slate-200/75 data-[state=open]:bg-tp-slate-200/80"
                 >
                   <div className={rxHeaderStyles.avatarRing} data-name="Profile Image">
                     <div className={rxHeaderStyles.avatarIcon} data-name="User">
@@ -729,9 +736,9 @@ function PatientDetailInner() {
             </DropdownMenu>
           </div>
 
-          <div className="h-px shrink-0" aria-hidden />
+          <div className="h-px shrink-0 bg-tp-slate-100" aria-hidden />
 
-          <div className="flex min-h-0 flex-1 flex-col gap-0 overflow-y-auto overflow-x-hidden pb-4 pt-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-[2px] overflow-y-auto overflow-x-hidden pb-4 pt-3">
             {NAV_CONFIG.map((item) => {
               const active = activeNav === item.id;
               return (
@@ -740,13 +747,13 @@ function PatientDetailInner() {
                   type="button"
                   onClick={() => onNavClick(item)}
                   className={cn(
-                    "relative flex w-full flex-row items-center gap-3 px-3 py-2.5 text-left transition-colors",
-                    active ? "bg-[rgba(75,74,213,0.12)]" : "hover:bg-tp-slate-50",
+                    "relative flex w-full flex-row items-center gap-3 px-3 py-[10px] text-left transition-colors",
+                    active ? "bg-tp-blue-50" : "hover:bg-tp-slate-50",
                   )}
                 >
                   {active ? (
                     <span
-                      className="absolute bottom-0 left-0 top-0 w-[3px] rounded-r-[12px] bg-tp-blue-500"
+                      className="absolute bottom-[6px] left-0 top-[6px] w-[3px] rounded-r-[12px] bg-tp-blue-500"
                       aria-hidden
                     />
                   ) : null}
@@ -760,7 +767,8 @@ function PatientDetailInner() {
                   </span>
                   <span
                     className={cn(
-                      "min-w-0 flex-1 truncate font-sans text-[13px] font-medium leading-snug text-tp-slate-700",
+                      "min-w-0 flex-1 truncate font-sans text-[14px] leading-snug",
+                      active ? "font-semibold text-tp-slate-900" : "font-medium text-tp-slate-700",
                     )}
                     title={item.label}
                   >

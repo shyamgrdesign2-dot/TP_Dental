@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePlanContext } from "./plan-context";
 import {
-    SectionFrame, EmptyState, ClipboardTickIcon, formatINR, computePlanTotal,
+    SectionFrame, EmptyState, PlanEmptyIcon, ClipboardTickIcon, formatINR, computePlanTotal,
     getPlanCompletionStatus, getServiceWorkflowStatus,
 } from "./plan-shared";
 import dui from "../dental-ui.module.scss";
@@ -174,7 +174,7 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                 className: "flex-1 min-w-0 flex flex-wrap items-center gap-[12px]",
                                 children: _jsxs("div", {
                                     children: [
-                                        _jsx("h4", { className: "font-['Inter',sans-serif] text-[16px] font-bold text-tp-slate-900 shrink-0", children: plan.name }),
+                                        _jsx("h4", { className: "font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-900 shrink-0", children: plan.name }),
                                         _jsx("div", {
                                             className: "mt-[2px] flex items-center gap-[6px]",
                                             children: _jsx("span", {
@@ -303,20 +303,14 @@ export function CompletedTab() {
                                     className: "flex h-[44px] w-[44px] items-center justify-center rounded-[12px] bg-tp-success-50",
                                     children: _jsx(ClipboardTickIcon, { size: 24, className: "text-tp-success-600" }),
                                 }),
-                                _jsx("h3", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: "Completed Plans" }),
+                                _jsx("h3", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: "Completed Plans" }),
                             ],
                         }),
                     }),
                     _jsx("div", {
                         className: `flex flex-1 flex-col rounded-b-[16px] p-[12px] ${dui.planClusterInnerSurface}`,
                         children: _jsx(EmptyState, {
-                            icon: _jsxs("svg", {
-                                width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", "aria-hidden": true,
-                                children: [
-                                    _jsx("path", { d: "M9 12l2 2 4-4", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }),
-                                    _jsx("circle", { cx: "12", cy: "12", r: "9", stroke: "currentColor", strokeWidth: "1.5" }),
-                                ],
-                            }),
+                            icon: _jsx(PlanEmptyIcon, { size: 120 }),
                             title: "No completed treatments",
                             description: "Treatments will appear here once they are marked as completed.",
                         }),
@@ -342,7 +336,7 @@ export function CompletedTab() {
                                 }),
                                 _jsxs("div", {
                                     children: [
-                                        _jsx("h3", { className: "font-['Inter',sans-serif] text-[18px] font-bold text-tp-slate-900", children: "Completed Plans" }),
+                                        _jsx("h3", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: "Completed Plans" }),
                                         _jsx("div", {
                                             className: "mt-[2px] inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
                                             children: formatINR(grandTotal),
