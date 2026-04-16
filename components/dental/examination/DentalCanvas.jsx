@@ -570,9 +570,6 @@ export function DentalCanvas({ patientId, patientAge = 30, compact = false, onSt
             const nextType = (saved.patientType === 'adult' || saved.patientType === 'pediatric' || saved.patientType === 'mixed')
                 ? saved.patientType
                 : undefined;
-            const nextViewMode = (saved.viewMode === 'dentition' || saved.viewMode === 'single-tooth')
-                ? saved.viewMode
-                : undefined;
             if (nextType)
                 setPatientType(nextType);
             const source = getTeethForPatientType(nextType ?? patientType);
@@ -591,8 +588,10 @@ export function DentalCanvas({ patientId, patientAge = 30, compact = false, onSt
             if (saved.selectionScope && saved.selectionScope.fdis?.length) {
                 setSelectionScope(saved.selectionScope);
             }
-            if (nextViewMode)
-                setViewMode(nextViewMode);
+            // NOTE: intentionally do NOT restore `viewMode` from localStorage.
+            // Every fresh mount of the Dental Examination should boot into the
+            // full dentition view; single-tooth mode is a transient drill-down
+            // driven by user click within the session.
             if (saved.dentitionVerticalNudgeByType) {
                 setDentitionVerticalNudgeByType(saved.dentitionVerticalNudgeByType);
             }
