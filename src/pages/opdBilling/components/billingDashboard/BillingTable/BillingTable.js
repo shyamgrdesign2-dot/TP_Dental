@@ -496,10 +496,17 @@ export default function BillingTable({
   const buildSheetWithHeader = (reportTitle, rows, options = {}) => {
     const headerRows = buildExcelHeaderRows(reportTitle);
     const sheet = XLSX.utils.aoa_to_sheet(headerRows);
-    XLSX.utils.sheet_add_json(sheet, rows, {
-      origin: `A${headerRows.length + 1}`,
-      ...options,
-    });
+    
+    if (options.skipHeader) {
+      XLSX.utils.sheet_add_aoa(sheet, rows, {
+        origin: `A${headerRows.length + 1}`,
+      });
+    } else {
+      XLSX.utils.sheet_add_json(sheet, rows, {
+        origin: `A${headerRows.length + 1}`,
+        ...options,
+      });
+    }
     return sheet;
   };
 
@@ -615,22 +622,32 @@ export default function BillingTable({
   };
 
   const exportItemLevelExcel = (response) => {
-    const workbook = XLSX.utils.book_new();
+    const allRows = [];
+    let globalRowIndex = 1;
+    const itemLevelHeaders = [
+      "#",
+      "Service/Item",
+      "Created by",
+      "Date",
+      "Invoice No.",
+      "Patient ID",
+      "Patient Name",
+      "Gender/Age",
+      "Paid Amount",
+      "MOP",
+    ];
     
-    // Create separate sheets for each service (like PDF sections)
+    allRows.push(itemLevelHeaders);
+    
     (response?.billSummary || []).forEach((service, serviceIndex) => {
-      const serviceBillRows = [];
+      if (serviceIndex > 0) {
+        allRows.push(Array(itemLevelHeaders.length).fill(""));
+      }
       
-      // Add column headers
-      serviceBillRows.push([
-        "#", "Created by", "Date", "Invoice No.", "Patient ID", 
-        "Patient Name", "Gender/Age", "Paid Amount", "MOP"
-      ]);
-      
-      // Add service bills
-      (service?.bills || []).forEach((bill, billIndex) => {
-        serviceBillRows.push([
-          billIndex + 1,
+      (service?.bills || []).forEach((bill) => {
+        allRows.push([
+          globalRowIndex++,
+          service?.serviceName || `Service ${serviceIndex + 1}`,
           bill?.createdBy || "",
           bill?.date ? moment(bill.date).format("YYYY-MM-DD") : "",
           bill?.billNumber || "",
@@ -646,28 +663,24 @@ export default function BillingTable({
         ]);
       });
       
-      // Add service subtotal
-      serviceBillRows.push([
-        "", "", "", "", "", 
-        `${service?.serviceName} Sub Total:`, "", 
+      allRows.push([
+        "", "", "", "", "", "", 
+        `${service?.serviceName} Sub Total:`, "",
         Number(service?.subTotal || 0), ""
       ]);
-      
-      // Create sheet with header
-      const headerRows = buildExcelHeaderRows(`${service?.serviceName} - Item Details`);
-      const sheet = XLSX.utils.aoa_to_sheet([...headerRows, ...serviceBillRows]);
-      
-      // Clean service name for sheet name (Excel sheet name restrictions)
-      const cleanServiceName = (service?.serviceName || `Service${serviceIndex + 1}`)
-        .replace(/[\\\/\?\*\[\]]/g, "") // Remove invalid characters
-        .substring(0, 31); // Excel sheet name limit
-      
-      XLSX.utils.book_append_sheet(workbook, sheet, cleanServiceName);
     });
+
+    const workbook = XLSX.utils.book_new();
+    
+    const headerRows = buildExcelHeaderRows("Item-Level Bill Details");
+    const sheet = XLSX.utils.aoa_to_sheet([...headerRows, ...allRows]);
+    
+    XLSX.utils.book_append_sheet(workbook, sheet, "ItemizedBillDetails");
 
     const discountRows = (response?.additionalDiscountSummary || []).map(
       (discount, index) => ({
         "#": index + 1,
+        "Service/Item": "Discount",
         "Created by": discount?.createdBy || "",
         Date: discount?.date ? moment(discount.date).format("YYYY-MM-DD") : "",
         "Invoice No.": discount?.billNumber || "",
@@ -677,25 +690,26 @@ export default function BillingTable({
           discount?.gender && (discount?.age || discount?.age === 0)
             ? `${discount.gender}/${discount.age}`
             : discount?.gender || "",
-        Discount: Number(discount?.discountAmount || 0),
+        "Paid Amount": Number(discount?.discountAmount || 0),
         MOP: discount?.mop || "NA",
       })
     );
 
     if (discountRows.length > 0) {
       const totalDiscount = discountRows.reduce(
-        (sum, row) => sum + (Number(row.Discount) || 0),
+        (sum, row) => sum + (Number(row["Paid Amount"]) || 0),
         0
       );
       discountRows.push({
         "#": "",
+        "Service/Item": "",
         "Created by": "",
         Date: "",
         "Invoice No.": "",
         "Patient ID": "",
         "Patient Name": "Total Additional Discount:",
         "Gender/Age": "",
-        Discount: totalDiscount,
+        "Paid Amount": totalDiscount,
         MOP: "",
       });
     }
