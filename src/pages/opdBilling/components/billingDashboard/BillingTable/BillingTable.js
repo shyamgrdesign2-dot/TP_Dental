@@ -527,12 +527,17 @@ export default function BillingTable({
         .filter(Boolean)
         .join("\n");
 
+      const paymentModes = Array.isArray(bill?.paymentModes)
+        ? bill.paymentModes.map(pm => pm?.paymentMode).filter(Boolean).join(", ")
+        : "N/A";
+
       const base = {
         "#": index + 1,
         "BILL NO & DATE": billNoAndDate,
         "TOTAL AMOUNT": Number(bill?.payableAmount || 0),
         // Match DownloadBill.js PDF: raw paidAmount, not paidDues rollup
         "PAID AMOUNT": Number(bill?.paidAmount || 0),
+        "MOP": paymentModes,
         STATUS: bill?.paymentStatus || "",
       };
 
@@ -548,7 +553,7 @@ export default function BillingTable({
       };
     });
 
-    // Column order matches patient-level PDF (DownloadBill): #, bill block, [patient, doctor, mobile], totals, status
+    // Column order matches patient-level PDF (DownloadBill): #, bill block, [patient, doctor, mobile], totals, mop, status
     const billSheetColumnOrder = isDoctorDashboard
       ? [
           "#",
@@ -558,9 +563,10 @@ export default function BillingTable({
           "Mobile Number",
           "TOTAL AMOUNT",
           "PAID AMOUNT",
+          "MOP",
           "STATUS",
         ]
-      : ["#", "BILL NO & DATE", "TOTAL AMOUNT", "PAID AMOUNT", "STATUS"];
+      : ["#", "BILL NO & DATE", "TOTAL AMOUNT", "PAID AMOUNT", "MOP", "STATUS"];
 
     const billSheet = buildSheetWithHeader("Patient-Level Bill Summary", billRows, {
       header: billSheetColumnOrder,
