@@ -111,6 +111,7 @@ const ITEMIZED_PDF_ROW_CHUNK = 300;
 const DOWNLOAD_FORMAT_PDF = "pdf";
 const DOWNLOAD_FORMAT_EXCEL = "excel";
 const DOWNLOAD_SPLIT_WIDTH = "280px";
+const EXPORT_PAGE_SIZE = 200;
 
 function itemizedServiceKey(svc) {
   return `${svc.serviceName}__${svc.serviceId ?? ""}`;
@@ -447,7 +448,7 @@ export default function BillingTable({
     if (checkedValues.length > 0) {
       dispatch(setLoadingStatus(true));
       try {
-        const allBills = await fetchAllData(checkedValues);
+        const allBills = await fetchAllData(checkedValues, EXPORT_PAGE_SIZE);
         setDownloadData([...allBills]);
       } catch (error) {
         console.error("Error fetching all bills for download:", error);
@@ -795,7 +796,7 @@ export default function BillingTable({
         optionsToFetch = ["CarriedForward", ...optionsToFetch];
       }
 
-      const allBills = await fetchAllData(optionsToFetch);
+      const allBills = await fetchAllData(optionsToFetch, EXPORT_PAGE_SIZE);
       if (!allBills || allBills.length === 0) {
         message.open({
           key: MESSAGE_KEY,
@@ -1034,8 +1035,8 @@ export default function BillingTable({
         }
         
         // Fetch all data for the selected options
-        const allBills = await fetchAllData(optionsToFetch);
-        
+        const allBills = await fetchAllData(optionsToFetch, EXPORT_PAGE_SIZE);
+
         if (!allBills || allBills.length === 0) {
           message.open({
             key: MESSAGE_KEY,
@@ -1229,7 +1230,7 @@ export default function BillingTable({
     dispatch(setLoadingStatus(true));
     try {
       const allStatuses = ["FullyPaid", "CarriedForward", "Due", "Refunded"];
-      const allBills = await fetchAllData(allStatuses);
+      const allBills = await fetchAllData(allStatuses, EXPORT_PAGE_SIZE);
 
       setDownloadData([...allBills]);
 
