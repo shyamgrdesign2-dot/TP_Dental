@@ -214,6 +214,14 @@ const ConsultationDrawer = ({
   const prescriptionUrlsForSessionRef = useRef(new Set());
   const editedModulesByUserRef = useRef(new Set());
   const voiceCallCountRef = useRef(0);
+  useEffect(() => {
+    window.__TATVA_VOICE_SESSION_ID = voiceSessionIdRef.current;
+    return () => {
+      if (window.__TATVA_VOICE_SESSION_ID === voiceSessionIdRef.current) {
+        delete window.__TATVA_VOICE_SESSION_ID;
+      }
+    };
+  }, []);
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
