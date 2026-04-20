@@ -639,9 +639,11 @@ export default function BillingTable({
       "Invoice No.",
       "Patient ID",
       "Patient Name",
+      "Patient Phone",
       "Gender/Age",
       "Paid Amount",
       "MOP",
+      "Payment Status",
     ];
     
     allRows.push(itemLevelHeaders);
@@ -656,6 +658,7 @@ export default function BillingTable({
           bill?.billNumber || "",
           bill?.patientId || "",
           bill?.patientName || "",
+          bill?.patientPhone || "",
           bill?.gender && (bill?.age || bill?.age === 0) 
             ? `${bill.gender}/${bill.age}` 
             : bill?.gender || "",
@@ -663,6 +666,7 @@ export default function BillingTable({
           Array.isArray(bill?.paymentModes)
             ? bill.paymentModes.join(", ")
             : "N/A",
+          bill?.paymentStatus || "",
         ]);
       });
     });

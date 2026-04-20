@@ -275,6 +275,10 @@
   .ant-dropdown-menu-item {
     text-align: center !important;
     white-space: nowrap;
+    display: flex;
+    justify-content: center;
+    // Align with main split-button label area (excluding 40px arrow section)
+    padding-right: 60px !important;
   }
 }
 
