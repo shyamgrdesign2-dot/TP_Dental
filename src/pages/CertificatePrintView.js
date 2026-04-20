@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 // import { Container, Navbar, Nav, Dropdown } from "react-bootstrap";
 import { Col, Row, Button, message, Spin, Input } from "antd";
 import { isMobile, browserName, osName, isTablet } from "react-device-detect";
-import axios from 'axios';
 import { saveAs } from 'file-saver';
 
 import { inputToLabel, HTMLTransformer, removeLabelTags, errorMessage, removeBeforeWhiteSpace, sendMessageToParent } from "../utils/utils";
@@ -22,6 +21,7 @@ import { EVENTS } from "../utils/events";
 import { printBlobInNewTab } from "./opdBilling/utils/helper";
 import { pdfjs, Document, Page } from "react-pdf";
 import MobileCreateCertificate from "./mobile/PatientDetails/components/MobileCreateCertificate";
+import { useCertificatePayloadPdf } from "../hooks/useCertificatePayloadPdf";
 import './CertificatePrintView.scss';
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
@@ -44,15 +44,25 @@ function CertificatePrintView() {
     const { state } = useLocation();
     const { patient_data, tcu_content_id, pms_default, tcu_title, tcu_content, viewable } = state
 
-    const [printUrl, setPrintUrl] = useState(state !== undefined ? `${state.certificate}` : null);
+    const printUrl = state !== undefined ? `${state.certificate}` : null;
 
     const [title, setTitle] = useState('');
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
     const [printBlob, setPrintBlob] = useState(null);
+    const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
     const [addEditFlag, setAddEditFlag] = useState(false);
     const [showEditCertificate, setShowEditCertificate] = useState(false);
     const [editCertificateData, setEditCertificateData] = useState(null);
+    const previewPdfUrlRef = useRef(null);
+
+    const {
+        printBlob: generatedPrintBlob,
+        isGenerating: isCertificatePdfGenerating,
+        error: certificatePayloadError,
+    } = useCertificatePayloadPdf({
+        printUrl,
+    });
 
     useEffect(() => {
         if (divRef.current) {
@@ -62,9 +72,6 @@ function CertificatePrintView() {
 
     async function onDocumentLoadSuccess(successEvent) {
         setNumPages(successEvent?.numPages);
-        const data = await successEvent.getData()
-        const blob = new Blob([data], { type: 'application/pdf' })
-        setPrintBlob(blob)
     }
 
     useEffect(() => {
@@ -140,19 +147,10 @@ function CertificatePrintView() {
     };
 
     const handleDownload = async () => {
-        try {
-            const response = await axios({
-                url: printUrl,
-                method: 'GET',
-                responseType: 'blob', // Important for binary data
-            });
-
-            const blob = new Blob([response.data], { type: response.headers['content-type'] });
-            saveAs(blob, `${Date.now()}.pdf`);
-        } catch (error) {
-            console.error('Error downloading file:', error);
-            // Handle errors gracefully, e.g., display an error message to the user
+        if (!printBlob) {
+            return;
         }
+        saveAs(printBlob, `${Date.now()}.pdf`);
     };
 
     const handleInAppDownload = async () => {
@@ -194,6 +192,48 @@ function CertificatePrintView() {
             errorMessage(action.error)
         }
     }
+
+    useEffect(() => {
+        if (generatedPrintBlob) {
+            setPrintBlob(generatedPrintBlob);
+        }
+    }, [generatedPrintBlob]);
+
+    useEffect(() => {
+        if (!printBlob) {
+            if (previewPdfUrlRef.current) {
+                URL.revokeObjectURL(previewPdfUrlRef.current);
+                previewPdfUrlRef.current = null;
+            }
+            setPreviewPdfUrl(null);
+            return;
+        }
+
+        const objectUrl = URL.createObjectURL(printBlob);
+        if (previewPdfUrlRef.current) {
+            URL.revokeObjectURL(previewPdfUrlRef.current);
+        }
+        previewPdfUrlRef.current = objectUrl;
+        setPreviewPdfUrl(objectUrl);
+    }, [printBlob]);
+
+    useEffect(() => {
+        return () => {
+            if (previewPdfUrlRef.current) {
+                URL.revokeObjectURL(previewPdfUrlRef.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (certificatePayloadError) {
+            message.error("Failed to load certificate data.");
+        }
+    }, [certificatePayloadError]);
+
+    const showPreviewLoader =
+        Boolean(printUrl) &&
+        (isCertificatePdfGenerating || (!previewPdfUrl && !certificatePayloadError));
 
     return (
         <>
@@ -255,28 +295,31 @@ function CertificatePrintView() {
                         <div className="certificate-preview-title">Preview</div>
                         <div ref={divRef} className="certificate-preview-container">
                             <div className="certificate-pdf-wrapper">
-                                <Document
-                                    loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
-                                    error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%", color: '#dc3545', fontFamily: 'Poppins' }} >{'Failed to load PDF file.'}</div>}
-                                    noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%", color: '#6b7280', fontFamily: 'Poppins' }} >{'No PDF file specified.'}</div>}
-                                    file={printUrl}
-                                    onLoadSuccess={onDocumentLoadSuccess}>
-                                    {Array.apply(null, Array(numPages))
-                                        .map((x, i) => i + 1)
-                                        .map((page) => {
-                                            return (
-                                                <Page
-                                                    key={Math.random()}
-                                                    className={printBlob ? 'react-pdf__Page_afterload' : null}
-                                                    loading={null}
-                                                    width={divWidth || 340}
-                                                    pageNumber={page}
-                                                    renderTextLayer={false}
-                                                    renderAnnotationLayer={false}
-                                                />
-                                            );
-                                        })}
-                                </Document>
+                                {previewPdfUrl ? (
+                                    <Document
+                                        loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
+                                        error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%", color: '#dc3545', fontFamily: 'Poppins' }} >{'Failed to load PDF file.'}</div>}
+                                        file={previewPdfUrl}
+                                        onLoadSuccess={onDocumentLoadSuccess}>
+                                        {Array.apply(null, Array(numPages))
+                                            .map((x, i) => i + 1)
+                                            .map((page) => {
+                                                return (
+                                                    <Page
+                                                        key={Math.random()}
+                                                        className={printBlob ? 'react-pdf__Page_afterload' : null}
+                                                        loading={null}
+                                                        width={divWidth || 340}
+                                                        pageNumber={page}
+                                                        renderTextLayer={false}
+                                                        renderAnnotationLayer={false}
+                                                    />
+                                                );
+                                            })}
+                                    </Document>
+                                ) : showPreviewLoader ? (
+                                    <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
+                                ) : null}
                             </div>
                         </div>
                     </div>
@@ -354,28 +397,31 @@ function CertificatePrintView() {
                                 <div className="rounded-20px bg-white mt-20 overflow-hidden">
                                     <div ref={divRef} className="printheight">
                                         <div className="position-relative h-100">
-                                            <Document
-                                                loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
-                                                error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
-                                                noData={<div style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} >{'No PDF file specified.'}</div>}
-                                                file={printUrl}
-                                                onLoadSuccess={onDocumentLoadSuccess}>
-                                                {Array.apply(null, Array(numPages))
-                                                    .map((x, i) => i + 1)
-                                                    .map((page) => {
-                                                        return (
-                                                            <Page
-                                                                key={Math.random()}
-                                                                className={printBlob ? 'react-pdf__Page_afterload' : null}
-                                                                loading={null}
-                                                                width={divWidth}
-                                                                pageNumber={page}
-                                                                renderTextLayer={false}
-                                                                renderAnnotationLayer={false}
-                                                            />
-                                                        );
-                                                    })}
-                                            </Document>
+                                            {previewPdfUrl ? (
+                                                <Document
+                                                    loading={<Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />}
+                                                    error={<div style={{ position: 'absolute', zIndex: 0, left: "42%", top: "50%" }} >{'Failed to load PDF file.'}</div>}
+                                                    file={previewPdfUrl}
+                                                    onLoadSuccess={onDocumentLoadSuccess}>
+                                                    {Array.apply(null, Array(numPages))
+                                                        .map((x, i) => i + 1)
+                                                        .map((page) => {
+                                                            return (
+                                                                <Page
+                                                                    key={Math.random()}
+                                                                    className={printBlob ? 'react-pdf__Page_afterload' : null}
+                                                                    loading={null}
+                                                                    width={divWidth}
+                                                                    pageNumber={page}
+                                                                    renderTextLayer={false}
+                                                                    renderAnnotationLayer={false}
+                                                                />
+                                                            );
+                                                        })}
+                                                </Document>
+                                            ) : showPreviewLoader ? (
+                                                <Spin style={{ position: 'absolute', zIndex: 0, left: "50%", top: "50%" }} />
+                                            ) : null}
                                         </div>
                                     </div>
                                 </div>
