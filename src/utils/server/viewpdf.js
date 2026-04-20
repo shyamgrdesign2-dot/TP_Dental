@@ -7236,7 +7236,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   dMetaOk(it)
                                     ? dBrand(it)
                                     : String(
-                                        it?.groundedMedicineName || "",
+                                        it?.groundedMedicineName ||
+                                          it?.groundingMedicineName ||
+                                          it?.name ||
+                                          "",
                                       ).trim();
                                 const getMedName = (item) => {
                                   if (isAmbientVoiceRxDigitizeBool) {
