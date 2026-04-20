@@ -646,15 +646,11 @@ export default function BillingTable({
     
     allRows.push(itemLevelHeaders);
     
-    (response?.billSummary || []).forEach((service, serviceIndex) => {
-      if (serviceIndex > 0) {
-        allRows.push(Array(itemLevelHeaders.length).fill(""));
-      }
-      
+    (response?.billSummary || []).forEach((service) => {
       (service?.bills || []).forEach((bill) => {
         allRows.push([
           globalRowIndex++,
-          service?.serviceName || `Service ${serviceIndex + 1}`,
+          service?.serviceName || "",
           bill?.createdBy || "",
           bill?.date ? moment(bill.date).format("YYYY-MM-DD") : "",
           bill?.billNumber || "",
@@ -669,12 +665,6 @@ export default function BillingTable({
             : "N/A",
         ]);
       });
-      
-      allRows.push([
-        "", "", "", "", "", "", 
-        `${service?.serviceName} Sub Total:`, "",
-        Number(service?.subTotal || 0), ""
-      ]);
     });
 
     const workbook = XLSX.utils.book_new();

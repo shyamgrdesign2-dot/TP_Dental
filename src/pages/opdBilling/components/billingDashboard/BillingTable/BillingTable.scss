@@ -28,6 +28,7 @@
       padding: 0 10px;
       margin-left: 6px;
       width: 280px;
+      justify-content: center;
     }
 
     .dropdown-btn {
@@ -272,7 +273,7 @@
   }
 
   .ant-dropdown-menu-item {
-    text-align: left !important;
+    text-align: center !important;
     white-space: nowrap;
   }
 }
