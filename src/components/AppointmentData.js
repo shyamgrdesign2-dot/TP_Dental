@@ -169,6 +169,7 @@ import { checkSymptomsCollectorTour } from "../api/services/ApiGenRx";
 import ApiAbha from "../api/services/ApiAbha";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import { EVENTS } from "../utils/events";
+import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import AbhaDrawer from "./abha/AbhaDrawer";
@@ -2137,7 +2138,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
     const patientDefaultLanguage = await getPatientDefaultLanguage(record);
-    const encodedData = patientDefaultLanguage !== "English" ? btoa(patientDefaultLanguage.toString()) : "";
+    const selectedLang =
+      patientDefaultLanguage !== "English"
+        ? Number(patientDefaultLanguage)
+        : 1;
+    const encodedData =
+      patientDefaultLanguage !== "English"
+        ? btoa(patientDefaultLanguage.toString())
+        : "";
     if (record.print_rx_url) {
       const printUrl = await updateRxDigitizeInUrl(record);
       if (!isChrome && !isSafari) {
@@ -2145,7 +2153,66 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         // navigate(0, { replace: true });
         sendMessageToParent(EVENTS.PRINT, { url: `${record.print_rx_url}&lg=${encodedData}` });
       } else {
-        await window.open(`${printUrl}&lg=${encodedData}`);
+        const popup = window.open("", "_blank");
+        if (popup) {
+          popup.document.title = "Generating Prescription";
+          popup.document.body.innerHTML =
+            "<div style='font-family: sans-serif; padding: 20px;'>Generating prescription PDF...</div>";
+        }
+
+        const messageKey = `print-rx-${record?.pam_id || Date.now()}`;
+        message.open({
+          key: messageKey,
+          type: "loading",
+          content: "Generating prescription...",
+          duration: 0,
+        });
+
+        try {
+          const printableUrlWithLang = `${printUrl}&lg=${encodedData}`;
+          const urlObj = new URL(printableUrlWithLang, window.location.origin);
+          urlObj.searchParams.set("output", "json");
+          const response = await axios.get(urlObj.toString());
+          const payload = response?.data?.data || null;
+
+          if (!payload) {
+            throw new Error("Prescription payload missing.");
+          }
+
+          const blob = await renderPrintPayloadToBlob(payload, {
+            selectedLang,
+          });
+
+          if (!(blob instanceof Blob)) {
+            throw new Error("Failed to generate PDF blob.");
+          }
+
+          const blobURL = URL.createObjectURL(blob);
+          if (popup) {
+            popup.location.href = blobURL;
+          } else {
+            window.open(blobURL, "_blank");
+          }
+
+          setTimeout(() => URL.revokeObjectURL(blobURL), 60000);
+
+          message.open({
+            key: messageKey,
+            type: "success",
+            content: "Prescription ready.",
+            duration: 1.5,
+          });
+        } catch (error) {
+          if (popup && !popup.closed) {
+            popup.close();
+          }
+          message.open({
+            key: messageKey,
+            type: "error",
+            content: "Failed to generate prescription.",
+            duration: 3,
+          });
+        }
       }
     } else {
       setAppointmentSelectedFromMenu(record);
