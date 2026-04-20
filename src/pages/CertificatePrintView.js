@@ -30,9 +30,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 //     import.meta.url
 // ).toString();
 
+let cpvMountCount = 0;
+
 function CertificatePrintView() {
 
     const divRef = useRef(null);
+    const sessionRxUrlRef = useRef(null);
 
     const {
         loading,
@@ -44,12 +47,31 @@ function CertificatePrintView() {
     const { state } = useLocation();
     const { patient_data, tcu_content_id, pms_default, tcu_title, tcu_content, viewable } = state
 
+    const isFirstMountAfterLoad = cpvMountCount === 0;
+    useEffect(() => {
+        cpvMountCount += 1;
+    }, []);
+    const navigationEntry = window?.performance?.getEntriesByType?.("navigation")?.[0];
+    const didHardReload = navigationEntry?.type === "reload";
+    const treatAsReload = didHardReload && isFirstMountAfterLoad;
+    const fromConfigurePrintSetting = Boolean(state?.fromConfigurePrintSetting) && !treatAsReload;
+
     const printUrl = state !== undefined ? `${state.certificate}` : null;
 
     const [title, setTitle] = useState('');
     const [divWidth, setDivWidth] = useState(0);
     const [numPages, setNumPages] = useState();
     const [printBlob, setPrintBlob] = useState(null);
+    const [currentSessionRx, setCurrentSessionRx] = useState(() => {
+        if (!fromConfigurePrintSetting) {
+            return null;
+        }
+        if (state?.currentSessionRx instanceof Blob) return state.currentSessionRx;
+        if (typeof state?.currentSessionRx === "string" && state.currentSessionRx.length > 0) {
+            return state.currentSessionRx;
+        }
+        return null;
+    });
     const [previewPdfUrl, setPreviewPdfUrl] = useState(null);
     const [addEditFlag, setAddEditFlag] = useState(false);
     const [showEditCertificate, setShowEditCertificate] = useState(false);
@@ -62,6 +84,7 @@ function CertificatePrintView() {
         error: certificatePayloadError,
     } = useCertificatePayloadPdf({
         printUrl,
+        skipFetch: Boolean(currentSessionRx) && fromConfigurePrintSetting,
     });
 
     useEffect(() => {
@@ -116,11 +139,12 @@ function CertificatePrintView() {
     }
 
     const printContent = async () => {
+        const sourceBlob = currentSessionRx || printBlob;
         if (isMobile || osName == 'Linux') {
-            printBlobInNewTab(printBlob);
+            printBlobInNewTab(sourceBlob);
         } else {
-            if (!printBlob) return;
-            var blobURL = URL.createObjectURL(printBlob);
+            if (!sourceBlob) return;
+            var blobURL = URL.createObjectURL(sourceBlob);
             // Remove all existing iframes
             document.querySelectorAll('iframe').forEach(function (iframe) {
                 iframe.parentNode.removeChild(iframe);
@@ -147,10 +171,11 @@ function CertificatePrintView() {
     };
 
     const handleDownload = async () => {
-        if (!printBlob) {
+        const sourceBlob = currentSessionRx || printBlob;
+        if (!sourceBlob) {
             return;
         }
-        saveAs(printBlob, `${Date.now()}.pdf`);
+        saveAs(sourceBlob, `${Date.now()}.pdf`);
     };
 
     const handleInAppDownload = async () => {
@@ -187,7 +212,14 @@ function CertificatePrintView() {
         }
         const action = await dispatch(viewPatientCertificate(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate('/configure_print_setting', { state: { ...state, certificateData: action.payload } })
+            navigate('/configure_print_setting', {
+                state: {
+                    ...state,
+                    certificateData: action.payload,
+                    from: "/certificate_print_view",
+                    currentSessionRx: currentSessionRx || printBlob || null,
+                }
+            })
         } else {
             errorMessage(action.error)
         }
@@ -195,12 +227,49 @@ function CertificatePrintView() {
 
     useEffect(() => {
         if (generatedPrintBlob) {
-            setPrintBlob(generatedPrintBlob);
+            if (!fromConfigurePrintSetting || !currentSessionRx) {
+                setPrintBlob(generatedPrintBlob);
+                setCurrentSessionRx(generatedPrintBlob);
+            }
         }
-    }, [generatedPrintBlob]);
+    }, [generatedPrintBlob, fromConfigurePrintSetting, currentSessionRx]);
 
     useEffect(() => {
-        if (!printBlob) {
+        let isCancelled = false;
+        const hydrateSessionPdf = async () => {
+            if (!fromConfigurePrintSetting) return;
+            if (typeof currentSessionRx !== "string" || !currentSessionRx.startsWith("blob:")) return;
+            try {
+                const res = await fetch(currentSessionRx);
+                const blob = await res.blob();
+                if (!isCancelled && blob instanceof Blob) {
+                    setCurrentSessionRx(blob);
+                }
+            } catch (err) {
+                if (!isCancelled) {
+                    setCurrentSessionRx(null);
+                }
+            }
+        };
+        hydrateSessionPdf();
+        return () => {
+            isCancelled = true;
+        };
+    }, [fromConfigurePrintSetting, currentSessionRx]);
+
+    useEffect(() => {
+        if (typeof currentSessionRx === "string" && currentSessionRx.startsWith("blob:")) {
+            sessionRxUrlRef.current = currentSessionRx;
+        }
+        if (currentSessionRx instanceof Blob && sessionRxUrlRef.current) {
+            URL.revokeObjectURL(sessionRxUrlRef.current);
+            sessionRxUrlRef.current = null;
+        }
+    }, [currentSessionRx]);
+
+    useEffect(() => {
+        const previewSource = currentSessionRx || printBlob;
+        if (!previewSource) {
             if (previewPdfUrlRef.current) {
                 URL.revokeObjectURL(previewPdfUrlRef.current);
                 previewPdfUrlRef.current = null;
@@ -209,16 +278,19 @@ function CertificatePrintView() {
             return;
         }
 
-        const objectUrl = URL.createObjectURL(printBlob);
+        const objectUrl = URL.createObjectURL(previewSource);
         if (previewPdfUrlRef.current) {
             URL.revokeObjectURL(previewPdfUrlRef.current);
         }
         previewPdfUrlRef.current = objectUrl;
         setPreviewPdfUrl(objectUrl);
-    }, [printBlob]);
+    }, [printBlob, currentSessionRx]);
 
     useEffect(() => {
         return () => {
+            if (sessionRxUrlRef.current) {
+                URL.revokeObjectURL(sessionRxUrlRef.current);
+            }
             if (previewPdfUrlRef.current) {
                 URL.revokeObjectURL(previewPdfUrlRef.current);
             }
@@ -226,14 +298,15 @@ function CertificatePrintView() {
     }, []);
 
     useEffect(() => {
+        if (fromConfigurePrintSetting && currentSessionRx) return;
         if (certificatePayloadError) {
             message.error("Failed to load certificate data.");
         }
-    }, [certificatePayloadError]);
+    }, [certificatePayloadError, fromConfigurePrintSetting, currentSessionRx]);
 
     const showPreviewLoader =
         Boolean(printUrl) &&
-        (isCertificatePdfGenerating || (!previewPdfUrl && !certificatePayloadError));
+        (isCertificatePdfGenerating || (!previewPdfUrl && !certificatePayloadError && !(fromConfigurePrintSetting && currentSessionRx)));
 
     return (
         <>
