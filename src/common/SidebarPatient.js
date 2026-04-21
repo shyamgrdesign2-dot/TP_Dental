@@ -106,6 +106,12 @@ function SidebarPatient({
             short_title: "Health Checkup",
             long_title: "Health Checkup Report",
         },
+        {
+            key: PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES,
+            icon_name: "icon-Edit",
+            short_title: "Canvases",
+            long_title: "Canvases",
+        },
         // { icon_name: 'icon-Discharge-Summary', short_title: 'Discharge', long_title: 'Discharge Summary' },
         // { icon_name: 'icon-Medical-Certificate', short_title: 'Certificate', long_title: 'Medical Certificate' },
         // { icon_name: 'icon-billings', short_title: 'Add Bill', long_title: 'Add Bill/Payment' },

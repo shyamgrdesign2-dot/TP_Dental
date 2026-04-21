@@ -24,6 +24,7 @@ import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
 import InvestigationBox from "../components/InvestigationBox";
 import TabFollowUpBox from "../components/tab_design/TabFollowUpBox";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
 
 import VitalsBox from "../components/VitalsBox";
 import VitalsList from "../components/VitalsList";
@@ -47,6 +48,7 @@ import { addObstetricDetails } from "../redux/obstetricSlice";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
+import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
 import {
   fetchAllDocumentCategories,
   fetchAllPatientDocs,
@@ -60,6 +62,7 @@ import {
   zydusRadioList,
 } from "../redux/uploadDocSlice";
 import UploadDocumentList from "./medicalRecords/components/uploadDocumentList/UploadDocumentList";
+import DrawingCanvasList from "./drawingCanvas/components/DrawingCanvasList";
 import {
   generateUniqueFileName,
   getCorrectedFileName,
@@ -163,7 +166,10 @@ function Prescription() {
     carePlanActive: carePlanIcon,
   } = ASSETS.images;
 
-  console.log("vitals", hey);
+  const customizedPadLeftListForUI =
+    customizedPadLeftList && customizedPadLeftList.length > 0
+      ? customizedPadLeftList
+      : [];
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
@@ -506,6 +512,9 @@ function Prescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const [drawingCanvases, setDrawingCanvases] = useState([]);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(caseManagerData?.canvas_filename || []);
+
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
   const contextApi = {
@@ -563,7 +572,8 @@ function Prescription() {
     setUseDDX,
     selectedCarePlan,
     setSelectedCarePlan,
-    isDraft: caseManagerData?.is_draft
+    isDraft: caseManagerData?.is_draft,
+    rxDrawingCanvasIds,
   };
 
   const [vitalDrawer, setVitalDrawer] = useState(false);
@@ -576,6 +586,35 @@ function Prescription() {
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
   const [uploadDocDrawer, setUploadDocDrawer] = useState(false);
   const [medicalReportDrawer, setMedicalReportDrawer] = useState(false);
+  const [drawingCanvasDrawer, setDrawingCanvasDrawer] = useState(false);
+
+  const fetchPatientCanvases = async () => {
+    const pId = patient_data?.patient_unique_id;
+    if (pId) {
+      const res = await listPatientCanvasMapping(pId, tcmId);
+      if (res.status && res.records) {
+        const mapped = res.records.map(r => ({
+          id: r.mapping_id,
+          name: r.canvas_name,
+          url: r.canvas_url,
+          scene: null
+        }));
+        setDrawingCanvases(mapped);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchPatientCanvases();
+  }, [patient_data?.patient_unique_id, tcmId]);
+
+  const handleSaveDrawingCanvas = (updatedCanvases) => {
+    if (updatedCanvases && Array.isArray(updatedCanvases)) {
+      setDrawingCanvases(updatedCanvases);
+    } else {
+      fetchPatientCanvases();
+    }
+  };
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [filesData, setFilesData] = useState([]);
@@ -857,7 +896,7 @@ function Prescription() {
     if (caseManagerData !== undefined) {
       if (
         caseManagerData.vitals?.length > 0 &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 1 && e.tmdpm_status === 0
         ) !== -1
       ) {
@@ -874,7 +913,7 @@ function Prescription() {
       }
       if (
         caseManagerData.medical_history?.length > 0 &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 3 && e.tmdpm_status === 0
         ) !== -1
       ) {
@@ -1078,6 +1117,11 @@ function Prescription() {
     setMedicalReportDrawer(!medicalReportDrawer);
   };
 
+  // Drawer Drawing Canvas
+  const handleDrawerDrawingCanvas = useCallback(() => {
+    setDrawingCanvasDrawer(!drawingCanvasDrawer);
+  }, [drawingCanvasDrawer]);
+
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
     setObstetricDrawer(
@@ -1189,7 +1233,7 @@ function Prescription() {
     if (caseManagerData !== undefined) {
       if (
         caseManagerData.private_notes &&
-        customizedPadLeftList.findIndex(
+        customizedPadLeftListForUI.findIndex(
           (e) => e.tmdpm_id === 8 && e.tmdpm_status === 0
         ) !== -1 &&
         privateNotesList.findIndex(
@@ -1523,8 +1567,12 @@ function Prescription() {
     setZydusTestReportDrawer(!zydusTestReportDrawer);
   };
 
+  // Temporary module visibility check for Drawing Canvas.
+  // TODO: Replace `true` with the correct `tmdpm_id` / backend condition.
+  const shouldShowDrawingCanvasModule = () => true;
+
   const CUSTOMIZED_PAD_LEFT_LIST = () => {
-    const modules = customizedPadLeftList?.map((e, i) => {
+    const modules = customizedPadLeftListForUI?.map((e, i) => {
       return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
@@ -1864,6 +1912,61 @@ function Prescription() {
         </div>
       ) : null;
     });
+
+    if (shouldShowDrawingCanvasModule()) {
+      modules.unshift(
+        <div key="drawing-canvas-module" className="prescription-box-sm p-14">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              {/* Inline icon to avoid adding new shared assets */}
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="me-3"
+              >
+                <rect x="4.5" y="3.5" width="15" height="15" rx="5" fill="#D9CBFF" />
+                <path
+                  d="M14.7 9.1C14.3 8.4 13.5 8 12.7 8C11.6 8 10.8 9 10.8 10C10.8 11.1 11.7 12 12.8 12C13.6 12 14.3 11.6 14.7 10.9L16.2 12.4L14.8 13.9H8.9V8H10.3L14.7 9.1Z"
+                  fill="#A061FF"
+                  opacity="0.9"
+                />
+                <path
+                  d="M9.1 15.2L15.9 8.4"
+                  stroke="#7A2BFF"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="title-common">Drawing Canvas</div>
+            </div>
+
+            <button
+              className="btn d-flex align-items-center btn-text"
+              style={{ paddingRight: drawingCanvases.length > 0 ? 0 : 12 }}
+              onClick={handleDrawerDrawingCanvas}
+            >
+              {drawingCanvases.length === 0 && (
+                <i className="icon-Add me-1 fs-5" />
+              )}
+              <span>{`${
+                drawingCanvases.length > 0 ? "View All" : "Add"
+              }`}</span>
+              {drawingCanvases.length > 0 && (
+                <i className="icon-right iconrotate180 ms-auto me-1 fs-5" />
+              )}
+            </button>
+          </div>
+          <DrawingCanvasList
+            drawingCanvases={drawingCanvases}
+            setDrawingCanvases={setDrawingCanvases}
+            handleDrawerDrawingCanvas={handleDrawerDrawingCanvas}
+          />
+        </div>
+      );
+    }
 
     // Add Zydus Test Reports module if user has Zydus business ID
     if (tokenData?.hospital_business_id == env.zydus_business_id) {
@@ -2415,6 +2518,32 @@ function Prescription() {
               setFilesData={setFilesData}
               setIsEditDocument={setIsEditDocument}
               setUploadDocDrawer={setUploadDocDrawer}
+            />
+          </Drawer>
+        )}
+        {drawingCanvasDrawer && (
+          <Drawer
+            closeIcon={false}
+            placement="right"
+            bodyStyle={{ backgroundColor: "white" }}
+            onClose={handleDrawerDrawingCanvas}
+            open={drawingCanvasDrawer}
+            width="60%"
+            push={false}
+          >
+            <DrawingCanvas
+              patientId={patient_data?.patient_unique_id}
+              tcmId={tcmId}
+              canvases={drawingCanvases}
+              rxDrawingCanvasIds={rxDrawingCanvasIds}
+              onToggleRx={(canvasId, checked) => {
+                 setRxDrawingCanvasIds(prev => 
+                   checked ? [...Array.from(new Set([...prev, canvasId]))] : prev.filter(id => id !== canvasId)
+                 );
+              }}
+              onCreateCanvas={() => {}}
+              onSave={handleSaveDrawingCanvas}
+              onClose={handleDrawerDrawingCanvas}
             />
           </Drawer>
         )}

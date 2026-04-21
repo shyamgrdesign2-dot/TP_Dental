@@ -203,6 +203,8 @@ function PrescriptionPrintView() {
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
         zydusSelectedLabParams,
+        patientId: patient_data?.patient_unique_id,
+        tcmId: state?.tcm_id,
     });
 
     useEffect(() => {

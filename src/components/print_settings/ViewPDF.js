@@ -397,7 +397,7 @@ function enrichCaseManagerAiMedicationForPrint(medicine) {
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps, drawingCanvases } = props
     const isRxDigitizeBool = !!(caseManagerData?.isRxDigitize || isDigitisedPrintConfig);
     const isCvtExtHosAccessableFromGB =
         isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;
@@ -7515,6 +7515,32 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             </View>
                         )}
                     </View>
+
+                    {/* Rendering the Excalidraw Canvases */}
+                    {drawingCanvases && drawingCanvases.length > 0 && (
+                        <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
+                            {drawingCanvases.map((canvasObj, i) => (
+                                <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                                    <Text style={{ 
+                                        fontSize: PX_TO_PT * 14, 
+                                        fontWeight: 700, 
+                                        color: '#171725', 
+                                        marginBottom: PX_TO_PT * 10,
+                                        fontFamily: 'Roboto' 
+                                    }}>
+                                        {canvasObj.name}
+                                    </Text>
+                                    <Image 
+                                        src={canvasObj.imageUrl} 
+                                        style={{ 
+                                            width: '100%',
+                                            objectFit: 'contain'
+                                        }} 
+                                    />
+                                </View>
+                            ))}
+                        </View>
+                    )}
 
                     {/* Bottom spacer for Own Letterhead first-page-only mode */}
                     {/* <View

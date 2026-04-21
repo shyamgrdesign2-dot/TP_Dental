@@ -57,6 +57,8 @@ import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { ASSETS } from "../assets";
+import VisitDrawingCanvases from "./drawingCanvas/components/VisitDrawingCanvases";
+
 const variables = ASSETS.scss.variables;
 const alertIcon = ASSETS.images.alerticon;
 const BillingDashboard = React.lazy(() =>
@@ -561,6 +563,10 @@ function PatientDetails() {
                             <div className="appointment-wrap PatientDetailswrap">
                                 <HealthCheckupReport patient_data={patient_data} showHealthCheckupReportDrawer={showHealthCheckupReportDrawer} setShowHealthCheckupReportDrawer={setShowHealthCheckupReportDrawer} />
                             </div>
+                        ) : sidebarKey === PATIENT_DETAILS_SIDEBAR_KEYS.CANVASES ? (
+                            <VisitDrawingCanvases 
+                                patientId={patient_data?.patient_unique_id} 
+                            />
                         ) : null}
                     </div>
                 </Content>

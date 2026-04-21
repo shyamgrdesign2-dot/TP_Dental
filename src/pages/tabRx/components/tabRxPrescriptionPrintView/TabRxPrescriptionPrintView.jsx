@@ -449,6 +449,8 @@ function TabRxPrescriptionPrintView() {
     isGynaecHistoryAccessable,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    patientId: patient_data?.patient_unique_id,
+    tcmId: state?.tcm_id,
   });
 
 

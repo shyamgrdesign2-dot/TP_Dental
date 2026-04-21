@@ -39,6 +39,8 @@ import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefault
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
+import { listPatientCanvasMapping } from "./drawingCanvas/service";
+import { exportToBlob } from "@excalidraw/excalidraw";
 
 
 function ConfigurePrintSetting() {
@@ -78,6 +80,9 @@ function ConfigurePrintSetting() {
     const [appointmentLinkShared, setAppointmentLinkShared] = useState(null);
     const [opthalModuleData, setOpthalModuleData] = useState(null);
     const [abhaDetails, setAbhaDetails] = useState(null);
+
+    const [drawingCanvases, setDrawingCanvases] = useState([]);
+    const [isDrawingCanvasesLoading, setIsDrawingCanvasesLoading] = useState(false);
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -501,6 +506,68 @@ function ConfigurePrintSetting() {
         };
     }, [caseManagerData?.tcm_id]);
 
+    useEffect(() => {
+        const fetchAndParseCanvases = async () => {
+            const patientId = caseManagerData?.patient_data?.patient_unique_id;
+            const tcmId = caseManagerData?.tcm_id;
+            if (!patientId || !tcmId) return;
+
+            try {
+                setIsDrawingCanvasesLoading(true);
+                const res = await listPatientCanvasMapping(patientId, tcmId);
+                
+                const recordsArray = res?.records || res?.data?.records;
+                if (res?.status && Array.isArray(recordsArray)) {
+                    const canvasRecords = recordsArray;
+                    const parsedCanvases = [];
+
+                    for (const record of canvasRecords) {
+                        try {
+                            if (!record?.canvas_url) continue;
+                            const response = await fetch(record.canvas_url);
+                            const textData = await response.text();
+                            
+                            if (textData) {
+                                const parsedData = JSON.parse(textData);
+                                if (parsedData?.elements) {
+                                    const blob = await exportToBlob({
+                                        elements: parsedData.elements,
+                                        appState: { ...parsedData.appState, exportBackground: true },
+                                        files: parsedData.files,
+                                    });
+                                    if (blob) {
+                                        const url = URL.createObjectURL(blob);
+                                        parsedCanvases.push({
+                                            name: record.canvas_name || "Untitled Canvas",
+                                            imageUrl: url
+                                        });
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Failed to parse canvas mapping: ${record.canvas_name}`, err);
+                        }
+                    }
+                    setDrawingCanvases(parsedCanvases);
+                }
+            } catch (error) {
+                console.error("Error fetching canvas mappings", error);
+            } finally {
+                setIsDrawingCanvasesLoading(false);
+            }
+        };
+
+        fetchAndParseCanvases();
+        
+        return () => {
+            // Cleanup blob URLs on unmount to prevent memory leaks
+            drawingCanvases.forEach(canvas => {
+                if (canvas?.imageUrl) URL.revokeObjectURL(canvas.imageUrl);
+            });
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [caseManagerData?.patient_data?.patient_unique_id, caseManagerData?.tcm_id]);
+
     const usePrescriptionDataFromApi = (!!(rxId || isAmbientRx) && !(smartRxFile?.length > 0 && !isAfterDigitization)) || ((smartRxFile?.length > 0 || caseManagerData?.isRxDigitize) && isAfterDigitization);
     const dataSourceForPreview = usePrescriptionDataFromApi && prescriptionDataFromApi != null ? prescriptionDataFromApi : caseManagerData;
     const obstetricData = obstetricDetails?.data || obstetricDetails;
@@ -510,7 +577,7 @@ function ConfigurePrintSetting() {
             ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
         : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, isCvtExtHosAccessableFromGB, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, isCvtExtHosAccessableFromGB, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData, drawingCanvases, isDrawingCanvasesLoading };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
