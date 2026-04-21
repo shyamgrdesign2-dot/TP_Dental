@@ -1850,7 +1850,7 @@ function Cardiology(props) {
                         })()
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
-                          ? (item?.refinedName || item?.name || item?.groundedMedicineName || item?.groundingMedicineName || item?.lineItem)
+                          ? (item?.metadata?.tmm_medicine_name || item?.groundedMedicineName || item?.groundingMedicineName || item?.refinedName || item?.name || item?.lineItem)
                           : (item?.refinedName || item?.name))
                       : type === "labResults"
                       ? (() => {
@@ -2056,15 +2056,16 @@ function Cardiology(props) {
                         if (item?.metadata?.selectedValue) {
                           return item.metadata.selectedValue;
                         }
+                        const metaName = String(item?.metadata?.tmm_medicine_name || "").trim();
                         const grounded = item?.groundedMedicineName || item?.groundingMedicineName;
                         if (isGroundingAccessable) {
                           const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
                           if (isFuzzySearchEmpty) {
-                            return grounded || item?.name || "";
+                            return metaName || grounded || item?.refinedName || item?.name || "";
                           }
-                          return item?.name || grounded || "";
+                          return metaName || grounded || item?.refinedName || item?.name || "";
                         }
-                        return grounded || item?.name || item?.refinedName || item?.lineItem || "";
+                        return metaName || grounded || item?.refinedName || item?.name || item?.lineItem || "";
                       })().trim() || '-',
                       true
                     )}
@@ -2337,14 +2338,15 @@ function Cardiology(props) {
               if (item?.metadata?.selectedValue) {
                 return item.metadata.selectedValue;
               }
+              const metaName = String(item?.metadata?.tmm_medicine_name || "").trim();
               if (isGroundingAccessable) {
                 const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
                 if (isFuzzySearchEmpty) {
-                  return groundedName || item?.name || item?.refinedName || item?.lineItem || "N/A";
+                  return metaName || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
                 }
-                return item?.name || groundedName || item?.refinedName || item?.lineItem || "N/A";
+                return metaName || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
               }
-              return groundedName || item?.name || item?.refinedName || item?.lineItem || "N/A";
+              return metaName || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
             })();
 
             let formattedMain = baseName;

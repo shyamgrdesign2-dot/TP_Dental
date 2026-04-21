@@ -511,6 +511,8 @@ const VoiceRxConsult = () => {
 
       const audioUrl = URL.createObjectURL(blob);
       const arrayBuffer = await blob.arrayBuffer();
+      const activeMicLabel =
+        audioStreamRef.current?.getAudioTracks?.()?.[0]?.label || "Unknown";
 
       navigate('/prescription', {
         state: {
@@ -518,6 +520,7 @@ const VoiceRxConsult = () => {
           fromVoiceRecording: true,
           audioBlob: blob,
           audioBlobUrl: audioUrl,
+          micBeingUsed: activeMicLabel,
           consent: consentRef.current,
           audioBlobArrayBuffer: arrayBuffer,
           mode: activeMode,

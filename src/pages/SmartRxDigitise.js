@@ -30,6 +30,7 @@ import axios from "axios";
 import { updateCredits } from "../redux/monetizationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import { setDentalData, clearDentalData } from "../redux/dentalRxSlice";
+import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
 import { ASSETS } from "../assets";
 const documentIcon = ASSETS.images.documentNormal;
 
@@ -324,10 +325,7 @@ function SmartRxDigitise() {
             quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
           }
 
-          return {
-            ...item,
-            quantity,
-          };
+          return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }) || [];
 
       const quantityActionMedicine = await ApiMedication.getQuantity({
@@ -348,10 +346,7 @@ function SmartRxDigitise() {
               quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
             }
 
-            return {
-              ...item,
-              quantity,
-            };
+            return ensureMedicationGroundedForRxSave({ ...item, quantity });
           }),
       };
 
@@ -782,6 +777,7 @@ function SmartRxDigitise() {
           {
             tcm_id,
             patient_unique_id: patient_data.patient_unique_id,
+            isDentalReq: true
           },
           {
             headers: {

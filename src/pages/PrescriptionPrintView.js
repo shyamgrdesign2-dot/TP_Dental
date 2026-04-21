@@ -20,7 +20,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../api/services/ApiGynec";
-import { GB_HEALTH_CHECKUP_REPORT, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API, ZYDUS_WHATSAPP_ENABLED_DOCTORS } from "../utils/constants";
+import { GB_HEALTH_CHECKUP_REPORT, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import CreateBill from "./opdBilling/components/createBill/CreateBill";
 import RecentBills from "./opdBilling/components/recentBills/RecentBills";
@@ -37,6 +37,7 @@ import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useZydusWhatsapp } from "../hooks/useZydusWhatsapp";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
 const {
@@ -70,6 +71,7 @@ function PrescriptionPrintView() {
 
     const navigate = useNavigate();
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+    const isZydusWhatsappEnabled = useZydusWhatsapp();
 
     const { state } = useLocation();
     const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
@@ -724,11 +726,7 @@ function PrescriptionPrintView() {
                                     const decodedToken = getDecodedToken();
                                     const tokenData = decodedToken?.result;
                                     
-                                    // Check if current doctor has WhatsApp enabled
-                                    const currentDoctorPhone = profile?.um_contact?.toString().replace(/\D/g, '').slice(-10);
-                                    const isWhatsAppEnabled = ZYDUS_WHATSAPP_ENABLED_DOCTORS.includes(currentDoctorPhone);
-                                    
-                                    return tokenData?.hospital_business_id == env.zydus_business_id && isWhatsAppEnabled ? (
+                                    return tokenData?.hospital_business_id == env.zydus_business_id && isZydusWhatsappEnabled ? (
                                         <>
                                             <div className="bg-body d-flex p-3 rounded-10px border">
                                                 <img src={wtsp} alt="Whatsapp Icon" className='align-self-baseline me-3' />

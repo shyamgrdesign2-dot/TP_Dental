@@ -5,7 +5,7 @@ import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
 
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD } from "../../utils/constants";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD, GB_MANYA_DENTAL } from "../../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
 import { getInvestigationAndMedicine, addCaseManager, editCaseManager, viewCaseManager } from "../../redux/caseManagerSlice";
 import { getVitals, setVitalsIdsFromAddVitals, resetVitalsState } from "../../redux/vitalsSlice";
@@ -28,6 +28,8 @@ import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
+import { setDentalData, clearDentalData } from "../../redux/dentalRxSlice";
+import { ensureMedicationGroundedForRxSave } from "../../utils/medicationRxPayload";
 import { ASSETS } from "../../assets";
 const documentIcon = ASSETS.images.documentNormal;
 
@@ -36,11 +38,14 @@ function SnapRxDigitise({isTabRx = false}) {
   const splitRef = useRef(null);
   const isResizingRef = useRef(false);
   const persistVitalsInFlightRef = useRef(false);
+  const isManyaDentalAccessableFromGB = useFeatureIsOn(GB_MANYA_DENTAL);
+  const shouldUseCustomRxDigitize = isManyaDentalAccessableFromGB;
   const [leftWidthPercent, setLeftWidthPercent] = useState(30);
 
   const { loading } = useSelector((state) => state.caseManager);
   const { siteId, storeCode } = useSelector((state) => state.doctors);
   const { listVitalsTodayIds } = useSelector((state) => state.vitals);
+  const dentalDataFromStore = useSelector((state) => state.dentalRx?.dentalData);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
@@ -66,6 +71,9 @@ function SnapRxDigitise({isTabRx = false}) {
   const [smartRxFile, setSmartRxFile] = useState(smartRxFilesData);
 
   const baseUrlRxDigitise = env.digitization_api_url;
+  const clearSnapRxDentalState = useCallback(() => {
+    dispatch(clearDentalData());
+  }, [dispatch]);
 
   // Keep only non-empty vitals; preserve tcv_id, tcbc_id, dev_unique_id, pam_id (same pattern as Cardiology/ConsultationDrawer)
   const vitalsOnlyNonEmpty = useCallback((v) => {
@@ -241,7 +249,11 @@ function SnapRxDigitise({isTabRx = false}) {
 
   useEffect(() => {
     if (smartRxFile?.length > 0 && token && state.type === "new") {
-      digitizeRx();
+      if (shouldUseCustomRxDigitize) {
+        digitizeManyaCustomRx();
+      } else {
+        digitizeRx();
+      }
     } else if (state.type === "edit" && digitisedData) {
       const canonical = canonicalFromApi(digitisedData?.editedData);
       const next = normalizeEditedFlag(canonical);
@@ -295,13 +307,14 @@ function SnapRxDigitise({isTabRx = false}) {
         persistSnapRxVitals(canonical.vitalsAndBodyComposition, setData);
       }
     }
-  }, [token, smartRxFile, digitisedData]);
+  }, [token, smartRxFile, digitisedData, shouldUseCustomRxDigitize]);
 
   useEffect(() => {
     return () => {
       dispatch(resetVitalsState());
+      clearSnapRxDentalState();
     };
-  }, [dispatch]);
+  }, [dispatch, clearSnapRxDentalState]);
 
   useEffect(() => {
     const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
@@ -333,10 +346,7 @@ function SnapRxDigitise({isTabRx = false}) {
             quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
           }
 
-          return {
-            ...item,
-            quantity,
-          };
+          return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }) || [];
 
       const quantityActionMedicine = await ApiMedication.getQuantity({
@@ -357,14 +367,49 @@ function SnapRxDigitise({isTabRx = false}) {
               quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 0;
             }
 
-            return {
-              ...item,
-              quantity,
-            };
+            return ensureMedicationGroundedForRxSave({ ...item, quantity });
           }),
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };
+      const hasDentalPayload = !!(
+        editedDataForApi?.dental ||
+        editedDataForApi?.dentalData ||
+        editedDataForApi?.complaints ||
+        editedDataForApi?.treatmentPlans ||
+        editedDataForApi?.workDone ||
+        (Array.isArray(editedDataForApi?.medications) &&
+          editedDataForApi.medications.length > 0) ||
+        dentalDataFromStore?.complaints ||
+        dentalDataFromStore?.treatmentPlans ||
+        dentalDataFromStore?.workDone ||
+        (Array.isArray(dentalDataFromStore?.medications) &&
+          dentalDataFromStore.medications.length > 0) ||
+        dentalDataFromStore
+      );
+      if (hasDentalPayload) {
+        editedDataForApi.dental = true;
+        if (dentalDataFromStore) {
+          if (!Array.isArray(editedDataForApi.dynamicFields)) {
+            editedDataForApi.dynamicFields = [];
+          }
+          if (!editedDataForApi.dynamicFields[0]) {
+            editedDataForApi.dynamicFields[0] = {};
+          }
+          if (!editedDataForApi.dynamicFields[0].hasOwnProperty("dentalData")) {
+            editedDataForApi.dynamicFields[0].dentalData = dentalDataFromStore;
+          }
+        }
+      }
+      if (editedDataForApi.dentalData) {
+        if (!Array.isArray(editedDataForApi.dynamicFields)) {
+          editedDataForApi.dynamicFields = [];
+        }
+        if (!editedDataForApi.dynamicFields[0]) {
+          editedDataForApi.dynamicFields[0] = {};
+        }
+        editedDataForApi.dynamicFields[0].dentalData = editedDataForApi.dentalData;
+      }
       if (editedDataForApi.vitalsAndBodyComposition && typeof editedDataForApi.vitalsAndBodyComposition === "object") {
         const { tcv_id, tcbc_id, dev_unique_id, ...vitalsRest } = editedDataForApi.vitalsAndBodyComposition;
         const generalRBSVal = vitalsRest.general_rbs ?? vitalsRest["General RBS"] ?? vitalsRest.generalRBS ?? vitalsRest.genralRBS;
@@ -688,6 +733,7 @@ function SnapRxDigitise({isTabRx = false}) {
             ...(isTabRx && { digitisedData: {editedData: data} })
           },
         });
+        clearSnapRxDentalState();
         // }
       }
     } catch (error) {
@@ -696,6 +742,92 @@ function SnapRxDigitise({isTabRx = false}) {
       setIsSaveLoading(false);
     }
   };
+
+  const digitizeManyaCustomRx = async () => {
+    try {
+      setIsLoading(true);
+
+      const cleanedToken = token.replace(/['"]+/g, "");
+      if (!tcm_id || !patient_data?.patient_unique_id) {
+        setIsLoading(false);
+        return;
+      }
+      const response = await axios.post(
+        `${env.snap_rx_api_url}/api/v1/digitization/custom-rx/digitize-rx`,
+        {
+          tcm_id,
+          patient_unique_id: patient_data.patient_unique_id,
+          isDentalReq: true
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cleanedToken}`,
+          },
+        }
+      );
+      const responseData = response?.data?.data ?? response?.data;
+      const refinedData =
+        responseData?.refinedData ??
+        responseData?.editedData ??
+        responseData?.digitization?.refinedData ??
+        responseData?.digitization?.editedData ??
+        responseData?.digitization ??
+        responseData;
+      if (refinedData) {
+        const canonical = canonicalFromApi(refinedData);
+        const normalized = normalizeEditedFlag(canonical);
+        const hasLabResultsFromApi = canonical?.labResults && Array.isArray(canonical.labResults) && canonical.labResults.length > 0;
+        let labResultsToUse = hasLabResultsFromApi ? canonical.labResults : [];
+        if (!hasLabResultsFromApi && patient_data?.patient_unique_id) {
+          try {
+            const { getTodayLabResults } = await import('../../utils/labResultsUtils');
+            const fetchedLabResults = await getTodayLabResults(patient_data, false);
+            if (fetchedLabResults && fetchedLabResults.length > 0) {
+              labResultsToUse = fetchedLabResults;
+            }
+          } catch (err) {
+            console.error('[SnapRx] Failed to fetch lab results from GET API:', err);
+          }
+        }
+        const dentalResults = canonical?.data?.results ?? canonical?.results;
+        const hasDentalResults = !!(
+          dentalResults &&
+          (
+            dentalResults?.complaints ||
+            dentalResults?.treatmentPlans ||
+            dentalResults?.workDone ||
+            (Array.isArray(dentalResults?.medications) &&
+              dentalResults.medications.length > 0)
+          )
+        );
+        setData((prev) => {
+          const base = { ...normalized, labResults: labResultsToUse };
+          if (!hasDentalResults) return base;
+          return {
+            ...base,
+            dental: true,
+            dynamicFields: [
+              {
+                dentalData: dentalResults,
+              },
+            ],
+          };
+        });
+        if (hasDentalResults) {
+          dispatch(setDentalData(dentalResults));
+        } else {
+          dispatch(clearDentalData());
+        }
+        setIsLoading(false);
+        if (normalized?.vitalsAndBodyComposition) {
+          persistSnapRxVitals(normalized.vitalsAndBodyComposition, setData);
+        }
+      }
+    } catch (err) {
+      setIsLoading(false);
+    }
+  }
 
   const digitizeRx = async () => {
     try {
@@ -747,6 +879,7 @@ function SnapRxDigitise({isTabRx = false}) {
       }
     } catch (error) {
       console.error("Error uploading files:", error);
+      setIsLoading(false);
     }
   };
 

@@ -314,7 +314,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
 }
 
 function symptomsToHtmlList(symptoms) {
-  if (!symptoms || symptoms.length === 0) return "<p>&nbsp;</p>";
+  if (!symptoms || symptoms.length === 0) return "&nbsp;";
 
   const seenIds = new Set();
   const seenFallback = new Set();
@@ -345,14 +345,14 @@ function symptomsToHtmlList(symptoms) {
       const notes = item.notes ?? item.remark ?? "";
       const details = [duration, severity, notes].filter(Boolean).join(", ");
       const detailStr = details ? ` (${escapeHtml(details)})` : "";
-      return `<li><p><strong>${name}</strong>${detailStr}</p></li>`;
+      return `<li><strong>${name}</strong>${detailStr}</li>`;
     })
     .join("");
   return `<ul>${items}</ul>`;
 }
 
 function medicalHistoryToHtmlList(items) {
-  if (!items || items.length === 0) return "<p>&nbsp;</p>";
+  if (!items || items.length === 0) return "&nbsp;";
 
   const seenIds = new Set();
   const seenFallback = new Set();
@@ -361,7 +361,7 @@ function medicalHistoryToHtmlList(items) {
     if (typeof item === "string") {
       if (seenFallback.has(item)) return "";
       seenFallback.add(item);
-      return `<li><p>${escapeHtml(item)}</p></li>`;
+      return `<li>${escapeHtml(item)}</li>`;
     }
     const title = item.title ?? item.name ?? item.conditionName ?? "";
     const since = item.since ?? item.duration ?? "";
@@ -413,7 +413,7 @@ function medicalHistoryToHtmlList(items) {
           if (tagDetails) tagParts.push(escapeHtml(tagDetails));
           const tagDetailsStr = tagParts.join(" | ");
           
-          return `<li><p><strong>${tagName}</strong>${tagDetailsStr ? ` (${tagDetailsStr})` : ""}</p></li>`;
+          return `<li><strong>${tagName}</strong>${tagDetailsStr ? ` (${tagDetailsStr})` : ""}</li>`;
         })
         .join("");
     }
@@ -426,7 +426,7 @@ function medicalHistoryToHtmlList(items) {
       if (seenFallback.has(fallbackKey)) return "";
       seenFallback.add(fallbackKey);
     }
-    return `<p>&nbsp;</p>`;
+    return `&nbsp;`;
   };
 
   const lis = items.map(flatten).flat().join("");
@@ -486,7 +486,7 @@ export function buildReportContentFromGroupedData(
 
   // Chief Complaints
   const chiefHtml =
-    symptoms.length > 0 ? symptomsToHtmlList(symptoms) : "<p>&nbsp;</p>";
+    symptoms.length > 0 ? symptomsToHtmlList(symptoms) : "&#8203;";
   const chiefSection = `
 <h2 class="report-section-title">Chief Complaints:</h2>
 <div class="report-section-box">${chiefHtml}</div>`;
@@ -544,8 +544,8 @@ export function buildReportContentFromGroupedData(
   const historyRows = PATIENT_HISTORY_ROW_NAMES.map((rowName) => {
     const items = historyByRowName[rowName] || [];
     const cellContent =
-      items.length > 0 ? medicalHistoryToHtmlList(items) : "<p>&#8203;</p>";
-    return `    <tr><td><p>${escapeHtml(rowName)}</p></td><td>${cellContent}</td></tr>`;
+      items.length > 0 ? medicalHistoryToHtmlList(items) : "&#8203;";
+    return `    <tr><td>${escapeHtml(rowName)}</td><td>${cellContent}</td></tr>`;
   }).join("\n");
 
   const patientHistorySection = `
@@ -571,33 +571,33 @@ ${historyRows}
 <table class="report-data-table report-general-exam-grid top-row-grid">
   <tbody>
     <tr>
-      <th><p>Temp</p></th><td><p>${escapeHtml(v.temp ?? "") || "&#8203;"}</p></td>
-      <th><p>BP</p></th><td><p>${escapeHtml(v.blood_press ?? "") || "&#8203;"}</p></td>
-      <th><p>SPO2</p></th><td><p>${escapeHtml(v.spo2 ?? "") || "&#8203;"}</p></td>
-      <th><p>RR</p></th><td><p>${escapeHtml(v.resp_rate ?? "") || "&#8203;"}</p></td>
-      <th><p>Pulse</p></th><td><p>${escapeHtml(v.pres ?? "") || "&#8203;"}</p></td>
+      <th>Temp</th><td>${escapeHtml(v.temp ?? "") || "&#8203;"}</td>
+      <th>BP</th><td>${escapeHtml(v.blood_press ?? "") || "&#8203;"}</td>
+      <th>SPO2</th><td>${escapeHtml(v.spo2 ?? "") || "&#8203;"}</td>
+      <th>RR</th><td>${escapeHtml(v.resp_rate ?? "") || "&#8203;"}</td>
+      <th>Pulse</th><td>${escapeHtml(v.pres ?? "") || "&#8203;"}</td>
     </tr>
   </tbody>
 </table>
 <table class="report-data-table report-general-exam-grid bottom-row-grid" style="margin-top: 24px;">
   <tbody>
     <tr>
-      <th><p>Weight</p></th><td><p>${escapeHtml(v.weight ?? "") || "&#8203;"}</p></td>
-      <th><p>Height</p></th><td><p>${escapeHtml(v.height ?? "") || "&#8203;"}</p></td>
-      <th><p>BMI</p></th><td><p>${escapeHtml(v.bmi ?? "") || "&#8203;"}</p></td>
+      <th>Weight</th><td>${escapeHtml(v.weight ?? "") || "&#8203;"}</td>
+      <th>Height</th><td>${escapeHtml(v.height ?? "") || "&#8203;"}</td>
+      <th>BMI</th><td>${escapeHtml(v.bmi ?? "") || "&#8203;"}</td>
     </tr>
   </tbody>
 </table>`;
 
   // Radiology table (static row names, empty notes for now unless we have a mapping)
   const radiologyRows = RADIOLOGY_ROW_NAMES.map(
-    (name) => `    <tr><td><p>${escapeHtml(name)}</p></td><td><p>&#8203;</p></td></tr>`
+    (name) => `    <tr><td>${escapeHtml(name)}</td><td>&#8203;</td></tr>`
   ).join("\n");
 
   const radiologySection = `
 <h2 class="report-section-title print-page-break">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>Modality</p></th><th><p>Impressions</p></th></tr></thead>
+  <thead><tr><th>Modality</th><th>Impressions</th></tr></thead>
   <tbody>
 ${radiologyRows}
   </tbody>
@@ -625,24 +625,24 @@ ${radiologyRows}
             )
             : null;
         let doctorName = "";
-        let notesCell = "<p>&#8203;</p>";
+        let notesCell = "&#8203;";
         if (latest) {
           const docData = latest.doctor_data || latest.doctorData || {};
           const docName =
             docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
           if (docName) doctorName = docName;
           const notes = formatConsultationAsPrintViewNotes(latest);
-          if (notes) notesCell = `<p>${escapeHtml(notes).replace(/\n/g, "<br>")}</p>`;
+          if (notes) notesCell = `${escapeHtml(notes).replace(/\n/g, "<br>")}`;
         }
-        return `<tr><td><p>${escapeHtml(deptName) + (doctorName ? " " + escapeHtml(doctorName) : "")}</p></td><td>${notesCell}</td></tr>`;
+        return `<tr><td>${escapeHtml(deptName) + (doctorName ? " " + escapeHtml(doctorName) : "")}</td><td>${notesCell}</td></tr>`;
       }
     ).join("\n")
-    : `<tr><td><p>&#8203;</p></td><td><p>&#8203;</p></td></tr>`;
+    : `<tr><td>&#8203;</td><td>&#8203;</td></tr>`;
 
   const consultationsSection = `
 <h2 class="report-section-title print-page-break">Consultations</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>DEPARTMENT & DOCTOR NAME</p></th><th><p>NOTES</p></th></tr></thead>
+  <thead><tr><th>DEPARTMENT & DOCTOR NAME</th><th>NOTES</th></tr></thead>
   <tbody>
 ${consultationRows}
   </tbody>
@@ -651,7 +651,7 @@ ${consultationRows}
   // Impression
   const impressionSection = `
 <h2 class="report-section-title print-page-break">${impressionText}</h2>
-<div class="report-section-box"><p>&nbsp;</p></div>`;
+<div class="report-section-box">&nbsp;</div>`;
 
   // Advice
   const adviceText = advice
@@ -660,24 +660,24 @@ ${consultationRows}
     .join("\n\n");
   const adviceSection = `
 <h2 class="report-section-title">Advice</h2>
-<div class="report-section-box"><p>${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&nbsp;"}</p></div>`;
+<div class="report-section-box">${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&nbsp;"}</div>`;
 
   // General Recommendations (fixed text)
   const generalRecSection = `
 <h2 class="report-section-title print-page-break">General Recommendations</h2>
-<div class="report-section-box"><p>${formatReportText(GENERAL_RECOMMENDATIONS_TEXT)}</p></div>`;
+<div class="report-section-box">${formatReportText(GENERAL_RECOMMENDATIONS_TEXT)}</div>`;
 
 
   // Prepared By / Verified By
   const preparedBySection = `
 <table class="report-data-table">
-  <thead><tr><th><p>PREPARED BY</p></th><th><p>DATE</p></th></tr></thead>
+  <thead><tr><th>PREPARED BY</th><th>DATE</th></tr></thead>
   <tbody>
-    <tr><td><p>${preparedBy}</p></td><td><p>${escapeHtml(dateStr)}</p></td></tr>
+    <tr><td>${preparedBy}</td><td>${escapeHtml(dateStr)}</td></tr>
   </tbody>
-  <thead><tr><th><p>VERIFIED BY</p></th><th><p>DATE</p></th></tr></thead>
+  <thead><tr><th>VERIFIED BY</th><th>DATE</th></tr></thead>
   <tbody>
-    <tr><td><p>${preparedBy}</p></td><td><p>${escapeHtml(dateStr)}</p></td></tr>
+    <tr><td>${preparedBy}</td><td>${escapeHtml(dateStr)}</td></tr>
   </tbody>
 </table>`;
 

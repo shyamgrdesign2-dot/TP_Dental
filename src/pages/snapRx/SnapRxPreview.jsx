@@ -727,7 +727,7 @@ function SnapRxPreview() {
       >
         <Row gutter={{ xl: 40, lg: 0 }} justify="center">
           <Col md={7} lg={7} xl={7}>
-            {!isMobile && (showDigitalRx || state?.from === "/configure_print_setting" || viewCaseManagerData?.isRxDigitize) ? (
+            {!isMobile ? (
               <div
                 className="d-flex align-items-center justify-content-end h-38"
                 onClick={configurePrintUrl}
@@ -752,7 +752,7 @@ function SnapRxPreview() {
               }}
             >
               <div>
-                {!isMobile ? '' : (showDigitalRx || state?.from === "/configure_print_setting" || viewCaseManagerData?.isRxDigitize) && (
+                {!isMobile ? '' : (
                   <div className="d-flex align-items-center mb-14 h-38" onClick={configurePrintUrl}>
                     <i className="icon-setting me-2"></i>
                     <span className="text-decoration-underline fw-medium cursor-pointer"> Configure Print Setting </span>

@@ -11,7 +11,7 @@
 
     font-family: 'Poppins',
     sans-serif;
-    font-size: 10px;
+    font-size: 15px;
     line-height: 18px;
     letter-spacing: 0.0607px;
     color: #454551;
@@ -70,7 +70,7 @@
     p {
         margin: 0 0 4px;
         font-family: 'Poppins', sans-serif;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #454551;
@@ -133,7 +133,7 @@
 
     .report-patient-table td p {
         font-family: 'Poppins', sans-serif;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #171725;
@@ -166,7 +166,7 @@
         position: relative;
         font-family: 'Poppins', sans-serif;
         font-weight: 600;
-        font-size: 12px;
+        font-size: 15px;
         line-height: normal;
         letter-spacing: 0;
         color: #171725;
@@ -214,7 +214,7 @@
 
     div.report-section-box p {
         font-family: 'Poppins', sans-serif;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #454551;
@@ -241,7 +241,7 @@
         width: 100%;
         border-collapse: collapse;
         font-family: 'Poppins', sans-serif;
-        font-size: 10px;
+        font-size: 15px;
         letter-spacing: 0.0607px;
         color: #454551;
         margin: 0;
@@ -249,12 +249,13 @@
 
     .report-data-table {
         width: 100%;
+        table-layout: fixed;
         border-collapse: collapse;
         border: 1px solid #f1f1f5;
         background: rgba(255, 255, 255, 0.5);
         margin: 12px 0;
         font-family: 'Poppins', sans-serif;
-        font-size: 10px;
+        font-size: 15px;
         letter-spacing: 0.0607px;
         color: #454551;
     }
@@ -271,7 +272,7 @@
         /* T-BG-100 */
         font-family: 'Poppins', sans-serif;
         font-weight: 500;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #454551;
@@ -279,16 +280,20 @@
         vertical-align: middle;
         padding: 6px 6.681px;
         border: 0.607px solid #f1f1f5;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
 
     .report-data-table thead tr th p {
         margin: 0;
         font-weight: 500;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #454551;
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
 
     /* ── Table: Body rows ── */
@@ -297,7 +302,7 @@
         background: transparent;
         font-family: 'Poppins', sans-serif;
         font-weight: 400;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #454551;
@@ -308,16 +313,20 @@
         min-height: 40px;
         /* minimum row height, will expand with content */
         height: auto;
-        overflow: visible;
+        overflow: hidden;
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
 
     .report-data-table tbody tr td p {
         margin: 0;
         font-weight: 400;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #454551;
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
 
     /* ── Column widths: 2-column tables (NAME | NOTE/NOTES) ── */
@@ -369,7 +378,7 @@
         margin: 0;
         padding-left: 15px;
         font-family: 'Poppins', sans-serif;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         letter-spacing: 0.0607px;
         color: #454551;
@@ -377,7 +386,7 @@
 
     li p {
         margin: 0;
-        font-size: 10px;
+        font-size: 15px;
         line-height: 18px;
         display: inline;
     }
@@ -429,8 +438,11 @@
 
 .smart-editor-content-container {
     width: 595px !important;
+    max-width: 100% !important;
     margin: 0 auto;
     background: #FFF !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
 }
 
 .smart-editor[toolbar-view-mode=multiRow] .smart-editor-toolbar-items-primary,

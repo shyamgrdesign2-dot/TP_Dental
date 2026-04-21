@@ -27,6 +27,21 @@ const {
   groundingIndicator: groundingIndicatorBg,
 } = ASSETS.images;
 
+/** Shown in the medicine column; user edits update groundedMedicineName so voice PATCH keeps OCR/source in `name`. */
+function getMedicationDisplayName(item) {
+  if (!item || typeof item !== "object") return "";
+  return String(
+    item.groundedMedicineName ??
+    item.groundingMedicineName ??
+    item.name ??
+    ""
+  ).trim();
+}
+
+function buildMedicationLineItemLead(item) {
+  return getMedicationDisplayName(item) || String(item?.name ?? "").trim();
+}
+
 const MedicationsTable = ({
   medications = [],
   onUpdate,
@@ -473,6 +488,8 @@ const MedicationsTable = ({
       const newMedication = {
         id: Date.now().toString(),
         name: medicineName,
+        groundedMedicineName: medicineName,
+        refinedName: medicineName,
         corrected_name: medication?.tmm_generic || medication?.generic_name || '',
         dosage: '',
         frequency: '',
@@ -489,6 +506,7 @@ const MedicationsTable = ({
         newMedication.metadata = {
           ...medication,
           selectedValue: medicineName,
+          isManualSelection: true,
         };
       }
       
@@ -501,6 +519,8 @@ const MedicationsTable = ({
       const newMedication = {
         id: Date.now().toString(),
         name: extractedName,
+        groundedMedicineName: extractedName,
+        refinedName: extractedName,
         dosage: '',
         frequency: '',
         schedule: '',
@@ -581,10 +601,20 @@ const MedicationsTable = ({
         const updatedValue = editValue;
         const prevQuantity = item.quantity ?? "";
 
-        const updated = {
-          ...item,
-          [field]: updatedValue,
-        };
+        let updated;
+        if (field === "name") {
+          const v = String(updatedValue ?? "").trim();
+          updated = {
+            ...item,
+            groundedMedicineName: v,
+            refinedName: v,
+          };
+        } else {
+          updated = {
+            ...item,
+            [field]: updatedValue,
+          };
+        }
 
         if (field === "quantity") {
           const isQuantityChanged =
@@ -594,7 +624,8 @@ const MedicationsTable = ({
           updated.edited = false;
         }
 
-        updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        const lead = buildMedicationLineItemLead(updated);
+        updated.lineItem = `${lead} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         return updated;
       }
       return item;
@@ -630,8 +661,9 @@ const MedicationsTable = ({
       const updatedMedications = medications.map((item) => {
         if (item.id === itemId) {
           const updated = {
-            ...item, // Preserve all existing properties
-            name: medicineName,
+            ...item,
+            groundedMedicineName: medicineName,
+            refinedName: medicineName,
             corrected_name: generic || item.corrected_name || '',
             edited: false, // Set to false for autocomplete selections
           };
@@ -641,11 +673,12 @@ const MedicationsTable = ({
             updated.metadata = {
               ...medicineData,
               selectedValue: medicineName,
+              isManualSelection: true,
             };
           }
           
-          // Recalculate lineItem
-          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          const lead = buildMedicationLineItemLead(updated);
+          updated.lineItem = `${lead} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
         }
         return item;
@@ -686,10 +719,12 @@ const MedicationsTable = ({
         if (item.id === itemId) {
           const updated = {
             ...item,
-            name: extractedName,
-            edited: false, // Set to false for autocomplete selections
+            groundedMedicineName: extractedName,
+            refinedName: extractedName,
+            edited: false,
           };
-          updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+          const lead = buildMedicationLineItemLead(updated);
+          updated.lineItem = `${lead} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
           return updated;
         }
         return item;
@@ -764,7 +799,7 @@ const MedicationsTable = ({
     if (item) {
       setEditingRow(itemId);
       setRowEditValues({
-      name: item.name || '',
+      name: getMedicationDisplayName(item) || item.name || '',
       hm_type: item.hm_type,
       um_id: item.um_id,
       dosage: item.dosage || '',
@@ -781,7 +816,13 @@ const MedicationsTable = ({
   const handleRowSave = (itemId) => {
     const updatedMedications = medications.map(item => {
       if (item.id === itemId) {
-        const updated = { ...item, ...rowEditValues };
+        const { name: rowNameInput, ...rowRest } = rowEditValues;
+        const updated = { ...item, ...rowRest };
+        if (rowNameInput !== undefined) {
+          const v = String(rowNameInput).trim();
+          updated.groundedMedicineName = v;
+          updated.refinedName = v;
+        }
         const prevQuantity = item.quantity ?? "";
         const newQuantity = rowEditValues.quantity ?? item.quantity;
 
@@ -789,7 +830,8 @@ const MedicationsTable = ({
           String(newQuantity ?? "").trim() !== String(prevQuantity ?? "").trim();
         updated.edited = isQuantityChanged;
 
-        updated.lineItem = `${updated.name} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
+        const lead = buildMedicationLineItemLead(updated);
+        updated.lineItem = `${lead} (${[updated.dosage, updated.quantity, updated.frequency, updated.schedule, updated.duration, updated.notes].filter(Boolean).join(', ')})`;
         updated.hm_type = rowEditValues.hm_type;
         updated.um_id = rowEditValues.um_id;
         return updated;
@@ -857,7 +899,7 @@ const MedicationsTable = ({
       if (!currentFrequency) return;
 
       // Check if it's a numeric format (like "1-0-1")
-      const isNumericFormat = /^\d+(-\d+)*$/.test(currentFrequency);
+      const isNumericFormat = /^\d*\.?\d+(?:-\d*\.?\d+)*$/.test(currentFrequency);
       
       if (isNumericFormat) {
         // Keep the numeric format as is
@@ -1200,7 +1242,7 @@ const MedicationsTable = ({
                 <td 
                   rowSpan={rowSpan}
                   className={`${styles['medicine-cell']} ${styles['medicine-cell-with-badge']} ${rowSpan > 1 ? styles['medicine-cell-rowspan-2'] : ''}`}
-                  onClick={!isTablet ? () => handleCellClick(item.id, 'name', item.name) : undefined}
+                  onClick={!isTablet ? () => handleCellClick(item.id, 'name', getMedicationDisplayName(item) || item.name) : undefined}
                   style={{ cursor: !isTablet ? 'pointer' : 'default', position: 'relative', verticalAlign: 'top' }}
                 >
                   <div style={{ minHeight: '32px' }}>
@@ -1277,16 +1319,7 @@ const MedicationsTable = ({
                     <div className={styles['medicine-content']}>
                       <div className={styles['medicine-name']} style={{ display: 'flex', alignItems: 'center' }}>
                         {capitalize(
-                          (() => {
-                            if (isGroundingAccessable) {
-                              const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
-                              if (isFuzzySearchEmpty) {
-                                return item?.groundingMedicineName || item.name || "";
-                              }
-                              return item.name || item?.groundingMedicineName || "";
-                            }
-                            return item?.groundingMedicineName || item.name || "";
-                          })().trim() || '-', 
+                          (getMedicationDisplayName(item) || String(item?.name ?? "").trim() || "-"),
                           true
                         )}
                         {((item?.metadata?.tmm_hm_type == 1 || item?.metadata?.tmm_hm_type == 2) && item?.metadata?.um_id === 0) && (
@@ -1795,6 +1828,8 @@ const MedicationsTable = ({
             const newMedication = {
               id: Date.now().toString(),
               name: medicineName,
+              groundedMedicineName: medicineName,
+              refinedName: medicineName,
               corrected_name: addedMedicine?.tmm_generic || addedMedicine?.generic_name || '',
               dosage: '',
               frequency: '',
@@ -1811,6 +1846,7 @@ const MedicationsTable = ({
               newMedication.metadata = {
                 ...addedMedicine,
                 selectedValue: medicineName,
+                isManualSelection: true,
               };
             }
             

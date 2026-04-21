@@ -572,6 +572,7 @@ function ConfigurePrintSetting() {
                 ...baseSettings,
                 qrcode: qrCode
             }));
+            const shouldShowSmartRxOption = isWrittenRxSnapSmart;
 
             if (isWrittenRxSnapSmart && copyPrintSettings?.prescription?.case_option) {
                 const defaultOptions = defaultPrintSettings?.prescription?.case_option || [];
@@ -611,6 +612,11 @@ function ConfigurePrintSetting() {
                         custom_status: "Y",
                     });
                 }
+            }
+            if (!shouldShowSmartRxOption && copyPrintSettings?.prescription?.case_option) {
+                copyPrintSettings.prescription.case_option = copyPrintSettings.prescription.case_option.filter(
+                    (option) => option?.id !== 11
+                );
             }
             // Lab Investigation (id 15): default print section for lab parameters/investigations from backend.
             // Lab Results (id 18): added below when Zydus data exists; both can appear in Format Style.
