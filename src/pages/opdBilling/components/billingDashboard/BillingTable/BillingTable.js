@@ -324,6 +324,8 @@ export default function BillingTable({
   billData,
   setBillData,
   setBillingCount,
+  isReceptionistUser = false,
+  advancedSettings = {},
 }) {
   const decodedToken = getDecodedToken();
   const isAdmin = decodedToken?.result?.admin;
@@ -1956,6 +1958,8 @@ export default function BillingTable({
             totalAdvanceBalance={totalAdvanceBalance}
             showHideSubModal={showHideSubModal}
             billType={billType}
+            isReceptionistUser={isReceptionistUser || isReceptionist}
+            advancedSettings={advancedSettings}
           />
         </Row>
 

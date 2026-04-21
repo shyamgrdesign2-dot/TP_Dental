@@ -60,6 +60,7 @@ const TableBillingDashboard = forwardRef(
     const dispatch = useDispatch();
     const { doctorList } = useSelector((state) => state.bulkMessages);
     const { userId } = useSelector((state) => state.doctors);
+    const { advancedSettings } = useSelector((state) => state.billing);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTab, setSelectedTab] = useState(1);
     const [isAdvanceDepositTab, setIsAdvanceDepositTab] = useState(false);
@@ -316,6 +317,8 @@ const TableBillingDashboard = forwardRef(
                 totalAdvanceBalance={totalAdvanceBalance}
                 showHideSubModal={showHideSubModal}
                 billType={"opd"}
+                isReceptionistUser={isReceptionist}
+                advancedSettings={advancedSettings}
               />
             ) : selectedTab === 2 ? (
               <BillingTable
@@ -335,6 +338,8 @@ const TableBillingDashboard = forwardRef(
                 totalAdvanceBalance={totalAdvanceBalance}
                 showHideSubModal={showHideSubModal}
                 billType={"ipd"}
+                isReceptionistUser={isReceptionist}
+                advancedSettings={advancedSettings}
               />
             ) : (
               <AdvanceDepositTable

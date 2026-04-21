@@ -50,6 +50,8 @@ const BillTable = ({
   selectedCard,
   billType = "opd",
   isPreviewForm3c,
+  isReceptionistUser = false,
+  advancedSettings = {},
 }) => {
   const { profile, servicesList } = useSelector((state) => state.doctors);
   const { planDetails } = useSelector((state) => state.subscription);
@@ -358,6 +360,11 @@ const BillTable = ({
       render: (text, record) => {
         // Check if edit button should be disabled
         const { isEditDisabled, hasPaidDues, hasRefundedAmount } = isEditBillDisabled(record);
+        
+        // Check access control for reception users - only for OPD bills, default to Allow if setting doesn't exist
+        const isEditAccessRestricted = (isReceptionistUser || isReceptionist) && 
+          billType === "opd" &&
+          advancedSettings?.editBillAccessControlForReceptionist === false;
 
         return (
           <div
@@ -397,7 +404,9 @@ const BillTable = ({
             </button>
             <Tooltip
               title={
-                isEditDisabled
+                isEditAccessRestricted
+                  ? "Edit access restricted for reception users by admin settings."
+                  : isEditDisabled
                   ? hasRefundedAmount && hasPaidDues
                     ? "A refund and due clearance have been processed for this bill, so editing isn’t allowed."
                     : hasRefundedAmount
@@ -411,15 +420,15 @@ const BillTable = ({
               <span>
                 <button
                   className="btn p-0"
-                  disabled={isEditDisabled}
+                  disabled={isEditDisabled || isEditAccessRestricted}
                   onClick={() => {
-                    if (!isEditDisabled) {
+                    if (!isEditDisabled && !isEditAccessRestricted) {
                       handleEditBillDrawer();
                       setBillData(record);
                     }
                   }}
                   style={{
-                    opacity: isEditDisabled ? 0.5 : 1,
+                    opacity: (isEditDisabled || isEditAccessRestricted) ? 0.5 : 1,
                     border: "none",
                   }}
                 >
