@@ -87,6 +87,9 @@ import {
   PATIENT_DETAILS_SIDEBAR_KEYS,
   GB_TAB_RX_CVT,
   GB_VOICE_RX_FREE,
+  TAB_CLINIC_QUEUE,
+  TAB_CLINIC_APPOINTMENT,
+  CLINIC_TARGET_STATUS,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -189,6 +192,8 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import { clinicTargetStatus } from "../pages/chikitsalay/service";
 const noData = `${process.env.PUBLIC_URL}/nodata-found.svg`;
 const { TextArea } = Input;
 
@@ -206,6 +211,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const { isLoading } = useSelector((state) => state.uploadDoc);
   const { advancedSettings } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
+  const isChikitsalayAccessable = useChikitsalay();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
@@ -614,8 +620,18 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   // UseEffect to update items when pendingDigitisation changes
   useEffect(() => {
     const updatedItems = [
+      isChikitsalayAccessable && {
+        key: TAB_CLINIC_APPOINTMENT,
+        label: (
+          <div className="d-flex align-items-center">
+            <i className="icon-Queue"></i>
+            Appointment ({isDigitisationTab ? 0 : queueCount})
+            {/* ({appointmentCount}) */}
+          </div>
+        ),
+      },
       {
-        key: TAB_QUEUE,
+        key: isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE,
         label: (
           <div className="d-flex align-items-center">
             <i className="icon-Queue"></i>
@@ -1494,6 +1510,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       patient_id: record?.patient_unique_id,
     });
     goToPatientDetails(record, "/prescription");
+    if (isChikitsalayAccessable) {
+      clinicTargetStatus(record?.pam_id, {
+        targetStatus: CLINIC_TARGET_STATUS.SERVING,
+      });
+    }
   };
 
   const onPatientDetailsClick = async (record) => {

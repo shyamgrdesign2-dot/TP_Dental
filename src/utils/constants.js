@@ -40,6 +40,8 @@ export const TAB_FINISHED = 3;
 export const TAB_CANCELLED = 4;
 export const TAB_ZYDUS_ENCOUNTER = 11;
 export const TAB_ZYDUS_APPOINTMENT = 12;
+export const TAB_CLINIC_APPOINTMENT = 0;
+export const TAB_CLINIC_QUEUE = 7;
 
 export const TAB_CAMPAIGN = 0;
 export const TAB_DRAFT = 1;
@@ -95,6 +97,11 @@ export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
 export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const GB_VOICE_RX_FREE = "free-voice-rx";
 export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
+export const GB_CHIKITSALAY = "chikitsalay";
+export const CLINIC_TARGET_STATUS = {
+  SERVING: "SERVING",
+  COMPLETED: "COMPLETED",
+}
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
