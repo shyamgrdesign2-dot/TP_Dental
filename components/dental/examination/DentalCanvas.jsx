@@ -1269,7 +1269,7 @@ export function DentalCanvas({ patientId, patientAge = 30, compact = false, onSt
                             ];
                         }) }) })), isDentitionView && !hideExamineHint && (_jsxs("div", { style: {
                         position: 'absolute',
-                        bottom: '58px',
+                        bottom: '86px',
                         left: '50%',
                         transform: 'translateX(-50%)',
                         zIndex: 9,

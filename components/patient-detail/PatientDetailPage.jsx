@@ -785,9 +785,7 @@ function PatientDetailInner() {
           className={cn(
             "static flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden",
             DR_AGENT_MAIN_RESERVE_CLASS,
-            activeConfig.kind === "placeholder" || activeConfig.kind === "opd"
-              ? "overflow-y-auto"
-              : "overflow-hidden",
+            "overflow-hidden",
             (activeConfig.kind === "placeholder" || activeConfig.kind === "dental-plan") && "bg-tp-slate-50",
           )}
         >
@@ -798,36 +796,41 @@ function PatientDetailInner() {
 
           <div
             className={cn(
-              "relative z-10 flex min-w-0 w-full flex-col px-3 pb-0 sm:px-4 md:px-5 lg:px-[18px]",
-              activeConfig.kind === "opd" ? "flex-none" : "min-h-0 flex-1",
+              "relative z-10 flex min-w-0 w-full flex-col px-3 pb-0 sm:px-4 md:px-5 lg:px-[18px] min-h-0 flex-1"
             )}
           >
             <div
               className={cn(
-                "relative flex min-w-0 w-full max-w-none flex-col overflow-visible",
-                activeConfig.kind === "opd" ? "min-h-min" : "h-full min-h-0 flex-1",
+                "relative flex min-w-0 w-full max-w-none flex-col overflow-visible h-full min-h-0 flex-1"
               )}
             >
               {activeConfig.kind === "opd" ? (
-                <div className="relative z-10 mt-[-62px] flex w-full min-w-0 flex-col gap-4 py-0 md:gap-5 lg:flex-row">
-                  <section
-                    className="flex min-w-0 w-full flex-col gap-4 overflow-visible lg:max-w-[min(440px,40vw)] lg:w-[min(440px,40vw)] lg:flex-none lg:shrink-0 lg:self-start"
-                    aria-label="Historical data"
-                  >
-                    <HistorySectionCards />
-                  </section>
-                  <section
-                    className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden max-lg:min-h-[min(520px,80vh)]"
-                    aria-label="Prescription"
-                  >
-                    <DigitalRxPanel
-                      visitIndex={visitIndex}
-                      setVisitIndex={setVisitIndex}
-                      rxTab={rxTab}
-                      setRxTab={setRxTab}
-                    />
-                  </section>
-                </div>
+                <PatientDetailContentShell
+                  className="bg-transparent shadow-none rounded-none"
+                  bodyClassName="flex min-h-0 flex-1 flex-col h-full overflow-hidden"
+                >
+                  <div className="flex w-full h-full min-w-0 min-h-0 flex-col gap-4 py-0 md:gap-5 lg:flex-row pb-[18px]">
+                    <section
+                      className="flex min-h-0 h-full flex-col gap-4 overflow-y-auto max-lg:w-full lg:w-[340px] lg:min-w-[200px] lg:shrink scrollbar-hide"
+                      aria-label="Historical data"
+                    >
+                      <div className="flex flex-col gap-4">
+                        <HistorySectionCards />
+                      </div>
+                    </section>
+                    <section
+                      className="flex min-h-0 h-full flex-1 flex-col overflow-hidden lg:min-w-[300px]"
+                      aria-label="Prescription"
+                    >
+                      <DigitalRxPanel
+                        visitIndex={visitIndex}
+                        setVisitIndex={setVisitIndex}
+                        rxTab={rxTab}
+                        setRxTab={setRxTab}
+                      />
+                    </section>
+                  </div>
+                </PatientDetailContentShell>
               ) : activeConfig.kind === "dental-plan" ? (
                 <PatientDetailContentShell
                   className="border border-tp-slate-200/80 shadow-none"

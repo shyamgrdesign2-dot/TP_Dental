@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "iconsax": {
+      "url": "https://iconsax.io/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ix_pro_c8dbe7faaa471842eb6ad30660d14bb096a0e1f79e12142b"
+      }
+    }
+  }
+}

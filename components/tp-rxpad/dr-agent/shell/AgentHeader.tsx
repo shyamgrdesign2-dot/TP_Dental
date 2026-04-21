@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import type { DoctorViewType, DrAgentVariant, SpecialtyTabId } from "../types"
-import { NoiseOverlay } from "@/components/tp-ui/noise-overlay"
 
 // -----------------------------------------------------------------
 // Specialty → Auto-switch patient mapping
@@ -68,6 +67,8 @@ interface AgentHeaderProps {
   onIntakeModeChange?: (mode: IntakeMode) => void
   /** Panel variant — V0 shows simplified header */
   variant?: DrAgentVariant
+  /** Override the brand label shown in the floating glass tag (defaults to "Dr. Agent"). */
+  brandTitle?: string
 }
 
 export function AgentHeader({
@@ -82,6 +83,7 @@ export function AgentHeader({
   intakeMode = "with_intake",
   onIntakeModeChange,
   variant = "full",
+  brandTitle,
 }: AgentHeaderProps) {
   const isV0 = variant === "v0"
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -119,21 +121,40 @@ export function AgentHeader({
 
   return (
     <div className={cn("relative z-20", className)}>
-      {/* Header — 46px, gradient 270deg */}
+      {/* Header — transparent; floating liquid-glass tags (no bar, no divider). */}
       <div
-        className="relative overflow-visible flex items-center justify-between px-[12px]"
-        style={{
-          height: 46,
-          background: "linear-gradient(270deg, #8C33A0 0%, #2B2A64 100%)",
-        }}
+        className="relative flex items-center justify-between px-[14px]"
+        style={{ height: 52, background: "transparent" }}
       >
-        {/* Subtle noise grain */}
-        <NoiseOverlay opacity={0.04} />
-
-        {/* Left: spark icon + title + unified dropdown */}
-        <div className="relative z-10 flex items-center gap-[6px]">
-          <span className="text-[16px] font-semibold text-white" style={{ letterSpacing: "0.1px", lineHeight: "17px" }}>
-            Dr. Agent
+        {/* Left: Dr. Agent brand tag — floating liquid-glass card with 10px radius */}
+        <div className="pointer-events-auto relative z-10 flex items-center gap-[6px]">
+          <span className="dra-agent-brand-tag relative flex items-center gap-[7px] rounded-[10px] py-[5px] pl-[6px] pr-[11px]">
+            <span
+              className="relative inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center overflow-hidden"
+              aria-hidden
+              style={{ borderRadius: 7 }}
+            >
+              <img
+                src="/icons/dr-agent/agent-bg.svg"
+                alt=""
+                draggable={false}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <img
+                src="/icons/dr-agent/agent-spark.svg"
+                alt=""
+                draggable={false}
+                className="relative z-10"
+                width={13}
+                height={13}
+              />
+            </span>
+            <span
+              className="text-[13.5px] font-semibold leading-none text-tp-slate-700"
+              style={{ letterSpacing: "0.1px" }}
+            >
+              {brandTitle ?? "Dr. Agent"}
+            </span>
           </span>
 
           {/* Unified Dropdown — Specialty + Doctor Type + Intake (removed — demo only) */}
@@ -281,20 +302,60 @@ export function AgentHeader({
           </div>}
         </div>
 
-        {/* Right: close/minimize button */}
+        {/* Right: collapse — matching floating glass tag (10px radius) */}
         <button
           type="button"
           onClick={onClose}
-          className="relative z-10 flex h-[24px] w-[24px] items-center justify-center rounded-[5px] transition-colors hover:bg-white/10"
+          className="dra-agent-collapse-tag pointer-events-auto relative z-10 flex h-[32px] w-[32px] items-center justify-center rounded-[10px] text-tp-slate-600 transition-colors hover:text-tp-slate-900 active:scale-[0.95]"
           aria-label="Minimize agent"
         >
-          <svg width={17} height={17} viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="3" width="18" height="18" rx="3" stroke="rgba(255,255,255,0.8)" strokeWidth="1.44" />
-            <path d="M9 3v18" stroke="rgba(255,255,255,0.8)" strokeWidth="1.44" />
-            <path d="M13 9l3 3-3 3" stroke="rgba(255,255,255,0.8)" strokeWidth="1.44" strokeLinecap="round" strokeLinejoin="round" />
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <rect x="3" y="3" width="18" height="18" rx="3.5" stroke="currentColor" strokeWidth="1.7" />
+            <path d="M9 3v18" stroke="currentColor" strokeWidth="1.7" />
+            <path d="M13 9l3 3-3 3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
+
+      <style>{`
+        /* Dr. Agent brand tag — iOS liquid-glass with subtle AI gradient tint. */
+        .dra-agent-brand-tag {
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.18) 100%),
+            linear-gradient(135deg, rgba(213,101,234,0.14) 0%, rgba(103,58,172,0.10) 55%, rgba(75,74,213,0.10) 100%);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.80),
+            inset 0 0 0 1px rgba(103,58,172,0.12),
+            0 4px 12px -4px rgba(103,58,172,0.12);
+          transition: transform 120ms ease, box-shadow 180ms ease;
+        }
+        .dra-agent-brand-tag:active {
+          transform: scale(0.98);
+        }
+        .dra-agent-collapse-tag {
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.22) 100%),
+            linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(75,74,213,0.08) 100%);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.85),
+            inset 0 0 0 1px rgba(15,23,42,0.08),
+            0 4px 12px -4px rgba(15,23,42,0.08);
+          transition: background 180ms ease, box-shadow 180ms ease, color 180ms ease, transform 120ms ease;
+        }
+        .dra-agent-collapse-tag:hover {
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.38) 100%),
+            linear-gradient(135deg, rgba(139,92,246,0.10) 0%, rgba(75,74,213,0.10) 100%);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,1),
+            inset 0 0 0 1px rgba(15,23,42,0.12),
+            0 6px 16px -4px rgba(15,23,42,0.12);
+        }
+      `}</style>
     </div>
   )
 }

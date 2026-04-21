@@ -264,6 +264,11 @@
 }
 @media (min-width: 768px) {
   html[data-dr-agent-open="true"] .dr-agent-main-reserve {
-    padding-right: clamp(350px, 25vw, 400px);
+    padding-right: 300px;
+  }
+}
+@media (min-width: 1024px) {
+  html[data-dr-agent-open="true"] .dr-agent-main-reserve {
+    padding-right: clamp(350px, 30vw, 400px);
   }
 }

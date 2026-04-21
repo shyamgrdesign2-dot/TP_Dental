@@ -40,7 +40,7 @@ import { buildHomepageReply } from "./engines/homepage-reply-engine"
 import { enrichVoiceStructuredWithPatientContext } from "./engines/voice-rx-engine"
 import { buildRxPadCopySnackbarMessage } from "./shared/rxpad-copy-feedback"
 
-import { Hospital, TickCircle, User } from "iconsax-reactjs"
+import { TickCircle } from "iconsax-reactjs"
 import { TPSnackbar } from "@/components/tp-ui"
 import { AgentHeader } from "./shell/AgentHeader"
 import { PatientSelector } from "./shell/PatientSelector"
@@ -1079,7 +1079,14 @@ export function DrAgentPanel({
 
   return (
     <DrAgentRuntimeContext.Provider value={drAgentRuntimeValue}>
-    <div id="dr-agent-panel-root" className="relative flex h-full min-h-0 w-full min-w-0 flex-col bg-white">
+    <div id="dr-agent-panel-root" className="relative flex h-full min-h-0 w-full min-w-0 flex-col bg-transparent">
+      {/* ── Backdrop layers — animated AI-conic wash behind a white fill.
+          Wash sits at z-0, white at z-[1]. The glass header tags use
+          backdrop-filter, so the wash visibly bleeds through them only
+          where the tags themselves are translucent. ── */}
+      <div className="dra-gradient-wash pointer-events-none absolute inset-0 z-0" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-white" aria-hidden />
+
       {/* Hidden file input for native upload */}
       <input
         ref={fileInputRef}
@@ -1090,81 +1097,30 @@ export function DrAgentPanel({
         onChange={handleFileInputChange}
       />
 
-      {/* ── Header — white bg for differentiation ── */}
-      <AgentHeader
-        availableSpecialties={availableSpecialties}
-        activeSpecialty={activeSpecialty}
-        onSpecialtyChange={setActiveSpecialty}
-        onPatientChange={handlePatientChange}
-        selectedPatientId={selectedPatientId}
-        onClose={onClose}
-        doctorViewType={doctorViewType}
-        onDoctorViewChange={handleDoctorViewChange}
-        showDoctorViewSelector={showDoctorViewSelector}
-        intakeMode={intakeMode}
-        onIntakeModeChange={handleIntakeModeChange}
-      />
-
-      {/* ── Chat area — subtle warm AI-tinted background ── */}
+      {/* ── Chat area — transparent; sits over the white + wash backdrop. ── */}
       <div
-        className="relative flex flex-1 flex-col overflow-hidden"
-        style={{
-          background: "linear-gradient(180deg, #FAFAFE 0%, #F8F8FC 40%, #FAFAFD 100%)",
-        }}
+        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
+        style={{ background: "transparent" }}
       >
-        <div ref={chatScrollRef} className="da-chat-scroll flex flex-1 flex-col overflow-y-auto">
+        <div ref={chatScrollRef} className="da-chat-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
 
-          {/* Floating patient chip — homepage + RxPad (e.g. appointments route) for quick context switching */}
-          {(mode === "homepage" || mode === "rxpad") && (
-            <div className="sticky top-0 z-10 flex justify-center pb-1 pt-3">
-              <button
-                type="button"
-                onClick={mode === "rxpad" ? undefined : () => setIsPatientSheetOpen(true)}
-                aria-disabled={mode === "rxpad"}
-                title={mode === "rxpad" ? "Patient is set by this RxPad visit" : undefined}
-                className={cn(
-                  "inline-flex items-center gap-[4px] px-[8px] py-[3px] transition-all",
-                  mode === "rxpad" ? "da-floating-chip-readonly cursor-default" : "da-floating-chip",
-                  chipShaking && "da-chip-shake",
-                )}
-                style={{
-                  background: "rgba(255,255,255,0.65)",
-                  backdropFilter: "blur(12px) saturate(1.4)",
-                  WebkitBackdropFilter: "blur(12px) saturate(1.4)",
-                  boxShadow: "0 2px 12px rgba(15,23,42,0.08), 0 0 0 1px rgba(255,255,255,0.5) inset",
-                  height: 28,
-                  borderRadius: 14,
-                }}
-              >
-                {selectedPatientId === HOMEPAGE_COMMON_ID ? (
-                  <>
-                    <span className="flex-shrink-0 text-tp-slate-500">
-                      <Hospital size={12} variant="Bulk" />
-                    </span>
-                    <span style={{ color: "#3D3D4E", fontWeight: 600, fontSize: 11, lineHeight: "12px" }}>Clinic overview</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex-shrink-0 text-tp-slate-500">
-                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-                        <path opacity="0.4" d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" fill="currentColor" />
-                        <path d="M12 14.5c-5.01 0-9.09 3.36-9.09 7.5 0 .28.22.5.5.5h17.18c.28 0 .5-.22.5-.5 0-4.14-4.08-7.5-9.09-7.5Z" fill="currentColor" />
-                      </svg>
-                    </span>
-                    <span style={{ color: "#3D3D4E", fontWeight: 600, fontSize: 11, lineHeight: "12px" }}>{patient.label}</span>
-                    {patient.gender && (
-                      <span className="flex-shrink-0 whitespace-nowrap flex items-center" style={{ fontSize: 10, lineHeight: "12px" }}>
-                        <span style={{ color: "#B0B7C3" }}>(</span>
-                        <span style={{ color: "#B0B7C3" }}>{patient.gender}</span>
-                        {patient.age && <><span className="mx-[2px]" style={{ color: "#D0D5DD" }}>|</span><span style={{ color: "#B0B7C3" }}>{patient.age}y</span></>}
-                        <span style={{ color: "#B0B7C3" }}>)</span>
-                      </span>
-                    )}
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+          {/* Sticky liquid-glass header — pinned at the top of the scroll area
+              so chat content scrolls behind the tags (content blurs under glass). */}
+          <div className="pointer-events-none sticky top-0 z-30">
+            <AgentHeader
+              availableSpecialties={availableSpecialties}
+              activeSpecialty={activeSpecialty}
+              onSpecialtyChange={setActiveSpecialty}
+              onPatientChange={handlePatientChange}
+              selectedPatientId={selectedPatientId}
+              onClose={onClose}
+              doctorViewType={doctorViewType}
+              onDoctorViewChange={handleDoctorViewChange}
+              showDoctorViewSelector={showDoctorViewSelector}
+              intakeMode={intakeMode}
+              onIntakeModeChange={handleIntakeModeChange}
+            />
+          </div>
 
           {messages.length === 0 && !isTyping ? (
             <WelcomeScreen
@@ -1203,12 +1159,12 @@ export function DrAgentPanel({
 
       {/* ── Sticky footer: context PillBar + input (glance canned pills stay inline under that bubble only) ── */}
       <div className="sticky bottom-0 z-10 shrink-0 border-t border-tp-slate-100/80 bg-white shadow-[0_-4px_16px_rgba(15,23,42,0.04)]">
-        {/* Fade-in top edge — smoother, taller gradient for gentle transition */}
+        {/* Fade-in top edge — fully masks the animated wash behind the input area for legibility */}
         <div
           className="pointer-events-none absolute -top-[16px] left-0 right-0"
           style={{
             height: 16,
-            background: "linear-gradient(to top, rgba(255,255,255,0.98), rgba(255,255,255,0.4) 40%, transparent)",
+            background: "linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,0.55) 42%, transparent)",
           }}
         />
         {/* Hide context PillBar while glance inline pills are still on the thread */}
@@ -1305,6 +1261,38 @@ export function DrAgentPanel({
         .da-chat-scroll::-webkit-scrollbar-track { background: transparent; }
         .da-chat-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
         .da-chat-scroll { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.12) transparent; }
+
+        /* ── Rotating AI-conic wash — slow, blurred so colours bleed together
+           smoothly. Sits behind the white backdrop at ~11% opacity so it only
+           shows through the glass header tags. ── */
+        @property --dra-wash-angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+        .dra-gradient-wash {
+          opacity: 0.11;
+          background: conic-gradient(
+            from var(--dra-wash-angle) at 50% 50%,
+            #E38BBE 0deg,
+            #B06CE0 55deg,
+            #8B5CF6 115deg,
+            #6B5FE0 180deg,
+            #4B4AD5 235deg,
+            #4FACFE 295deg,
+            #E38BBE 360deg
+          );
+          filter: blur(90px);
+          animation: draWashRotate 22s linear infinite;
+          will-change: --dra-wash-angle;
+        }
+        @keyframes draWashRotate {
+          from { --dra-wash-angle: 0deg; }
+          to   { --dra-wash-angle: 360deg; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .dra-gradient-wash { animation: none; }
+        }
       `}</style>
 
       <TPSnackbar

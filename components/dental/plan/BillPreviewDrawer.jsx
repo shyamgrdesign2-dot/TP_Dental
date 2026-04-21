@@ -15,7 +15,7 @@ import { formatINR, DrawerHeader, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared"
 const BILL_ACTION_ICON_CLASS =
     "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200";
 
-function downloadBillAsText(plan, services, subtotal, discount, total) {
+function downloadBillAsText(plan, services, subtotal, serviceDiscount, additionalDiscount, total) {
     const lines = [];
     lines.push("Bill Preview");
     lines.push("");
@@ -31,7 +31,8 @@ function downloadBillAsText(plan, services, subtotal, discount, total) {
     });
     lines.push("-".repeat(52));
     lines.push(`Subtotal: ${formatINR(subtotal)}`);
-    if (discount > 0) lines.push(`Discount: -${formatINR(discount)}`);
+    if (serviceDiscount > 0) lines.push(`Service Discount: -${formatINR(serviceDiscount)}`);
+    if (additionalDiscount > 0) lines.push(`Additional Discount: -${formatINR(additionalDiscount)}`);
     lines.push(`Total:    ${formatINR(total)}`);
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -57,8 +58,12 @@ export function BillPreviewDrawer() {
             : plan.services
         : [];
     const subtotal = services.reduce((sum, s) => sum + s.rate, 0);
-    const discount = services.reduce((sum, s) => sum + s.discount, 0);
-    const total = services.reduce((sum, s) => sum + s.amount, 0);
+    const serviceDiscount = services.reduce((sum, s) => sum + s.discount, 0);
+    const additionalDiscount = plan ? (plan.additionalDiscount ?? 0) : 0;
+    // Only apply plan-level discount when showing all services (not single-service view)
+    const effectiveAdditionalDiscount = serviceId ? 0 : additionalDiscount;
+    const afterServiceDiscount = services.reduce((sum, s) => sum + s.amount, 0);
+    const total = Math.max(0, afterServiceDiscount - effectiveAdditionalDiscount);
 
     const action = _jsxs("div", {
         className: "flex items-center gap-[8px]",
@@ -70,7 +75,7 @@ export function BillPreviewDrawer() {
                         asChild: true,
                         children: _jsx("button", {
                             type: "button",
-                            onClick: () => plan && downloadBillAsText(plan, services, subtotal, discount, total),
+                            onClick: () => plan && downloadBillAsText(plan, services, subtotal, serviceDiscount, effectiveAdditionalDiscount, total),
                             className: BILL_ACTION_ICON_CLASS,
                             "aria-label": "Download bill",
                             children: _jsx(DocumentDownload, { size: 18, variant: "Linear" }),
@@ -200,11 +205,18 @@ export function BillPreviewDrawer() {
                                                         _jsx("span", { className: "text-tp-slate-700", children: formatINR(subtotal) }),
                                                     ],
                                                 }),
-                                                discount > 0 && (_jsxs("div", {
+                                                serviceDiscount > 0 && (_jsxs("div", {
                                                     className: "flex justify-between font-['Inter',sans-serif] text-[12px]",
                                                     children: [
-                                                        _jsx("span", { className: "text-tp-slate-500", children: "Discount" }),
-                                                        _jsxs("span", { className: "text-tp-error-500", children: ["-", formatINR(discount)] }),
+                                                        _jsx("span", { className: "text-tp-slate-500", children: "Service Discount" }),
+                                                        _jsxs("span", { className: "text-tp-error-500", children: ["-", formatINR(serviceDiscount)] }),
+                                                    ],
+                                                })),
+                                                effectiveAdditionalDiscount > 0 && (_jsxs("div", {
+                                                    className: "flex justify-between font-['Inter',sans-serif] text-[12px]",
+                                                    children: [
+                                                        _jsx("span", { className: "text-tp-slate-500", children: "Additional Discount" }),
+                                                        _jsxs("span", { className: "text-tp-success-600", children: ["-", formatINR(effectiveAdditionalDiscount)] }),
                                                     ],
                                                 })),
                                                 _jsxs("div", {

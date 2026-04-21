@@ -27,6 +27,7 @@ import ui from "./ExaminationTab.ui.module.scss";
 import { useBillingCatalog } from "@/lib/billing-catalog-context";
 import { getUniqueDentalBillItems, sortStringsForTypeahead } from "@/lib/billing-catalog";
 import { AddDentalBillItemDrawer } from "@/components/dental/AddDentalBillItemDrawer";
+import { useRxPadChrome } from "@/components/tp-rxpad/rxpad-chrome-context";
 // Score weights per diagnosis/finding severity (out of 100).
 const DIAG_WEIGHT = {
     Missing: 8, Implant: 2, RCT: 4, Crown: 2, Bridge: 3, Denture: 3,
@@ -145,6 +146,7 @@ function toDentalPreviewSections(state) {
         Boolean(section.overallToothNote?.trim()));
 }
 export function ExaminationTab({ patientId, patientAge = 30 }) {
+    const { drAgentOpen } = useRxPadChrome();
     const [canvasState, setCanvasState] = useState(null);
     const isSingle = canvasState?.viewMode === "single-tooth";
     const containerRef = useRef(null);
@@ -226,10 +228,13 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             sections: toDentalPreviewSections(canvasState),
         });
     }, [canvasState, patientId]);
-    return (_jsxs("div", { ref: containerRef, className: clsx(ex.root, isGetStarted && ex.rootGap), children: [_jsxs("div", { className: ex.canvasShell, style: {
-                    width: isGetStarted ? undefined : `${canvasPct}%`,
-                    flex: isGetStarted ? "1" : "none",
-                    transition: dragging ? "none" : "width 350ms ease-out",
+    const hideGetStarted = isGetStarted && drAgentOpen;
+
+    return (_jsxs("div", { ref: containerRef, className: clsx(ex.root, isGetStarted && !hideGetStarted && ex.rootGap), children: [_jsxs("div", { className: ex.canvasShell, style: {
+                    width: isGetStarted && !hideGetStarted ? undefined : (hideGetStarted ? "100%" : `${canvasPct}%`),
+                    minWidth: "320px",
+                    flex: isGetStarted ? "1" : "1 1 auto",
+                    transition: dragging ? "none" : "width 350ms ease-out, flex-basis 350ms ease-out",
                 }, children: [_jsx("div", { className: ex.gridOverlay, style: {
                             backgroundImage: "linear-gradient(to right, rgba(15,23,42,0.025) 1px, transparent 1px)," +
                                 "linear-gradient(to bottom, rgba(15,23,42,0.025) 1px, transparent 1px)",
@@ -239,15 +244,16 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
                             backgroundSize: "16px 16px",
                         } }), _jsx("div", { className: ex.radialOverlay, style: {
                             background: "radial-gradient(ellipse 55% 42% at 50% 38%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.3) 55%, transparent 78%)",
-                        } }), _jsx("div", { className: ex.canvasInner, children: _jsx(DentalCanvas, { patientId: patientId, patientAge: patientAge, onStateChange: setCanvasState }) })] }), !isGetStarted && (_jsxs("button", { type: "button", role: "separator", "aria-label": "Resize panel", "aria-orientation": "vertical", onPointerDown: (e) => {
-                    // Prevent pointer events so they don't trigger RxPad's swipe gesture or native swipe logic
+                        } }), _jsx("div", { className: ex.canvasInner, children: _jsx(DentalCanvas, { patientId: patientId, patientAge: patientAge, onStateChange: setCanvasState }) })] }), !isGetStarted && !hideGetStarted && (_jsxs("button", { type: "button", role: "separator", "aria-label": "Resize panel", "aria-orientation": "vertical", onPointerDown: (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     e.currentTarget.setPointerCapture(e.pointerId);
                     setDragging(true);
-                }, className: ex.resizeHandle, children: [_jsx("span", { className: ex.resizeHit }), _jsx("img", { src: "/icons/ui/drag-handle.svg", alt: "", draggable: false, className: ex.resizeIcon, style: { display: "block", width: "22px", height: "32px", maxWidth: "none", left: "-11px" } })] })), _jsxs("aside", { className: clsx(ex.aside, isGetStarted ? ex.asideStarted : ex.asideSplit), style: {
+                }, className: ex.resizeHandle, children: [_jsx("span", { className: ex.resizeHit }), _jsx("img", { src: "/icons/ui/drag-handle.svg", alt: "", draggable: false, className: ex.resizeIcon, style: { display: "block", width: "22px", height: "32px", maxWidth: "none", left: "-11px" } })] })), !hideGetStarted && (_jsxs("aside", { className: clsx(ex.aside, isGetStarted ? ex.asideStarted : ex.asideSplit), style: {
                     width: isGetStarted ? "auto" : `${asidePct}%`,
-                    transition: dragging ? "none" : "width 350ms ease-out"
+                    minWidth: isGetStarted ? undefined : (isSingle ? "360px" : "320px"),
+                    flex: isGetStarted ? "none" : "1 1 auto",
+                    transition: dragging ? "none" : "width 350ms ease-out, flex-basis 350ms ease-out"
                 }, children: [_jsx("div", { className: ex.asideInner, style: {
                             animation: isSingle
                                 ? "dentalCardExpand 380ms cubic-bezier(0.34, 1.2, 0.64, 1)"
@@ -265,7 +271,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             to   { opacity: 1; transform: scale(1) translateY(0); }
           }
         `,
-                } })] })] }));
+                } })] })) ] }));
 }
 /** Truncate one chip segment; join with commas for tooth-record pills (Dr Agent + chart). */
 const CHIP_SEGMENT_MAX = 22;

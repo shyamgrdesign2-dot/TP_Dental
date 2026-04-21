@@ -857,9 +857,7 @@ export function ChatBubble({
           <div className="flex items-start gap-[6px]">
             {/* AI Spark icon */}
             <AiBrandSparkIcon
-              size={24}
-              withBackground
-              sparkOverlayScale={0.58}
+              size={20}
               className="mt-0.5 shrink-0"
             />
 
@@ -875,9 +873,7 @@ export function ChatBubble({
         {!message.text && message.rxOutput && (
           <div className="flex items-start gap-[6px]">
             <AiBrandSparkIcon
-              size={24}
-              withBackground
-              sparkOverlayScale={0.58}
+              size={20}
               className="mt-0.5 shrink-0"
             />
           </div>

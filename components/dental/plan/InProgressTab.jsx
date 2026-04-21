@@ -1145,14 +1145,6 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                         children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View work done"],
                                                     }),
                                                     _jsxs(DropdownMenuItem, {
-                                                        onClick: () => setMarkDoneOpen(true),
-                                                        className: "rounded-[8px] !gap-[6px] focus:bg-tp-success-50 data-[highlighted]:bg-tp-success-50",
-                                                        children: [
-                                                            _jsx(TickCircle, { size: 16, variant: "Linear", className: "text-tp-success-600" }),
-                                                            _jsx("span", { className: "text-tp-success-600 font-semibold", children: "Mark as Done" }),
-                                                        ],
-                                                    }),
-                                                    _jsxs(DropdownMenuItem, {
                                                         onClick: () => setDeleteOpen(true),
                                                         className: "rounded-[8px] !gap-[6px] focus:bg-red-50 data-[highlighted]:bg-red-50",
                                                         children: [
@@ -1849,6 +1841,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
     const { dispatch, openDrawer, patientId } = usePlanContext();
     const [markAllOpen, setMarkAllOpen] = useState(false);
     const [revertAllOpen, setRevertAllOpen] = useState(false);
+    const [deletePlanOpen, setDeletePlanOpen] = useState(false);
     // Accordion — first service open by default, one at a time.
     const [openServiceIndex, setOpenServiceIndex] = useState(0);
     const services = plan.services;
@@ -1871,22 +1864,38 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                             _jsxs("div", {
                                 children: [
                                     _jsx("h4", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: plan.name }),
-                                    _jsxs("div", {
+                                    _jsx("div", {
                                         className: "mt-[3px] flex items-center gap-[6px] flex-wrap",
-                                        children: [
-                                            additionalDiscount > 0 && _jsx("span", {
-                                                className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-400 line-through tabular-nums",
-                                                children: formatINR(total),
-                                            }),
-                                            additionalDiscount > 0 && _jsxs("span", {
-                                                className: "inline-flex items-center rounded-[6px] bg-tp-success-50 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-success-700 tabular-nums",
-                                                children: ["\u2212 ", formatINR(additionalDiscount)],
-                                            }),
-                                            _jsx("span", {
+                                        children: additionalDiscount > 0
+                                            ? _jsxs(Tooltip, {
+                                                delayDuration: 200,
+                                                children: [
+                                                    _jsx(TooltipTrigger, {
+                                                        asChild: true,
+                                                        children: _jsx("span", {
+                                                            className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-700 tabular-nums cursor-default",
+                                                            children: formatINR(finalTotal),
+                                                        }),
+                                                    }),
+                                                    _jsx(TooltipContent, {
+                                                        side: "bottom",
+                                                        sideOffset: 6,
+                                                        className: "rounded-[10px] px-3 py-2",
+                                                        children: _jsxs("div", {
+                                                            className: "space-y-1 font-['Inter',sans-serif] text-[12px] leading-[1.45]",
+                                                            children: [
+                                                                _jsxs("p", { className: "text-tp-slate-400", children: ["Subtotal: ", formatINR(total)] }),
+                                                                _jsxs("p", { className: "text-tp-success-500", children: ["Discount: \u2212", formatINR(additionalDiscount)] }),
+                                                                _jsxs("p", { className: "font-semibold text-white", children: ["Final: ", formatINR(finalTotal)] }),
+                                                            ],
+                                                        }),
+                                                    }),
+                                                ],
+                                            })
+                                            : _jsx("span", {
                                                 className: "inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-700 tabular-nums",
                                                 children: formatINR(finalTotal),
                                             }),
-                                        ],
                                     }),
                                 ],
                             }),
@@ -1895,17 +1904,6 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                     _jsxs("div", {
                         className: "flex items-center gap-[6px]",
                         children: [
-                            _jsx("button", {
-                                type: "button",
-                                onClick: () => onToggleCollapse?.(),
-                                "aria-label": collapsed ? "Expand plan" : "Collapse plan",
-                                className: "flex h-9 w-9 items-center justify-center rounded-[10px] text-tp-slate-500 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-700",
-                                children: _jsx(ChevronDown, {
-                                    size: 18,
-                                    strokeWidth: 2,
-                                    className: `transition-transform duration-200 ${collapsed ? "-rotate-90" : ""}`,
-                                }),
-                            }),
                             _jsxs("button", {
                                 type: "button",
                                 onClick: () => setMarkAllOpen(true),
@@ -1939,9 +1937,29 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                                                     _jsx("span", { className: "text-tp-warning-600", children: "Revert All to Plan" }),
                                                 ],
                                             }),
+                                            _jsx(DropdownMenuSeparator, {}),
+                                            _jsxs(DropdownMenuItem, {
+                                                onClick: () => setDeletePlanOpen(true),
+                                                className: "rounded-[8px] !gap-[6px] focus:bg-red-50 data-[highlighted]:bg-red-50",
+                                                children: [
+                                                    _jsx(Trash, { size: 16, variant: "Linear", className: "text-tp-error-600" }),
+                                                    _jsx("span", { className: "text-tp-error-600 font-semibold", children: "Delete Plan" }),
+                                                ],
+                                            }),
                                         ],
                                     }),
                                 ],
+                            }),
+                            _jsx("button", {
+                                type: "button",
+                                onClick: () => onToggleCollapse?.(),
+                                "aria-label": collapsed ? "Expand plan" : "Collapse plan",
+                                className: "flex h-9 w-9 items-center justify-center rounded-[10px] text-tp-slate-500 transition-colors hover:bg-tp-slate-100 hover:text-tp-slate-700",
+                                children: _jsx(ChevronDown, {
+                                    size: 18,
+                                    strokeWidth: 2,
+                                    className: `transition-transform duration-200 ${collapsed ? "-rotate-90" : ""}`,
+                                }),
                             }),
                         ],
                     }),
@@ -1981,6 +1999,19 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                 onPrimary: () => {
                     dispatch({ type: "REVERT_PLAN_TO_ESTIMATES", planId: plan.id });
                     setRevertAllOpen(false);
+                },
+            }),
+            _jsx(TPConfirmDialog, {
+                open: deletePlanOpen,
+                onOpenChange: setDeletePlanOpen,
+                title: "Delete Plan",
+                warning: `This will permanently delete "${plan.name}" and all its ${services.length} service${services.length === 1 ? "" : "s"}, appointments, and visit records. This action cannot be undone.`,
+                secondaryLabel: "Cancel",
+                primaryLabel: "Delete Plan",
+                primaryTone: "destructive",
+                onPrimary: () => {
+                    dispatch({ type: "DELETE_PLAN", planId: plan.id });
+                    setDeletePlanOpen(false);
                 },
             }),
         ],

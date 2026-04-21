@@ -163,9 +163,7 @@ export function TypingIndicator({ className, queryHint }: TypingIndicatorProps) 
   return (
     <div className={cn("flex items-start gap-[8px]", className)}>
       <AiBrandSparkIcon
-        size={24}
-        withBackground
-        sparkOverlayScale={0.58}
+        size={20}
         className="da-typing-spark-pulse mt-[1px] shrink-0"
       />
 
