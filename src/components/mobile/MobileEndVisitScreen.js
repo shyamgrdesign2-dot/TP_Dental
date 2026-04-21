@@ -278,7 +278,7 @@ function MobileEndVisitScreen({
     const clinic_name = getClinicName(profile?.hospital_data);
     const rxId = genRxDetails?._id || tcm_id;
 
-    trackEvent('TP_VoiceRx_SendtoWhatsapp', {
+    trackEvent('TP_APP_VoiceRx_SendtoWhatsapp', {
       patient_contact: patient_data?.pm_contact_no || '',
       patient_id: patient_data?.patient_unique_id || '',
       doctor_speciality: profile?.dp_name,
