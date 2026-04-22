@@ -458,9 +458,31 @@ function AppointmentDashboard() {
 
   // Handle view Rx click
   const handleViewRxClick = useCallback((record) => {
+    const currentClinic = getClinic(profile?.hospital_data);
+    const currentClinicName = getClinicName(profile?.hospital_data);
+    trackEvent('TP_App_view_Rx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId: profile?.um_id || '',
+        patientData: record,
+        clinic: currentClinic,
+        segmentation: {
+          surface: 'mobile_appointment_dashboard',
+          entry_point: 'view_rx_button',
+        },
+      }),
+      patient_contact: record?.pm_contact_no || '',
+      patient_id: record?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: currentClinicName,
+      rx_id: record?.tcm_id || '',
+      appointment_tab: selectedTab,
+      pam_id: record?.pam_id || '',
+    });
     setSelectedRxAppointment(record);
     setShowRxPreviewModal(true);
-  }, []);
+  }, [profile, selectedTab]);
 
   // Handle cancel appointment
   const handleCancelAppointment = useCallback((record) => {
