@@ -23,6 +23,7 @@ import {
 import { useLocalStorage } from "./utils/localStorage";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./common/ErrorFallback";
+import GrowthBookPhoneSync from "./components/GrowthBookPhoneSync";
 import { checkAccountStatus } from "./pages/auth/authService";
 import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
@@ -769,6 +770,7 @@ function App() {
         ) : (
           <Suspense fallback={<FullPageLoader />}>
             <AppStoreProvider>
+              <GrowthBookPhoneSync />
               <Suspense fallback={null}>
                 <AppTeleconsultBootstrap />
               </Suspense>

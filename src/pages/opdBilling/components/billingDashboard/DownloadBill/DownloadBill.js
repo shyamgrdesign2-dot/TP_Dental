@@ -66,7 +66,7 @@ const DownloadBill = ({
       key: "billNo",
       align: "center",
       height: 20,
-      width: "13%",
+      width: "12%",
       render: (text, record) => (
         <div>
           <div style={{ fontSize: 12 }}>{record.billNumber}</div>
@@ -125,7 +125,7 @@ const DownloadBill = ({
       key: "payableAmount",
       align: "center",
       height: 20,
-      width: "9%",
+      width: "8%",
       render: (text, record) => (
         <div style={{ fontSize: 12 }}>₹{record?.payableAmount}</div>
       ),
@@ -136,10 +136,24 @@ const DownloadBill = ({
       key: "paidAmount",
       align: "center",
       height: 20,
-      width: "10%",
+      width: "9%",
       render: (text, record) => (
         <div style={{ fontSize: 12 }}>₹{record?.paidAmount}</div>
       ),
+    },
+    {
+      title: "MOP",
+      dataIndex: "mop",
+      key: "mop",
+      align: "center",
+      height: 20,
+      width: "9%",
+      render: (text, record) => {
+        const paymentModes = Array.isArray(record?.paymentModes)
+          ? record.paymentModes.map(pm => pm?.paymentMode).filter(Boolean).join(", ")
+          : "N/A";
+        return <span style={{ fontSize: 12 }}>{paymentModes}</span>;
+      },
     },
     {
       title: "STATUS",
@@ -147,7 +161,7 @@ const DownloadBill = ({
       key: "status",
       align: "center",
       height: 20,
-      width: "10%",
+      width: "9%",
       render: (text, record) => (
         <span style={{ fontSize: 12 }}>{record?.paymentStatus}</span>
       ),
