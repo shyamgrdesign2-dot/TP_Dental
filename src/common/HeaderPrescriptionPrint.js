@@ -29,7 +29,6 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
     const urlParams = new URLSearchParams(window.location.search);
     const isReceptionist = urlParams.has("receptionist");
     const isChikitsalayAccessable = useChikitsalay();
-    const isEditFlow = state?.action === "edit";
 
     const onEndVisitClick = async () => {
         if (isVoiceOrAmbientFlow) {
@@ -49,7 +48,7 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
 
             if (!isChikitsalayAccessable) {
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
-            } else if (isChikitsalayAccessable && !isEditFlow) {
+            } else if (isChikitsalayAccessable) {
                 clinicTargetStatus(pam_id, {
                     targetStatus: CLINIC_TARGET_STATUS.COMPLETED,
                 });

@@ -2156,7 +2156,6 @@ function TabRxHeader({
           replace: true,
           state: {
             ...action.payload,
-            action: tcmId == 0 ? "add" : "edit",
             patient_data: patient_data,
             labParamsData: labParamsData,
             zydusSelectedLabParams: zydusSelectedLabParams,
