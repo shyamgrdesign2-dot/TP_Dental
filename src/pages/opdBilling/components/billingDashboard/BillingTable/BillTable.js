@@ -402,40 +402,40 @@ const BillTable = ({
             >
               <i className="icon-Print"></i>
             </button>
-            <Tooltip
-              title={
-                isEditAccessRestricted
-                  ? "Edit access restricted for reception users by admin settings."
-                  : isEditDisabled
-                  ? hasRefundedAmount && hasPaidDues
-                    ? "A refund and due clearance have been processed for this bill, so editing isn’t allowed."
-                    : hasRefundedAmount
-                    ? "A refund has already been issued for this bill, so editing isn’t allowed."
-                    : hasPaidDues
-                    ? "The full due amount or some of the due amount has been cleared for this bill, so editing isn’t allowed."
-                    : "Cannot edit bill"
-                  : ""
-              }
-            >
-              <span>
-                <button
-                  className="btn p-0"
-                  disabled={isEditDisabled || isEditAccessRestricted}
-                  onClick={() => {
-                    if (!isEditDisabled && !isEditAccessRestricted) {
-                      handleEditBillDrawer();
-                      setBillData(record);
-                    }
-                  }}
-                  style={{
-                    opacity: (isEditDisabled || isEditAccessRestricted) ? 0.5 : 1,
-                    border: "none",
-                  }}
-                >
-                  <i className="icon-Edit"></i>
-                </button>
-              </span>
-            </Tooltip>
+            {!isEditAccessRestricted && (
+              <Tooltip
+                title={
+                  isEditDisabled
+                    ? hasRefundedAmount && hasPaidDues
+                      ? "A refund and due clearance have been processed for this bill, so editing isn’t allowed."
+                      : hasRefundedAmount
+                      ? "A refund has already been issued for this bill, so editing isn’t allowed."
+                      : hasPaidDues
+                      ? "The full due amount or some of the due amount has been cleared for this bill, so editing isn’t allowed."
+                      : "Cannot edit bill"
+                    : ""
+                }
+              >
+                <span>
+                  <button
+                    className="btn p-0"
+                    disabled={isEditDisabled}
+                    onClick={() => {
+                      if (!isEditDisabled) {
+                        handleEditBillDrawer();
+                        setBillData(record);
+                      }
+                    }}
+                    style={{
+                      opacity: isEditDisabled ? 0.5 : 1,
+                      border: "none",
+                    }}
+                  >
+                    <i className="icon-Edit"></i>
+                  </button>
+                </span>
+              </Tooltip>
+            )}
             <Dropdown
               className="cursor-pointer"
               menu={{
