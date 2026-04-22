@@ -21,7 +21,7 @@ const AdvanceBillSettings = ({ visible, onClose, getAdvanceSettings }) => {
   const { profile } = useSelector((state) => state.doctors);
   
   const decodedToken = getDecodedToken();
-  const isAdmin = decodedToken?.result?.admin;
+  const isAdmin = Boolean(decodedToken?.result?.admin);
 
   useEffect(() => {
     if (advancedSettings) setSettings(advancedSettings);
