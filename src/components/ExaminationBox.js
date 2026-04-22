@@ -16,10 +16,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import Examinationicon from "../assets/images/Examination.svg";
+
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -33,6 +33,11 @@ import {
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  examination: Examinationicon,
+} = ASSETS.images;
 
 function ExaminationBox() {
   const {

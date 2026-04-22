@@ -1,6 +1,5 @@
 import { Button, Card } from "antd";
-import emptyDocument from "./../../../../assets/images/empty-document.webp";
-import emptyIllustration from "./../../../../assets/mobile/empty_illustration.svg";
+
 import { useDispatch, useSelector } from "react-redux";
 import { setUploadDocCategories } from "../../../../redux/uploadDocSlice";
 import { fetchAllDocumentCategories } from "../../service";
@@ -13,6 +12,9 @@ import {
   generateUniqueFileName,
   getCorrectedFileName,
 } from "../../utils/helper";
+import { ASSETS } from "../../../../assets";
+const emptyDocument = ASSETS.images.emptyDocument;
+const emptyIllustration = ASSETS.mobile.emptyIllustration;
 
 const VisitMedicalRecords = ({
   filesData,

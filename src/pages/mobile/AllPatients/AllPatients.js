@@ -19,9 +19,12 @@ import {
 } from '../../../utils/utils';
 import { getDecodedToken } from '../../../utils/localStorage';
 import { getProfile } from '../../../redux/doctorsSlice';
-import successIcon from '../../../assets/images/end-visit.svg';
-import closeIcon from '../../../assets/images/close-visit.svg';
-import profileAddIcon from '../../../assets/mobile/profile-add.svg';
+import { ASSETS } from "../../../assets";
+const {
+  endVisit: successIcon,
+  closeVisit: closeIcon,
+} = ASSETS.images;
+const profileAddIcon = ASSETS.mobile.profileAdd;
 
 const SHIMMER_ITEMS = [0, 1, 2, 3, 4];
 

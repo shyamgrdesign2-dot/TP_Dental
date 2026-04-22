@@ -1,18 +1,8 @@
 import { Button, Checkbox, Divider, message, Modal } from "antd";
 import { useContext, useState } from "react";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import scHeaderBg from "../assets/images/sc-header-bg.webp";
-import autoFillRx from "../assets/images/sc-rx.svg";
-import scBg from "../assets/images/sc-bg.svg";
-import close from "../assets/images/close-square.svg";
-import scStrip from "../assets/images/sc-strip.webp";
 import { useSelector } from "react-redux";
-import symptoms from "../assets/images/Symptoms.svg";
-import custom from "../assets/images/custom-module.svg";
-import medicalHistory from "../assets/images/medical-history-dark.svg";
-import questions from "../assets/images/message-question.svg";
-import successIcon from "../assets/images/end-visit.svg";
-import closeIcon from "../assets/images/close-visit.svg";
+
 import { useDispatch } from "react-redux";
 import {
   setSelectAutofill,
@@ -22,6 +12,20 @@ import { GB_VOICE_RX_FREE } from "../utils/constants";
 import { getClinicName, getTokenData, isVoiceRxFree, shouldMonetizationDisabled, trackEvent } from "../utils/utils";
 import dayjs from "dayjs";
 import CashManagerContext from "../context/CashManagerContext";
+import { ASSETS } from "../assets";
+const {
+  scHeaderBg,
+  scRx: autoFillRx,
+  scBg,
+  closeSquare: close,
+  scStrip,
+  symptoms,
+  customModule: custom,
+  medicalHistoryDark: medicalHistory,
+  messageQuestion: questions,
+  endVisit: successIcon,
+  closeVisit: closeIcon,
+} = ASSETS.images;
 
 const VALID_TYPES = {
   medical_condition: "Medical Condition",

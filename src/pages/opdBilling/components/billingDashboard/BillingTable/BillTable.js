@@ -8,8 +8,7 @@ import {
   fetchPatientWalletBalance,
   generateBillToken,
 } from "../../../service";
-import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
-import visitEnd from "../../../../../assets/images/end-visit.svg";
+
 import {
   TRIAL,
   MESSAGE_KEY,
@@ -29,6 +28,11 @@ import { useLocalStorage } from "../../../../../utils/localStorage";
 import { EVENTS } from "../../../../../utils/events";
 import { sendMessageToParent } from "../../../../../utils/utils";
 import { EditBillDeployedDate } from "../../../utils/constants";
+import { ASSETS } from "../../../../../assets";
+const {
+  closeVisit: imgCloseVisit,
+  endVisit: visitEnd,
+} = ASSETS.images;
 
 const BillTable = ({
   createBillDrawer,
