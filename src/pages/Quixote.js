@@ -21,7 +21,7 @@ const showDateFormat = 'DD MMM, YY'
 
 function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
 
-    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig } = useContext(PrintSettingsContext);
+    const { smartRxFile, divWidth, caseManagerData, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, labParamsData, customModules, hospitalSearchResults, carePlanAssignments, isDigitisedPrintConfig, isCvtExtHosAccessableFromGB } = useContext(PrintSettingsContext);
     const { frequencyList, timingList } = useSelector((state) => state.doctors);
 
     const {isGynaecHistoryAccessable} = useAccess();
@@ -213,6 +213,7 @@ function Quixote({ mode = NORMAL, ophthalModuleData, ...props }) {
                 carePlanAssignments={carePlanAssignments}
                 smartRxData={smartRxData}
                 isDigitisedPrintConfig={isDigitisedPrintConfig}
+                isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
                 columns={columns}
                 initialRows={initialRows}
                 frequencyList={frequencyList}

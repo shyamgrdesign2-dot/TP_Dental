@@ -33,6 +33,10 @@ import {
   TP_ASSETS_BASE,
 } from "../constants";
 import moment from "moment";
+import {
+  getCvtExtHosPatientDataShowValue,
+  shouldUseCvtExtHosDigitisedPatientMapping,
+} from "../cvtExtHosPatientPrint";
 import ObsHistoryInlineView from "../../components/print_settings/obsHistory/inline";
 import ObsHistoryListView from "../../components/print_settings/obsHistory/list";
 import ObsHistoryTableView from "../../components/print_settings/obsHistory/table";
@@ -665,6 +669,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     customModules,
     abhaDetails,
     isDigitisedPrintConfig,
+    isCvtExtHosAccessableFromGB,
   } = props;
   const isPediatricAccessable =
     caseManagerData?.doctor_data?.dp_id == PAEDIATRICS_DP_ID ||
@@ -916,7 +921,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     return value;
   };
 
+  const isRxDigitizePrintLike = !!(
+    isDigitisedPrintConfig || caseManagerData?.isRxDigitize
+  );
+  const cvtExtHosPatientMapEnabled = shouldUseCvtExtHosDigitisedPatientMapping(
+    isCvtExtHosAccessableFromGB ?? caseManagerData?.isCvtExtHosAccessableFromGB,
+    isRxDigitizePrintLike,
+  );
+
   const patientDataShow = (id) => {
+    if (cvtExtHosPatientMapEnabled) {
+      return getCvtExtHosPatientDataShowValue(id, {
+        patient: caseManagerData?.patient_data,
+        doctorProfile: caseManagerData?.doctor_data,
+        genderAge,
+        abhaDetails,
+        caseManagerData,
+        isPediatricAccessable,
+        formatPediatricHtWt: formatHeightWeight,
+      });
+    }
     var value = "";
     if (id == 1) {
       value = `${caseManagerData?.patient_data?.patient_salutation ? `${caseManagerData?.patient_data?.patient_salutation} ${caseManagerData?.patient_data?.patient_name}, ${caseManagerData?.patient_data?.patient_id}` : `${caseManagerData?.patient_data?.patient_name}, ${caseManagerData?.patient_data?.patient_id}`}`;

@@ -615,6 +615,7 @@ function SmartRxPreview() {
         selectedLang,
         payloadOverride: null,
         skipFetch: shouldSkipAutoFetch,
+        isCvtExtHosAccessableFromGB,
     });
 
     useEffect(() => {

@@ -3,6 +3,10 @@ import { Font, Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/
 import { isNumeric, medicine_freq_dosage_format, chunkArray, capitalize, getIndianLanguageFont, getFrequencyTitle, getTimeingTitle, getDurationTitle, getRxTitle, getFrequencyLanguageTitles, camelCaseToTitle, camelToSentence, calculateFollowUpText } from '../../utils/utils'
 import { EXTRA_OPTIONS, INVESTIGATION_TITLE, NEO_NATOLOGISTS_DP_ID, NORMAL, PAEDIATRICS_DP_ID, WHATSAPP, TP_ASSETS_BASE } from '../../utils/constants';
 import moment from 'moment';
+import {
+    getCvtExtHosPatientDataShowValue,
+    shouldUseCvtExtHosDigitisedPatientMapping,
+} from '../../utils/cvtExtHosPatientPrint';
 import ObsHistoryInlineView from './obsHistory/inline';
 import ObsHistoryListView from './obsHistory/list';
 import ObsHistoryTableView from './obsHistory/table';
@@ -393,8 +397,14 @@ function enrichCaseManagerAiMedicationForPrint(medicine) {
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
-    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData } = props
+    let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps } = props
     const isRxDigitizeBool = !!(caseManagerData?.isRxDigitize || isDigitisedPrintConfig);
+    const isCvtExtHosAccessableFromGB =
+        isCvtExtHosFromProps ?? caseManagerData?.isCvtExtHosAccessableFromGB ?? false;
+    const useCvtExtHosDigitisedPatientMap = shouldUseCvtExtHosDigitisedPatientMapping(
+        isCvtExtHosAccessableFromGB,
+        isDigitisedPrintConfig || caseManagerData?.isRxDigitize,
+    );
     const baseFontFamily = printSettings?.page_format?.font_family || 'Roboto';
     const baseFontSize = PX_TO_PT * (printSettings?.page_format?.font_size || 10);
     const dentalPdfData = dentalData;
@@ -663,6 +673,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const prescriptionVaccines = Array.isArray(caseManagerData?.vaccinations) ? caseManagerData.vaccinations : [];
 
     const patientDataShow = (id) => {
+        if (useCvtExtHosDigitisedPatientMap) {
+            return getCvtExtHosPatientDataShowValue(id, {
+                patient: caseManagerData?.patient_data,
+                doctorProfile: caseManagerData?.doctor_data,
+                genderAge,
+                abhaDetails,
+                caseManagerData,
+                isPediatricAccessable,
+            });
+        }
         var value = ''
         if (id == 1) {
             value = `${caseManagerData?.patient_data?.patient_salutation ? `${caseManagerData?.patient_data?.patient_salutation} ${caseManagerData?.patient_data?.patient_name}, ${caseManagerData?.patient_data?.patient_id}` : `${caseManagerData?.patient_data?.patient_name}, ${caseManagerData?.patient_data?.patient_id}`}`

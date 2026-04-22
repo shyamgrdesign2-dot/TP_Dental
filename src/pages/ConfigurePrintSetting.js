@@ -13,7 +13,8 @@ import HeaderPrintSetting from "../common/HeaderPrintSetting";
 import Quixote from "./Quixote";
 import QuixoteCertificate from "./QuixoteCertificate";
 
-import { TAB_PRESCRIPTION, TAB_HEADER_FOOTER, TAB_PAGE_FORMAT, NORMAL } from "../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { TAB_PRESCRIPTION, TAB_HEADER_FOOTER, TAB_PAGE_FORMAT, NORMAL, GB_CVT_EXT_HOS } from "../utils/constants";
 
 import PrescriptionLayout from "../components/print_settings/PrescriptionLayout";
 import HeaderFooterLayout from "../components/print_settings/HeaderFooterLayout";
@@ -42,6 +43,7 @@ import { setCurrentSessionRx } from "../redux/obstetricSlice";
 
 function ConfigurePrintSetting() {
 
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
     const divRef = useRef(null);
     const printSettingsRef = useRef(null);
 
@@ -508,7 +510,7 @@ function ConfigurePrintSetting() {
             ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
         : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, isCvtExtHosAccessableFromGB, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,
