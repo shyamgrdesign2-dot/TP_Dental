@@ -218,6 +218,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const {
     queueCount,
+    clinicQueueCount,
     finishedCount,
     cancelledCount,
     zydusEncounterCount,
@@ -635,7 +636,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         label: (
           <div className="d-flex align-items-center">
             <i className="icon-Queue"></i>
-            Queue ({isDigitisationTab ? 0 : queueCount})
+            Queue ({isChikitsalayAccessable ? clinicQueueCount : isDigitisationTab ? 0 : queueCount})
           </div>
         ),
       },
@@ -2496,7 +2497,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         );
       },
     },
-    {
+    !(isChikitsalayAccessable && selectedTab === TAB_CLINIC_APPOINTMENT) && {
       title: selectedTab != TAB_ZYDUS_APPOINTMENT ? "Action" : "",
       key: "action",
       width: 200,
@@ -2506,7 +2507,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             size="middle"
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            {selectedTab === TAB_DRAFT_RX ? (
+            {(selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
+              <button
+              className="btn btn-outline-primary btn-resume-draft-rx"
+              onClick={() => onConsultClick(record)}
+              >
+                Consult
+              </button>
+             : selectedTab === TAB_DRAFT_RX ? (
               <button
                 className="btn btn-outline-primary btn-resume-draft-rx"
                 onClick={() => handleResumeDraftRx(record)}
@@ -2740,7 +2748,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           </div>
         ) : null,
     },
-  ];
+  ]?.filter((item) => item);
 
   const handleChange = (pagination, filters, sorter, extra) => {
     setVisitTypeFilters(filters.toct_type ? filters.toct_type.toString() : "");

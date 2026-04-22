@@ -466,6 +466,7 @@ const appointmentsSlice = createSlice({
           state.queueCount = action.payload.queue_count;
           state.finishedCount = action.payload.finished_count;
           state.cancelledCount = action.payload.cancelled_count;
+          state.clinicQueueCount = action.payload.checked_in_count;
           state.appointmentsData = updatedData;
           state.draftRxCount = action.payload.draft_count || 0;
         } else {
