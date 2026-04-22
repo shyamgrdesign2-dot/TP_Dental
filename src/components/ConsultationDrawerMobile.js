@@ -57,7 +57,7 @@ import {
 } from "../redux/caseManagerSlice";
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
-import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
+import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, getVoiceRxMoengageBasePayload, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
 import alertIcon from "../assets/images/alertIcon.svg";
@@ -486,7 +486,7 @@ const ConsultationDrawerMobile = ({
 
     const clinic_name = getClinicName(profile?.hospital_data);
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_voiceRx_FreeTrailInfo", {
+    window.Moengage.track_event("TP_App_voiceRx_FreeTrailInfo", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -791,6 +791,26 @@ const ConsultationDrawerMobile = ({
       const formattedSymptomsCollectorData = getFormattedSymptomsCollectorData(
         selectedSymptomsCollector
       );
+      const targetMode =
+        isAmbientMode ||
+        mode === "ambient" ||
+        window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX ||
+        genRxDetails?.type === "ambient"
+          ? "ambient"
+          : "dictation";
+      window.Moengage?.track_event(
+        targetMode === "ambient"
+          ? "TP_App_AV_SC_Autofill_Ambient"
+          : "TP_App_AV_SC_Autofill_Voice",
+        {
+          ...getVoiceRxMoengageBasePayload({
+            profile,
+            userId,
+            patientData: patient_data,
+            clinic,
+          }),
+        }
+      );
       setSymptomsCollectorData(formattedSymptomsCollectorData);
       setPrescriptionData((prev) => {
         const next = formattedSymptomsCollectorData;
@@ -804,7 +824,18 @@ const ConsultationDrawerMobile = ({
       if (!caseManagerData?.smart_prescription_filename) {
         handleVoiceDigitize(null, null, true);
       }
-  }, [selectedSymptomsCollector, isAutofillSelected, typedInputText]);
+  }, [
+    selectedSymptomsCollector,
+    isAutofillSelected,
+    typedInputText,
+    isAmbientMode,
+    mode,
+    genRxDetails?.type,
+    profile,
+    userId,
+    patient_data,
+    clinic,
+  ]);
 
   useEffect(() => {
     let interval;
@@ -1077,7 +1108,7 @@ const ConsultationDrawerMobile = ({
       crossButtonClickCountRef.current += 1;
     }
     const clinic_name = getClinicName(profile?.hospital_data);
-    trackEvent("TP_VoiceRx_Paused", {
+    trackEvent("TP_App_VoiceRx_Paused", {
       patient_contact: patient_data?.pm_contact_no || "",
       patient_id: patient_data?.patient_unique_id || "",
       doctor_speciality: profile?.dp_name,
@@ -1102,17 +1133,13 @@ const ConsultationDrawerMobile = ({
   };
 
   const handleSend = async () => {
-    window.Moengage.track_event("TP_AV_TypeTranscript", {
-      patient_id: patient_data?.patient_unique_id || "",
-      patient_name: patient_data?.pm_fullname || "",
-      patient_mobile_number: patient_data?.pm_contact_no || "",
-      doctor_id: profile?.doctor_unique_id,
-      user_id: userId,
-      doctor_name: profile?.um_name,
-      doctor_specialty: profile?.dp_name,
-      doctor_mobile_number: profile?.um_contact,
-      hm_id: clinic?.hm_id,
-      clinic_name: clinic?.hm_name,
+    window.Moengage.track_event("TP_App_AV_TypeTranscript", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+      }),
     });
     if (
       !isFreeVoiceRxUser &&
@@ -1162,7 +1189,7 @@ const ConsultationDrawerMobile = ({
             }
             if (genRxDetails?._id) {
               const clinic_name = getClinicName(profile?.hospital_data);
-              trackEvent("TP_VoiceRx_editRx", {
+              trackEvent("TP_App_VoiceRx_editRx", {
                 patient_contact: patient_data?.pm_contact_no || "",
                 patient_id: patient_data?.patient_unique_id || "",
                 doctor_speciality: profile?.dp_name,
@@ -1506,11 +1533,81 @@ const ConsultationDrawerMobile = ({
     return { ...prescriptionData, vitalsAndBodyComposition: mapped };
   };
 
+  const getFilledModulesSummary = (data = {}) => {
+    const modules = [];
+    const hasArrayData = (value) => Array.isArray(value) && value.length > 0;
+    const hasObjectData = (value) =>
+      value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length > 0;
+    const hasStringData = (value) => typeof value === "string" && value.trim().length > 0;
+
+    if (hasArrayData(data?.symptoms)) modules.push("symptoms");
+    if (hasArrayData(data?.diagnosis)) modules.push("diagnosis");
+    if (hasArrayData(data?.medications)) modules.push("medications");
+    if (hasArrayData(data?.medicalHistory)) modules.push("medicalHistory");
+    if (hasArrayData(data?.labInvestigation)) modules.push("labInvestigation");
+    if (hasArrayData(data?.labResults)) modules.push("labResults");
+    if (hasArrayData(data?.advice) || hasStringData(data?.advice)) modules.push("advice");
+    if (hasArrayData(data?.others)) modules.push("others");
+    if (hasStringData(data?.followUp)) modules.push("followUp");
+    if (hasObjectData(data?.vitalsAndBodyComposition)) modules.push("vitalsAndBodyComposition");
+
+    return {
+      rxModulesFilledCount: modules.length,
+      filledModules: modules,
+    };
+  };
+
   const handleVoiceDigitize = async (
     audioBlobParam,
     transcribedText,
     isFromSC = false
   ) => {
+    const modeForEvent =
+      isAmbientMode ||
+      mode === "ambient" ||
+      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX ||
+      genRxDetails?.type === "ambient"
+        ? "ambient"
+        : "dictation";
+    const submitId = `mobile-voice-submit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const requestId = submitId;
+    const voiceApiStartMs = Date.now();
+    const audioSizeBytes = Number(audioBlobParam?.size || 0);
+    const audioMimeType = audioBlobParam?.type || "";
+    const fromVoiceRecordingEvent = !!fromVoiceRecording;
+
+    if (!isFromSC) {
+      trackEvent("TP_App_Voice_Submit_Click", {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+          format: "technical",
+        }),
+        prescriptionUrl: "",
+        network:
+          navigator?.connection?.effectiveType ||
+          (typeof navigator?.onLine === "boolean" && !navigator.onLine ? "offline" : "stable"),
+        micBeingUsed: audioStreamRef.current?.getAudioTracks?.()?.[0]?.label || "Unknown",
+        browser: "mobile_web",
+        durationOfAudioInSeconds: recordingTime || 0,
+        voiceApiCalled: true,
+        sessionId: genRxDetails?._id || "",
+        submitId,
+        requestId,
+        audioSizeBytes,
+        audioMimeType,
+        mode: modeForEvent,
+        fromVoiceRecording: fromVoiceRecordingEvent,
+        upload_latency_ms: null,
+        upload_failed: false,
+        upload_error_message: "",
+        voicecall: modeForEvent === "ambient" ? 1 : 0,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     try {
       let response;
 
@@ -1612,6 +1709,34 @@ const ConsultationDrawerMobile = ({
         );
         
         if (isSuccess) {
+          if (!isFromSC) {
+            const moduleSummary = getFilledModulesSummary(actualData || responseData || {});
+            trackEvent("TP_App_Voice_Api_Result", {
+              ...getVoiceRxMoengageBasePayload({
+                profile,
+                userId,
+                patientData: patient_data,
+                clinic,
+                format: "technical",
+              }),
+              prescriptionUrl: "",
+              _id: actualData?._id || responseData?._id || "",
+              voice_failed: false,
+              error_message: "",
+              retry_attempts: 0,
+              isemptyprescription: moduleSummary.rxModulesFilledCount === 0,
+              submitId,
+              requestId,
+              voice_api_latency_ms: Date.now() - voiceApiStartMs,
+              http_status: response?.statusCode || response?.status || null,
+              error_code: "",
+              error_type: "",
+              rx_modules_filled_count: moduleSummary.rxModulesFilledCount,
+              filled_modules: moduleSummary.filledModules.join(","),
+              voicecall: modeForEvent === "ambient" ? 1 : 0,
+              timestamp: new Date().toISOString(),
+            });
+          }
           const finalResponseData = actualData || responseData;
           
           if (!finalResponseData) {
@@ -2010,6 +2135,34 @@ const ConsultationDrawerMobile = ({
         );
 
         if (isSuccess) {
+          if (!isFromSC) {
+            const moduleSummary = getFilledModulesSummary(dataForSuccess || {});
+            trackEvent("TP_App_Voice_Api_Result", {
+              ...getVoiceRxMoengageBasePayload({
+                profile,
+                userId,
+                patientData: patient_data,
+                clinic,
+                format: "technical",
+              }),
+              prescriptionUrl: "",
+              _id: dataForSuccess?._id || responseData?._id || "",
+              voice_failed: false,
+              error_message: "",
+              retry_attempts: 0,
+              isemptyprescription: moduleSummary.rxModulesFilledCount === 0,
+              submitId,
+              requestId,
+              voice_api_latency_ms: Date.now() - voiceApiStartMs,
+              http_status: response?.statusCode || response?.status || null,
+              error_code: "",
+              error_type: "",
+              rx_modules_filled_count: moduleSummary.rxModulesFilledCount,
+              filled_modules: moduleSummary.filledModules.join(","),
+              voicecall: modeForEvent === "ambient" ? 1 : 0,
+              timestamp: new Date().toISOString(),
+            });
+          }
           const dataForParse = actualDataDictate || responseData;
           if (!dataForParse) {
             throw new Error("No data received from API");
@@ -2336,6 +2489,33 @@ const ConsultationDrawerMobile = ({
         throw new Error(response.error || "Failed to update Rx");
       }
     } catch (error) {
+      if (!isFromSC) {
+        trackEvent("TP_App_Voice_Api_Result", {
+          ...getVoiceRxMoengageBasePayload({
+            profile,
+            userId,
+            patientData: patient_data,
+            clinic,
+            format: "technical",
+          }),
+          prescriptionUrl: "",
+          _id: "",
+          voice_failed: true,
+          error_message: error?.message || "Voice API failed",
+          retry_attempts: 0,
+          isemptyprescription: true,
+          submitId,
+          requestId,
+          voice_api_latency_ms: Date.now() - voiceApiStartMs,
+          http_status: error?.response?.status || null,
+          error_code: error?.code || "",
+          error_type: error?.response ? "api_error" : "network",
+          rx_modules_filled_count: 0,
+          filled_modules: "",
+          voicecall: modeForEvent === "ambient" ? 1 : 0,
+          timestamp: new Date().toISOString(),
+        });
+      }
       console.error("Error in voice digitization:", error);
       message.error(error?.message || "Failed to process prescription");
     }
@@ -2958,17 +3138,13 @@ const ConsultationDrawerMobile = ({
         return total + duration;
       }, 0);
     
-    window.Moengage.track_event("TP_AV_SaveRx", {
-      patient_id: patient_data?.patient_unique_id || "",
-      patient_name: patient_data?.pm_fullname || "",
-      patient_mobile_number: patient_data?.pm_contact_no || "",
-      doctor_id: profile?.doctor_unique_id,
-      user_id: userId,
-      doctor_name: profile?.um_name,
-      doctor_specialty: profile?.dp_name,
-      doctor_mobile_number: profile?.um_contact,
-      hm_id: clinic?.hm_id,
-      clinic_name: clinic?.hm_name,
+    window.Moengage.track_event("TP_App_AV_SaveRx", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+      }),
       rx_type: rxType,
       no_of_submits_count: submitCountRef.current,
       no_of_typed_messages: typedMessagesCountRef.current,
@@ -3242,7 +3418,7 @@ const ConsultationDrawerMobile = ({
 
       const clinic_name = getClinicName(profile?.hospital_data);
       const deviceSdkData = getDeviceSdkData();
-      window.Moengage.track_event("TP_Voice_Submit", {
+      window.Moengage.track_event("TP_App_Voice_Submit", {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
