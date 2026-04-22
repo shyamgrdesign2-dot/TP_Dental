@@ -132,15 +132,37 @@ function PatientDetails() {
     if (!patient_data?.patient_unique_id || hasTrackedLanding.current) return;
     
     // Track landing event only on initial mount or patient change (when tcm_id is 0)
-    if (window.Moengage && clinicName && tcmData.tcm_id === 0) {
-      window.Moengage.track_event('TP_Patient_detail_landing', {
+    if (clinicName && tcmData.tcm_id === 0) {
+      trackEvent("TP_App_Patient_detail_landing", {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+          segmentation: {
+            surface: "mobile_patient_details",
+            entry_point: "landing",
+          },
+        }),
         clinic_name: clinicName,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,
+        patient_contact: patient_data?.pm_contact_no || "",
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        tcm_id: tcmData?.tcm_id ?? 0,
       });
       hasTrackedLanding.current = true;
     }
-  }, [patient_data?.patient_unique_id, clinicName, tcmData.tcm_id]);
+  }, [
+    patient_data?.patient_unique_id,
+    patient_data?.pm_contact_no,
+    clinicName,
+    tcmData.tcm_id,
+    profile,
+    userId,
+    clinic,
+  ]);
 
   // Fetch case manager data (separated from analytics to avoid unnecessary re-fetches)
   useEffect(() => {
@@ -192,26 +214,74 @@ function PatientDetails() {
 
   // Memoize navigation callbacks to prevent unnecessary child re-renders
   const nextPress = useCallback(() => {
-    window.Moengage?.track_event('patient_detail_prev', {
+    trackEvent("TP_App_Patient_detail_prev", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: "mobile_patient_details",
+          entry_point: "visit_navigate_prev",
+        },
+      }),
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      patient_contact: patient_data?.pm_contact_no || "",
+      tcm_id_from: viewCaseManagerData?.tcm_id,
+      tcm_id_to: viewCaseManagerData?.next_tcm_id,
     });
     setTcmData((prevTcmData) => ({ 
       tcm_id: viewCaseManagerData?.next_tcm_id, 
       page: prevTcmData.page - 1 
     }));
-  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.next_tcm_id]);
+  }, [
+    profile,
+    userId,
+    patient_data,
+    clinic,
+    clinicName,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.next_tcm_id,
+  ]);
 
   const prevPress = useCallback(() => {
-    window.Moengage?.track_event('patient_detail_next', {
+    trackEvent("TP_App_Patient_detail_next", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: "mobile_patient_details",
+          entry_point: "visit_navigate_next",
+        },
+      }),
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      patient_contact: patient_data?.pm_contact_no || "",
+      tcm_id_from: viewCaseManagerData?.tcm_id,
+      tcm_id_to: viewCaseManagerData?.prev_tcm_id,
     });
     setTcmData((prevTcmData) => ({ 
       tcm_id: viewCaseManagerData?.prev_tcm_id, 
       page: prevTcmData.page + 1 
     }));
-  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.prev_tcm_id]);
+  }, [
+    profile,
+    userId,
+    patient_data,
+    clinic,
+    clinicName,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.prev_tcm_id,
+  ]);
 
   const handleTabChange = useCallback((tabKey) => {
     setSelectedTab(tabKey);
