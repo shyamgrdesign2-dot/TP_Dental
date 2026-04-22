@@ -1619,6 +1619,62 @@ export const detectOperatingSystem = () => {
   return Object.keys(os).find((key) => os[key]) || "Unknown";
 };
 
+/**
+ * Normalized onboarding device label: os_formFactor
+ * Desktop uses OS-specific keys (mac_desktop, windows_desktop, linux_desktop).
+ */
+export const getOnboardingDeviceSource = () => {
+  if (typeof window === "undefined" || !window.navigator) {
+    return "other_desktop";
+  }
+
+  const ua = window.navigator.userAgent || "";
+  const maxTouchPoints = Number(window.navigator.maxTouchPoints || 0);
+  const innerWidth =
+    typeof window.innerWidth === "number" ? window.innerWidth : 0;
+
+  // iPad / iPadOS (Safari reports Macintosh + touch)
+  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && maxTouchPoints > 1)) {
+    return "ios_tablet";
+  }
+  if (/iPhone|iPod/i.test(ua)) {
+    return "ios_phone";
+  }
+
+  const isAndroid = /Android/i.test(ua);
+  if (isAndroid) {
+    // Android phones generally include "Mobile" somewhere in UA
+    const hasAndroidMobileSegment = /Android/i.test(ua) && /Mobile/i.test(ua);
+    const looksLikeTablet =
+      /Tablet|SM-T\d|GT-P\d|KFAPWI|Kindle|Silk|Nexus\s(?:7|9|10)\b/i.test(
+        ua
+      );
+
+    if (hasAndroidMobileSegment || /Mobi/i.test(ua)) {
+      return "android_phone";
+    }
+    if (looksLikeTablet || maxTouchPoints > 1) {
+      return "android_tablet";
+    }
+    // Android UA without Mobile: TV, some WebViews, or desktop-like / emulator
+    const finePointer =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: fine)")?.matches;
+    if (finePointer && innerWidth >= 1024) {
+      return "android_desktop";
+    }
+    return "android_tablet";
+  }
+
+  const os = detectOperatingSystem();
+  if (os === "MacOS") return "mac_desktop";
+  if (os === "Windows") return "windows_desktop";
+  if (os === "Linux") return "linux_desktop";
+  if (os === "Android") return "android_desktop";
+  if (os === "iOS") return "ios_phone";
+  return "other_desktop";
+};
+
 export const sendMessageToParent = (eventName, data = {}) => {
   try {
     if (window.ReactNativeWebView) {
