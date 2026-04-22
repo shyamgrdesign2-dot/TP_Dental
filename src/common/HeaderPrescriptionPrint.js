@@ -48,7 +48,7 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
 
             if (!isChikitsalayAccessable) {
             const action = await dispatch(sendCashsheetWhatsapp(sendData));
-            } else {
+            } else if (isChikitsalayAccessable && !tcm_id) {
                 clinicTargetStatus(pam_id, {
                     targetStatus: CLINIC_TARGET_STATUS.COMPLETED,
                 });

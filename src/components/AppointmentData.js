@@ -193,7 +193,7 @@ import {
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
-import { clinicTargetStatus } from "../pages/chikitsalay/service";
+import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
 const noData = `${process.env.PUBLIC_URL}/nodata-found.svg`;
 const { TextArea } = Input;
 
@@ -215,6 +215,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isChikitsalayAccessable) return;
+    const existingClinicToken =
+      localStorage.getItem("visitClinicToken");
+    if (existingClinicToken) return;
+    generateClinicToken();
+  }, [isChikitsalayAccessable]);
 
   const {
     queueCount,
