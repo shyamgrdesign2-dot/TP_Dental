@@ -12,7 +12,14 @@ import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from '../../medicalRe
 import { mergeDocuments } from '../../medicalRecords/utils/helper';
 import { fetchPrintSetting } from '../../opdBilling/service';
 import { setBillPrintSettings } from '../../../redux/billingSlice';
-import { getClinicName, getClinic, errorMessage, sendMessageToParent } from '../../../utils/utils';
+import {
+  getClinicName,
+  getClinic,
+  errorMessage,
+  sendMessageToParent,
+  trackEvent,
+  getVoiceRxMoengageBasePayload,
+} from '../../../utils/utils';
 import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../../../utils/constants';
 import { EVENTS } from '../../../utils/events';
 import { useAccess } from '../../vaccination/useAccess';
@@ -379,6 +386,31 @@ function PatientDetails() {
   }, []);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handlePrintIconClick = useCallback(() => {
+    const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+    trackEvent('TP_App_PrintRx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: 'mobile_patient_details_visit_summary',
+          entry_point: 'print_button',
+        },
+      }),
+      patient_contact: patient_data?.pm_contact_no || '',
+      patient_id: patient_data?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      PRINTPAGE: 'patient details page',
+      rx_id: viewCaseManagerData?.tcm_id || '',
+      rx_type: 'standard',
+      print_channel: printChannel,
+    });
+  }, [profile, userId, patient_data, clinic, clinicName, viewCaseManagerData?.tcm_id]);
+
   const handlePrintRx = useCallback(() => {
       if (cardiologyPrintHandlerRef.current?.printContent) {
         cardiologyPrintHandlerRef.current.printContent();
@@ -514,6 +546,7 @@ function PatientDetails() {
             onEditRx={handleEditRx}
             onDownloadRx={handleDownloadRx}
             onPrintRx={handlePrintRx}
+            onPrintIconClick={handlePrintIconClick}
             onRepeatRx={handleRepeatRx}
             onPrintMedicinesOnly={handlePrintMedicinesOnly}
             onCardiologyPrintHandlersReady={handleCardiologyPrintHandlersReady}

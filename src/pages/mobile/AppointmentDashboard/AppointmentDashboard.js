@@ -19,7 +19,15 @@ import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
 } from '../../../utils/constants';
-import { getClinic, getClinicName, getTokenData, errorMessage, sendMessageToParent } from '../../../utils/utils';
+import {
+  getClinic,
+  getClinicName,
+  getTokenData,
+  errorMessage,
+  sendMessageToParent,
+  trackEvent,
+  getVoiceRxMoengageBasePayload,
+} from '../../../utils/utils';
 import { EVENTS } from '../../../utils/events';
 import { isChrome, isSafari } from 'react-device-detect';
 import { getDecodedToken, useLocalStorage } from '../../../utils/localStorage';
@@ -571,13 +579,43 @@ function AppointmentDashboard() {
         ? btoa(patientDefaultLanguage.toString()) 
         : "";
       const printUrl = await updateRxDigitizeInUrl();
-      
-      // Open URL directly (same as web version)
-      window.open(`${printUrl}&lg=${encodedData}`, '_blank');
+      const fullPrintUrl = `${printUrl}&lg=${encodedData}`;
+      const currentClinic = getClinic(profile?.hospital_data);
+      const currentClinicName = getClinicName(profile?.hospital_data);
+
+      const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+      trackEvent('TP_App_PrintRx', {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId: profile?.um_id || '',
+          patientData: record,
+          clinic: currentClinic,
+          segmentation: {
+            surface: 'mobile_appointment_more_options',
+            entry_point: 'print_rx_option',
+          },
+        }),
+        patient_contact: record?.pm_contact_no || '',
+        patient_id: record?.patient_unique_id || '',
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        clinic_name: currentClinicName,
+        PRINTPAGE: 'finished queue',
+        rx_id: record?._id || record?.tcm_id || '',
+        rx_type: 'standard',
+        print_channel: printChannel,
+      });
+
+      if (!isChrome && !isSafari) {
+        sendMessageToParent(EVENTS.PRINT, { url: fullPrintUrl });
+        return;
+      }
+
+      window.open(fullPrintUrl, '_blank');
     } catch (error) {
       message.error('Failed to open prescription');
     }
-  }, [defaultPrintSettings]);
+  }, [defaultPrintSettings, profile]);
 
   // Handle download Rx (same URL and behavior as Rx Preview download icon: language, rxDigitize, in-app download)
   const handleDownloadRx = useCallback(async (record) => {

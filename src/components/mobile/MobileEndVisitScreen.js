@@ -375,6 +375,7 @@ function MobileEndVisitScreen({
       doctor_speciality: profile?.dp_name,
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
+      PRINTPAGE: 'Rx print preview page after end consultation',
       rx_id: rxId,
       rx_type: rxType,
       print_channel: printChannel,
