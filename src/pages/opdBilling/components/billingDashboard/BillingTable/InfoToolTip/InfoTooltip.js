@@ -176,10 +176,8 @@ const InfoTooltip = ({ type = "Refunded", amount, billNo, notes }) => {
       return (
         <div className="custom-tooltip-content">
           <div className="due-amount-text">
-            Controls whether{" "}
-            <span style={{ fontWeight: 700 }}>reception users can edit OPD bills</span>.
-            Allow: reception users can edit eligible OPD bills. Restrict:
-            reception users cannot edit OPD bills.
+            Set permissions for reception staff; you can allow or restrict their
+            ability to edit OPD bills.
           </div>
         </div>
       );
