@@ -8,7 +8,14 @@ import { saveAs } from 'file-saver';
 import { jwtDecode } from 'jwt-decode';
 import api from '../../api/services/axiosService';
 import { env } from '../../EnvironmentConfig';
-import { getClinicName, errorMessage, sendMessageToParent, trackEvent } from '../../utils/utils';
+import {
+  getClinic,
+  getClinicName,
+  getVoiceRxMoengageBasePayload,
+  errorMessage,
+  sendMessageToParent,
+  trackEvent,
+} from '../../utils/utils';
 import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, MESSAGE_KEY } from '../../utils/constants';
 import { EVENTS } from '../../utils/events';
 import { viewCaseManager } from '../../redux/caseManagerSlice';
@@ -346,6 +353,32 @@ function MobileEndVisitScreen({
       errorMessage('Print URL is missing.');
       return;
     }
+
+    const clinic = getClinic();
+    const clinic_name = getClinicName(profile?.hospital_data);
+    const rxId = genRxDetails?._id || viewCaseManagerData?.tcm_id || tcm_id || '';
+    const rxType = isAmbientRx ? 'ambient' : 'voice_rx';
+    const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+    trackEvent('TP_App_PrintRx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: 'mobile_end_visit_preview',
+          entry_point: 'print_icon',
+        },
+      }),
+      patient_contact: patient_data?.pm_contact_no || '',
+      patient_id: patient_data?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name,
+      rx_id: rxId,
+      rx_type: rxType,
+      print_channel: printChannel,
+    });
 
     if (!isChrome && !isSafari) {
       // In-app print
