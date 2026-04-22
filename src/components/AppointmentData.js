@@ -328,7 +328,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [agentsData, setAgentsData] = useState(null);
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
+  const [selectedTab, setSelectedTab] = useState(isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE);
   const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
   const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
 
@@ -629,7 +629,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   // UseEffect to update items when pendingDigitisation changes
   useEffect(() => {
     const updatedItems = [
-      isChikitsalayAccessable && {
+      ...(isChikitsalayAccessable ? [{
         key: TAB_CLINIC_APPOINTMENT,
         label: (
           <div className="d-flex align-items-center">
@@ -638,7 +638,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             {/* ({appointmentCount}) */}
           </div>
         ),
-      },
+      }] : []),
       {
         key: isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE,
         label: (
@@ -2505,7 +2505,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         );
       },
     },
-    !(isChikitsalayAccessable && selectedTab === TAB_CLINIC_APPOINTMENT) && {
+    ...(!(isChikitsalayAccessable && selectedTab === TAB_CLINIC_APPOINTMENT) ? [{
       title: selectedTab != TAB_ZYDUS_APPOINTMENT ? "Action" : "",
       key: "action",
       width: 200,
@@ -2755,8 +2755,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               )}
           </div>
         ) : null,
-    },
-  ]?.filter((item) => item);
+    }] : []),
+  ];
 
   const handleChange = (pagination, filters, sorter, extra) => {
     setVisitTypeFilters(filters.toct_type ? filters.toct_type.toString() : "");
