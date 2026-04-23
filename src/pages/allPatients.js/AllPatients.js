@@ -400,6 +400,8 @@ const AllPatients = () => {
   };
 
   const onPatientDetailsClick = (record) => {
+    const resolvedMrno =
+      record?.mrno || record?.pm_reference_id || record?.tpml_refrence_id;
     dispatch(resetVaccineState());
     dispatch(resetGrowthChartState());
     dispatch(resetObstetricState());
@@ -407,7 +409,11 @@ const AllPatients = () => {
     dispatch(resetDDxState());
     navigate("/patient_details", {
       state: {
-        patient_data: { ...record, pm_first_name: record?.pm_fullname },
+        patient_data: {
+          ...record,
+          pm_first_name: record?.pm_fullname,
+          mrno: resolvedMrno,
+        },
       },
     });
     trackEvent("TP_AllPatients_PatientDetailsView", {
