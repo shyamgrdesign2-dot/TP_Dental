@@ -17,8 +17,7 @@ import {
 } from '../../../utils/utils';
 import { getDecodedToken } from '../../../utils/localStorage';
 import { getProfile } from '../../../redux/doctorsSlice';
-import { ASSETS } from "../../../assets";
-const arrowLeftIcon = ASSETS.mobile.arrowLeft;
+import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
 
 const PATIENT_LIST_PAGE_SIZE = 25;
 

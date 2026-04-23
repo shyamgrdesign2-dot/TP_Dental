@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Select, Typography, Radio } from 'antd';
+import RxPadIcon from "../../../assets/images/smart-pad.webp"
 import "./CustomCanvasSelector.scss"
-import { ASSETS } from "../../../assets";
-const RxPadIcon = ASSETS.images.smartPad;
 
 const { Option } = Select;
 const { Text } = Typography;

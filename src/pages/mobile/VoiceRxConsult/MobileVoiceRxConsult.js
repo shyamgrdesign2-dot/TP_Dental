@@ -16,23 +16,17 @@ import {
 import { FAILED_VERIFICATION, FREE, GB_VOICE_RX_FREE, S_VOICE_RX } from '../../../utils/constants';
 import ExpiredSubModal from '../../monetization/components/ExpiredSubModal';
 import FreeTrialButton from '../../monetization/components/FreeTrialButton';
-
+import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
+import userGrayIcon from '../../../assets/mobile/user_gray.svg';
+import imageBackground from '../../../assets/mobile/Image Background.svg';
+import ddxIcon from '../../../assets/mobile/ddx.svg';
+import startVoiceIcon from '../../../assets/mobile/start_voice.svg';
+import checkIcon from '../../../assets/images/check.svg';
+import closeIcon from '../../../assets/images/close.svg';
+import voiceModeDictation from '../../../assets/images/voice-mode-dictation.svg';
+import voiceMode2 from '../../../assets/images/voice-mode-2.svg';
 import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
 import './MobileVoiceRxConsult.scss';
-import { ASSETS } from "../../../assets";
-const {
-  arrowLeft: arrowLeftIcon,
-  userGray: userGrayIcon,
-  imageBackground,
-  ddx: ddxIcon,
-  startVoice: startVoiceIcon,
-} = ASSETS.mobile;
-const {
-  check: checkIcon,
-  close: closeIcon,
-  voiceModeDictation,
-  voiceMode2,
-} = ASSETS.images;
 
 function MobileVoiceRxConsult() {
   const location = useLocation();

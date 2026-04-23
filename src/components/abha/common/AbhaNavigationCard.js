@@ -1,6 +1,4 @@
-import { ASSETS } from "../../../assets";
-const LeftArrow = ASSETS.images.leftArrow;
-
+import LeftArrow from "../../../assets/images/left-arrow.svg";
 
 const AbhaNavigationCard = ({ label, icon, onClick }) => {
   const isClickable = typeof onClick === "function";

@@ -17,10 +17,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import CommonModal from '../common/CommonModal';
-
+import alertIcon from '../assets/images/alertIcon.svg';
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
-
+import Investigationicon from "../assets/images/Lab.svg";
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -36,11 +36,6 @@ import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
-import { ASSETS } from "../assets";
-const {
-  alerticon: alertIcon,
-  lab: Investigationicon,
-} = ASSETS.images;
 
 const { TextArea } = Input;
 

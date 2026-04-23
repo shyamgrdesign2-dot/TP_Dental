@@ -31,7 +31,10 @@ import {
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../../context/CashManagerContext";
-
+import ModuleIcon from "../../assets/images/custom-module.svg";
+import editIcon from "../../assets/images/edit-icon-blue.svg";
+import deleteIcon from "../../assets/images/delete-icon-blue.svg";
+import alertIcon from "../../assets/images/alertIcon.svg";
 import DisabledModuleTooltip from "./DisabledModuleTooltip";
 import CommonModal from "../../common/CommonModal";
 import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
@@ -44,13 +47,6 @@ import CustomModuleV2Drawer from "./CustomModuleV2Drawer";
 import CustomModuleFieldAutoComplete from "./CustomModuleFieldAutoComplete";
 import CustomModuleFieldTextAreaAutoComplete from "./CustomModuleFieldTextAreaAutoComplete";
 import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
-import { ASSETS } from "../../assets";
-const {
-  customModule: ModuleIcon,
-  editIconBlue: editIcon,
-  deleteIconBlue: deleteIcon,
-  alerticon: alertIcon,
-} = ASSETS.images;
 
 /**
  * CustomModuleV2 Component

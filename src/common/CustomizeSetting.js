@@ -12,26 +12,22 @@ import CashManagerContext from "../context/CashManagerContext";
 import { useSelector, useDispatch } from "react-redux";
 import { customizedPad, listVideo } from "../redux/doctorsSlice";
 
+import tutorial from '../assets/images/tutorial-icon.svg';
+import playcover2 from '../assets/images/play-cover2.webp';
+import playIcons from '../assets/images/tube-icon.svg';
+import fullicon from '../assets/images/full-icon.svg';
 import VideoModal from './VideoModal';
 import { useAccess } from '../pages/vaccination/useAccess';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_CARE_PLAN, GB_ISCRIBE, INVESTIGATION_MODULE_ID, INVESTIGATION_TITLE } from '../utils/constants';
-
+import customModuleIcon from '../assets/images/custom-module.svg';
+import editIcon from '../assets/images/edit-icon-blue.svg';
+import deleteIcon from '../assets/images/delete-icon-blue.svg';
+import alertIcon from '../assets/images/alertIcon.svg';
 import { addModule, getModules } from '../redux/customModuleSlice';
 import { savePrintsettings } from '../redux/doctorsSlice';
 import EditCustomModuleDrawer from '../components/customModulesV2/EditCustomModuleDrawer';
 import CommonModal from './CommonModal';
-import { ASSETS } from "../assets";
-const {
-  tutorialIcon: tutorial,
-  playCover2: playcover2,
-  tubeIcon: playIcons,
-  fullIcon: fullicon,
-  customModule: customModuleIcon,
-  editIconBlue: editIcon,
-  deleteIconBlue: deleteIcon,
-  alerticon: alertIcon,
-} = ASSETS.images;
 
 const CustomRow = ({ children, ...props }) => {
   const {
@@ -205,6 +201,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   const getModuleDefinition = (moduleId) => {
     return customModules?.find((m) => m.module_id === moduleId) || null;
   };
+
 
   const isModuleDisabled = (record) => {
     if (!record.is_custom_module) return false;

@@ -44,10 +44,9 @@ import WalkInConsultationModal from './components/WalkInConsultationModal';
 import MoreOptionsModal from './components/MoreOptionsModal';
 import EndVisitModal from './components/EndVisitModal';
 import RxPreviewModal from './components/RxPreviewModal';
+import PlusIcon from '../../../assets/mobile/Plus_Icon.svg';
 
 import './AppointmentDashboard.scss';
-import { ASSETS } from "../../../assets";
-const PlusIcon = ASSETS.mobile.plusIcon;
 
 const dateFormat = 'YYYY-MM-DD';
 const showDateFormat = 'DD-MM-YYYY';

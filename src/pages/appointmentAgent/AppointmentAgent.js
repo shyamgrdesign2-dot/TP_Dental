@@ -23,11 +23,8 @@ import "./AppointmentAgent.scss";
 import ClinicDetailsSetup from "./components/ClinicDetailsSetup/ClinicDetailsSetup";
 import { getDecodedToken } from "../../utils/localStorage";
 import { isMobile } from "react-device-detect";
-import { ASSETS } from "../../assets";
-const {
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-} = ASSETS.images;
+import visitEnd from '../../assets/images/end-visit.svg';
+import imgCloseVisit from '../../assets/images/close-visit.svg';
 
 function AppointmentAgent() {
   const { userId, profile } = useSelector((state) => state.doctors);

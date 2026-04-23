@@ -1,10 +1,8 @@
 import React from "react";
 import { Modal, Card } from "antd";
-import { useSelector } from "react-redux";
-import { ASSETS } from "../assets";
+import SMS from "../assets/images/sms.svg";
 import { getClinicName, getDeviceSdkData, getTokenData } from "../utils/utils";
-
-const SMS = ASSETS.images.sms;
+import { useSelector } from "react-redux";
 
 function ContactSupportModal({ isModalOpen, clickContactSupport }) {
 

@@ -10,8 +10,7 @@ import config from '../config';
 import { NEO_NATOLOGISTS_DP_ID, PAEDIATRIC_DP_ID } from '../utils/constants';
 import { isMobile } from 'react-device-detect';
 import { listBloodGroup, editBloodGroup, viewPatient } from '../redux/appointmentsSlice';
-import { ASSETS } from "../assets";
-const BloodIcon = ASSETS.images.blood;
+import BloodIcon from '../assets/images/blood.svg';
 
 export const genderAge = (patient_data, profile, shouldShowGender = true) => {
     var value = shouldShowGender && patient_data?.pm_gender

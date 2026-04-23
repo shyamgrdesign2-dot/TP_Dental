@@ -1,10 +1,8 @@
 import React from 'react';
 import Card from 'react-bootstrap/Card';
-import { ASSETS } from "../assets";
-const {
-  vaccination: VaccinationIcon,
-  arrowBoxRight: arrowright,
-} = ASSETS.images;
+
+import VaccinationIcon from '../assets/images/Vaccination.svg';
+import arrowright from '../assets/images/arrow-box-right.svg';
 
 function Vaccination() {
 

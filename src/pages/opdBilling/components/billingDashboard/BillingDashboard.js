@@ -23,7 +23,11 @@ import "./BillingDashboard.scss";
 import Vaccination from "../../../vaccination/Vaccination";
 import Manage3cBill from "../manage3cBills/Manage3cBills";
 import AddForm3cBills from "../manage3cBills/AddForm3cBills";
-
+import addCircleIcon from "../../../../assets/images/add-circle.svg";
+import visitEnd from "../../../../assets/images/end-visit.svg";
+import imgCloseVisit from "../../../../assets/images/close-visit.svg";
+import playIcons from "../../../../assets/images/tube-icon.svg";
+import tutorial from "../../../../assets/images/tutorial-icon.svg";
 import VideoModal from "../../../../common/VideoModal";
 import { Popover } from "antd";
 
@@ -35,14 +39,6 @@ import ExpiredSubModal from "../../../monetization/components/ExpiredSubModal";
 import { fetchAdvanceSetting, fetchPatientWalletBalance } from "../../service";
 import { setAdvancedSettings } from "../../../../redux/billingSlice";
 import moment from "moment";
-import { ASSETS } from "../../../../assets";
-const {
-  addCircle: addCircleIcon,
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-  tubeIcon: playIcons,
-  tutorialIcon: tutorial,
-} = ASSETS.images;
 
 function BillingDashboard({ patientData, fromPath }) {
   const { planDetails } = useSelector((state) => state.subscription);
@@ -296,6 +292,7 @@ function BillingDashboard({ patientData, fromPath }) {
     );
   }, [popOverVideo]);
 
+
   const handleBillingKnowMore = () => {
     setBillingDrawer((prev) => !prev);
   };
@@ -342,7 +339,7 @@ function BillingDashboard({ patientData, fromPath }) {
                       </div>
                       {!isReceptionist && (
                         <img
-                          src={ASSETS.images.bgWelcome}
+                          src={require("../../../../assets/images/bg-welcome.webp")}
                           className="welcomeig d-inline-block align-top"
                           alt="Welcome"
                         />

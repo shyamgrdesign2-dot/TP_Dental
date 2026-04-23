@@ -7,10 +7,8 @@ import { viewCaseManager } from '../../../../redux/caseManagerSlice';
 import { S_VOICE_RX, GB_SNAP_RX } from '../../../../utils/constants';
 import Cardiology from '../../../../components/Cardiology';
 import VisitActionButtons from '../../PatientDetails/components/VisitActionButtons';
-
+import closeIcon from '../../../../assets/mobile/close 2.svg';
 import './RxPreviewModal.scss';
-import { ASSETS } from "../../../../assets";
-const closeIcon = ASSETS.mobile.close2;
 
 function RxPreviewModal({
   visible,

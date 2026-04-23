@@ -1,14 +1,12 @@
 import { Button, Tooltip } from "antd";
 import "./../pregnancyHistory/PregnancyHistory.scss";
-
+import examination from "../../../../assets/images/obs-examination.svg";
 import "./Examination.scss";
 import moment from "moment";
 import { useSelector } from "react-redux";
 import { ExaminationColumns } from "../../utils/constants";
 import ReadMore from "../../../../common/ReadMore";
 import { useState } from "react";
-import { ASSETS } from "../../../../assets";
-const examination = ASSETS.images.obsExamination;
 
 const Examination = ({
   examinationHistory,

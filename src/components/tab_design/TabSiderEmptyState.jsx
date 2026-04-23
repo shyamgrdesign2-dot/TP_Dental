@@ -1,7 +1,6 @@
 import React from "react";
 import { Button } from "antd";
-import { ASSETS } from "../../assets";
-const emptyFileIllustration = ASSETS.images.emptyFile;
+import emptyFileIllustration from "../../assets/images/empty-file.svg";
 
 const TabSiderEmptyState = ({
   title,

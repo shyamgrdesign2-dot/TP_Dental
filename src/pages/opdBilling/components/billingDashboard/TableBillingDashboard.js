@@ -22,7 +22,8 @@ import { Row, Col, ButtonGroup } from "react-bootstrap";
 import BillingTable from "./BillingTable/BillingTable";
 import AdvanceDeposit from "./AdvanceDepositTable/AdvanceDepositTable";
 import AdvanceDepositTable from "./AdvanceDepositTable/AdvanceDepositTable";
-
+import depositIcon from "./../../../../assets/images/deposit-icon.svg";
+import depositSelectedIcon from "./../../../../assets/images/deposit-selected-icon.svg";
 import {
   fetchAdvancedDepositDashboard,
   fetchBillingDashboard,
@@ -36,11 +37,6 @@ import { useDispatch } from "react-redux";
 import { deleteDocsUploadedFromAndroid } from "../../../medicalRecords/service";
 import { setLoadingStatus } from "../../../../redux/uploadDocSlice";
 import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../../../../utils/constants";
-import { ASSETS } from "../../../../assets";
-const {
-  depositIcon,
-  depositSelectedIcon,
-} = ASSETS.images;
 
 const dateFormat = "YYYY-MM-DD";
 const TableBillingDashboard = forwardRef(

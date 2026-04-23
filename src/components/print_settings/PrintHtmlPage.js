@@ -7,7 +7,7 @@ import PrintSettingsContext from "../../context/PrintSettingsContext";
 
 import { isNumeric } from "../../utils/utils";
 
-import "../../styles/print.scss";
+import "../../assets/scss/print.scss";
 
 const showDateFormat = "DD MMM, YY";
 

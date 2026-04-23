@@ -11,18 +11,14 @@ import { searchDiagnosis } from "../../redux/diagnosisSlice";
 import { updateDragDrop } from "../../redux/doctorsSlice";
 
 import TabSearchHeader from "./TabSearchHeader";
+import dragChipsWebm from '../../../src/assets/images/drag-chips.webm'
+import dragChipsMp4 from '../../../src/assets/images/drag-chips.mp4'
 import LoopingVideo from "../common/LoopingVideo";
-
+import tagNew from '../../../src/assets/images/tag-new.svg'
+import apexAI from "../../../src/assets/images/apexAI.svg";
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import { WarningColor, WarningRank } from "../DifferentialDiagnosisDrawer";
 import { useLocation } from "react-router-dom";
-import { ASSETS } from "../../assets";
-const {
-  dragChips_2: dragChipsWebm,
-  dragChips: dragChipsMp4,
-  tagNew,
-  apexai: apexAI,
-} = ASSETS.images;
 
 function TabDiagnosisSearch({ passIndex, onClose, ddxOptionsList }) {
 
@@ -52,6 +48,7 @@ function TabDiagnosisSearch({ passIndex, onClose, ddxOptionsList }) {
     const [sinceValue, setSinceValue] = useState(1);
     const [inputSince, setInputSince] = useState('');
     const [sinceOptions, setSinceOptions] = useState([]);
+
 
     //Parent AutoComplete
     useEffect(() => {
@@ -253,6 +250,7 @@ function TabDiagnosisSearch({ passIndex, onClose, ddxOptionsList }) {
             )
         );
     }, [diagnosisData, selectedIndex]);
+
 
     useEffect(() => {
         if (sinceValue !== -1) {

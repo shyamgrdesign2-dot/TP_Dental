@@ -8,7 +8,10 @@ import {
 import { isMobile } from "react-device-detect";
 import { Container, Navbar } from "react-bootstrap";
 import CommonModal from "../../../../common/CommonModal";
-
+import alertIcon from "./../../../../assets/images/alertIcon.svg";
+import visitEnd from "./../../../../assets/images/end-visit.svg";
+import autofill from "./../../../../assets/images/autofill.svg";
+import imgCloseVisit from "./../../../../assets/images/close-visit.svg";
 import { Document, Page, pdfjs } from "react-pdf";
 import { pdf } from "@react-pdf/renderer";
 import BillPageFormatLayout from "./BillPageFormatLayout";
@@ -19,14 +22,6 @@ import { enrichPatientDataWithAbha } from "../../utils/helper";
 import { useSelector } from "react-redux";
 import { setBillPrintSettings, setIpdBillPrintSettings } from "../../../../redux/billingSlice";
 import { useDispatch } from "react-redux";
-import { ASSETS } from "../../../../assets";
-const {
-  alerticon: alertIcon,
-  endVisit: visitEnd,
-  autofill,
-  closeVisit: imgCloseVisit,
-} = ASSETS.images;
-
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 

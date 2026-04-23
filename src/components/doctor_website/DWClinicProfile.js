@@ -5,15 +5,12 @@ import dayjs from "dayjs";
 import { useDispatch } from "react-redux";
 import { searchPincode } from "../../redux/appointmentsSlice";
 
+import CloseWithWhiteFill from "../../../src/assets/images/close-with-white-fill.svg";
+import AddPhotos from "../../../src/assets/images/add-photos.svg";
 import DoctorWebsiteSettingsContext from '../../context/DoctorWebsiteSettingsContext';
 
 import { TAB_ADDRESS, TAB_TIMINGS, TAB_PHOTOS } from "../../utils/constants";
 import { blockedEmoji, errorMessage, onlyNumberFormat, removeSpecialCharectorWithoutDotSpace, compressedFile} from '../../utils/utils';
-import { ASSETS } from "../../assets";
-const {
-  closeWithWhiteFill: CloseWithWhiteFill,
-  addPhotos: AddPhotos,
-} = ASSETS.images;
 
 const dateFormat = 'HH:mm:ss'
 const showDateFormat = 'h:mm A'
@@ -61,6 +58,8 @@ function DWClinicProfile() {
         },
         [clinicProfile]
     );
+
+
 
     const onChangeInput = useCallback(
         (el, key, e) => {
@@ -124,6 +123,7 @@ function DWClinicProfile() {
                     clinicProfile[index]['shift'][i1]['days'] = [...data.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b))];
                 }
 
+
                 if (data?.length > 0 && clinicProfile[index]['shift'][i1]['timing'].length === 0) {
                     clinicProfile[index]['shift'][i1]['timing'] = [{ from_time: '', end_time: '' }]
                 } else if (data?.length === 0) {
@@ -180,6 +180,7 @@ function DWClinicProfile() {
         },
         [clinicProfile]
     );
+
 
     const removeShiftClick = (e, i1) => {
         const index = clinicProfile.findIndex(el => el.random_id === e.random_id)
@@ -422,6 +423,7 @@ function DWClinicProfile() {
     const showHide = useCallback(() => {
         setVisible(!visible);
     }, [visible]);
+
 
     const clinicItems = (e, i) => [
         {

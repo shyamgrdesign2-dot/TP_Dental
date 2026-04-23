@@ -8,6 +8,12 @@ import moment from "moment";
 import axios from "axios";
 import { isChrome, isSafari } from "react-device-detect";
 
+import upgradedLogo from '../../../assets/images/upgraded-logo.svg'
+import medcoIcon from "../../../assets/images/medco-icon.svg";
+import listIcon from '../../../assets/images/list-icon.svg'
+import aiPowered from '../../../assets/images/ai-powered.svg'
+import vaccinationImg from "../../../assets/images/Vaccination.svg";
+import iconEdit from "../../../assets/images/edit.svg";
 import { S_TATVA_PRACTICE, S_SMARTSYNC, S_VOICE_RX, S_DDX, S_RX_DIGITIZATION, S_IPD, S_ASK_TATVA, S_PHARMACY, S_BILLING, S_RECEPTIONIST_AGENT, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, FREE, FAILED_VERIFICATION } from "../../../utils/constants";
 import { QRCodeSVG } from "qrcode.react";
 import GenRxKnowMore from "../../../components/GenRxKnowMore";
@@ -28,15 +34,6 @@ import config from "../../../config";
 import { useLocalStorage } from "../../../utils/localStorage";
 import ExpiredSubModal from "./ExpiredSubModal";
 import { EVENTS } from "../../../utils/events";
-import { ASSETS } from "../../../assets";
-const {
-  upgradedLogo,
-  medcoIcon,
-  listIcon,
-  aiPowered,
-  vaccination: vaccinationImg,
-  edit: iconEdit,
-} = ASSETS.images;
 
 function UpgradeServicesModal({ isUpgradeModal, upgradeList, handleUpgradeModal }) {
 

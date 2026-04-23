@@ -38,9 +38,7 @@ import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
 import { getClinic, trackEvent } from "../../../../../utils/utils.js";
 import { MESSAGE_KEY } from "../../../../../utils/constants.js";
-import { ASSETS } from "../../../../../assets";
-const imgCloseVisit = ASSETS.images.closeVisit;
-
+import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
 const { RangePicker } = DatePicker;
 
 const { Option } = Select;

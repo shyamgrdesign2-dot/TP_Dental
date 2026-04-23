@@ -10,17 +10,15 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { MESSAGE_KEY } from "../utils/constants";
 
+import visitEnd from '../assets/images/end-visit.svg';
+import imgCloseVisit from '../assets/images/close-visit.svg';
+
 import { addPatientCertificate, editPatientCertificate } from "../redux/doctorsSlice";
 
+import alertIcon from '../assets/images/alertIcon.svg';
+import fontSizeIcon from '../assets/images/fontSizeIcon.svg';
 import CreateCertificate from "../components/medical_certificate/CreateCertificate";
 import { errorMessage, getClinicName, removeBeforeWhiteSpace } from "../utils/utils";
-import { ASSETS } from "../assets";
-const {
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-  alerticon: alertIcon,
-  fontsizeicon: fontSizeIcon,
-} = ASSETS.images;
 
 function MedicalCertificate() {
 

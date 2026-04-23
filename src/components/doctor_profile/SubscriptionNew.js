@@ -4,18 +4,15 @@ import { Drawer, Table } from "antd";
 import { Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
+import crownIcon from "../../assets/images/crown-purple.svg";
+import billingsIcon from "../../assets/images/billings.svg";
+import crown from '../../assets/images/crown.svg'
 import BillingHistoryNew from "./BillingHistoryNew";
 import BillingPrint from "./BillingPrint";
 import { billingHistory, invoiceGenerate, receiptGenerate } from "../../redux/monetizationSlice";
 import { S_SMARTSYNC, S_TATVA_PRACTICE } from "../../utils/constants";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData } from "../../utils/utils";
 import { deviceType, osName } from "react-device-detect";
-import { ASSETS } from "../../assets";
-const {
-  crownPurple: crownIcon,
-  billings: billingsIcon,
-  crown,
-} = ASSETS.images;
 
 function SubscriptionNew() {
 
@@ -90,6 +87,7 @@ function SubscriptionNew() {
       ...deviceSdkData,
     });
   }
+
 
   const columns = [
     {

@@ -32,15 +32,11 @@ import {
   getVaccineNameVariants,
 } from "../../VaccinationHelper.js";
 import CommonModal from "../../../../common/CommonModal.js";
-
+import alertIcon from "../../../../assets/images/alertIcon.svg";
+import successIcon from "../../../../assets/images/end-visit.svg";
+import closeIcon from "../../../../assets/images/close-visit.svg";
 import { MESSAGE_KEY } from "../../../../utils/constants.js";
 import { getDecodedToken } from "../../../../utils/localStorage.js";
-import { ASSETS } from "../../../../assets";
-const {
-  alerticon: alertIcon,
-  endVisit: successIcon,
-  closeVisit: closeIcon,
-} = ASSETS.images;
 
 const vaccineSites = [
   { label: "Left Arm", value: "Left Arm" },

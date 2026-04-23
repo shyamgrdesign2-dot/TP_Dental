@@ -5,8 +5,7 @@ import { isMobile } from "react-device-detect";
 
 import { NORMAL } from "../../utils/constants";
 import Quixote from "../../pages/Quixote";
-import { ASSETS } from "../../assets";
-const wtsp = ASSETS.images.wtsp;
+import wtsp from '../../assets/images/wtsp.svg';
 
 function WhatsappConfigureView(props) {
 

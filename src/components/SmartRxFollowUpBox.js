@@ -9,8 +9,7 @@ import { isMobile } from 'react-device-detect';
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, getFormattedDate, onlyNumberFormat, capitalizeAfterSentence, removeBeforeWhiteSpace } from "../utils/utils";
 import dayjs from "dayjs";
-import { ASSETS } from "../assets";
-const followUp = ASSETS.images.followup;
+import followUp from "../assets/images/followup.svg";
 
 const dateFormat = 'YYYY-MM-DD'
 
@@ -138,5 +137,6 @@ function SmartRxFollowUpBox() {
         </>
     );
 }
+
 
 export default React.memo(SmartRxFollowUpBox);

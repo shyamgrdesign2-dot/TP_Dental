@@ -21,18 +21,13 @@ import UploadProfile from "../components/UploadProfile";
 import { viewPatient, addPatient, editPatient } from "../redux/appointmentsSlice";
 import { clearAbhaDetails } from "../redux/abhaSlice";
 import CommonModal from "../common/CommonModal";
-
+import saveIcon from '../assets/images/save.svg';
 import { updateDob } from "../pages/vaccination/service";
 import { getDecodedToken } from "../utils/localStorage";
 import ApiAbha from "../api/services/ApiAbha";
-
+import GreenTick from "../assets/images/green_tick.svg";
 import '../components/PatientForm.mobile.scss';
 import PrimaryActionButton from "./PrimaryActionButton";
-import { ASSETS } from "../assets";
-const {
-  save: saveIcon,
-  greenTick: GreenTick,
-} = ASSETS.images;
 
 const { TabPane } = Tabs;
 
@@ -115,6 +110,7 @@ function PatientForm({ mode = ADD, patient_data }) {
     const showHideModal = useCallback(() => {
         setIsModalOpen(!isModalOpen);
     }, [isModalOpen]);
+
 
     const onFinish = () => {
         const decodedToken = getDecodedToken();

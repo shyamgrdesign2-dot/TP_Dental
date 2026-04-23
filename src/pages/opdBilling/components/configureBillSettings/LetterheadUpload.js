@@ -4,8 +4,7 @@ import { Cropper } from "react-cropper";
 import "cropperjs/dist/cropper.css";
 import React, { useCallback, useEffect, useState } from "react";
 import { dataUrlToFileUsingFetch, errorMessage } from "../../../../utils/utils";
-import { ASSETS } from "../../../../assets";
-const defaultprofile = ASSETS.images.defaultProfile;
+import defaultprofile from "./../../../../assets/images/default-profile.svg";
 
 const LetterheadUpload = ({ setPrintSettings, headerFooter }) => {
   const [fileFooter, setFileFooter] = useState(null);

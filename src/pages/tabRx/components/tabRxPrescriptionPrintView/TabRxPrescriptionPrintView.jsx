@@ -19,6 +19,9 @@ import {
   trackEvent,
 } from "../../../../utils/utils";
 
+import wtsp from "../../../../assets/images/wtsp.svg";
+import loadingImg from "../../../../assets/images/loading.webp";
+
 import { useSelector, useDispatch } from "react-redux";
 import { useAccess } from "../../../vaccination/useAccess";
 
@@ -65,28 +68,19 @@ import { EVENTS } from "../../../../utils/events";
 import { uploadDocsToAzure } from "../../../medicalRecords/service";
 import { usePrintPayloadPdf } from "../../../../hooks/usePrintPayloadPdf";
 import HeaderPrintView from "./HeaderPrintView";
-
+import ReceiptText from "../../../../assets/images/navbar-icons/receipt-text.svg";
+import EditIconPrimary from "../../../../assets/images/edit-icon-blue.svg";
+import EditIcon from "../../../../assets/images/edit-white.webp";
+import ReceiptTextPrimary from "../../../../assets/images/receipt-text-white.svg";
+import DownloadIcon from "../../../../assets/images/download.svg";
+import printIcon from "../../../../assets/images/printer.svg";
+import successIcon from "../../../../assets/images/success-icon.svg";
 import { services } from "../../../../redux/doctorsSlice";
 import { checkCredits } from "../../../../redux/monetizationSlice";
 import { getTabRxFiles } from "../../services/tabRxService";
 import TabRxEditRxModal from "../tabRxEditRxModal/TabRxEditRxModal";
-
+import arrowRight from "../../../../assets/images/website-images/right-arrow-slider.svg";
 import CvtKnowMore from "../../../smartSync/components/CvtKnowMore";
-import { ASSETS } from "../../../../assets";
-const {
-  wtsp,
-  loading_3: loadingImg,
-} = ASSETS.images;
-const ReceiptText = ASSETS.images.navbarIcons.receiptText;
-const {
-  editIconBlue: EditIconPrimary,
-  editWhite: EditIcon,
-  receiptTextWhite: ReceiptTextPrimary,
-  download: DownloadIcon,
-  printer: printIcon,
-  successIcon,
-} = ASSETS.images;
-const arrowRight = ASSETS.images.websiteImages.rightArrowSlider;
 
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
@@ -245,6 +239,7 @@ function TabRxPrescriptionPrintView() {
   useEffect(() => {
     setDivWidth(divRef.current?.offsetWidth);
   }, [divRef]);
+
 
   // Initialize smart Rx files when coming from flows that pass smartRxFilesData in navigation state
   useEffect(() => {

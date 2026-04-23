@@ -1,8 +1,7 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import './FollowUpRichTextEditor.scss';
-import { ASSETS } from "../assets";
-const followUpIcon = ASSETS.images.followup;
+import followUpIcon from '../assets/images/followup.svg';
 
 /**
  * FollowUpRichTextEditor - Rich text editor specifically for Follow Up section

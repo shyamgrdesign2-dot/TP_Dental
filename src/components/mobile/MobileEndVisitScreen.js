@@ -14,20 +14,14 @@ import { EVENTS } from '../../utils/events';
 import { viewCaseManager } from '../../redux/caseManagerSlice';
 import { Document, Page } from 'react-pdf';
 import { pdfjs } from 'react-pdf';
-
+import editIcon from '../../assets/mobile/edit.svg';
+import downloadIcon from '../../assets/mobile/Arrow Download (1).svg';
+import whatsappIcon from '../../assets/mobile/WhatsApp.svg';
+import printIcon from '../../assets/mobile/printer.svg';
+import loadingImg from '../../assets/images/loading.webp';
+import visitEndIcon from '../../assets/images/end-visit.svg';
+import closeVisitIcon from '../../assets/images/close-visit.svg';
 import './MobileEndVisitScreen.scss';
-import { ASSETS } from "../../assets";
-const {
-  edit: editIcon,
-  arrowDownload1: downloadIcon,
-  whatsapp: whatsappIcon,
-  printer: printIcon,
-} = ASSETS.mobile;
-const {
-  loading_3: loadingImg,
-  endVisit: visitEndIcon,
-  closeVisit: closeVisitIcon,
-} = ASSETS.images;
 
 // Set up PDF.js worker (same as web version)
 const worker = require('pdfjs-dist/build/pdf.worker.min.js');

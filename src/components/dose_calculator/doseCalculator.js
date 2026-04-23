@@ -32,16 +32,13 @@ import {
 } from "../../redux/medicationSlice";
 import { addUpdateVitals, getPatientBirthWeight, updateList, updateTodayWeight } from "../../redux/vitalsSlice";
 
+import editIcon from "../../assets/images/edit.svg";
+import doseCalculatorImg from "../../assets/images/dose-calc.svg";
+import alertIcon from '../../assets/images/alertIcon.svg';
+import visitEnd from '../../assets/images/end-visit.svg';
+import imgCloseVisit from '../../assets/images/close-visit.svg';
 import CommonModal from "../../common/CommonModal";
 import moment from "moment";
-import { ASSETS } from "../../assets";
-const {
-  edit: editIcon,
-  doseCalc: doseCalculatorImg,
-  alerticon: alertIcon,
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-} = ASSETS.images;
 
 const dateFormat = 'YYYY-MM-DD'
 
@@ -79,6 +76,7 @@ const DoseCalculator = ({ handleViewDoseCalcDrawer, activeTab, setActiveTab, sea
   const [deletedData, setDeletedData] = useState(null);
   const [doseLibrary, setDoseLibrary] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
 
   useEffect(() => {
     if (medicationData?.length > 0) {
@@ -445,6 +443,7 @@ const DoseCalculator = ({ handleViewDoseCalcDrawer, activeTab, setActiveTab, sea
   const showHideModal = useCallback(() => {
     setIsModalOpen(!isModalOpen);
   }, [isModalOpen]);
+
 
   //Mixed Tab
   const firstColumn = (text, record, index) => {

@@ -15,8 +15,7 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../../redux/ophthalmologyExamSlice";
-import { ASSETS } from "../../assets";
-const moreIcon = ASSETS.images.more;
+import moreIcon from "../../assets/images/more.svg";
 
 const OphthalmologyExamDrawer = ({
   open,

@@ -2,8 +2,7 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import './AdviceRichTextEditor.scss';
-import { ASSETS } from "../assets";
-const adviceIcon = ASSETS.images.advice;
+import adviceIcon from '../assets/images/advice.svg';
 
 /**
  * AdviceRichTextEditor - Rich text editor specifically for Advice section

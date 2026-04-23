@@ -8,10 +8,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { errorMessage, onlyNumberFormat, shouldMonetizationDisabled } from "../../utils/utils";
 
 import CommonModal from '../../common/CommonModal';
-
+import alertIcon from '../../assets/images/alertIcon.svg';
 import CashManagerContext from '../../context/CashManagerContext';
 import { removeBeforeWhiteSpace, hasNumber, capitalizeAfterSentence } from "../../utils/utils";
-
+import Diagnosisicon from "../../assets/images/Diagnosis.svg";
 import {
     addTemplate,
     updateTemplate,
@@ -28,11 +28,6 @@ import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import { setIsDiagnosisBox } from "../../redux/ddxSlice";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { ASSETS } from "../../assets";
-const {
-  alerticon: alertIcon,
-  diagnosis: Diagnosisicon,
-} = ASSETS.images;
 
 function TabDiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoading, handleDDxKnowMore, isDDxGenerated}) {
     const {
@@ -93,6 +88,7 @@ function TabDiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLo
     const [sinceValue, setSinceValue] = useState(1);
     const [inputSince, setInputSince] = useState('');
     const [sinceOptions, setSinceOptions] = useState([]);
+
 
     useEffect(() => {
         if (selectedDiagnosisList.length > 0) {
@@ -519,6 +515,7 @@ function TabDiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLo
         );
     }, [tabChange, saveDrawer, inputTemplateName, loading, allTemplates]);
 
+
     useEffect(() => {
         if (sinceValue !== -1) {
             const options = SINCE_OPTIONS.map((option) => {
@@ -842,5 +839,6 @@ function TabDiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLo
         </>
     );
 }
+
 
 export default React.memo(TabDiagnosisBox);

@@ -5,7 +5,8 @@ import { MenuOutlined } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from 'uuid';
 import styles from './ConsultationDrawer.module.css';
-
+import investigationIcon from '../assets/images/Lab.svg';
+import groundingIndicatorBg from '../assets/images/grounding-indicator.svg';
 import {
   searchInvestigation,
   getFrequentlySearchedInvestigation
@@ -21,11 +22,6 @@ import config from '../config';
 import { useLocation } from 'react-router-dom';
 import { useGrounding } from '../hooks/useGrounding';
 import { INVESTIGATION_TITLE } from '../utils/constants';
-import { ASSETS } from "../assets";
-const {
-  lab: investigationIcon,
-  groundingIndicator: groundingIndicatorBg,
-} = ASSETS.images;
 
 const LabInvestigationTable = ({
   labInvestigation = [],
@@ -244,6 +240,7 @@ const LabInvestigationTable = ({
     }
   }, [labInvestigation, onUpdate]);
 
+
   const onSearchParent = useCallback(
     (query) => {
       const cleanedQuery = removeBeforeWhiteSpace(query);
@@ -337,6 +334,7 @@ const LabInvestigationTable = ({
     },
     [isGroundingAccessableForZydus, dontShowZydusWarning, addNewInvestigation]
   );
+
 
   const handleCellClick = async (itemId, field, currentValue) => {
     setEditingCell({ itemId, field });

@@ -2,11 +2,8 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { Select } from 'antd';
 import './ProfileSection.scss';
-import { ASSETS } from "../../../../assets";
-const {
-  image: AvatarImage,
-  arrow: ArrowIcon,
-} = ASSETS.mobile;
+import AvatarImage from '../../../../assets/mobile/image.svg';
+import ArrowIcon from '../../../../assets/mobile/Arrow.svg';
 
 function ProfileSection({ doctorName, specialty, clinicName, profileImage, clinicOptions, selectedHospital, onClinicChange }) {
   const { profile } = useSelector((state) => state.doctors);
