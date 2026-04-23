@@ -5,20 +5,11 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly } from "../utils/utils";
-import Medicationicon from "../assets/images/Medication.svg";
-import TimingInfo from "../assets/images/TimingInfo.svg";
-import noRecordFound from '../assets/images/no-record-round.svg';
-import calculatorIcon from '../assets/images/calculator.svg';
-import calculatorIconBlue from '../assets/images/calculator-blue.svg';
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
+
 import { MenuOutlined } from '@ant-design/icons';
-import tagNew from '../../src/assets/images/tag-new.svg';
-import Pillup from '../assets/images/pillup.svg';
-import EazyDoseLogo from '../assets/images/EazyDose Logo.webp';
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
@@ -46,7 +37,20 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import FreeBadge from "../common/FreeBadge";
-
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  medication: Medicationicon,
+  timinginfo: TimingInfo,
+  noRecordRound: noRecordFound,
+  calculator: calculatorIcon,
+  calculatorBlue: calculatorIconBlue,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  tagNew,
+  pillup: Pillup,
+  eazydoseLogo: EazyDoseLogo,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 

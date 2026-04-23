@@ -32,18 +32,8 @@ import CustomizeSetting from "./CustomizeSetting";
 import CashManagerContext from "../context/CashManagerContext";
 import ProfilePopover from "./ProfilePopover";
 import CommonModal from "./CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
-import reload from "../assets/images/ic_Reload.svg";
-import tutorial from "../assets/images/tutorial.svg";
-import playIcons from "../assets/images/tube-icon.svg";
+
 import api from "../api/services/axiosService";
-import devicePad from "../assets/images/device-pad.svg";
-import smartSyncConnected from "../assets/images/smart-sync-connected.svg";
-import smartSyncDisconnected from "../assets/images/smart-sync-disconnected.svg";
-import tagNew from '../assets/images/tag-new.svg';
-import Pillup from '../assets/images/pillup.svg';
-import EazyDoseLogo from '../assets/images/EazyDose Logo.webp';
-import videoSvg from "../assets/images/video.svg";
 
 import { errorMessage, removeBeforeWhiteSpace } from "../utils/utils";
 
@@ -67,6 +57,20 @@ import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
 import VideoConsultButton from "../components/VideoConsultButton";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  icReload: reload,
+  tutorial,
+  tubeIcon: playIcons,
+  devicePad,
+  smartSyncConnected,
+  smartSyncDisconnected,
+  tagNew,
+  pillup: Pillup,
+  eazydoseLogo: EazyDoseLogo,
+  video: videoSvg,
+} = ASSETS.images;
 
 function HeaderPrescription({
   prescription,

@@ -14,9 +14,7 @@ import {
   Tooltip,
   message,
 } from "antd";
-import alertIcon from "./../../../../assets/images/alertIcon.svg";
-import imgCloseVisit from "./../../../../assets/images/close-visit.svg";
-import visitEnd from "./../../../../assets/images/end-visit.svg";
+
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import DiagnosisNotes from "../../../obstetric/components/diagnosisNotes/DiagnosisNotes";
 import {
@@ -70,20 +68,27 @@ import {
   clearSearch,
   searchPatients,
 } from "../../../../redux/appointmentsSlice";
-import waveImage from "../../../../assets/images/opd-billing-wave.svg";
-import addCircleIcon from "../../../../assets/images/add-circle.svg";
+
 import AddAdvance from "../advanceDeposit/AddAdvance";
 import { isMobile } from "react-device-detect";
 
-import playIcons from "../../../../assets/images/tube-icon.svg";
-import tutorial from "../../../../assets/images/tutorial-icon.svg";
-import videorotateWebm from "../../../../assets/images/videorotate.webm";
-import videorotateMp4 from "../../../../assets/images/videorotate.mp4";
 import LoopingVideo from "../../../../components/common/LoopingVideo";
 import VideoModal from "../../../../common/VideoModal";
 import { Popover } from "antd";
 import BillTemplate from "./BillTemplate";
 import dayjs from "dayjs";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  closeVisit: imgCloseVisit,
+  endVisit: visitEnd,
+  opdBillingWave: waveImage,
+  addCircle: addCircleIcon,
+  tubeIcon: playIcons,
+  tutorialIcon: tutorial,
+  videorotate_2: videorotateWebm,
+  videorotate: videorotateMp4,
+} = ASSETS.images;
 
 const CreateBill = ({
   handleCreateBillDrawer,

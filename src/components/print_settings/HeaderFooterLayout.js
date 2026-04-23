@@ -15,12 +15,15 @@ import PrintSettingsContext from '../../context/PrintSettingsContext';
 import CommonModal from '../../common/CommonModal';
 import { errorMessage, dataUrlToFile, dataUrlToFileUsingFetch } from "../../utils/utils";
 
-import defaultprofile from "../../assets/images/default-profile.svg";
-import rxDisplayArea from '../../assets/images/rx-display-area.svg';
-import wtsp from '../../assets/images/wtsp.svg';
 import WhatsappConfigure from "./WhatsappConfigure";
 import Quixote from "../../pages/Quixote";
 import WhatsappConfigureView from "./WhatsappConfigureView";
+import { ASSETS } from "../../assets";
+const {
+  defaultProfile: defaultprofile,
+  rxDisplayArea,
+  wtsp,
+} = ASSETS.images;
 
 const { TextArea } = Input;
 
@@ -181,7 +184,6 @@ function HeaderFooterLayout({ todayVaccines, growthChartDetails, obstetricDetail
     const [isFooterModalOpen, setIsFooterModalOpen] = useState(false);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [signatureMode, setSignatureMode] = useState('L');
-
 
     //TAB_HEADER_FOOTER
     const onHeaderFooterClick = useCallback(
@@ -627,7 +629,6 @@ function HeaderFooterLayout({ todayVaccines, growthChartDetails, obstetricDetail
             });
         }
     };
-
 
     //Other Settings
     const onWatermarkSwitchChange = useCallback(

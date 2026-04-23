@@ -8,8 +8,6 @@ import axios from "axios";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import notcertificate from '../../assets/images/not-certificate.svg';
-import emptyIllustration from '../../assets/mobile/empty_illustration.svg';
 import CreateCertificate from "./CreateCertificate";
 import PdfThumbnail from "../../common/PdfThumbnail";
 import { listPatientCertificate, deletePatientCertificate } from "../../redux/doctorsSlice";
@@ -17,10 +15,15 @@ import { errorMessage, sendMessageToParent } from "../../utils/utils";
 
 import { MESSAGE_KEY } from "../../utils/constants";
 
-import visitEnd from '../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../assets/images/close-visit.svg';
 import { EVENTS } from "../../utils/events";
 import { renderCertificatePayloadToBlob } from "../../utils/certificatePrintPayload";
+import { ASSETS } from "../../assets";
+const notcertificate = ASSETS.images.notCertificate;
+const emptyIllustration = ASSETS.mobile.emptyIllustration;
+const {
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 function CertificateDetails({ patient_data, onCreateCertificateClick }) {
 
@@ -38,7 +41,6 @@ function CertificateDetails({ patient_data, onCreateCertificateClick }) {
     }, []);
 
     const [createCertificateDrawer, setCreateCertificateDrawer] = useState(false);
-
 
     const handleCreateCertificateDrawer = useCallback(() => {
         setCreateCertificateDrawer(!createCertificateDrawer)

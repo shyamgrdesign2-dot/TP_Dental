@@ -8,9 +8,7 @@ import { saveAs } from 'file-saver';
 import { inputToLabel, HTMLTransformer, removeLabelTags, errorMessage, removeBeforeWhiteSpace, sendMessageToParent } from "../utils/utils";
 
 import { MESSAGE_KEY } from "../utils/constants";
-
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
+import { ASSETS } from "../assets";
 
 import HeaderCertificatePrint from "../common/HeaderCertificatePrint";
 
@@ -33,6 +31,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = worker
 let cpvMountCount = 0;
 
 function CertificatePrintView() {
+    const {
+        endVisit: visitEnd,
+        closeVisit: imgCloseVisit,
+    } = ASSETS.images;
 
     const divRef = useRef(null);
     const sessionRxUrlRef = useRef(null);

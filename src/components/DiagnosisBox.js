@@ -22,10 +22,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence, shouldMonetizationDisabled } from "../utils/utils";
-import Diagnosisicon from "../assets/images/Diagnosis.svg";
+
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -41,6 +41,11 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  diagnosis: Diagnosisicon,
+} = ASSETS.images;
 
 function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoading, handleDDxKnowMore, isDDxGenerated}) {
   const {
@@ -97,7 +102,6 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     { value: "Month", label: "Month" },
     { value: "Year", label: "Year" },
   ];
-
 
   //PopOver2
   const [popOver2, setPopOver2] = useState(false);

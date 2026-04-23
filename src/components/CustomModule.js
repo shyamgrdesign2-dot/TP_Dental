@@ -33,10 +33,10 @@ import { v4 as uuidv4 } from "uuid";
 import "./CustomModule.scss";
 
 import CommonModal from "../common/CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
+
 import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, removeBeforeWhiteSpace, getClinic } from "../utils/utils";
-import ModuleIcon from "../assets/images/custom-module.svg";
+
 import { MenuOutlined } from "@ant-design/icons";
 import DisabledModuleTooltip from "./customModulesV2/DisabledModuleTooltip";
 import {
@@ -48,14 +48,21 @@ import {
 import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import editIcon from "../assets/images/edit-icon-blue.svg";
-import deleteIcon from "../assets/images/delete-icon-blue.svg";
+
 import TextArea from "antd/es/input/TextArea";
 import { MESSAGE_KEY } from "../utils/constants";
-import visitEnd from "../assets/images/end-visit.svg";
-import imgCloseVisit from "../assets/images/close-visit.svg";
+
 import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  customModule: ModuleIcon,
+  editIconBlue: editIcon,
+  deleteIconBlue: deleteIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 function CustomModule({ module }) {
   const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(

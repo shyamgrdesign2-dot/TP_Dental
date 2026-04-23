@@ -11,9 +11,6 @@ import { useReactToPrint } from 'react-to-print';
 
 import { errorMessage, getClinic, isIPad, sendMessageToParent, trackEvent } from "../utils/utils";
 
-import messageSent from '../assets/images/message-sent.svg';
-import wtsp from '../assets/images/wtsp.svg';
-import loadingImg from '../assets/images/loading.webp';
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -38,10 +35,18 @@ import api from '../api/services/axiosService';
 import { fetchPatientDefaultLanguage, updatePatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import { EVENTS } from "../utils/events";
 import { uploadDocsToAzure } from "./medicalRecords/service";
-import HealthCheckupReportIcon from "../assets/images/health-checkup-report-outline.svg";
+
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useZydusWhatsapp } from "../hooks/useZydusWhatsapp";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
+import { ASSETS } from "../assets";
+const {
+  messageSent,
+  wtsp,
+  loading_3: loadingImg,
+  healthCheckupReportOutline: HealthCheckupReportIcon,
+} = ASSETS.images;
+
 const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 // pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -174,7 +179,6 @@ function PrescriptionPrintView() {
         setCurrentSessionRx(null);
       }
     }, [createBillDrawer]);
-
 
     useEffect(() => {
       if (!state?.print_url) {

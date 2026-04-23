@@ -11,8 +11,6 @@ import MedicalHistory from '../components/MedicalHistory';
 import CarePlanBox from '../components/CarePlanBox';
 // import Vaccination from '../components/Vaccination';
 import Cardiology from '../components/Cardiology';
-import variables from '../assets/scss/variables.scss'
-import alertIcon from "../assets/images/alertIcon.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -58,6 +56,9 @@ import { errorMessage } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { ASSETS } from "../assets";
+const variables = ASSETS.scss.variables;
+const alertIcon = ASSETS.images.alerticon;
 const BillingDashboard = React.lazy(() =>
   lazyRetry(() => import("./opdBilling/components/billingDashboard/BillingDashboard"))
 );
