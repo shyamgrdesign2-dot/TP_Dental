@@ -15,7 +15,6 @@ function VisitActionButtons({
   onEdit,
   onDownload,
   onPrint,
-  onPrintIconClick,
   onRepeatRx,
   onPrintMedicinesOnly,
   showEdit = true,
@@ -49,9 +48,6 @@ function VisitActionButtons({
 
   const handlePrintClick = (e) => {
     e.preventDefault();
-    if (onPrintIconClick && typeof onPrintIconClick === 'function') {
-      onPrintIconClick();
-    }
     if (skipPrintModal) {
       if (onPrint && typeof onPrint === 'function') {
         onPrint();
