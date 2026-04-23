@@ -15,7 +15,14 @@ import frame2Icon from '../../../assets/mobile/Frame_2.svg';
 import dictateActiveIcon from '../../../assets/images/dictate-active.svg';
 import ambientActiveIcon from '../../../assets/images/ambient-mode-active.svg';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { getClinic, getSupportedMimeType, isVoiceRxFree, errorMessage } from '../../../utils/utils';
+import {
+  errorMessage,
+  getClinic,
+  getClinicName,
+  getSupportedMimeType,
+  getVoiceRxMoengageBasePayload,
+  isVoiceRxFree,
+} from '../../../utils/utils';
 import { S_AMBIENT_VOICE_RX, S_VOICE_RX, FREE, FAILED_VERIFICATION, GB_VOICE_RX_FREE } from '../../../utils/constants';
 import { checkCredits } from '../../../redux/monetizationSlice';
 import { services } from '../../../redux/doctorsSlice';
@@ -197,6 +204,15 @@ function MobileVoiceRecording() {
     if (isRecording || isPaused) {
       crossButtonClickCountRef.current += 1;
     }
+    const clinic_name = getClinicName(profile?.hospital_data);
+    window.Moengage?.track_event?.("TP_App_VoiceRx_Paused", {
+      patient_contact: patient_data?.pm_contact_no || "",
+      patient_id: patient_data?.patient_unique_id || "",
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name,
+      rx_id: existingGenRxDetails?._id || caseManagerData?.smart_prescription_filename || "",
+    });
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.pause();
     }
@@ -325,17 +341,13 @@ function MobileVoiceRecording() {
 
     try {
       const clinic = getClinic(profile?.hospital_data);
-      window.Moengage.track_event("TP_AV_Submit", {
-        patient_id: patient_data?.patient_unique_id || "",
-        patient_name: patient_data?.pm_fullname || "",
-        patient_mobile_number: patient_data?.pm_contact_no || "",
-        doctor_id: profile?.doctor_unique_id,
-        user_id: userId,
-        doctor_name: profile?.um_name,
-        doctor_specialty: profile?.dp_name,
-        doctor_mobile_number: profile?.um_contact,
-        hm_id: clinic?.hm_id,
-        clinic_name: clinic?.hm_name,
+      window.Moengage.track_event("TP_App_AV_Submit", {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+        }),
         mode: selectedMode || mode,
       });
       

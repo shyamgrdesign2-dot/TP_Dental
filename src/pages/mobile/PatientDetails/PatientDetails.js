@@ -12,7 +12,14 @@ import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from '../../medicalRe
 import { mergeDocuments } from '../../medicalRecords/utils/helper';
 import { fetchPrintSetting } from '../../opdBilling/service';
 import { setBillPrintSettings } from '../../../redux/billingSlice';
-import { getClinicName, getClinic, errorMessage, sendMessageToParent } from '../../../utils/utils';
+import {
+  getClinicName,
+  getClinic,
+  errorMessage,
+  sendMessageToParent,
+  trackEvent,
+  getVoiceRxMoengageBasePayload,
+} from '../../../utils/utils';
 import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../../../utils/constants';
 import { EVENTS } from '../../../utils/events';
 import { useAccess } from '../../vaccination/useAccess';
@@ -125,15 +132,37 @@ function PatientDetails() {
     if (!patient_data?.patient_unique_id || hasTrackedLanding.current) return;
     
     // Track landing event only on initial mount or patient change (when tcm_id is 0)
-    if (window.Moengage && clinicName && tcmData.tcm_id === 0) {
-      window.Moengage.track_event('TP_Patient_detail_landing', {
+    if (clinicName && tcmData.tcm_id === 0) {
+      trackEvent("TP_App_Patient_detail_landing", {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+          segmentation: {
+            surface: "mobile_patient_details",
+            entry_point: "landing",
+          },
+        }),
         clinic_name: clinicName,
         patient_number: patient_data?.pm_contact_no,
         patient_id: patient_data?.patient_unique_id,
+        patient_contact: patient_data?.pm_contact_no || "",
+        doctor_speciality: profile?.dp_name,
+        doctor_unique_id: profile?.doctor_unique_id,
+        tcm_id: tcmData?.tcm_id ?? 0,
       });
       hasTrackedLanding.current = true;
     }
-  }, [patient_data?.patient_unique_id, clinicName, tcmData.tcm_id]);
+  }, [
+    patient_data?.patient_unique_id,
+    patient_data?.pm_contact_no,
+    clinicName,
+    tcmData.tcm_id,
+    profile,
+    userId,
+    clinic,
+  ]);
 
   // Fetch case manager data (separated from analytics to avoid unnecessary re-fetches)
   useEffect(() => {
@@ -185,26 +214,74 @@ function PatientDetails() {
 
   // Memoize navigation callbacks to prevent unnecessary child re-renders
   const nextPress = useCallback(() => {
-    window.Moengage?.track_event('patient_detail_prev', {
+    trackEvent("TP_App_Patient_detail_prev", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: "mobile_patient_details",
+          entry_point: "visit_navigate_prev",
+        },
+      }),
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      patient_contact: patient_data?.pm_contact_no || "",
+      tcm_id_from: viewCaseManagerData?.tcm_id,
+      tcm_id_to: viewCaseManagerData?.next_tcm_id,
     });
     setTcmData((prevTcmData) => ({ 
       tcm_id: viewCaseManagerData?.next_tcm_id, 
       page: prevTcmData.page - 1 
     }));
-  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.next_tcm_id]);
+  }, [
+    profile,
+    userId,
+    patient_data,
+    clinic,
+    clinicName,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.next_tcm_id,
+  ]);
 
   const prevPress = useCallback(() => {
-    window.Moengage?.track_event('patient_detail_next', {
+    trackEvent("TP_App_Patient_detail_next", {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: "mobile_patient_details",
+          entry_point: "visit_navigate_next",
+        },
+      }),
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data?.patient_unique_id || 0,
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      patient_contact: patient_data?.pm_contact_no || "",
+      tcm_id_from: viewCaseManagerData?.tcm_id,
+      tcm_id_to: viewCaseManagerData?.prev_tcm_id,
     });
     setTcmData((prevTcmData) => ({ 
       tcm_id: viewCaseManagerData?.prev_tcm_id, 
       page: prevTcmData.page + 1 
     }));
-  }, [profile?.doctor_unique_id, patient_data?.patient_unique_id, viewCaseManagerData?.prev_tcm_id]);
+  }, [
+    profile,
+    userId,
+    patient_data,
+    clinic,
+    clinicName,
+    viewCaseManagerData?.tcm_id,
+    viewCaseManagerData?.prev_tcm_id,
+  ]);
 
   const handleTabChange = useCallback((tabKey) => {
     setSelectedTab(tabKey);
@@ -379,6 +456,31 @@ function PatientDetails() {
   }, []);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
+  const handlePrintIconClick = useCallback(() => {
+    const printChannel = !isChrome && !isSafari ? 'in_app' : 'browser';
+    trackEvent('TP_App_PrintRx', {
+      ...getVoiceRxMoengageBasePayload({
+        profile,
+        userId,
+        patientData: patient_data,
+        clinic,
+        segmentation: {
+          surface: 'mobile_patient_details_visit_summary',
+          entry_point: 'print_button',
+        },
+      }),
+      patient_contact: patient_data?.pm_contact_no || '',
+      patient_id: patient_data?.patient_unique_id || '',
+      doctor_speciality: profile?.dp_name,
+      doctor_unique_id: profile?.doctor_unique_id,
+      clinic_name: clinicName,
+      PRINTPAGE: 'patient details page',
+      rx_id: viewCaseManagerData?.tcm_id || '',
+      rx_type: 'standard',
+      print_channel: printChannel,
+    });
+  }, [profile, userId, patient_data, clinic, clinicName, viewCaseManagerData?.tcm_id]);
+
   const handlePrintRx = useCallback(() => {
       if (cardiologyPrintHandlerRef.current?.printContent) {
         cardiologyPrintHandlerRef.current.printContent();
@@ -514,6 +616,7 @@ function PatientDetails() {
             onEditRx={handleEditRx}
             onDownloadRx={handleDownloadRx}
             onPrintRx={handlePrintRx}
+            onPrintIconClick={handlePrintIconClick}
             onRepeatRx={handleRepeatRx}
             onPrintMedicinesOnly={handlePrintMedicinesOnly}
             onCardiologyPrintHandlersReady={handleCardiologyPrintHandlersReady}

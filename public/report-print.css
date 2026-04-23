@@ -15,7 +15,7 @@ body {
 
 body {
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -113,7 +113,7 @@ body>*:not(.report-doc-header) {
 p {
   margin: 0 0 4px;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -172,7 +172,7 @@ table.report-patient-table {
 
 .report-patient-table td p {
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #171725;
@@ -203,7 +203,7 @@ h2,
   position: relative;
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 15px;
   line-height: normal;
   letter-spacing: 0;
   color: #171725;
@@ -251,7 +251,7 @@ div.report-section-box {
 
 div.report-section-box p {
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -274,7 +274,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   letter-spacing: 0.0607px;
   color: #454551;
   margin: 0;
@@ -287,7 +287,7 @@ table {
   background: rgba(255, 255, 255, 0.5);
   margin: 16px 0;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   letter-spacing: 0.0607px;
   color: #454551;
 }
@@ -302,7 +302,7 @@ table {
   background: #fafafb;
   font-family: 'Poppins', sans-serif;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -317,7 +317,7 @@ table {
 .report-data-table thead tr th p {
   margin: 0;
   font-weight: 500;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -328,7 +328,7 @@ table {
   background: transparent;
   font-family: 'Poppins', sans-serif;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -344,7 +344,7 @@ table {
 .report-data-table tbody tr td p {
   margin: 0;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -407,7 +407,7 @@ table.report-general-exam-grid.bottom-row-grid {
 table.report-general-exam-grid tbody tr th {
   background: #ffffff;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 15px;
   padding: 6px 8px;
   border: 0.607px solid #f1f1f5;
   /* Maintain visual unity */
@@ -433,7 +433,7 @@ ol {
   margin: 0;
   padding-left: 15px;
   font-family: 'Poppins', sans-serif;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
@@ -446,7 +446,7 @@ li {
 
 li p {
   margin: 0;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 18px;
   display: inline;
 }

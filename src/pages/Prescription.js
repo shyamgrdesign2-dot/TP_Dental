@@ -844,10 +844,10 @@ function Prescription() {
     if (uploadDocCategories.length === 0) {
       getAllDocumentCategories();
     }
-    if (patient_data.patient_unique_id && allUploadedDocs.length === 0) {
+    if (patient_data?.patient_unique_id) {
       getAllPatientDocs();
     }
-  }, [isZydusUserAccessableFromGB]);
+  }, [patient_data?.patient_unique_id, patient_data?.mrno, isZydusUserAccessableFromGB]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {

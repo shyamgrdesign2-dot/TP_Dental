@@ -430,7 +430,7 @@ function medicalHistoryToHtmlList(items) {
   };
 
   const lis = items.map(flatten).flat().join("");
-  return `<ul>${lis}</ul>`;
+  return `<ol>${lis}</ol>`;
 }
 
 /**

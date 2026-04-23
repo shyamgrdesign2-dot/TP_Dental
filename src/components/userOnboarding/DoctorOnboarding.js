@@ -19,7 +19,10 @@ import CustomStepper from "./CustomStepper";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { updateHasLocation } from "../../redux/doctorsSlice";
 import { useDispatch } from "react-redux";
-import { detectOperatingSystem } from "../../utils/utils";
+import {
+  detectOperatingSystem,
+  getOnboardingDeviceSource,
+} from "../../utils/utils";
 import { useLocalStorage } from "../../utils/localStorage";
 
 /** Onboarding APIs receive mobile without country code. */
@@ -189,7 +192,11 @@ const DoctorOnboarding = ({
     const phoneNumber = getUserMobileNumber()?.length > 0 ? getUserMobileNumber() : (mobileFromUrl ?? "");
     const utm = getUtmParams();
     try {
-      const response = await initOnboarding(phoneWithoutCountryCode(phoneNumber), utm);
+      const response = await initOnboarding(
+        phoneWithoutCountryCode(phoneNumber),
+        utm,
+        getOnboardingDeviceSource()
+      );
 
       // Store the onboarding ID for future API calls
       setUserOnboardingId(response.id);
@@ -281,13 +288,15 @@ const DoctorOnboarding = ({
 
           setIsSubmitting(true);
           if (res) {
+            const currentDeviceSource = getOnboardingDeviceSource();
             const doctorData = {
               id: res,
               phone_number: phoneWithoutCountryCode(getUserMobileNumber()?.length > 0 ? getUserMobileNumber() : (mobileFromUrl ?? "")),
               doctorName: formData.fullName,
               departmentId: formData.speciality,
+              device_source: currentDeviceSource,
               // Use real UTM data
-              utm_source: utmParams?.utm_source,
+              utm_source: currentDeviceSource,
               utm_campaign: utmParams?.utm_campaign,
               utm_term: utmParams?.utm_term,
               utm_content: utmParams?.utm_content,
@@ -397,13 +406,15 @@ const DoctorOnboarding = ({
 
     try {
       // Use real user data from context/token
+      const currentDeviceSource = getOnboardingDeviceSource();
       const doctorData = {
         id: userOnboardingId,
         phone_number: phoneWithoutCountryCode(userMobileNumber ?? mobileFromUrl),
         doctorName: formData.fullName,
         departmentId: formData.speciality,
+        device_source: currentDeviceSource,
         // Use real UTM data
-        utm_source: utmParams?.utm_source,
+        utm_source: currentDeviceSource,
         utm_campaign: utmParams?.utm_campaign,
         utm_term: utmParams?.utm_term,
         utm_content: utmParams?.utm_content,
@@ -446,13 +457,15 @@ const DoctorOnboarding = ({
 
     try {
       // Combine all the data for the finalize API
+      const currentDeviceSource = getOnboardingDeviceSource();
       const finalizeData = {
         id: userOnboardingId,
         phone_number: phoneWithoutCountryCode(userMobileNumber ?? mobileFromUrl),
         doctorName: formData.fullName,
         departmentId: formData.speciality,
+        device_source: currentDeviceSource,
         // UTM data
-        utm_source: utmParams?.utm_source,
+        utm_source: currentDeviceSource,
         utm_campaign: utmParams?.utm_campaign,
         utm_term: utmParams?.utm_term,
         utm_content: utmParams?.utm_content,
