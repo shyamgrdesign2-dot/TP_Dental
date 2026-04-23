@@ -17,6 +17,7 @@ import CommonModal from './CommonModal';
 
 import PrintSettingsContext from '../context/PrintSettingsContext';
 import { addModule } from '../redux/customModuleSlice';
+import { setCurrentSessionRx } from '../redux/obstetricSlice';
 import { getDecodedToken } from '../utils/localStorage';
 import { env } from '../EnvironmentConfig';
 import { GB_ZYDUS_USER } from '../utils/constants';
@@ -352,13 +353,15 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
             }
         } else if (flag === 3) {
             // Hydrate blob URL to Blob so preview pages get a valid PDF (no revoked blob URL)
+            // Prefer live preview blob from redux (updated by Quixote/QuixoteCertificate).
+            // Route state is fallback only.
             let sessionRxToPass = currentSessionRx || state?.currentSessionRx;
             if (
-                typeof currentSessionRx === "string" &&
-                currentSessionRx.startsWith("blob:")
+                typeof sessionRxToPass === "string" &&
+                sessionRxToPass.startsWith("blob:")
             ) {
                 try {
-                    const res = await fetch(currentSessionRx);
+                    const res = await fetch(sessionRxToPass);
                     const blob = await res.blob();
                     sessionRxToPass = blob;
                 } catch (err) {
@@ -378,6 +381,9 @@ function HeaderPrintSetting({ defaultPrintSettings }) {
                     console.error("Failed to hydrate session Rx blob from state", err);
                 }
             }
+            // Session blob is now passed through route state; clear global copy.
+            dispatch(setCurrentSessionRx(null));
+
             if (previousPage === "/gen-rx-print") {
                 const updatedSelectedLang = printSettings?.default_language || selectedLang;
                 navigate("/gen-rx-print", { 
