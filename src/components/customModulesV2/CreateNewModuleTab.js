@@ -6,18 +6,14 @@ import {
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { customizedPad } from "../../redux/doctorsSlice";
-
+import alertIcon from '../../assets/images/alertIcon.svg';
+import stethoscopeIcon from '../../assets/images/stethoscope.svg';
+import Plus from '../../assets/images/website-images/plus.svg';
+import moduleLimitIcon from '../../assets/images/moduleLimitIcon.svg';
 import ModuleListItem from "./ModuleListItem";
 import { getDecodedToken } from "../../utils/localStorage";
 import config from "../../config";
 import "./CreateNewModuleTab.scss";
-import { ASSETS } from "../../assets";
-const {
-  alerticon: alertIcon,
-  stethoscope: stethoscopeIcon,
-} = ASSETS.images;
-const Plus = ASSETS.images.websiteImages.plus;
-const moduleLimitIcon = ASSETS.images.modulelimiticon;
 
 const MAX_MODULE_NAME_LENGTH = 30;
 const MAX_COLUMN_LABEL_LENGTH = 15;

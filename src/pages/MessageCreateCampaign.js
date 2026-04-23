@@ -15,6 +15,14 @@ import { errorMessage, getClinicCity, onlyDecimalFormat, onlyNumberFormat } from
 import { MESSAGE_KEY } from "../utils/constants";
 
 import VideoModal from "../common/VideoModal";
+import messageCorner from '../assets/images/message-corner.svg'
+import CreditImg from "../assets/images/credit_icon.svg"
+import tutorial from '../assets/images/tutorial-icon.svg';
+import messageCornerGrey from '../assets/images/message-corner-grey.svg'
+import alertIcon from '../assets/images/alertIcon.svg';
+import imgCloseVisit from '../assets/images/close-visit.svg';
+import visitEnd from '../assets/images/end-visit.svg';
+import playIcons from "../assets/images/tube-icon.svg";
 
 import AvailableCredits from "../components/bulk_messages/AvailableCredits";
 import CommonModal from "../common/CommonModal";
@@ -24,17 +32,6 @@ import "../components/common/dateRangePill.scss";
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { fetchAgents, fetchGoogleMapsLink } from "../pages/appointmentAgent/service";
 import { getDecodedToken } from "../utils/localStorage";
-import { ASSETS } from "../assets";
-const {
-  messageCorner,
-  creditIcon: CreditImg,
-  tutorialIcon: tutorial,
-  messageCornerGrey,
-  alerticon: alertIcon,
-  closeVisit: imgCloseVisit,
-  endVisit: visitEnd,
-  tubeIcon: playIcons,
-} = ASSETS.images;
 
 const { RangePicker } = DatePicker;
 const dateFormat = 'YYYY-MM-DD'
@@ -818,6 +815,7 @@ function MessageCreateCampaign() {
         setIsBackModalOpen(!isBackModalOpen);
     }, [isBackModalOpen]);
 
+
     const renderTemplate = useMemo(() => {
         let parts = template && template?.text?.split(/{(.*?)}/);
 
@@ -1306,6 +1304,7 @@ function MessageCreateCampaign() {
         about_service
     ])
 
+
     const sendTemplate = () => {
         let msg_rowData = {}
         let parts = template && template?.text?.split(/{(.*?)}/);
@@ -1437,6 +1436,7 @@ function MessageCreateCampaign() {
             sendData['change'] = change ? 1 : 0
             sendData['draft'] = campaign_data?.draft === 0 ? campaign_data?.draft : draft
         }
+
 
         const action = campaign_data !== undefined ? await dispatch(userCampaignEdit(sendData)) : await dispatch(userCampaignAdd(sendData));
         if (action.meta.requestStatus === "fulfilled") {

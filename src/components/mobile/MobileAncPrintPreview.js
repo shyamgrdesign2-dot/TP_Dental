@@ -3,14 +3,10 @@ import { Drawer, Checkbox, Button, message } from 'antd';
 import { useSelector } from 'react-redux';
 import { useReactToPrint } from 'react-to-print';
 import moment from 'moment';
-
+import closeIcon from '../../assets/mobile/close 2.svg';
+import printIcon from '../../assets/mobile/Print.svg';
 import { handlePrintClick } from '../../utils/utils';
 import './MobileAncPrintPreview.scss';
-import { ASSETS } from "../../assets";
-const {
-  close2: closeIcon,
-  print: printIcon,
-} = ASSETS.mobile;
 
 /**
  * Mobile Print Preview for ANC Scheduler (Bottom Sheet)

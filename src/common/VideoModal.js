@@ -1,7 +1,7 @@
 import React from "react";
 import { Modal } from "antd";
-import { ASSETS } from "../assets";
-const fullicon = ASSETS.images.fullIcon;
+
+import fullicon from '../assets/images/full-icon.svg';
 
 // Format any YouTube URL to youtube-nocookie.com embed format
 const formatEmbedUrl = (url) => {

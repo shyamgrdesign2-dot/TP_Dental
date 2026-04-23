@@ -3,7 +3,11 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { Input, Button, Form, Spin } from "antd";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import "./Onboarding.scss";
-
+import abdmLogo from "../../../assets/images/abdm-logo.svg";
+import nhaLogo from "../../../assets/images/nha-logo.svg";
+import leftGroup from "../../../assets/images/onboard-page-icons/Left-Group.svg";
+import MicrosoftPartner from "../../../assets/images/onboard-page-icons/microsoft.webp";
+import rightGroup from "../../../assets/images/onboard-page-icons/Right-Group.svg";
 import { validateUser, checkPediaExists } from "../../auth/authService";
 import { getUtmParams } from "../../../components/userOnboarding/services/userDataService";
 import {
@@ -12,14 +16,6 @@ import {
 } from "../../../utils/loginUtils";
 import { GB_DISABLE_MSG91_OTP_FLOW } from "../../../utils/constants";
 import { AISENSY_SCRIPT_CONTAINER,AISENSY_SCRIPT_ID,AISENSY_SCRIPT_SRC } from "../../../utils/constants";
-import { ASSETS } from "../../../assets";
-const {
-  abdmLogo,
-  nhaLogo,
-} = ASSETS.images;
-const leftGroup = ASSETS.images.onboardPageIcons.leftGroup;
-const MicrosoftPartner = ASSETS.images.onboardPageIcons.microsoft;
-const rightGroup = ASSETS.images.onboardPageIcons.rightGroup;
 
 const SignUp = ({ onViewChange, isLoginFlow, mobileNumber: initialMobileNumber }) => {
   const [mobileNumber, setMobileNumber] = useState(initialMobileNumber || "");

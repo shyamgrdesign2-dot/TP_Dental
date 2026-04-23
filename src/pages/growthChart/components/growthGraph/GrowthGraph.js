@@ -11,7 +11,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-
+import minimise from "../../../../assets/images/minimise.svg";
+import maximise from "../../../../assets/images/maximise.svg";
 import "./GrowthGraph.scss";
 import TooltipContent from "./TooltipContent";
 import { genderAge } from "../../../../common/ProfilePopover";
@@ -19,11 +20,6 @@ import { useSelector } from "react-redux";
 import { UNITS, ageIntervals, getAgeInMonths } from "../../growthChartHelper";
 import { useLocation } from "react-router-dom";
 import moment from "moment";
-import { ASSETS } from "../../../../assets";
-const {
-  minimise,
-  maximise,
-} = ASSETS.images;
 
 // Register Chart.js modules
 ChartJS.register(

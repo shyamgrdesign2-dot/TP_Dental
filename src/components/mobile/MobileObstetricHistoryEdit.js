@@ -24,7 +24,9 @@ import { useAccess } from '../../pages/vaccination/useAccess';
 import { errorMessage } from '../../utils/utils';
 import { mergeDefaultAndDoctorList } from '../../pages/obstetric/utils/helper';
 import { getDecodedToken } from '../../utils/localStorage';
-
+import closeIcon from '../../assets/mobile/close 2.svg';
+import editIcon from '../../assets/images/edit-icon-blue.svg';
+import alertIcon from '../../assets/images/alertIcon.svg';
 import MobileCurrentExaminationEdit from './MobileCurrentExaminationEdit';
 import MobilePastPregnancyEdit from './MobilePastPregnancyEdit';
 import MobileAncSchedulerEdit from './MobileAncSchedulerEdit';
@@ -36,12 +38,6 @@ import './MobilePastPregnancyEdit.scss';
 import './MobileAncSchedulerEdit.scss';
 import './MobileImmunisationHistoryEdit.scss';
 import './MobilePreviousPregnancyOverview.scss';
-import { ASSETS } from "../../assets";
-const closeIcon = ASSETS.mobile.close2;
-const {
-  editIconBlue: editIcon,
-  alerticon: alertIcon,
-} = ASSETS.images;
 
 const { TextArea } = Input;
 

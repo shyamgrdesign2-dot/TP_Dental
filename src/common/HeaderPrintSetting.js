@@ -14,6 +14,9 @@ import {
 } from "../redux/doctorsSlice";
 
 import CommonModal from './CommonModal';
+import alertIcon from '../assets/images/alertIcon.svg';
+import tutorial from '../assets/images/tutorial-icon.svg';
+import playIcons from '../assets/images/tube-icon.svg';
 
 import PrintSettingsContext from '../context/PrintSettingsContext';
 import { addModule } from '../redux/customModuleSlice';
@@ -21,12 +24,6 @@ import { getDecodedToken } from '../utils/localStorage';
 import { env } from '../EnvironmentConfig';
 import { GB_ZYDUS_USER } from '../utils/constants';
 import { updatePatientDefaultLanguage } from '../api/services/DefaultLanguageService';
-import { ASSETS } from "../assets";
-const {
-  alerticon: alertIcon,
-  tutorialIcon: tutorial,
-  tubeIcon: playIcons,
-} = ASSETS.images;
 
 function HeaderPrintSetting({ defaultPrintSettings }) {
     const navigate = useNavigate();

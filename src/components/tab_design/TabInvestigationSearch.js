@@ -12,7 +12,11 @@ import {
 import { updateDragDrop } from "../../redux/doctorsSlice";
 
 import TabSearchHeader from "./TabSearchHeader";
+import dragChipsWebm from '../../../src/assets/images/drag-chips.webm'
+import dragChipsMp4 from '../../../src/assets/images/drag-chips.mp4'
 import LoopingVideo from "../common/LoopingVideo";
+import apexAI from "../../../src/assets/images/apexAI.svg";
+import tagNew from '../../../src/assets/images/tag-new.svg'
 
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import { getClinicName } from "../../utils/utils";
@@ -20,13 +24,6 @@ import { useLocation } from "react-router-dom";
 import { getDecodedToken } from "../../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../../utils/constants";
 import { env } from "../../EnvironmentConfig";
-import { ASSETS } from "../../assets";
-const {
-  dragChips_2: dragChipsWebm,
-  dragChips: dragChipsMp4,
-  apexai: apexAI,
-  tagNew,
-} = ASSETS.images;
 
 function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
 

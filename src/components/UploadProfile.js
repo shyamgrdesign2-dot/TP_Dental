@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-
+import defaultprofile from "../assets/images/default-profile.svg";
 import { Form, message } from "antd";
 import { useSelector } from "react-redux";
 import { ADD, EDIT } from "../utils/constants";
 import UploadProfileModal from "./UploadProfileModal";
-import { ASSETS } from "../assets";
-const defaultprofile = ASSETS.images.defaultProfile;
 
 function UploadProfile({ form, mode = ADD, isMobile = false }) {
   const { patients_details } = useSelector((state) => state.records);

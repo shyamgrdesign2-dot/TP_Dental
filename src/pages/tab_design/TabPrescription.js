@@ -33,8 +33,41 @@ import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistory
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
 
-import { ASSETS } from "../../assets";
+import vitalsWhite from "../../assets/images/vitals-white.svg";
+import vitalsDark from "../../assets/images/vitals-dark.svg";
+import medicalHistoryWhite from "../../assets/images/medical-history-white.svg";
+import medicalHistoryDark from "../../assets/images/medical-history-dark.svg";
+import vaccinationWhite from "../../assets/images/vaccination-white.svg";
+import vaccinationDark from "../../assets/images/Vaccination.svg";
+import alertIcon from "../../assets/images/alertIcon.svg";
+import growthChart from "../../assets/images/growth-chart.svg";
+import growthChartDark from "../../assets/images/growth-chart-dark.svg";
+import privateNotesWhite from "../../assets/images/private-notes-white.svg";
+import privateNotesDark from "../../assets/images/private-notes-dark.svg";
+import apexAIImg from "../../assets/images/apexAI.svg";
+import blinkingDotWebm from "../../assets/images/blinkingDot.webm";
+import blinkingDotMp4 from "../../assets/images/blinkingDot.mp4";
 import LoopingVideo from "../../components/common/LoopingVideo";
+import ddxVector from "../../assets/images/ddx-tab-vector.svg";
+import ddxImg from "../../assets/images/ddx.svg";
+import ddxInactiveImg from "../../assets/images/tab-ddx-inactive.svg";
+import genRxImg from "../../assets/images/gen-rx-mic.svg";
+import voiceRxDefault from "../../assets/images/voice-rx-default.svg";
+import obstetricWhite from "../../assets/images/obstetric-white.svg";
+import obstetricDark from "../../assets/images/obstetric-dark.svg";
+import medicalRecordsWhite from "../../assets/images/upload-doc-white.svg";
+import medicalRecordsDark from "../../assets/images/upload-doc-dark.svg";
+import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
+import labParamsDark from "../../assets/images/Lab-Parameters.svg";
+import groundingImgWhite from "../../assets/images/grounding-white.svg";
+import groundingImgDark from "../../assets/images/grounding-purple.svg";
+import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
+import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
+import carePlanIcon from "../../assets/images/Care plan.svg";
+import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
+// import labParametersWhite from '../../assets/images/lab-parameters-white.svg';
+// import notesWhite from '../../assets/images/notes-white.svg';
+// import docsWhite from '../../assets/images/docs-white.svg';
 import Sider from "antd/es/layout/Sider";
 import Vaccination from "../vaccination/Vaccination";
 import GrowthChart from "../growthChart/GrowthChart";
@@ -111,40 +144,6 @@ import {
 } from "../../redux/ophthalmologyExamSlice";
 
 function TabPrescription() {
-  const {
-    vitalsWhite,
-    vitalsDark,
-    medicalHistoryWhite,
-    medicalHistoryDark,
-    vaccinationWhite,
-    vaccination: vaccinationDark,
-    alerticon: alertIcon,
-    growthChart,
-    growthChartDark,
-    privateNotesWhite,
-    privateNotesDark,
-    apexai: apexAIImg,
-    blinkingdot_3: blinkingDotWebm,
-    blinkingdot_2: blinkingDotMp4,
-    ddxTabVector: ddxVector,
-    ddx: ddxImg,
-    tabDdxInactive: ddxInactiveImg,
-    genRxMic: genRxImg,
-    voiceRxDefault,
-    obstetricWhite,
-    obstetricDark,
-    uploadDocWhite: medicalRecordsWhite,
-    uploadDocDark: medicalRecordsDark,
-    labParametersWhite: labParamsWhite,
-    labParameters: labParamsDark,
-    groundingWhite: groundingImgWhite,
-    groundingPurple: groundingImgDark,
-    genRxBg_2: genRxBgWebm,
-    genRxBg: genRxBgMp4,
-    carePlan: carePlanIcon,
-    carePlanActiveSolid: carePlanIconDark,
-  } = ASSETS.images;
-
   const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const {
     customizedPadLeftList,

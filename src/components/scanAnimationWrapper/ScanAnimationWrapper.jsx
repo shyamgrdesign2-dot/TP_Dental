@@ -1,9 +1,7 @@
 import { DotLottieReact } from '@lottiefiles/dotlottie-react'
 import React from 'react'
-
+import greenScanRx from '../../assets/lotties/greenScanRx.lottie';
 import './ScanAnimationWrapper.scss';
-import { ASSETS } from "../../assets";
-const greenScanRx = ASSETS.lotties.greenscanrx;
 
 const ScanAnimationWrapper = ({children, ...props}) => {
   const { width = '125%', height= 'auto' } = props; // TODO: get the trimmed lottie from design

@@ -1,5 +1,3 @@
-@import '../../../../styles/variables.scss';
-
 $primary-purple: #4b4ad5;
 $dark-purple: #161558;
 $mid-purple: #313097;
@@ -106,7 +104,7 @@ $mid-purple: #313097;
                     display: inline-block;
                     vertical-align: middle;
                     background-color: rgb(255, 255, 255);
-                    mask-image: url('#{$tp-assets-base}/images/lab-secondary.svg');
+                    mask-image: url('../../../../assets/images/lab-secondary.svg');
                     mask-repeat: no-repeat;
                     mask-position: center center;
                     mask-size: contain;
@@ -114,7 +112,7 @@ $mid-purple: #313097;
 
                 .lab-icon.active {
                     background-color: #4b4ad5 !important;
-                    mask-image: url('#{$tp-assets-base}/images/lab-primary.svg') !important;
+                    mask-image: url('../../../../assets/images/lab-primary.svg') !important;
                   }
 
                 img {

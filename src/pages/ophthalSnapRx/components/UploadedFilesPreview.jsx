@@ -2,8 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Button, message } from "antd";
 import "./UploadedFilesPreview.scss";
 import CommonModal from "../../../common/CommonModal";
-import { ASSETS } from "../../../assets";
-const alertIcon = ASSETS.images.alerticon;
+import alertIcon from "../../../assets/images/alertIcon.svg";
 
 const UploadedFilesPreview = ({ uploadedFiles, onEdit, loading, onDelete }) => {
   const [deletingFile, setDeletingFile] = useState(null);

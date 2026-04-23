@@ -1,13 +1,8 @@
-
-
+import profileBg from "../assets/images/profile-bg.svg";
+import goldCrown from "../assets/images/gold-crown.svg";
 import { makeDefaultLogo } from "../utils/utils";
 import { useSelector } from "react-redux";
-import { ASSETS } from "../assets";
-const {
-  profileBg,
-  goldCrown,
-  defaultProfile: defaultprofile,
-} = ASSETS.images;
+import defaultprofile from "../assets/images/default-profile.svg";
 
 export default function PremiumUser() {
   const { profile } = useSelector((state) => state.doctors);

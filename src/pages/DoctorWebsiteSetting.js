@@ -11,6 +11,8 @@ import HeaderDoctorWebsite from "../components/doctor_website/HeaderDoctorWebsit
 
 import { listLanguage } from "../redux/doctorWebsiteSlice";
 
+import mandatoryTick from "../../src/assets/images/mandatory-tick.svg";
+import cloudSaved from "../../src/assets/images/cloud-saved.svg";
 import DWAboutDoctor from "../components/doctor_website/DWAboutDoctor";
 import DWPersonalDetails from "../components/doctor_website/DWPersonalDetails";
 import DWClinicProfile from "../components/doctor_website/DWClinicProfile";
@@ -23,12 +25,6 @@ import Homepage from "../website/Homepage";
 import DWMembership from "../components/doctor_website/DWMembership";
 import { TAB_ADDRESS } from "../utils/constants";
 import { removeSpecialCharectorWithoutDotSpace } from "../utils/utils";
-import { ASSETS } from "../assets";
-const {
-  mandatoryTick,
-  cloudSaved,
-} = ASSETS.images;
-
 // import { validateEmail } from "../utils/utils";
 
 function DoctorWebsiteSetting() {
@@ -55,6 +51,7 @@ function DoctorWebsiteSetting() {
     const [selectedMenu, setSelectedMenu] = useState(null);
 
     const contextApi = { websiteData, tmdwm_id, personalDetails, setPersonalDetails, clinicProfile, setClinicProfile, aboutDoctor, setAboutDoctor, doctorExperience, setDoctorExperience, rewardRecognition, setRewardRecognition, membership, setMembership, socialLinks, setSocialLinks, services, setServices, educationTraining, setEducationTraining, otherSettings, setOtherSettings };
+
 
     useEffect(() => {
         const fetchLanguages = async () => {

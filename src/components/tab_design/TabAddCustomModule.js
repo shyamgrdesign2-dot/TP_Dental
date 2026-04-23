@@ -6,7 +6,8 @@ import {
   CloseOutlined,
 } from "@ant-design/icons";
 import "../CustomModule.scss";
-
+import CustomModuleIcon from "../../assets/images/custom-module.svg";
+import infoCircleIcon from "../../assets/images/info-circle.svg";
 import { useDispatch, useSelector } from "react-redux";
 import {
   addModule,
@@ -17,14 +18,8 @@ import { savePrintsettings } from "../../redux/doctorsSlice";
 import CashManagerContext from "../../context/CashManagerContext";
 import { customizedPad } from "../../redux/doctorsSlice";
 import { MESSAGE_KEY } from "../../utils/constants";
-import { ASSETS } from "../../assets";
-
-const {
-  customModule: CustomModuleIcon,
-  infoCircle: infoCircleIcon,
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-} = ASSETS.images;
+import visitEnd from "../../assets/images/end-visit.svg";
+import imgCloseVisit from "../../assets/images/close-visit.svg";
 
 const TabAddCustomModule = () => {
   const [showInput, setShowInput] = useState(false);

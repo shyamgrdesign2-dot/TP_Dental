@@ -1,7 +1,14 @@
 import { Button, Drawer, Dropdown, Popover, Tooltip } from "antd";
 import "./RecordCard.scss";
 import { useCallback, useEffect, useRef, useState } from "react";
-
+import emptyBg from "./../../../../assets/images/empty-bg.svg";
+import emptyFile from "./../../../../assets/images/empty-file.svg";
+import file from "./../../../../assets/images/file.svg";
+import download from "./../../../../assets/images/document-download.svg";
+import edit from "./../../../../assets/images/document-edit.svg";
+import trash from "./../../../../assets/images/trash.svg";
+import alertIcon from "./../../../../assets/images/alertIcon.svg";
+import closeIcon from "./../../../../assets/mobile/close 2.svg";
 import { deleteDocById, fetchAllPatientDocs } from "../../service";
 import { setAllUploadedDocs } from "../../../../redux/uploadDocSlice";
 import { useLocation } from "react-router-dom";
@@ -21,17 +28,6 @@ import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../../../../utils/constants"
 import { getDecodedToken } from "../../../../utils/localStorage";
 import { sendMessageToParent, isInNativeApp } from "../../../../utils/utils";
 import { EVENTS } from "../../../../utils/events";
-import { ASSETS } from "../../../../assets";
-const {
-  emptyBg,
-  emptyFile,
-  file,
-  documentDownload: download,
-  documentEdit: edit,
-  trash,
-  alerticon: alertIcon,
-} = ASSETS.images;
-const closeIcon = ASSETS.mobile.close2;
 
 const RecordCard = ({
   cardData,

@@ -1,5 +1,13 @@
 import { Button, Collapse, Tabs } from "antd";
-
+import apexAI from "../assets/images/apexAI.svg";
+import diagnoses from "../assets/images/diagnosis-white.svg";
+import arrow from "../assets/images/shaded-arrow.svg";
+import lab from "../assets/images/Lab.svg";
+import selectedTick from "../assets/images/tick.svg";
+import shadedLike from "../assets/images/shaded-like.svg";
+import shadedDislike from "../assets/images/shaded-dislike.svg";
+import like from "../assets/images/like.svg";
+import dislike from "../assets/images/dislike.svg";
 import { setIsDiagnosisBox, setIsLabTestBox } from "../redux/ddxSlice";
 import { useDispatch } from "react-redux";
 import { useContext, useEffect, useRef, useState } from "react";
@@ -10,18 +18,6 @@ import TabPane from "antd/es/tabs/TabPane";
 import { getClinicName } from "../utils/utils";
 import { useSelector } from "react-redux";
 import { useAccess } from "../pages/vaccination/useAccess";
-import { ASSETS } from "../assets";
-const {
-  apexai: apexAI,
-  diagnosisWhite: diagnoses,
-  shadedArrow: arrow,
-  lab,
-  tick: selectedTick,
-  shadedLike,
-  shadedDislike,
-  like,
-  dislike,
-} = ASSETS.images;
 
 export const WarningColor = {
   "can't miss": "rgba(194, 159, 0, 1)",

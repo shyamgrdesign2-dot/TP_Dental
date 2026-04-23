@@ -7,20 +7,15 @@ import React, {
 } from "react";
 import Carousel from "react-multi-carousel";
 import "react-multi-carousel/lib/styles.css";
-
+import tipIcon from "../assets/images/tip.svg";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { isMobile } from "react-device-detect";
-
+import genRxMentionHeadings from "../assets/lotties/genRxMentionHeadingsTip.lottie";
+import genRxFocused from "../assets/lotties/genRxStayFocusedTip.lottie";
+import genRxConcise from "../assets/lotties/genRxBeConciseTip.json";
+import genRxType from "../assets/lotties/genRxTypeTip.json";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import Lottie from "lottie-react";
-import { ASSETS } from "../assets";
-import { loadJsonAsset } from "../utils/loadJsonAsset";
-
-const tipIcon = ASSETS.images.tip;
-const genRxMentionHeadings = ASSETS.lotties.genrxmentionheadingstip;
-const genRxFocused = ASSETS.lotties.genrxstayfocusedtip;
-const genRxConcise = ASSETS.lotties.genrxbeconcisetip;
-const genRxType = ASSETS.lotties.genrxtypetip;
 
 const carouselItemStyle = {
   display: "flex",
@@ -126,7 +121,6 @@ const GenRxTips = ({ isKnowMore }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [jsonAnimationsByUrl, setJsonAnimationsByUrl] = useState({});
   const progressInterval = useRef(null);
   const carouselRef = useRef(null);
 
@@ -203,26 +197,6 @@ const GenRxTips = ({ isKnowMore }) => {
       setTimeout(() => startProgress(), 0);
     });
   }, [tips, startProgress]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    tips.forEach((tip) => {
-      const url = `${tip.animationData}`;
-      if (!url.endsWith(".json")) return;
-
-      loadJsonAsset(url)
-        .then((json) => {
-          if (!mounted) return;
-          setJsonAnimationsByUrl((prev) => ({ ...prev, [url]: json }));
-        })
-        .catch(() => {});
-    });
-
-    return () => {
-      mounted = false;
-    };
-  }, [tips]);
 
   useEffect(() => {
     if (!isLoading) {
@@ -317,22 +291,21 @@ const GenRxTips = ({ isKnowMore }) => {
               <p style={textStyle}>{tip.description}</p>
             </div>
 
-            {`${tip.animationData}`.endsWith(".lottie") ? (
+            {["mention-headings", "stay-focused"].includes(tip.key) ? (
               <DotLottieReact
                 src={tip.animationData}
                 loop
                 autoplay
                 style={{ width: "240px", height: "140px" }}
               />
-            ) : `${tip.animationData}`.endsWith(".json") &&
-              jsonAnimationsByUrl[`${tip.animationData}`] ? (
+            ) : (
               <Lottie
-                animationData={jsonAnimationsByUrl[`${tip.animationData}`]}
+                animationData={tip.animationData}
                 loop
                 autoplay
                 style={{ width: "240px", height: "140px" }}
               />
-            ) : null}
+            )}
           </div>
         ))}
       </Carousel>

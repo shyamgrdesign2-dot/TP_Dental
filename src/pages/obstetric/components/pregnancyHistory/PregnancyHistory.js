@@ -1,6 +1,7 @@
 import { Button, Drawer } from "antd";
 import "./PregnancyHistory.scss";
-
+import arrow from "../../../../assets/images/arrow.svg";
+import pregnancyHistoryImg from "../../../../assets/images/pregnancy-history.svg";
 import moment from "moment";
 import {
   AbortionColumns,
@@ -15,11 +16,6 @@ import { getTypeOfAbortion } from "../../utils/helper";
 import { ABORTION, MISCARRIAGE } from "../../../../utils/constants";
 import { useState } from "react";
 import Obstetric from "../../Obstetric";
-import { ASSETS } from "../../../../assets";
-const {
-  arrow,
-  pregnancyHistory: pregnancyHistoryImg,
-} = ASSETS.images;
 
 const PregnancyHistory = ({
   pregnancyHistory,

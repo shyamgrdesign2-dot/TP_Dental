@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import CashManagerContext from "../../context/CashManagerContext";
 import { useLocation, useNavigate } from "react-router-dom";
-
+import visitEnd from "../../assets/images/end-visit.svg";
+import imgCloseVisit from "../../assets/images/close-visit.svg";
 import FullPageLoader from "../vaccination/components/Loader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import UploadedFilesPreview from "./components/UploadedFilesPreview";
@@ -32,12 +33,6 @@ import {
 import { useDispatch } from "react-redux";
 import PreviewDrawer from "./components/PreviewDrawer";
 import { useOphthalmologyExamDataStore } from "../../hooks/useOphthalmologyExamDataStore";
-import { ASSETS } from "../../assets";
-const {
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-} = ASSETS.images;
-
 const UPLOADED_FILES_DOMAIN = "iscribe.blob.core.windows.net";
 
 function SnapRxContent({

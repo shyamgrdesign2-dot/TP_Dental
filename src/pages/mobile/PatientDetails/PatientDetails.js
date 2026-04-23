@@ -30,7 +30,10 @@ import { useFeatureIsOn } from '@growthbook/growthbook-react';
 // Components
 import DetailsHeader from './components/DetailsHeader';
 import PatientTabs from './components/PatientTabs';
-
+import PastVisitTabIcon from '../../../assets/mobile/past_visit_tab_icon.svg';
+import PatientHistoryTabIcon from '../../../assets/mobile/patient_history_tab_icon.svg';
+import CertificateTabIcon from '../../../assets/mobile/certificat_tab_icon.svg';
+import MedicalRecordsTabIcon from '../../../assets/mobile/medical_records_tab_icon.svg';
 import VisitDateSelector from './components/VisitDateSelector';
 import VisitSummaryTab from './components/VisitSummaryTab';
 import PatientHistoryTab from './components/PatientHistoryTab';
@@ -55,16 +58,9 @@ import UploadDocPopup from '../../medicalRecords/components/uploadDocPopup/Uploa
 import CommonModal from '../../../common/CommonModal';
 import UploadDocument from '../../medicalRecords/UploadDocument';
 import MobileUploadMedicalRecord from './components/MobileUploadMedicalRecord';
+import alertIcon from '../../../assets/images/alertIcon.svg';
 
 import './PatientDetails.scss';
-import { ASSETS } from "../../../assets";
-const {
-  pastVisitTabIcon: PastVisitTabIcon,
-  patientHistoryTabIcon: PatientHistoryTabIcon,
-  certificatTabIcon: CertificateTabIcon,
-  medicalRecordsTabIcon: MedicalRecordsTabIcon,
-} = ASSETS.mobile;
-const alertIcon = ASSETS.images.alerticon;
 
 function PatientDetails() {
   const navigate = useNavigate();
@@ -214,6 +210,7 @@ function PatientDetails() {
       dispatch(setBillPrintSettings(printSettingsResponse));
     }
   };
+
 
   // Memoize navigation callbacks to prevent unnecessary child re-renders
   const nextPress = useCallback(() => {

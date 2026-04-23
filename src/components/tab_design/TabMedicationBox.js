@@ -35,6 +35,13 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
 import CommonModal from '../../common/CommonModal';
+import alertIcon from '../../assets/images/alertIcon.svg';
+import calculatorIcon from '../../assets/images/calculator.svg';
+import visitEnd from '../../assets/images/end-visit.svg';
+import imgCloseVisit from '../../assets/images/close-visit.svg';
+import tagNew from '../../../src/assets/images/tag-new.svg';
+import Pillup from '../../assets/images/pillup.svg';
+import EazyDoseLogo from '../../assets/images/EazyDose Logo.webp';
 
 import CashManagerContext from "../../context/CashManagerContext";
 
@@ -50,7 +57,7 @@ import {
   replaceCommasAndSemicolons,
   calculateDose
 } from "../../utils/utils";
-
+import Medicationicon from "../../assets/images/Medication.svg";
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
@@ -80,17 +87,6 @@ import { env } from "../../EnvironmentConfig";
 import DoseCalculator from "../dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../../redux/doctorsSlice";
 import FreeBadge from "../../common/FreeBadge";
-import { ASSETS } from "../../assets";
-const {
-  alerticon: alertIcon,
-  calculator: calculatorIcon,
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-  tagNew,
-  pillup: Pillup,
-  eazydoseLogo: EazyDoseLogo,
-  medication: Medicationicon,
-} = ASSETS.images;
 
 function TabMedicationBox() {
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
@@ -163,6 +159,7 @@ function TabMedicationBox() {
   const [medicationLibrary, setMedicationLibrary] = useState([]);
   const [editDoseId, setEditDoseId] = useState(0);
   const [isModalOpen2, setIsModalOpen2] = useState(false);
+
 
   const handleViewDoseCalcDrawer = (value) => {
     setDoseCalculatorDrawer(!doseCalculatorDrawer)

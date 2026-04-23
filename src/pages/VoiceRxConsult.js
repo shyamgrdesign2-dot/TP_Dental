@@ -5,8 +5,20 @@ import GenRxKnowMore from "../components/GenRxKnowMore";
 import ProfilePopover from "../common/ProfilePopover";
 import PatientSummary from "../components/PatientSummary";
 import VoiceWaveVisualizer from "../components/WaveVisualizer";
-
+import tutorial from '../assets/images/tutorial.svg';
+import checkIcon from "../assets/images/check.svg";
+import closeIcon from "../assets/images/close.svg";
+import voiceModeDictation from "../assets/images/voice-mode-dictation.svg";
+import voiceMode2 from "../assets/images/voice-mode-2.svg";
+import dictateActiveIcon from "../assets/images/dictate-active.svg";
+import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
+import stopIcon from "../assets/images/stop-icon.svg";
+import muteIcon from "../assets/images/microphone-2.svg";
+import mutedMicrophoneIcon from "../assets/images/muted-microphone-icon.svg";
+import vitalsIcons from "../assets/images/vitals-icons.svg";
+import alertIcon from "../assets/images/alertIcon.svg";
 import styles from "./VoiceRxConsult.module.scss";
+import startConsultImg from "../assets/images/text-box.svg";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree, getSupportedMimeType, errorMessage, stopAllActiveRecorders } from "../utils/utils";
 import { useSelector, useDispatch } from "react-redux";
@@ -21,22 +33,6 @@ import CommonModal from "../common/CommonModal";
 import { checkCredits } from "../redux/monetizationSlice";
 import { services } from "../redux/doctorsSlice";
 import { resetVitalsState } from "../redux/vitalsSlice";
-import { ASSETS } from "../assets";
-const {
-  tutorial,
-  check: checkIcon,
-  close: closeIcon,
-  voiceModeDictation,
-  voiceMode2,
-  dictateActive: dictateActiveIcon,
-  ambientModeActive: ambientActiveIcon,
-  stopIcon,
-  microphone2: muteIcon,
-  mutedMicrophoneIcon,
-  vitalsIcons,
-  alerticon: alertIcon,
-  textBox: startConsultImg,
-} = ASSETS.images;
 
 const VoiceRxConsult = () => {
   const location = useLocation();

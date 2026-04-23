@@ -30,7 +30,6 @@ import {
   WHATSAPP,
   WEIGHT_HEIGHT_TITLE,
   INVESTIGATION_TITLE,
-  TP_ASSETS_BASE,
 } from "../constants";
 import moment from "moment";
 import ObsHistoryInlineView from "../../components/print_settings/obsHistory/inline";
@@ -51,15 +50,15 @@ Font.register({
   family: "Roboto",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/Roboto-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/Roboto-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Roboto-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/Roboto-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -69,15 +68,15 @@ Font.register({
   family: "Arial",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/Arimo-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/Arimo-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Arimo-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/Arimo-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -87,15 +86,15 @@ Font.register({
   family: "Times-Roman",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/EBGaramond-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/EBGaramond-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/EBGaramond-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/EBGaramond-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -105,15 +104,15 @@ Font.register({
   family: "Verdana",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/Jost-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/Jost-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Jost-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/Jost-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -123,15 +122,15 @@ Font.register({
   family: "Calibri",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/OpenSans-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/OpenSans-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/OpenSans-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/OpenSans-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -141,15 +140,15 @@ Font.register({
   family: "Tahoma",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/Vazirmatn-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/Vazirmatn-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/Vazirmatn-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/Vazirmatn-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -159,15 +158,15 @@ Font.register({
   family: "AnekDevanagari",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/AnekDevanagari-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/AnekDevanagari-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekDevanagari-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/AnekDevanagari-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -178,15 +177,15 @@ Font.register({
   family: "AnekBangla",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/AnekBangla-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/AnekBangla-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/AnekBangla-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/AnekBangla-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -197,15 +196,15 @@ Font.register({
   family: "NotoSansTamil",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTamil-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansTamil-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTamil-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansTamil-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTamil-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansTamil-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -216,15 +215,15 @@ Font.register({
   family: "NotoSansTelugu",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTelugu-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansTelugu-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTelugu-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansTelugu-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansTelugu-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansTelugu-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -235,15 +234,15 @@ Font.register({
   family: "NotoSansKannada",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansKannada-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansKannada-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansKannada-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansKannada-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansKannada-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansKannada-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -254,15 +253,15 @@ Font.register({
   family: "NotoSansMalayalam",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansMalayalam-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansMalayalam-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansMalayalam-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansMalayalam-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansMalayalam-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansMalayalam-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -273,15 +272,15 @@ Font.register({
   family: "BalooBhai2",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/BalooBhai2-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/BalooBhai2-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/BalooBhai2-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/BalooBhai2-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/BalooBhai2-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/BalooBhai2-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -292,15 +291,15 @@ Font.register({
   family: "NotoSansGurmukhi",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansGurmukhi-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansGurmukhi-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansGurmukhi-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansGurmukhi-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansGurmukhi-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansGurmukhi-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -311,15 +310,15 @@ Font.register({
   family: "NotoSansOriya",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansOriya-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansOriya-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansOriya-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansOriya-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoSansOriya-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoSansOriya-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],
@@ -330,15 +329,15 @@ Font.register({
   family: "NotoNastaliqUrdu",
   fonts: [
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoNastaliqUrdu-Regular.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoNastaliqUrdu-Regular.ttf"),
       fontWeight: 400,
     }, // Regular
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoNastaliqUrdu-Medium.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoNastaliqUrdu-Medium.ttf"),
       fontWeight: 500,
     }, // Medium
     {
-      src: `${TP_ASSETS_BASE}/fonts/print-fonts/NotoNastaliqUrdu-Bold.ttf`,
+      src: require("../../assets/fonts/print-fonts/NotoNastaliqUrdu-Bold.ttf"),
       fontWeight: 700,
     }, // Bold
   ],

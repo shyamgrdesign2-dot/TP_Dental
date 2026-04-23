@@ -12,7 +12,8 @@ const worker = require('pdfjs-dist/build/pdf.worker.min.js')
 pdfjs.GlobalWorkerOptions.workerSrc = worker
 
 function BillingPrint({ handlePdfDrawer, PDF_URL }) {
-  const { profile } = useSelector((state) => state.doctors);
+
+const { profile } = useSelector((state) => state.doctors);
 
   const divRef = useRef(null);
 

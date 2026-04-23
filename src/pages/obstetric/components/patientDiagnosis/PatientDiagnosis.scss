@@ -1,8 +1,6 @@
-@import '../../../../styles/variables.scss';
-
 .patientDiagnosisContainer {
   padding: 24px 10px;
-  background: url("#{$tp-assets-base}/images/obstetric-bg.svg") no-repeat;
+  background: url("../../../../assets/images/obstetric-bg.svg") no-repeat;
   background-size: cover;
   height: 100%;
   width: 100%;

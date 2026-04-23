@@ -1,13 +1,9 @@
 import { Button, Divider } from "antd";
-
+import arrow from "../../assets/images/shaded-arrow.svg";
+import cdssWallpaperWebm from "../../assets/images/cdss-wallpaper.webm";
+import cdssWallpaperMp4 from "../../assets/images/cdss-wallpaper.mp4";
 import LoopingVideo from "../../components/common/LoopingVideo";
-import { ASSETS } from "../../assets";
-const {
-  shadedArrow: arrow,
-  cdssWallpaper_2: cdssWallpaperWebm,
-  cdssWallpaper: cdssWallpaperMp4,
-  tryGenRx: tryGenRxIcon,
-} = ASSETS.images;
+import tryGenRxIcon from "../../assets/images/try-gen-rx.svg";
 
 const TabVoiceRx = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
   return (

@@ -1,14 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Modal } from "antd";
 import Lottie from "lottie-react";
-
+import AadharIcon from "../../../assets/images/aadhaar-icon.svg";
+import BiometricAnimation from "../../../assets/images/Biometric.json";
 import { discoverDevice, captureFingerprint } from "./rdClient";
-import { ASSETS } from "../../../assets";
-import { loadJsonAsset } from "../../../utils/loadJsonAsset";
-const {
-  aadhaarIcon: AadharIcon,
-  biometric: BiometricAnimation,
-} = ASSETS.images;
 
 const BiometricCapturePopup = ({
   open = false,
@@ -19,20 +14,9 @@ const BiometricCapturePopup = ({
   const [isCapturing, setIsCapturing] = useState(false);
   const [status, setStatus] = useState("");
   const [captureStatus, setCaptureStatus] = useState("ready"); // "ready" | "captured" | "error"
-  const [biometricAnimationJson, setBiometricAnimationJson] = useState(null);
   const deviceInfoRef = useRef(null); // Store discovered device info
   const jqueryLoadedRef = useRef(false);
   const abortControllerRef = useRef(null);
-
-  useEffect(() => {
-    let mounted = true;
-    loadJsonAsset(BiometricAnimation)
-      .then((json) => mounted && setBiometricAnimationJson(json))
-      .catch(() => mounted && setBiometricAnimationJson(null));
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!window.$ && !jqueryLoadedRef.current) {
@@ -194,14 +178,12 @@ const BiometricCapturePopup = ({
 
         <div className="biometric_capture_animation_area">
           <div className="biometric_animation_container">
-            {biometricAnimationJson ? (
-              <Lottie
-                animationData={biometricAnimationJson}
-                loop={true}
-                autoplay={true}
-                className="biometric_animation_lottie"
-              />
-            ) : null}
+            <Lottie 
+              animationData={BiometricAnimation} 
+              loop={true}
+              autoplay={true}
+              className="biometric_animation_lottie"
+            />
           </div>
         </div>
 

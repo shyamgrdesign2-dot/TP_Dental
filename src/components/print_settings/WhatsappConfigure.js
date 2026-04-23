@@ -10,11 +10,10 @@ import PrintSettingsContext from '../../context/PrintSettingsContext';
 import CommonModal from '../../common/CommonModal';
 import { WHATSAPP } from "../../utils/constants";
 import { errorMessage, dataUrlToFileUsingFetch, updateFooterImageHeight } from "../../utils/utils";
-import { ASSETS } from "../../assets";
-const {
-  wtsp,
-  defaultProfile: defaultprofile,
-} = ASSETS.images;
+
+import wtsp from '../../assets/images/wtsp.svg';
+
+import defaultprofile from "../../assets/images/default-profile.svg";
 
 const { TextArea } = Input;
 

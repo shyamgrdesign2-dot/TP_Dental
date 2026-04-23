@@ -3,13 +3,10 @@ import { Modal, Spin, message } from "antd";
 import { RightOutlined } from "@ant-design/icons";
 import { setMetadata } from "../../services/templateService";
 import "./TabRxWelcomePopup.scss";
-import { ASSETS } from "../../../../assets";
-const {
-  notesMultiple: multipleNotesIcon,
-  docEmpty: docEmptyIcon,
-  docContent: docContentIcon,
-  docUpload: docUploadIcon,
-} = ASSETS.images;
+import multipleNotesIcon from "../../../../assets/images/notes-multiple.svg";
+import docEmptyIcon from "../../../../assets/images/doc-empty.svg";
+import docContentIcon from "../../../../assets/images/doc-content.svg";
+import docUploadIcon from "../../../../assets/images/doc-upload.svg";
 
 const TabRxWelcomePopup = ({ open, onClose, onSuccess, isSelectLetterHead }) => {
   const [loading, setLoading] = useState(false);

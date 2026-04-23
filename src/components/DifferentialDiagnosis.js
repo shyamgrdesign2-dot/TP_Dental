@@ -1,7 +1,11 @@
 import { Button, Collapse, Divider } from "antd";
-
+import apexAI from "../assets/images/apexAI.svg";
+import arrow from "../assets/images/shaded-arrow.svg";
+import ddxIcon from "../assets/images/ddxIcon.svg";
+import loadingWebm from "../assets/images/loading.webm";
+import loadingMp4 from "../assets/images/loading.mp4";
 import LoopingVideo from "../components/common/LoopingVideo";
-
+import ddxBg from "../assets/images/ddx-bg.webp";
 import { useSelector } from "react-redux";
 import {
   IS_DDX_DIAGNOSIS_OPEN,
@@ -15,15 +19,6 @@ import { WarningColor, WarningRank } from "./DifferentialDiagnosisDrawer";
 import { getClinicName, getDeviceSdkData, getTokenData } from "../utils/utils";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
 import CashManagerContext from "../context/CashManagerContext";
-import { ASSETS } from "../assets";
-const {
-  apexai: apexAI,
-  shadedArrow: arrow,
-  ddxicon: ddxIcon,
-  loading_2: loadingWebm,
-  loading: loadingMp4,
-  ddxBg,
-} = ASSETS.images;
 
 const DifferentialDiagnosis = ({
   handleDDxDrawer,

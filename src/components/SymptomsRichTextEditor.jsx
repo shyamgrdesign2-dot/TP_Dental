@@ -2,8 +2,7 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import styles from './ConsultationDrawer.module.css';
-import { ASSETS } from "../assets";
-const symptomsIcon = ASSETS.images.symptoms;
+import symptomsIcon from '../assets/images/Symptoms.svg';
 
 /**
  * SymptomsRichTextEditor - Rich text editor specifically for Symptoms section

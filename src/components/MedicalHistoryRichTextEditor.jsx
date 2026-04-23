@@ -4,16 +4,12 @@ import RichTextEditor from './richTextEditor/RichTextEditor';
 import { arrayToSlateBulletList, slateBulletListToArray } from '../utils/slateHelpers';
 import { prescriptionMedicalHistoryToContextFormat } from '../utils/medicalHistoryUtils';
 import styles from './ConsultationDrawer.module.css';
-
+import medicalHistoryIcon from '../assets/images/Medical-History.svg';
+import arrowBoxUpIcon from '../assets/images/arrow-box-up.svg';
+import addEditIcon from '../assets/images/Icon.svg';
 import MedicalHistoryBox from './MedicalHistoryBox';
 import MobileMedicalHistoryManager from './mobile/MobileMedicalHistoryManager';
 import { useDeviceType } from '../utils/deviceDetection';
-import { ASSETS } from "../assets";
-const {
-  medicalHistory: medicalHistoryIcon,
-  arrowBoxUp: arrowBoxUpIcon,
-  icon: addEditIcon,
-} = ASSETS.images;
 
 /**
  * MedicalHistoryRichTextEditor - Rich text editor for Medical History with type-based sub-boxes

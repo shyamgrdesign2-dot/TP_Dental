@@ -1,12 +1,8 @@
 import React from 'react';
 import { Drawer } from 'antd';
-
+import closeIcon from '../../../../assets/mobile/close 2.svg';
+import alertIcon from '../../../../assets/mobile/alert.svg';
 import './CancelAppointmentModal.scss';
-import { ASSETS } from "../../../../assets";
-const {
-  close2: closeIcon,
-  alert: alertIcon,
-} = ASSETS.mobile;
 
 function CancelAppointmentModal({
   visible,

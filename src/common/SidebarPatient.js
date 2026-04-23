@@ -20,21 +20,17 @@ import {
     PAEDIATRIC_DP_ID,
     PATIENT_DETAILS_SIDEBAR_KEYS,
 } from "../utils/constants";
-
+import BloodIcon from '../assets/images/blood.svg';
+import AbhaIcon from '../assets/images/abha-svg.svg'
+import LeftArrow from '../assets/images/left-arrow.svg'
 import AbhaDrawer from '../components/abha/AbhaDrawer';
 import { getAbhaDomainSuffix } from '../components/abha/helpers';
 import { handleAdmitToIpd } from '../utils/utils';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_NEW_IPD, GB_NEW_IPD_HOS_BUSINESS_ID } from "../utils/constants";
-import { ASSETS } from "../assets";
-const {
-  blood: BloodIcon,
-  abhaSvg: AbhaIcon,
-  leftArrow: LeftArrow,
-  bedWithH: HospitalBedIcon,
-  healthCheckupReportPrimary: HealthCheckupReportIcon,
-  healthCheckupReportSecondary: HealthCheckupReportIconSecondary,
-} = ASSETS.images;
+import HospitalBedIcon from "../assets/images/bed-with-h.svg"
+import HealthCheckupReportIcon from "../assets/images/health-checkup-report-primary.svg";
+import HealthCheckupReportIconSecondary from "../assets/images/health-checkup-report-secondary.svg";
 
 function SidebarPatient({
     collapsed,

@@ -8,6 +8,9 @@ import React, {
 import { useSelector } from "react-redux";
 import { Button, message as antMessage } from "antd";
 import html2canvas from "html2canvas";
+import {
+  MdChevronLeft,
+} from "react-icons/md";
 
 import { HEALTH_CHECKUP_REPORT_TEMPLATE_HTML } from "../constants";
 import { buildReportContentFromGroupedData } from "../utils/buildReportContentFromGroupedData";
@@ -258,7 +261,7 @@ function HealthCheckupReportEditor({
             onClick={onClose}
             aria-label="Back"
           >
-            <i className="icon-right"></i>
+            <MdChevronLeft size={24} />
           </button>
           <h2 className="health-checkup-editor__header-title">
             Health Check-up Report

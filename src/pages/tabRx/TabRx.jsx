@@ -57,9 +57,37 @@ import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistory
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
 
-// 
-// 
-// 
+import vitalsWhite from "../../assets/images/vitals-white.svg";
+import vitalsDark from "../../assets/images/vitals-dark.svg";
+import medicalHistoryWhite from "../../assets/images/medical-history-white.svg";
+import medicalHistoryDark from "../../assets/images/medical-history-dark.svg";
+import vaccinationWhite from "../../assets/images/vaccination-white.svg";
+import vaccinationDark from "../../assets/images/Vaccination.svg";
+import alertIcon from "../../assets/images/alertIcon.svg";
+import growthChart from "../../assets/images/growth-chart.svg";
+import growthChartDark from "../../assets/images/growth-chart-dark.svg";
+import privateNotesWhite from "../../assets/images/private-notes-white.svg";
+import privateNotesDark from "../../assets/images/private-notes-dark.svg";
+import apexAIImg from "../../assets/images/apexAI.svg";
+import blinkingDot from "../../assets/images/blinkingDot.gif";
+import ddxVector from "../../assets/images/ddx-tab-vector.svg";
+import ddxImg from "../../assets/images/ddx.svg";
+import ddxInactiveImg from "../../assets/images/tab-ddx-inactive.svg";
+import genRxImg from "../../assets/images/gen-rx-mic.svg";
+import voiceRxDefault from "../../assets/images/voice-rx-default.svg";
+import obstetricWhite from "../../assets/images/obstetric-white.svg";
+import obstetricDark from "../../assets/images/obstetric-dark.svg";
+import medicalRecordsWhite from "../../assets/images/upload-doc-white.svg";
+import medicalRecordsDark from "../../assets/images/upload-doc-dark.svg";
+import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
+import labParamsDark from "../../assets/images/Lab-Parameters.svg";
+import groundingImgWhite from "../../assets/images/grounding-white.svg";
+import groundingImgDark from "../../assets/images/grounding-purple.svg";
+import carePlanIcon from "../../assets/images/Care plan.svg";
+import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
+// import labParametersWhite from '../../assets/images/lab-parameters-white.svg';
+// import notesWhite from '../../assets/images/notes-white.svg';
+// import docsWhite from '../../assets/images/docs-white.svg';
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import Vaccination from "../vaccination/Vaccination";
@@ -155,39 +183,6 @@ import {
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../../redux/teleconsultNotificationSlice";
-import { ASSETS } from "../../assets";
-const {
-  vitalsWhite,
-  vitalsDark,
-  medicalHistoryWhite,
-  medicalHistoryDark,
-  vaccinationWhite,
-  vaccination: vaccinationDark,
-  alerticon: alertIcon,
-  growthChart,
-  growthChartDark,
-  privateNotesWhite,
-  privateNotesDark,
-  apexai: apexAIImg,
-  blinkingdot: blinkingDot,
-  ddxTabVector: ddxVector,
-  ddx: ddxImg,
-  tabDdxInactive: ddxInactiveImg,
-  genRxMic: genRxImg,
-  voiceRxDefault,
-  obstetricWhite,
-  obstetricDark,
-  uploadDocWhite: medicalRecordsWhite,
-  uploadDocDark: medicalRecordsDark,
-  labParametersWhite: labParamsWhite,
-  labParameters: labParamsDark,
-  groundingWhite: groundingImgWhite,
-  groundingPurple: groundingImgDark,
-  carePlan: carePlanIcon,
-  carePlanActiveSolid: carePlanIconDark,
-  notesWhite,
-  docsWhite,
-} = ASSETS.images;
 
 function TabRx() {
   const {
@@ -307,6 +302,7 @@ function TabRx() {
     fromEditRx,
     smartRxFilesData,
   } = state || {};
+
 
   const chartType = state?.chartType;
   const tcmId =
@@ -843,12 +839,14 @@ function TabRx() {
     try {
       const { files, blobs } = await canvasRef.current.exportToImages();
 
+
       if (files.length > 0) {
 
         // Upload files using tab-rx service
         const uploadResult = await uploadTabRxFiles(files, (progress) => {
           // console.log('📊 [TabRx] Upload progress:', progress + '%');
         });
+
 
         if (uploadResult.success) {
 
@@ -868,10 +866,12 @@ function TabRx() {
             return file;
           });
 
+
           // Store the updated files with API-returned names
           setSmartRxFiles(updatedFiles);
 
           const canvasData = canvasRef.current.getCanvasData();
+
 
           if (canvasData.selectedTemplateId && canvasData.selectedTemplateId !== 'blank') {
             setIsCustomSSRX(true);
@@ -2048,6 +2048,8 @@ function TabRx() {
       setIsInitiatingCall(false);
     }
   };
+
+
 
   const handleTeleconsultClick = async () => {
     if (joinToken) return;

@@ -112,12 +112,6 @@
       stroke-width: 2;
     }
 
-    img {
-      width: 22px;
-      height: 22px;
-      display: block;
-    }
-
     &:hover {
       background-color: rgba(255, 255, 255, 0.4);
     }
@@ -132,10 +126,6 @@
       svg {
         color: #fff;
         stroke-width: 2.5;
-      }
-
-      img {
-        filter: brightness(0) invert(1);
       }
     }
 

@@ -1,11 +1,14 @@
 import { Button, Card, DatePicker, Input, Select, message } from "antd";
 import { useEffect, useRef, useState } from "react";
-
+import emptyBg from "./../../assets/images/empty-bg.svg";
+import emptyFile from "./../../assets/images/empty-file.svg";
 import dayjs from "dayjs";
 import { disableFutureDates } from "../growthChart/growthChartHelper";
 import "./UploadDocument.scss";
 import CommonModal from "../../common/CommonModal";
-
+import alertIcon from "./../../assets/images/alertIcon.svg";
+import visitEnd from "./../../assets/images/end-visit.svg";
+import imgCloseVisit from "./../../assets/images/close-visit.svg";
 import { useDispatch, useSelector } from "react-redux";
 import {
   deleteDocsUploadedFromAndroid,
@@ -38,14 +41,6 @@ import {
   MAX_VIDEO_FILE_SIZE,
   VIDEO_THUMBNAIL_TIME,
 } from "../../utils/constants";
-import { ASSETS } from "../../assets";
-const {
-  emptyBg,
-  emptyFile,
-  alerticon: alertIcon,
-  endVisit: visitEnd,
-  closeVisit: imgCloseVisit,
-} = ASSETS.images;
 
 const UploadDocument = ({
   onClose,

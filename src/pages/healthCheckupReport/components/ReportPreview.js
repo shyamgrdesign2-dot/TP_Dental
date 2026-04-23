@@ -2,14 +2,14 @@ import React, { useCallback, useRef, useState } from "react";
 import { Drawer, Button } from "antd";
 import dayjs from "dayjs";
 
+import ZydusLogo from "../../../assets/images/website-images/ZydusLogo.webp";
 import HealthCheckupDocument from "./HealthCheckupDocument";
 import { printReportWithIframe } from "../utils/printReportWithIframe";
 import "./HealthCheckupReportEditor.scss";
 
 import "./ReportPreview.scss";
-import { ASSETS } from "../../../assets";
-const ZydusLogo = ASSETS.images.websiteImages.zyduslogo;
-const editIconWhite = ASSETS.images.editWhite;
+import editIconWhite from "../../../assets/images/edit-white.webp";
+import { MdChevronLeft } from "react-icons/md";
 
 function ReportPreview({
   open,
@@ -82,7 +82,7 @@ function ReportPreview({
               onClick={onClose}
               aria-label="Back"
             >
-              <i className="icon-right" />
+              <MdChevronLeft />
             </button>
             <div className="report-preview__header-info">
               <h2 className="report-preview__title">Health Check-up Report</h2>
@@ -115,6 +115,7 @@ function ReportPreview({
             >
               <i className="icon-download" />
             </button>
+
 
             <button
               type="button"

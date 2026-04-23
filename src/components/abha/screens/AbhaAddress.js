@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { notification } from "antd";
-
+import AbhaIcon from "../../../assets/images/abha-svg.svg";
+import AddIcon from "../../../assets/images/add.svg";
 import ApiAbha from "../../../api/services/ApiAbha";
-import { ASSETS } from "../../../assets";
-const {
-  abhaSvg: AbhaIcon,
-  add: AddIcon,
-} = ASSETS.images;
 
 const AbhaAddress = ({
   data = {},

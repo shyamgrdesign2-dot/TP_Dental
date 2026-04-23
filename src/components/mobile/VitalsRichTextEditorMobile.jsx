@@ -7,16 +7,12 @@ import { Drawer } from 'antd';
 import moment from 'moment';
 import RichTextEditor from '../richTextEditor/RichTextEditor';
 import styles from '../ConsultationDrawer.module.css';
-
+import vitalsIcon from '../../assets/images/Vitals.svg';
+import addEditIcon from '../../assets/images/Icon.svg';
 import VitalsBoxMobile from '../VitalsBoxMobile';
 import { useSelector } from 'react-redux';
 import './MobileVitalsEditSheet.scss';
 import { enrichVitalsWithCalculations } from '../../utils/vitalsCalculations';
-import { ASSETS } from "../../assets";
-const {
-  vitals: vitalsIcon,
-  icon: addEditIcon,
-} = ASSETS.images;
 
 const VitalsRichTextEditorMobile = ({
   vitalsAndBodyComposition = {},
@@ -382,4 +378,5 @@ const VitalsRichTextEditorMobile = ({
 };
 
 export default VitalsRichTextEditorMobile;
+
 

@@ -38,14 +38,11 @@ import MedicationsTable from "./MedicationsTable";
 import LabInvestigationTable from "./LabInvestigationTable";
 import config from "../config";
 import styles from "./ConsultationDrawer.module.css";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
+import alertIcon from "../assets/images/alertIcon.svg";
+import documentIcon from "../assets/images/document-normal.svg";
+import warningIcon from "../assets/images/danger.svg";
 import { setDentalData } from "../redux/dentalRxSlice";
-import { ASSETS } from "../assets";
-const {
-  alerticon: alertIcon,
-  documentNormal: documentIcon,
-  danger: warningIcon,
-} = ASSETS.images;
+import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
 
 export const ARRAY_SECTIONS = [
   "symptoms",
@@ -2513,6 +2510,7 @@ const DigitisedPrescription = ({
                 />
               ): null}
 
+
               {dentalDiagnosisRows.length > 0 && (
                 <table className="dental-table dental-diagnosis-table">
                   <thead>
@@ -2630,6 +2628,7 @@ const DigitisedPrescription = ({
                   );
                 })}
               </div>
+
 
               <div className="dental-table-title">TREATMENT PLAN(S)</div>
               <table className="dental-table dental-treatment-table">

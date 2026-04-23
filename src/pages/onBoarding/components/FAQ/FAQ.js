@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import "./FAQ.scss";
-import { ASSETS } from "../../../../assets";
-const testimonialIcon = ASSETS.images.onboardPageIcons.lpFaqIcon;
+import testimonialIcon from "../../../../assets/images/onboard-page-icons/LP-Faq-icon.svg";
 
 const FAQ = () => {
   const [activeIndex, setActiveIndex] = useState(null);

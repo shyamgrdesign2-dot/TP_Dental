@@ -11,23 +11,44 @@ import { useQrPrintDownloadHandlers } from './qrPrintDownloadHelper';
 
 import Slider from "react-slick";
 
+import playIcon from '../assets/images/h-play-icon.svg';
+import playIconutube from '../assets/images/play-icon.webp';
+import fullicon from '../assets/images/full-icon.svg';
+import tutorial from '../assets/images/tutorial-icon.svg';
+import playIcons from '../assets/images/tube-icon.svg';
+import qrIcon from '../assets/images/qr-icon.svg';
+import logoIcom from '../assets/images/text-logo.svg';
 import VideoModal from "./VideoModal";
 import QrPrintDownloadModal from "./QrPrintDownloadModal";
-
+import videorotateWebm from '../assets/images/videorotate.webm';
+import videorotateMp4 from '../assets/images/videorotate.mp4';
 import LoopingVideo from "../components/common/LoopingVideo";
-
+import upgradeIcon from "../assets/images/upgrade.svg";
+import profileBg from "../assets/images/profile-bg.svg";
+import goldCrown from "../assets/images/gold-crown.svg";
+import crownIcon from "../assets/images/crown.svg";
+import AISuite from "../assets/images/ai-suite.webp";
+import Notification from "../assets/images/navbar-icons/notification.svg";
+import ReceiptText from "../assets/images/navbar-icons/receipt-text.svg";
+import iconMobile from "../assets/images/icon-mobile.svg";
 import config from "../config";
 import { getProfile, updateStatusMoengageB2C, changeHospital, customizedPad, swtichLayout, navigatetoTatvaPedia, changeLogoStatus, showMedicineTime, showMedicineFrequency, getMedicineType, getDefaultPrintsettings, listVideo, zydusRefIds, campaigns, clearDoctorProfile } from "../redux/doctorsSlice";
 import { clearTeleconsultNotification } from "../redux/teleconsultNotificationSlice";
 import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
-
+import defaultprofile from "../assets/images/default-profile.svg";
+import logoSm from "../assets/images/logo-sm.svg";
 import { useLocalStorage, clearLocalStorage, getDecodedToken } from "../utils/localStorage";
 import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP } from "../utils/constants";
 import { errorMessage, getClinicName, makeDefaultLogo, shouldMonetizationDisabled, getTokenData, getDeviceSdkData } from "../utils/utils";
 import { createAbhaPrintHandlerConfig, createAbhaDownloadHandler } from "./abhaQrHelper";
 import { Modal, Card } from "antd";
-
+import alertIcon from '../assets/images/alertIcon.svg';
+import abhaMainIcon from '../assets/images/abha-main.svg';
+import abhaCenterLogo from '../assets/images/abha-svg.svg';
+import qrOuterFrame from '../assets/images/qr-outer-frame.svg';
+import poweredByLogo from '../assets/images/Powered by.svg';
+import tatvaPracticeLogo from '../assets/images/TatvaPractice Log.svg';
 import PremiumUser from "./PremiumUser";
 import { openModal } from "../redux/doctorModalSlice";
 
@@ -46,37 +67,6 @@ import {
 } from "../utils/utils";
 import { QRCodeSVG } from "qrcode.react";
 import { useReactToPrint } from "react-to-print";
-import { ASSETS } from "../assets";
-const {
-  hPlayIcon: playIcon,
-  playIcon: playIconutube,
-  fullIcon: fullicon,
-  tutorialIcon: tutorial,
-  tubeIcon: playIcons,
-  qrIcon,
-  textLogo: logoIcom,
-  videorotate_2: videorotateWebm,
-  videorotate: videorotateMp4,
-  upgrade: upgradeIcon,
-  profileBg,
-  goldCrown,
-  crown: crownIcon,
-  aiSuite: AISuite,
-} = ASSETS.images;
-const Notification = ASSETS.images.navbarIcons.notification;
-const ReceiptText = ASSETS.images.navbarIcons.receiptText;
-const {
-  iconMobile,
-  defaultProfile: defaultprofile,
-  logoSm,
-  alerticon: alertIcon,
-  abhaMain: abhaMainIcon,
-  abhaSvg: abhaCenterLogo,
-  qrOuterFrame,
-  poweredBy: poweredByLogo,
-  tatvapracticeLog_2: tatvaPracticeLogo,
-} = ASSETS.images;
-
 const CUSTOMIZED_PAD_SENDDATA = { data: { default: false, reset: true } }
 
 function Header({ locationPath }) {
@@ -430,6 +420,7 @@ function Header({ locationPath }) {
       />
     );
   }, [isSwitchModalOpen, loading, switchCheckbox]);
+
 
   // navigate to TatvaPedia
   //PopOver function
@@ -935,6 +926,7 @@ function Header({ locationPath }) {
       //   key: '6',
       // },
 
+
       // CSS Also comment
       // {
       //   type: 'divider',
@@ -944,6 +936,8 @@ function Header({ locationPath }) {
       //   key: '8',
       // },
     ];
+
+
 
     if (tp_monetization_enable) {
       const aiSuite = {
@@ -1032,6 +1026,7 @@ function Header({ locationPath }) {
         className: "logout-menu-item"
       },
     ];
+
 
     // Combine commonItems, extraItems (if applicable), and logoutItem (always at the end)
     const items = isOpdPlansAccessableFromGB
@@ -1135,7 +1130,7 @@ function Header({ locationPath }) {
               window.Moengage.track_event("TP_Tatvapedia_clicked");
               showHideLogoModal()
             }}
-              src={ASSETS.images.logo}
+              src={require("../assets/images/logo.webp")}
               className={`d-inline-block align-top cursor-pointer`}
               style={{ width: '110px' }}
               alt="Logo"
@@ -1512,6 +1507,7 @@ function Header({ locationPath }) {
             </div>
 
             {SWITCH_TO_OLD_MODAL}
+
 
             <Dropdown
               menu={{

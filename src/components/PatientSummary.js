@@ -5,7 +5,12 @@ import { Button, Drawer } from "antd";
 import axios from "axios";
 import moment from "moment";
 import dayjs from "dayjs";
-
+import ddxIcon from "../assets/images/ddx.svg";
+import scStrip from "../assets/images/sc-banner-strip.webp";
+import labIcon from "../assets/images/Lab.svg";
+import vitalsIcon from "../assets/images/Vitals.svg";
+import noteIcon from "../assets/images/vuesax/bulk/note.svg";
+import arrowDownIcon from "../assets/images/arrow-down.svg";
 import styles from "./PatientSummary.module.scss";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import ApiVitals from "../api/services/ApiVitals";
@@ -18,15 +23,6 @@ import { env } from "../EnvironmentConfig";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import ViewLabParam from "./ViewLabParams";
 import LabParams from "./LabParams";
-import { ASSETS } from "../assets";
-const {
-  ddx: ddxIcon,
-  scBannerStrip: scStrip,
-  lab: labIcon,
-  vitals: vitalsIcon,
-} = ASSETS.images;
-const noteIcon = ASSETS.images.vuesax.bulk.note;
-const arrowDownIcon = ASSETS.images.arrowDown;
 
 const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const location = useLocation();
@@ -180,6 +176,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
       return null;
     }
   }, [patient_data?.patient_unique_id]);
+
 
   // Helper function to extract data from digitized Snap Rx (same structure as Cardiology uses)
   const extractSnapRxData = useCallback((snapRxData) => {
