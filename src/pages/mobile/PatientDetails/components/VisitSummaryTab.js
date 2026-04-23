@@ -18,7 +18,6 @@ const VisitSummaryTab = React.memo(function VisitSummaryTab({
   onEditRx,
   onDownloadRx,
   onPrintRx,
-  onPrintIconClick,
   onRepeatRx,
   onPrintMedicinesOnly,
   onCardiologyPrintHandlersReady,
@@ -42,7 +41,6 @@ const VisitSummaryTab = React.memo(function VisitSummaryTab({
           onEdit={onEditRx}
           onDownload={onDownloadRx}
           onPrint={onPrintRx}
-          onPrintIconClick={onPrintIconClick}
           onRepeatRx={onRepeatRx}
           onPrintMedicinesOnly={onPrintMedicinesOnly}
           showEdit={viewCaseManagerData?.doctor_data?.editCase}
