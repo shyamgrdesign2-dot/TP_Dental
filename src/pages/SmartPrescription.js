@@ -41,15 +41,11 @@ import MedicalHistoryList from "../components/MedicalHistoryList";
 import PrivateNotesBox from "../components/PrivateNotesBox";
 import PrivateNotesList from "../components/PrivateNotesList";
 
-import vitals from "../assets/images/Vitals.svg";
-import MedicalHistory from "../assets/images/Medical-History.svg";
-import privateNotes from "../assets/images/private-notes.svg";
 import SmartRxFollowUpBox from "../components/SmartRxFollowUpBox";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
 import { assignCarePlan } from "./smartSync/services/carePlanService";
-import carePlanIcon from "../assets/images/Care plan_Active.svg";
 
 import {
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
@@ -67,10 +63,7 @@ import { env } from "../EnvironmentConfig";
 import { errorMessage } from "../utils/utils";
 import { MESSAGE_KEY } from "../utils/constants";
 import CommonModal from "../common/CommonModal";
-import alertIcon from "../assets/images/alertIcon.svg";
-import textLogo from "../assets/images/text-logo.svg";
-import sparkleWebm from "../assets/images/aiSparkleLoader.webm";
-import sparkleMp4 from "../assets/images/aiSparkleLoader.mp4";
+
 import LoopingVideo from "../components/common/LoopingVideo";
 import FullPageLoader from "./vaccination/components/Loader";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -81,13 +74,7 @@ import CustomCanvasSelector from "./smartSync/components/CustomCanvasSelector";
 import EditTemplateModal from "./smartSync/components/EditTemplateModal";
 import { getCustomSyncPadTemplates } from "./smartSync/services/uploadService";
 import { Content } from "antd/es/layout/layout";
-import vaccinationImg from "../assets/images/Vaccination.svg";
-import growthChartImg from "../assets/images/growth-chart-dark.svg";
-import obstetricImg from "../assets/images/obstetric-dark.svg";
-import uploadDocImg from "../assets/images/upload-doc-dark.svg";
-import symptomsImg from "../assets/images/Symptoms.svg";
-import labResultImg from "../assets/images/Lab.svg";
-import others from "../assets/images/custom-module.svg";
+
 import Vaccination from "./vaccination/Vaccination";
 import GrowthChart from "./growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
@@ -128,8 +115,7 @@ import SCBanner from "../components/SCBanner";
 import SCPopup from "../components/SCPopup";
 import { getDecodedToken } from "../utils/localStorage";
 import CustomSSknowMore from "./smartSync/components/CustomSSknowMore";
-import visitEnd from '../assets/images/end-visit.svg';
-import imgCloseVisit from '../assets/images/close-visit.svg';
+
 import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT } from "../utils/constants";
@@ -141,6 +127,26 @@ import {
   setActiveTeleconsultConsultationId,
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
+import { ASSETS } from "../assets";
+const {
+  vitals,
+  medicalHistory: MedicalHistory,
+  privateNotes,
+  carePlanActive: carePlanIcon,
+  alerticon: alertIcon,
+  textLogo,
+  aisparkleloader_2: sparkleWebm,
+  aisparkleloader: sparkleMp4,
+  vaccination: vaccinationImg,
+  growthChartDark: growthChartImg,
+  obstetricDark: obstetricImg,
+  uploadDocDark: uploadDocImg,
+  symptoms: symptomsImg,
+  lab: labResultImg,
+  customModule: others,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 function SmartPrescription() {
   const {
@@ -2491,7 +2497,6 @@ function SmartPrescription() {
       console.error('⚠️ Canvas not found for page:', selectedPage);
     }
   };
-
 
   function draw(t, n, a, c, pageIndex) {
     const canvas = canvasRefs.current[pageIndex];

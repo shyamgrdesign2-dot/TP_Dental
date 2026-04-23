@@ -11,8 +11,6 @@ import MedicalHistory from '../components/MedicalHistory';
 import CarePlanBox from '../components/CarePlanBox';
 // import Vaccination from '../components/Vaccination';
 import Cardiology from '../components/Cardiology';
-import variables from '../assets/scss/variables.scss'
-import alertIcon from "../assets/images/alertIcon.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -31,7 +29,14 @@ import VisitObstetric from "./obstetric/components/visitObstetric/VisitObstetric
 import { getClinicName } from "../utils/utils";
 import VisitMedicalRecords from "./medicalRecords/components/visitMedicalRecords/VisitMedicalRecords";
 import { PATIENT_DETAILS_SIDEBAR_KEYS } from "../utils/constants";
-import { setAllUploadedDocs, setPatientUploadedDocs } from "../redux/uploadDocSlice";
+import { GB_ZYDUS_USER } from "../utils/constants";
+import {
+    setAllUploadedDocs,
+    setPatientUploadedDocs,
+    resetUploadDocState,
+    zydusDocsList,
+    zydusRadioList,
+} from "../redux/uploadDocSlice";
 import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from "./medicalRecords/service";
 import { mergeDocuments } from "./medicalRecords/utils/helper";
 import VisitLabParameters from "../components/VisitLabParameters";
@@ -48,6 +53,12 @@ import { resetPatientsDetails } from "../redux/appointmentsSlice";
 import { lazyRetry } from "../utils/lazyRetry";
 import { searchPatients, synczyduspatient } from "../redux/appointmentsSlice";
 import { errorMessage } from "../utils/utils";
+import { getDecodedToken } from "../utils/localStorage";
+import { env } from "../EnvironmentConfig";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { ASSETS } from "../assets";
+const variables = ASSETS.scss.variables;
+const alertIcon = ASSETS.images.alerticon;
 const BillingDashboard = React.lazy(() =>
   lazyRetry(() => import("./opdBilling/components/billingDashboard/BillingDashboard"))
 );
@@ -63,9 +74,6 @@ function PatientDetails() {
         loading,
         consultations: consultationsFromRedux,
     } = useSelector((state) => state.caseManager);
-    const { allUploadedDocs } = useSelector(
-      (state) => state.uploadDoc
-    );
       const { billPrintSettings, ipdBillPrintSettings } = useSelector(
         (state) => state.billing
       );
@@ -75,12 +83,18 @@ function PatientDetails() {
     const navigate = useNavigate();
     const locationState = location.state || {};
     const { patient_data, sidebarKey: initialSidebarKey } = locationState || {};
+    const resolvedMrno =
+      patient_data?.mrno ||
+      patient_data?.pm_reference_id ||
+      patient_data?.tpml_refrence_id ||
+      null;
     const stateMrnNo = locationState?.mrnNo;
     const queryMrnNo = new URLSearchParams(location.search).get("mrnNo");
     const mrnNo = queryMrnNo || stateMrnNo;
     const { isVaccinationAccessable, isGrowthChartAccessable } = useAccess(
       patient_data?.ageYears
     );
+    const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
 
     const [sidebarKey, setSidebarKey] = useState(initialSidebarKey || PATIENT_DETAILS_SIDEBAR_KEYS.VISIT_SUMMARY);
 
@@ -288,20 +302,20 @@ function PatientDetails() {
     }, []);
 
     useEffect(() => {
-    if (patient_data?.patient_unique_id && allUploadedDocs.length === 0) {
-        getAllPatientDocs();
-    }
-    if (
-      (billPrintSettings && Object.keys(billPrintSettings).length === 0)
-    ) {
-      getBillPrintSettings();
-    }
-    if (
-      (ipdBillPrintSettings && Object.keys(ipdBillPrintSettings).length === 0)
-    ) {
-      getIpdBillPrintSettings();
-    }
-    }, []);
+        if (patient_data?.patient_unique_id) {
+            getAllPatientDocs();
+        }
+        if (
+          (billPrintSettings && Object.keys(billPrintSettings).length === 0)
+        ) {
+          getBillPrintSettings();
+        }
+        if (
+          (ipdBillPrintSettings && Object.keys(ipdBillPrintSettings).length === 0)
+        ) {
+          getIpdBillPrintSettings();
+        }
+    }, [patient_data?.patient_unique_id, resolvedMrno, isZydusUserAccessableFromGB]);
 
     // Check patient admission status on mount
     useEffect(() => {
@@ -358,6 +372,26 @@ function PatientDetails() {
             mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
           )
         );
+
+        const tokenData = getDecodedToken()?.result;
+        if (
+            tokenData?.hospital_business_id == env.zydus_business_id &&
+            isZydusUserAccessableFromGB &&
+            resolvedMrno != null
+        ) {
+            dispatch(
+                zydusDocsList({
+                    mrno: resolvedMrno,
+                    um_id: tokenData?.user_id,
+                })
+            );
+            dispatch(
+                zydusRadioList({
+                    mrno: resolvedMrno,
+                    um_id: tokenData?.user_id,
+                })
+            );
+        }
     };
 
     const nextPress = () => {

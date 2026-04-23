@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import { Button, Tabs } from "antd";
 import { QRCodeSVG } from 'qrcode.react';
-import playIcons from "../../../assets/images/tube-icon.svg";
-import medcoIcon from "../../../assets/images/medco-icon.svg";
+
 import VideoModal from "../../../common/VideoModal";
 import ContactSupport from "./ContactSupport";
+import { ASSETS } from "../../../assets";
+const {
+  tubeIcon: playIcons,
+  medcoIcon,
+} = ASSETS.images;
 
 const { TabPane } = Tabs;
 
