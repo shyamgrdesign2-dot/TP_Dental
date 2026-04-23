@@ -202,7 +202,7 @@ const diagnosisCheckboxOptions = [
 
 function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetails, patientBills }) {
   const contextValue = useContext(PrintSettingsContext);
-  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig } = contextValue || {};
+  const { caseManagerData, printSettings, setPrintSettings, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData, smartRxFile, isDigitisedPrintConfig, drawingCanvases } = contextValue || {};
   const { isVaccinationAccessable, isGrowthChartAccessable, isGynaecHistoryAccessable } = useAccess(
     caseManagerData?.patient_data?.patient_age
   );
@@ -231,6 +231,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
       const updatedData = printSettings.prescription.case_option.map((x) => {
         if (x.type === "page_break") {
           return x;
+        }
+        if (x.id === 25) {
+          return { ...x, format: "inline" };
         }
         return { ...x, format: e.target.value };
       });
@@ -819,17 +822,17 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
                       }`}
                     onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
-                    value={record.format}
+                    value={record.format || "inline"}
                   >
                     <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
                       {record?.id === 12 ? "Graph View" : "Inline"}
                     </Radio.Button>
-                    {record?.id !== 12 &&
+                    {record?.id !== 12 && record?.id !== 25 &&
                       <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
                         List View
                       </Radio.Button>
                     }
-                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17}>
+                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17 || record?.id === 25}>
                       Table
                     </Radio.Button>
                   </Radio.Group>
@@ -1016,17 +1019,17 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
                       }`}
                     onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
-                    value={record.format}
+                    value={record.format || "inline"}
                   >
                     <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
                       {record?.id === 12 ? "Graph View" : "Inline"}
                     </Radio.Button>
-                    {record?.id !== 12 &&
+                    {record?.id !== 12 && record?.id !== 25 &&
                       <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
                         List View
                       </Radio.Button>
                     }
-                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17}>
+                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17 || record?.id === 25}>
                       Table
                     </Radio.Button>
                   </Radio.Group>
@@ -1242,9 +1245,9 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
           <Form.Item className="mb-0">
             <Radio.Group className={`d-flex gender-radio all-change-radio ${isMobile ? 'segmented-radio-mobile' : ''}`} onChange={onMainCaseOptionChange}
               value={
-                printSettings?.prescription?.case_option.every(e => e.format === 'inline') ? 'inline'
-                  : printSettings?.prescription?.case_option.every(e => e.format === 'listview') ? 'listview'
-                    : printSettings?.prescription?.case_option.every(e => e.format === 'table') ? 'table'
+                printSettings?.prescription?.case_option.every(e => (e.format || 'inline') === 'inline') ? 'inline'
+                  : printSettings?.prescription?.case_option.every(e => (e.format || 'inline') === 'listview') ? 'listview'
+                    : printSettings?.prescription?.case_option.every(e => (e.format || 'inline') === 'table') ? 'table'
                       : null}>
               <Radio.Button className="w-100 text-center" value="inline">Inline</Radio.Button>
               <Radio.Button className="w-100 text-center" value="listview">List View</Radio.Button>
@@ -1302,7 +1305,10 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                     (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
                     (patientBills?.length > 0 && option.id === 17) ||
                     ((option.id === 19) && (Array.isArray(carePlanAssignments) ? carePlanAssignments.length > 0 : false)) ||
-                    (option.id === 20 && ophthalModuleData && Object.keys(ophthalModuleData).length > 0)
+                    (option.id === 20 && ophthalModuleData && Object.keys(ophthalModuleData).length > 0) ||
+                    (option.id === 25 &&
+                      ((Array.isArray(drawingCanvases) && drawingCanvases.length > 0) ||
+                        (Array.isArray(caseManagerData?.canvas_filename) && caseManagerData.canvas_filename.length > 0)))
                 }).map(option => ({ ...option, key: option.id }));
                 return filtered;
               })()}
@@ -1419,7 +1425,10 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                   (zydusSelectedLabParams?.length > 0 && option.id === 18) ||
                   (option.is_custom_module === true && customModulesRxData?.find((e) => e?.module_id === option?.id)?.content?.length > 0) ||
                   (patientBills?.length > 0 && option.id === 17) ||
-                  (option.id === 20 && ((ophthalModuleData && Object.keys(ophthalModuleData).length > 0) || true))
+                  (option.id === 20 && ((ophthalModuleData && Object.keys(ophthalModuleData).length > 0) || true)) ||
+                  (option.id === 25 &&
+                    ((Array.isArray(drawingCanvases) && drawingCanvases.length > 0) ||
+                      (Array.isArray(caseManagerData?.canvas_filename) && caseManagerData.canvas_filename.length > 0)))
                 );
               }) || [];
 
@@ -1522,6 +1531,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>Inline</Radio.Button>
+                          {option?.id !== 25 && (
                           <Radio.Button value="listview" style={{ 
                             fontSize: '9px', 
                             padding: '2px 8px',
@@ -1531,7 +1541,8 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>List View</Radio.Button>
-                          <Radio.Button value="table" style={{ 
+                          )}
+                          <Radio.Button value="table" disabled={option?.id === 25} style={{ 
                             fontSize: '9px', 
                             padding: '2px 8px',
                             height: '24px',

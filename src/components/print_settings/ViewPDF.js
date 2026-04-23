@@ -7375,6 +7375,35 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             )
                                         )}
                                     </>
+                                ) : option?.id === 25 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
+                                    <>
+                                        {drawingCanvases && drawingCanvases.length > 0 && (
+                                            <View style={{ marginTop: PX_TO_PT * 15 }} wrap={true}>
+                                                {drawingCanvases.map((canvasObj, i) => (
+                                                    <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
+                                                        <Text
+                                                            style={{
+                                                                fontSize: PX_TO_PT * 14,
+                                                                fontWeight: 700,
+                                                                color: '#171725',
+                                                                marginBottom: PX_TO_PT * 10,
+                                                                fontFamily: 'Roboto',
+                                                            }}
+                                                        >
+                                                            {canvasObj.name}
+                                                        </Text>
+                                                        <Image
+                                                            src={canvasObj.imageUrl}
+                                                            style={{
+                                                                width: '100%',
+                                                                objectFit: 'contain',
+                                                            }}
+                                                        />
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </>
                                 ) : null}
                                 </View>
                             )
@@ -7515,32 +7544,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             </View>
                         )}
                     </View>
-
-                    {/* Rendering the Excalidraw Canvases */}
-                    {drawingCanvases && drawingCanvases.length > 0 && (
-                        <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
-                            {drawingCanvases.map((canvasObj, i) => (
-                                <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>
-                                    <Text style={{ 
-                                        fontSize: PX_TO_PT * 14, 
-                                        fontWeight: 700, 
-                                        color: '#171725', 
-                                        marginBottom: PX_TO_PT * 10,
-                                        fontFamily: 'Roboto' 
-                                    }}>
-                                        {canvasObj.name}
-                                    </Text>
-                                    <Image 
-                                        src={canvasObj.imageUrl} 
-                                        style={{ 
-                                            width: '100%',
-                                            objectFit: 'contain'
-                                        }} 
-                                    />
-                                </View>
-                            ))}
-                        </View>
-                    )}
 
                     {/* Bottom spacer for Own Letterhead first-page-only mode */}
                     {/* <View

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Excalidraw, MainMenu } from '@excalidraw/excalidraw';
-import { Button, Switch, Tooltip, Divider, Drawer, Input } from 'antd';
+import { Excalidraw, MainMenu, exportToBlob } from '@excalidraw/excalidraw';
+import { Button, Switch, Tooltip, Drawer, Input, message } from 'antd';
 import CommonModal from "../../../common/CommonModal";
 import { ASSETS } from "../../../assets";
 import { 
@@ -20,6 +20,7 @@ const alertIcon = ASSETS.images.alerticon;
 
 
 export default function ExcalidrawEditor({ 
+  canvasId,
   canvasName, 
   initialData, 
   onSave, 
@@ -36,6 +37,11 @@ export default function ExcalidrawEditor({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveTemplateDrawerOpen, setSaveTemplateDrawerOpen] = useState(false);
+  const [templateNameInput, setTemplateNameInput] = useState("");
+  const [templatePreviewUrl, setTemplatePreviewUrl] = useState(null);
+  const [isSubmittingTemplate, setIsSubmittingTemplate] = useState(false);
 
   useEffect(() => {
     setLocalTitle(canvasName || "Untitled Canvas");
@@ -101,7 +107,7 @@ export default function ExcalidrawEditor({
 
   useEffect(() => {
     if (excalidrawAPI && sanitizedData) {
-      const currentId = initialData?.id || 'new';
+      const currentId = canvasId ?? initialData?.id ?? 'new';
       
       // ONLY update the scene if we are switching to a DIFFERENT canvas
       // or if it's the very first time we've loaded anything.
@@ -127,10 +133,10 @@ export default function ExcalidrawEditor({
         }
       }
     }
-  }, [excalidrawAPI, sanitizedData, initialData]);
+  }, [excalidrawAPI, sanitizedData, initialData, canvasId]);
 
-  const handleSave = () => {
-    if (!excalidrawAPI) return;
+  const handleSave = async () => {
+    if (!excalidrawAPI || isSaving) return;
 
     const currentAppState = excalidrawAPI.getAppState();
     
@@ -151,11 +157,13 @@ export default function ExcalidrawEditor({
       files: excalidrawAPI.getFiles(),
     };
 
-    console.log("🚀 PAYLOAD TO SEND TO BACKEND:");
-    console.log(JSON.stringify(payload, null, 2));
-
     if (onSave) {
-      onSave(payload, localTitle);
+      setIsSaving(true);
+      try {
+        await onSave(payload, localTitle);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -227,9 +235,80 @@ export default function ExcalidrawEditor({
     }
   }, [excalidrawAPI, templateTrigger, templateData]);
 
-  const handleSaveTemplate = () => {
-    if (!excalidrawAPI) return;
+  const closeSaveTemplateDrawer = React.useCallback(() => {
+    setSaveTemplateDrawerOpen(false);
+    setTemplateNameInput("");
+    setIsSubmittingTemplate(false);
+    setTemplatePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
 
+  useEffect(() => {
+    if (!saveTemplateDrawerOpen || !excalidrawAPI) return undefined;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const elements = excalidrawAPI.getSceneElements();
+        const currentAppState = excalidrawAPI.getAppState();
+        const files = excalidrawAPI.getFiles();
+
+        if (!elements?.length) {
+          if (!cancelled) {
+            setTemplatePreviewUrl((prev) => {
+              if (prev) URL.revokeObjectURL(prev);
+              return null;
+            });
+          }
+          return;
+        }
+
+        const blob = await exportToBlob({
+          elements,
+          appState: {
+            ...currentAppState,
+            exportWithDarkMode: false,
+            viewBackgroundColor: currentAppState.viewBackgroundColor || "#ffffff",
+          },
+          files,
+          mimeType: "image/png",
+          quality: 0.8,
+        });
+
+        if (cancelled) return;
+
+        const url = URL.createObjectURL(blob);
+        setTemplatePreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+      } catch (e) {
+        console.error("Template preview export failed", e);
+        if (!cancelled) {
+          setTemplatePreviewUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return null;
+          });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [saveTemplateDrawerOpen, excalidrawAPI]);
+
+  const openSaveTemplateDrawer = () => {
+    if (!excalidrawAPI || !onSaveTemplate) return;
+    setTemplateNameInput("");
+    setSaveTemplateDrawerOpen(true);
+  };
+
+  const buildTemplatePayload = () => {
+    if (!excalidrawAPI) return null;
     const currentAppState = excalidrawAPI.getAppState();
     const sanitizedAppState = {
       theme: currentAppState.theme,
@@ -240,15 +319,43 @@ export default function ExcalidrawEditor({
       scrollY: currentAppState.scrollY,
       zoom: currentAppState.zoom,
     };
-
-    const payload = {
+    return {
       elements: excalidrawAPI.getSceneElements(),
       appState: sanitizedAppState,
       files: excalidrawAPI.getFiles(),
     };
+  };
 
-    if (onSaveTemplate) {
-      onSaveTemplate(payload, localTitle);
+  const handleConfirmSaveTemplate = async () => {
+    if (!excalidrawAPI || !onSaveTemplate) return;
+    const name = templateNameInput.trim();
+    if (!name) return;
+
+    const payload = buildTemplatePayload();
+    if (!payload) return;
+
+    setIsSubmittingTemplate(true);
+    try {
+      const ok = await Promise.resolve(onSaveTemplate(payload, name));
+      if (ok === true) {
+        message.open({
+          type: "success",
+          content: "Canvas Template saved successfully",
+          className: "canvas-template-saved-message",
+          style: { zIndex: 5000 },
+          duration: 3,
+        });
+        closeSaveTemplateDrawer();
+      }
+    } catch (e) {
+      message.open({
+        type: "error",
+        content: e?.message || "Template save failed",
+        style: { zIndex: 5000 },
+        duration: 4,
+      });
+    } finally {
+      setIsSubmittingTemplate(false);
     }
   };
 
@@ -301,11 +408,13 @@ export default function ExcalidrawEditor({
             </div>
           </Tooltip>
 
-          <Tooltip title="Save to Template" >
-            <div className="icon-btn" onClick={handleSaveTemplate}>
-              <SaveOutlined />
-            </div>
-          </Tooltip>
+          {onSaveTemplate ? (
+            <Tooltip title="Save to Template">
+              <div className="icon-btn" onClick={openSaveTemplateDrawer}>
+                <SaveOutlined />
+              </div>
+            </Tooltip>
+          ) : null}
 
           <div className="divider"></div>
 
@@ -330,6 +439,8 @@ export default function ExcalidrawEditor({
           <Button 
             className="pill-btn save-btn-canvas" 
             onClick={handleSave}
+            loading={isSaving}
+            disabled={isSaving}
           >
             Save
           </Button>
@@ -355,6 +466,72 @@ export default function ExcalidrawEditor({
           </Excalidraw>
         )}
       </div>
+
+      <Drawer
+        title={null}
+        placement="right"
+        width={440}
+        open={saveTemplateDrawerOpen}
+        closable={false}
+        onClose={closeSaveTemplateDrawer}
+        zIndex={2500}
+        maskClosable
+        destroyOnClose={false}
+        bodyStyle={{ padding: 0 }}
+        rootStyle={{ top: 0 }}
+      >
+        <div className="save-template-drawer">
+          <div className="save-template-drawer__header">
+            <button
+              type="button"
+              className="save-template-drawer__icon-btn"
+              onClick={closeSaveTemplateDrawer}
+              aria-label="Close"
+            >
+              <CloseOutlined />
+            </button>
+            <h2 className="save-template-drawer__title">Save This Canvas as a Template</h2>
+            <Button
+              type="primary"
+              className="save-template-drawer__save-btn"
+              disabled={!templateNameInput.trim() || isSubmittingTemplate}
+              loading={isSubmittingTemplate}
+              onClick={handleConfirmSaveTemplate}
+            >
+              Save
+            </Button>
+          </div>
+
+          <div className="save-template-drawer__body">
+            <label className="save-template-drawer__label" htmlFor="template-name-input">
+              Enter Template Name
+            </label>
+            <div className="save-template-drawer__input-wrap">
+              <Input
+                id="template-name-input"
+                value={templateNameInput}
+                onChange={(e) => setTemplateNameInput(e.target.value.slice(0, 30))}
+                maxLength={30}
+                placeholder="e.g., Dental Diagram"
+                className="save-template-drawer__input"
+                autoFocus
+              />
+              <span className="save-template-drawer__counter">
+                {templateNameInput.length}/30
+              </span>
+            </div>
+
+            <p className="save-template-drawer__label save-template-drawer__label--preview">Template Preview</p>
+            <div className="save-template-drawer__preview">
+              {templatePreviewUrl ? (
+                <img src={templatePreviewUrl} alt="Template preview" className="save-template-drawer__preview-img" />
+              ) : (
+                <span className="save-template-drawer__preview-empty">Nothing to preview yet</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Drawer>
 
       <CommonModal
         isModalOpen={isBackModalOpen}

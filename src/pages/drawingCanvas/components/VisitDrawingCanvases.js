@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import DrawingCanvasCard from './DrawingCanvasCard';
 import ExcalidrawEditor from './ExcalidrawEditor';
 import CanvasPreview from './CanvasPreview';
-import { Card, Drawer } from 'antd';
+import { Card, Drawer, message } from 'antd';
 
-import { listPatientCanvasMapping } from '../service';
+import { editMapping, listPatientCanvasMapping } from '../service';
 
 const VisitDrawingCanvases = ({ patientId, tcmId }) => {
     const [samples, setSamples] = useState([]);
@@ -50,6 +50,7 @@ const VisitDrawingCanvases = ({ patientId, tcmId }) => {
     };
 
     const handleOpen = async (canvas) => {
+        if (!canvas) return;
         let activeCanvas = canvas;
         if (!canvas.scene && canvas.url) {
             try {
@@ -82,9 +83,56 @@ const VisitDrawingCanvases = ({ patientId, tcmId }) => {
         setCurrentCanvas(null);
     };
 
-    const handleSave = (payload) => {
-        setSamples(samples.map(s => s.id === currentCanvas.id ? { ...s, scene: payload } : s));
-        setCurrentCanvas(null);
+    const handleSave = async (payload) => {
+        if (!currentCanvas?.id) {
+            message.open({
+                type: "error",
+                content: "Canvas mapping id not found",
+                style: { zIndex: 5000 },
+                duration: 4,
+            });
+            return false;
+        }
+
+        try {
+            const file = new File(
+                [JSON.stringify(payload)],
+                `${currentCanvas?.title || "canvas"}.excalidraw`,
+                { type: "application/json" },
+            );
+            const res = await editMapping(currentCanvas.id, file);
+            if (res?.status !== true) {
+                message.open({
+                    type: "error",
+                    content: res?.message || "Failed to save canvas",
+                    style: { zIndex: 5000 },
+                    duration: 4,
+                });
+                return false;
+            }
+
+            setSamples((prev) =>
+                prev.map((s) =>
+                    s.id === currentCanvas.id ? { ...s, scene: payload } : s,
+                ),
+            );
+            message.open({
+                type: "success",
+                content: "Canvas saved successfully",
+                style: { zIndex: 5000 },
+                duration: 3,
+            });
+            setCurrentCanvas(null);
+            return true;
+        } catch (error) {
+            message.open({
+                type: "error",
+                content: "Failed to save canvas",
+                style: { zIndex: 5000 },
+                duration: 4,
+            });
+            return false;
+        }
     };
 
     return (
@@ -125,16 +173,17 @@ const VisitDrawingCanvases = ({ patientId, tcmId }) => {
                 width="100%"
                 bodyStyle={{ padding: 0 }}
                 push={false}
+                zIndex={2000}
             >
                 {currentCanvas && (
                     <div style={{ height: "100vh", position: "relative" }}>
                         <ExcalidrawEditor
+                            canvasId={currentCanvas.id}
                             canvasName={currentCanvas.title}
                             initialData={currentCanvas.scene}
                             onSave={handleSave}
                             onBack={handleBack}
                             onOpenTemplates={() => {}}
-                            onSaveTemplate={() => {}}
                         />
                     </div>
                 )}

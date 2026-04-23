@@ -125,9 +125,16 @@ const DrawingCanvas = ({
     if (typeof onCreateCanvas === "function") onCreateCanvas();
   }, [onCreateCanvas, isFirstTimeUser]);
 
+  const handleCloseEditor = React.useCallback(() => {
+    setEditorOpen(false);
+    setTemplateData(null);
+    setTemplateTrigger(0);
+    setEditorCanvasId(null);
+  }, []);
+
   const handleEditorSave = React.useCallback(
     async (payload, canvasTitle) => {
-      if (!editorCanvasId) return;
+      if (!editorCanvasId) return false;
 
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
@@ -136,31 +143,51 @@ const DrawingCanvas = ({
 
       if (editorCanvasId === "new") {
           const linkRes = await linkCanvasToPatient(canvasTitle || "New Canvas", file, patientId, tcmId);
-          if (linkRes.status) {
+          if (linkRes.status === true) {
               if (typeof onSave === "function") {
                 onSave(); 
               }
-              setEditorOpen(false);
+              message.open({
+                type: "success",
+                content: "Canvas saved successfully",
+                style: { zIndex: 5000 },
+                duration: 3,
+              });
+              handleCloseEditor();
+              return true;
           }
-      } else {
-          // If the user modified an existing drawing, we update the mapping in the backend
-          const editRes = await editMapping(editorCanvasId, file);
-          if (editRes.status) {
-              if (typeof onSave === "function") {
-                onSave(); 
-              }
-          }
+          message.open({
+            type: "error",
+            content: linkRes.message || "Failed to save canvas",
+            style: { zIndex: 5000 },
+            duration: 4,
+          });
+          return false;
       }
+      const editRes = await editMapping(editorCanvasId, file);
+      if (editRes.status === true) {
+          if (typeof onSave === "function") {
+            onSave(); 
+          }
+          message.open({
+            type: "success",
+            content: "Canvas saved successfully",
+            style: { zIndex: 5000 },
+            duration: 3,
+          });
+          handleCloseEditor();
+          return true;
+      }
+      message.open({
+        type: "error",
+        content: editRes.message || "Failed to save canvas",
+        style: { zIndex: 5000 },
+        duration: 4,
+      });
+      return false;
     },
-    [editorCanvasId, patientId, tcmId, onSave]
+    [editorCanvasId, patientId, tcmId, onSave, handleCloseEditor]
   );
-
-  const handleCloseEditor = React.useCallback(() => {
-    setEditorOpen(false);
-    setTemplateData(null);
-    setTemplateTrigger(0);
-    setEditorCanvasId(null);
-  }, []);
 
   const handleTemplatesToggle = React.useCallback(() => {
     setTemplateDrawerOpen(prev => !prev);
@@ -190,15 +217,20 @@ const DrawingCanvas = ({
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
-    const file = new File([blob], `${canvasTitle || 'new_template'}.json`, { type: "application/json" });
+    const file = new File([blob], `${canvasTitle || "new_template"}.json`, { type: "application/json" });
 
     const res = await createCustomCanvas(canvasTitle || "New Template", file);
-    if (res.status) {
-       message.success("Template saved successfully");
-    } else {
-       message.error(res.message || "Template save failed");
-       console.error("Template save failed", res.message);
+    if (res.status === true) {
+      return true;
     }
+    message.open({
+      type: "error",
+      content: res.message || "Template save failed",
+      style: { zIndex: 5000 },
+      duration: 4,
+    });
+    console.error("Template save failed", res.message);
+    return false;
   }, []);
 
   const editorInitialData = React.useMemo(() => {
@@ -286,7 +318,8 @@ const DrawingCanvas = ({
           onClose={handleCloseEditor}
         >
           <ExcalidrawEditor
-            canvasName={internalCanvases.find(c => c?.id === editorCanvasId)?.name || "Untitled Canvas"}
+            canvasId={editorCanvasId}
+            canvasName={internalCanvases.find(c => c?.id === editorCanvasId)?.name || internalCanvases.find(c => c?.id === editorCanvasId)?.title || "Untitled Canvas"}
             initialData={editorInitialData}
             onSave={handleEditorSave}
             onBack={handleCloseEditor}

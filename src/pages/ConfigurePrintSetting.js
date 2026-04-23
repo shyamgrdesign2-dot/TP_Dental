@@ -739,6 +739,23 @@ function ConfigurePrintSetting() {
                 }
             }
 
+            if (copyPrintSettings?.prescription?.case_option) {
+                const defaultCanvas = defaultPrintSettings?.prescription?.case_option?.find((o) => o.id === 25);
+                const hasCanvas = copyPrintSettings.prescription.case_option.some((o) => o.id === 25);
+                if (defaultCanvas && !hasCanvas) {
+                    copyPrintSettings.prescription.case_option.push({
+                        ...defaultCanvas,
+                        format: defaultCanvas.format || "inline",
+                        custom_status: defaultCanvas.custom_status || "Y",
+                    });
+                }
+                copyPrintSettings.prescription.case_option = copyPrintSettings.prescription.case_option.map((o) =>
+                    o.id === 25 && (!o.format || String(o.format).trim() === "")
+                        ? { ...o, format: "inline" }
+                        : o
+                );
+            }
+
             setPrintSettings(copyPrintSettings);
             copyPrintSettings?.logo_enable === 'Y' && copyPrintSettings.logo_image && setFileLogo({ imageShow: true, showFile: copyPrintSettings.logo_image });
             copyPrintSettings?.water_mark_enable === 'Y' && copyPrintSettings.water_mark_image && setFileWatermark({ imageShow: true, showFile: copyPrintSettings.water_mark_image });

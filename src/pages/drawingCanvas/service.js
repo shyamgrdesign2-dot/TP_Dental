@@ -3,15 +3,34 @@ import config from "../../config";
 
 const baseUrl = { customBaseUrl: config.snap_rx_api_url };
 
+/**
+ * Our axios instance returns `response.data` (see axiosService interceptor), not the Axios object.
+ * Never use `response.status === undefined` to mean "success" — API bodies often include `status: true`.
+ */
+const normalizeCanvasApiResult = (data, fallbackErrorMessage) => {
+    const body = data && typeof data === "object" ? data : {};
+    const explicitFailure =
+        body.status === false ||
+        body.status === "false" ||
+        body.status === 0 ||
+        body.status === "0";
+    if (explicitFailure) {
+        return {
+            ...body,
+            status: false,
+            message: body.message || body.error || fallbackErrorMessage,
+        };
+    }
+    // PUT/POST often return the entity only (e.g. mapping_id, canvas_url) with no `status` field.
+    // Never do `{ status: true, ...body }` — body may contain `status: null` and overwrite success.
+    return { ...body, status: true };
+};
+
 export const listTemplates = async () => {
     let res = {};
     try {
         const response = await api.get(`/api/v1/canvas`, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error fetching templates");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error fetching templates" };
     }
@@ -31,11 +50,7 @@ export const createCustomCanvas = async (name, file) => {
                 "Content-Type": "multipart/form-data",
             },
         });
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error creating canvas");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error creating canvas" };
     }
@@ -46,11 +61,7 @@ export const fetchTemplate = async (canvasId) => {
     let res = {};
     try {
         const response = await api.get(`/api/v1/canvas/${canvasId}`, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error fetching template");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error fetching template" };
     }
@@ -61,11 +72,7 @@ export const renameCanvasTemplate = async (canvasId, name) => {
     let res = {};
     try {
         const response = await api.patch(`/api/v1/canvas/${canvasId}/rename`, { name }, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error renaming canvas");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error renaming canvas" };
     }
@@ -99,11 +106,7 @@ export const deleteCanvasTemplate = async (canvasId) => {
     let res = {};
     try {
         const response = await api.delete(`/api/v1/canvas/${canvasId}`, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error deleting canvas");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error deleting canvas" };
     }
@@ -125,11 +128,7 @@ export const linkCanvasToPatient = async (name, file, patientUniqueId, tcmId) =>
                 "Content-Type": "multipart/form-data",
             },
         });
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error linking canvas to patient");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error linking canvas to patient" };
     }
@@ -144,11 +143,7 @@ export const listPatientCanvasMapping = async (patientUniqueId, tcmId) => {
             url += `?tcm_id=${tcmId}`;
         }
         const response = await api.get(url, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error fetching patient canvas mapping");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error fetching patient canvas mapping" };
     }
@@ -159,11 +154,7 @@ export const renameMapping = async (mappingId, name) => {
     let res = {};
     try {
         const response = await api.patch(`/api/v1/canvas/patient/${mappingId}/rename`, { name }, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error renaming mapping");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error renaming mapping" };
     }
@@ -182,11 +173,7 @@ export const editMapping = async (mappingId, file) => {
                 "Content-Type": "multipart/form-data",
             },
         });
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error editing mapping");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error editing mapping" };
     }
@@ -197,11 +184,7 @@ export const deleteMapping = async (mappingId) => {
     let res = {};
     try {
         const response = await api.delete(`/api/v1/canvas/patient/${mappingId}`, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error deleting mapping");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error deleting mapping" };
     }
@@ -212,11 +195,7 @@ export const getShowCanvasPopup = async () => {
     let res = {};
     try {
         const response = await api.get(`/api/v1/canvas/metadata`, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error fetching canvas metadata");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error fetching canvas metadata" };
     }
@@ -227,11 +206,7 @@ export const setShowCanvasPopup = async (isCanvasPopup) => {
     let res = {};
     try {
         const response = await api.post(`/api/v1/canvas/metadata`, { isCanvasPopup }, baseUrl);
-        if (response?.status === undefined) {
-            res = { status: true, ...response };
-        } else {
-            res = { status: false, message: response?.data?.message };
-        }
+        res = normalizeCanvasApiResult(response, "Error updating canvas metadata");
     } catch (error) {
         res = { status: false, message: error?.response?.data?.message || "Error updating canvas metadata" };
     }
