@@ -30,19 +30,12 @@ import CustomizeSetting from "../../../../common/CustomizeSetting";
 
 import ProfilePopover from "../../../../common/ProfilePopover";
 import CommonModal from "../../../../common/CommonModal";
-import alertIcon from "../../../../assets/images/alertIcon.svg";
-import tutorial2 from "../../../../assets/images/tutorial.svg";
+
 // import videoimg1 from '../assets/images/tutorial-img1.png';
 // import videoimg2 from '../assets/images/tutorial-img2.png';
-import playIcons from "../../../../assets/images/tube-icon.svg";
-import fullicon from "../../../../assets/images/full-icon.svg";
-import settingsIcon from "../../../../assets/images/settings-icon.svg";
+
 import VideoModal from "../../../../common/VideoModal";
 import TabVoiceRxButton from "../../../../components/tab_design/TabVoiceRxButton";
-import endIcon from "../../../../assets/images/end-icon.svg";
-import notesMultiple from "../../../../assets/images/notes-multiple.svg";
-import settingsNew from "../../../../assets/images/settings-new.svg";
-import videoSvg from "../../../../assets/images/video.svg";
 
 import {
     errorMessage,
@@ -70,9 +63,6 @@ import {
     hasExistingCarePlanForConsultation,
     updateCarePlanName,
 } from "../../../../pages/smartSync/services/carePlanService";
-
-import visitEnd from "../../../../assets/images/end-visit.svg";
-import imgCloseVisit from "../../../../assets/images/close-visit.svg";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -115,6 +105,20 @@ import {
     getTemplates,
 } from "../../services/templateService";
 import { setDefaultCustomSyncPadTemplate } from "../../../smartSync/services/uploadService";
+import { ASSETS } from "../../../../assets";
+const {
+  alerticon: alertIcon,
+  tutorial: tutorial2,
+  tubeIcon: playIcons,
+  fullIcon: fullicon,
+  settingsIcon,
+  endIcon,
+  notesMultiple,
+  settingsNew,
+  video: videoSvg,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0;
 
@@ -1683,7 +1687,6 @@ function TabRxHeaderV2({
                 errorMessage("Please fillup investigation name");
                 return;
             }
-
 
             var sendData = {
                 action: tcmId == 0 ? "add" : "edit",

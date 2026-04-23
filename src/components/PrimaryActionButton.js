@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button, Dropdown } from "antd";
-import smartPad from "../assets/images/smartPad.svg";
+
 import { isMobile, isTablet } from "react-device-detect";
 import { isZydus } from "../utils/utils";
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { GB_TAB_RX } from "../utils/constants";
+import { ASSETS } from "../assets";
+const smartPad = ASSETS.images.smartpad;
 
 /**
  * PrimaryActionButton Component

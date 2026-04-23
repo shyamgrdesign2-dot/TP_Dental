@@ -24,14 +24,18 @@ import { deleteDoc, doc, getDoc, onSnapshot } from "firebase/firestore";
 import { deleteDocsUploadedFromAndroid } from "../medicalRecords/service";
 import RefundBill from "./components/billingDashboard/RefundBill/RefundBill";
 import { getClinic, trackEvent } from "../../utils/utils";
-import wtsp from "./../../assets/images/wtsp.svg";
-import loadingImg from "./../../assets/images/loading.webp";
-import refundActive from "./../../assets/images/Refund_active.svg";
-import refundInactive from "./../../assets/images/Refund_inactive.svg";
+
 import { PERSISTANT_STORAGE_KEY_BILL_TOKEN } from "../../utils/constants";
 import { useLocalStorage } from "../../utils/localStorage";
 import config from "../../config";
 import { WhatsAppOpdBillTemplateId } from "./utils/constants";
+import { ASSETS } from "../../assets";
+const {
+  wtsp,
+  loading_3: loadingImg,
+  refundActive,
+  refundInactive,
+} = ASSETS.images;
 
 const PreviewBill = ({
   handleCreateBillDrawer,

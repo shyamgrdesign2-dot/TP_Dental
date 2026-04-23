@@ -16,12 +16,6 @@ import { jwtDecode } from "jwt-decode";
 import { errorMessage, trackEvent, sendMessageToParent } from "../../utils/utils";
 import api from "../../api/services/axiosService";
 
-import visitEnd from "../../assets/images/end-visit.svg";
-import imgCloseVisit from "../../assets/images/close-visit.svg";
-import wtsp from "../../assets/images/wtsp.svg";
-import loadingImg from "../../assets/images/loading.webp";
-import successIcon from "../../assets/images/success-icon.svg";
-
 import HeaderPrescriptionPrint from "../../common/HeaderPrescriptionPrint";
 
 import {
@@ -44,8 +38,17 @@ import { env } from "../../EnvironmentConfig";
 
 import { EVENTS } from "../../utils/events";
 import { getDecodedToken } from "../../utils/localStorage";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { ASSETS } from "../../assets";
+const {
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  wtsp,
+  loading_3: loadingImg,
+  successIcon,
+} = ASSETS.images;
+
 const worker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = worker;
 

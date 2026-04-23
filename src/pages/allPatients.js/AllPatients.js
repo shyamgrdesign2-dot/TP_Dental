@@ -44,7 +44,7 @@ import { useDispatch } from "react-redux";
 import CommonModal from "../../common/CommonModal";
 import UploadDocPopup from "../medicalRecords/components/uploadDocPopup/UploadDocPopup";
 import UploadDocument from "../medicalRecords/UploadDocument";
-import alertIcon from "./../../assets/images/alertIcon.svg";
+
 import { debounce } from "lodash";
 import * as XLSX from "xlsx";
 import { handleInAppClick } from "../opdBilling/utils/helper";
@@ -55,8 +55,7 @@ import {
   trackEvent,
   handleAdmitToIpd,
 } from "../../utils/utils";
-import successIcon from "../../assets/images/end-visit.svg";
-import closeIcon from "../../assets/images/close-visit.svg";
+
 import CreateCertificate from "../../components/medical_certificate/CreateCertificate";
 import { getDecodedToken, useLocalStorage } from "../../utils/localStorage";
 import axios from "axios";
@@ -71,9 +70,17 @@ import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
 import AbhaDrawer from "../../components/abha/AbhaDrawer";
 import { clearAbhaDetails } from "../../redux/abhaSlice";
-import AbhaIcon from '../../assets/images/abha-svg.svg';
+
 import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  endVisit: successIcon,
+  closeVisit: closeIcon,
+  abhaSvg: AbhaIcon,
+} = ASSETS.images;
+
 const { RangePicker } = DatePicker;
 
 const dateFormat = "YYYY-MM-DD";
@@ -978,7 +985,6 @@ const AllPatients = () => {
     trackEvent("TP_AllPatients_AddNewPatient", doctorDetails);
   };
 
-
   return (
     <>
       <Header locationPath={locationPath} />
@@ -994,7 +1000,7 @@ const AllPatients = () => {
                       <h1>All Patients</h1>
                     </div>
                     <img
-                      src={require("./../../assets/images/bg-welcome.webp")}
+                      src={ASSETS.images.bgWelcome}
                       className="welcomeig d-inline-block align-top"
                       alt="Welcome"
                     />

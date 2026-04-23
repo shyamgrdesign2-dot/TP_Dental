@@ -6,10 +6,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../../common/CommonModal';
-import alertIcon from '../../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../../context/CashManagerContext';
 import { errorMessage, removeBeforeWhiteSpace } from "../../utils/utils";
-import Investigationicon from "../../assets/images/Lab.svg";
+
 import {
     addTemplate,
     updateTemplate,
@@ -24,6 +24,11 @@ import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import DifferentialDiagnosis from "../DifferentialDiagnosis";
 import { setIsLabTestBox } from "../../redux/ddxSlice";
 import { INVESTIGATION_TITLE } from "../../utils/constants";
+import { ASSETS } from "../../assets";
+const {
+  alerticon: alertIcon,
+  lab: Investigationicon,
+} = ASSETS.images;
 
 function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
 
@@ -666,6 +671,5 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
         </>
     );
 }
-
 
 export default React.memo(TabInvestigationBox);

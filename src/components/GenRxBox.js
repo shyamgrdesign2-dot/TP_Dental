@@ -1,12 +1,15 @@
 import { Button, Collapse, Divider } from "antd";
-import arrow from "../assets/images/shaded-arrow.svg";
-import tryGenRxIcon from "../assets/images/try-gen-rx.svg";
-import genRxMic from "../assets/images/gen-rx-mic.svg";
 
 import { useState } from "react";
 import { getClinicName, trackEvent } from "../utils/utils";
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import { ASSETS } from "../assets";
+const {
+  shadedArrow: arrow,
+  tryGenRx: tryGenRxIcon,
+  genRxMic,
+} = ASSETS.images;
 
 const GenRxBox = ({ handleGenRxKnowMore, setIsGenRxDrawerVisible }) => {
   const [isCollapseActive, setIsCollapseActive] = useState(true);

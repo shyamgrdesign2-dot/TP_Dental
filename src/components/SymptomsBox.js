@@ -16,10 +16,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
+
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import Symptomsicon from "../assets/images/Symptoms.svg";
+
 import { MenuOutlined } from '@ant-design/icons';
 import {
   addTemplate,
@@ -35,6 +35,11 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import TextArea from "antd/es/input/TextArea";
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  symptoms: Symptomsicon,
+} = ASSETS.images;
 
 function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   const {
@@ -123,7 +128,6 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
       return () => clearTimeout(timer); // Cleanup timeout
     }
   }, [isAutofillSelected]);
-
 
   useEffect(() => {
     if (selectedSymptomsList.length > 0) {
@@ -371,7 +375,6 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
     },
     [symptomsData]
   );
-
 
   const onSelectSinceChild = useCallback(
     (data, i) => {
@@ -764,7 +767,6 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
       </DragDropContext>
     );
   }, [symptomsData, childSearchOptions]);
-
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
