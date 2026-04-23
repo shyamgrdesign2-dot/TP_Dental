@@ -34,18 +34,7 @@ import MedicalHistoryList from "../components/MedicalHistoryList";
 import PrivateNotesBox from "../components/PrivateNotesBox";
 import PrivateNotesList from "../components/PrivateNotesList";
 
-import vitals from "../assets/images/Vitals.svg";
-import MedicalHistory from "../assets/images/Medical-History.svg";
-import privateNotes from "../assets/images/private-notes.svg";
-
-import hey from "../assets/images/bg-hey.webp";
-
 import { Content } from "antd/es/layout/layout";
-import vaccinationImg from "../assets/images/Vaccination.svg";
-import growthChartImg from "../assets/images/growth-chart-dark.svg";
-import obstetricImg from "../assets/images/obstetric-dark.svg";
-import uploadDocImg from "../assets/images/upload-doc-dark.svg";
-import labResultImg from "../assets/images/Lab.svg";
 import Vaccination from "./vaccination/Vaccination";
 import GrowthChart from "./growthChart/GrowthChart";
 import { viewPatient } from "../redux/appointmentsSlice";
@@ -84,9 +73,6 @@ import ViewLabParam from "../components/ViewLabParams";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DDxKnowMore from "../components/DDxKnowMore";
 import TabPane from "antd/es/tabs/TabPane";
-import apexAIImg from "../assets/images/apexAI.svg";
-import blinkingDotWebm from "../assets/images/blinkingDot.webm";
-import blinkingDotMp4 from "../assets/images/blinkingDot.mp4";
 import LoopingVideo from "../components/common/LoopingVideo";
 import DifferentialDiagnosisDrawer from "../components/DifferentialDiagnosisDrawer";
 import {
@@ -113,11 +99,8 @@ import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
-import genRxBgWebm from "../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../assets/images/gen-rx-bg.mp4";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
-import carePlanIcon from "../assets/images/Care plan_Active.svg";
 import TatvaAiBanner from "../components/TatvaAiBanner";
 import ApexAIPopup from "../components/ApexAIPopup";
 import GenRxBanner from "../components/GenRxBanner";
@@ -150,6 +133,7 @@ import {
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
 import { GB_OPTHAL_MODULE } from "../utils/constants";
+import { ASSETS } from "../assets";
 
 function Prescription() {
   const {
@@ -160,6 +144,26 @@ function Prescription() {
     timingList,
     opthalModuleAutoAdded,
   } = useSelector((state) => state.doctors);
+
+  const {
+    vitals,
+    medicalHistory: MedicalHistory,
+    privateNotes,
+    bgHey: hey,
+    vaccination: vaccinationImg,
+    growthChartDark: growthChartImg,
+    obstetricDark: obstetricImg,
+    uploadDocDark: uploadDocImg,
+    lab: labResultImg,
+    apexai: apexAIImg,
+    blinkingdot_3: blinkingDotWebm,
+    blinkingdot_2: blinkingDotMp4,
+    genRxBg_2: genRxBgWebm,
+    genRxBg: genRxBgMp4,
+    carePlanActive: carePlanIcon,
+  } = ASSETS.images;
+
+  console.log("vitals", hey);
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);

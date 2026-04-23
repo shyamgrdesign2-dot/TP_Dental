@@ -19,19 +19,9 @@ import {
   OPHTHALMOLOGY_OPTIONS,
   OPHTHALMOLOGY_SECTIONS,
 } from "../../utils/ophthalmologyExamConstants";
-import visualAcuityIcon from "../../assets/images/visual-acuity-test.svg";
-import autoRefractionIcon from "../../assets/images/auto-refraction-test.svg";
-import lensometerIcon from "../../assets/images/lensometer-values.svg";
-import glassPrescriptionIcon from "../../assets/images/glass-prescription.svg";
-import iopIcon from "../../assets/images/intra-ocular-pressure.svg";
-import slitLampIcon from "../../assets/images/slit-lamp-examination.svg";
-import fundusIcon from "../../assets/images/fundus-examination.svg";
-import autoFillBlueIcon from "../../assets/images/autoFillBlue.svg";
-import opthalIcon from "../../assets/images/opthalIcon.svg";
-import arrowDownIcon from "../../assets/images/arrow-box-down.svg";
-import autofillArrowIcon from "../../assets/images/down-arrow-blue.svg";
+
 import CommonModal from "../../common/CommonModal";
-import alertIcon from "../../assets/images/alertIcon.svg";
+
 import { errorMessage, removeBeforeWhiteSpace } from "../../utils/utils";
 import {
   resetVisualAcuity,
@@ -57,6 +47,21 @@ import {
   deleteFundusTemplate,
   getFundusTemplates,
 } from "../../redux/fundusTemplateSlice";
+import { ASSETS } from "../../assets";
+const {
+  visualAcuityTest: visualAcuityIcon,
+  autoRefractionTest: autoRefractionIcon,
+  lensometerValues: lensometerIcon,
+  glassPrescription: glassPrescriptionIcon,
+  intraOcularPressure: iopIcon,
+  slitLampExamination: slitLampIcon,
+  fundusExamination: fundusIcon,
+  autofillblue: autoFillBlueIcon,
+  opthalicon: opthalIcon,
+  arrowBoxDown: arrowDownIcon,
+  downArrowBlue: autofillArrowIcon,
+  alerticon: alertIcon,
+} = ASSETS.images;
 
 const SECTION_ICONS = {
   visualAcuity: visualAcuityIcon,

@@ -8,17 +8,20 @@ import { useSelector, useDispatch } from "react-redux";
 import { TRIAL, S_TATVA_PRACTICE } from "../../../utils/constants";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData, shouldMonetizationDisabled } from "../../../utils/utils";
 
-import listIcon from '../../../assets/images/list-icon.svg'
-import expiredInfographic from '../../../assets/images/expired-infographic.svg'
-import contactSupport from '../../../assets/images/messages-2.svg'
-import crown from '../../../assets/images/crown.svg'
-import planExpiredSandClock from '../../../assets/images/plan-expired-sand-clock.webp'
 import { extendFreeTrial, interest } from "../../../redux/monetizationSlice";
 import { services } from "../../../redux/doctorsSlice";
 import { openModal } from "../../../redux/doctorModalSlice";
 import { fetchSubscriptionDetails } from "../../../redux/subscriptionSlice";
 import { deviceType, osName, isMobile, isTablet } from "react-device-detect";
 import "./ExtendTrialModal.scss";
+import { ASSETS } from "../../../assets";
+const {
+  listIcon,
+  expiredInfographic,
+  messages2: contactSupport,
+  crown,
+  planExpiredSandClock,
+} = ASSETS.images;
 
 function ExtendTrialModal() {
     const navigate = useNavigate();

@@ -14,8 +14,10 @@ import {
 } from '../../../../utils/utils';
 import Cardiology from '../../../../components/Cardiology';
 import VisitActionButtons from '../../PatientDetails/components/VisitActionButtons';
-import closeIcon from '../../../../assets/mobile/close 2.svg';
+
 import './RxPreviewModal.scss';
+import { ASSETS } from "../../../../assets";
+const closeIcon = ASSETS.mobile.close2;
 
 function RxPreviewModal({
   visible,

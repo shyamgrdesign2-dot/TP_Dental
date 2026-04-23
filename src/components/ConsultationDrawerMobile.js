@@ -21,16 +21,6 @@ import {
   AutoComplete,
 } from "antd";
 import styles from "./ConsultationDrawer.module.css";
-import deleteIcon from "../assets/images/delete-gen-rx.svg";
-import micIcon from "../assets/images/mic-gen-rx.svg";
-import pauseIcon from "../assets/images/pause.svg";
-import voiceRxButton from "../assets/images/voice-rx-button.svg";
-import voiceRxSendButton from "../assets/images/voice-rx-send-button.svg";
-import vitalsIcons from "../assets/images/vitals-icons.svg";
-import stopIcon from "../assets/images/stop-icon.svg";
-import muteIcon from "../assets/images/microphone-2.svg";
-import mutedMicrophoneIcon from "../assets/images/muted-microphone-icon-new.svg";
-import ellipse895 from "../assets/images/ellipse-895.svg";
 
 import {
   editGenRxDetails,
@@ -44,7 +34,7 @@ import {
   generateAmbientRx,
   updateAmbientRx,
 } from "../api/services/ApiGenRx";
-import tutorialIcon from "../assets/images/tutorial-icon.svg";
+
 import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { getDecodedToken } from "../utils/localStorage";
@@ -59,17 +49,12 @@ import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, getVoiceRxMoengageBasePayload, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
-import deleteModuleIcon from "../assets/images/delete-icon-blue.svg";
-import alertIcon from "../assets/images/alertIcon.svg";
+
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
 import BubbleSkeleton from "./BubbleSkeleton";
 import VoiceWaveVisualizer from "./WaveVisualizer";
-import zydusDataEngineIcon from "../assets/images/intersect.svg";
-import doctorAvatar from "../assets/images/doctor-avatar.webp";
-import arrowBoxDown from "../assets/images/arrow-box-down.svg";
-import dictateActiveIcon from "../assets/images/dictate-active.svg";
-import ambientActiveIcon from "../assets/images/ambient-mode-active.svg";
+
 import DigitisedPrescription from "./DigitisedPrescription";
 import {
   ADD,
@@ -83,8 +68,7 @@ import {
   S_AMBIENT_VOICE_RX,
   GB_VOICE_RX_FREE,
 } from "../utils/constants";
-import visitEnd from "../assets/images/end-visit.svg";
-import imgCloseVisit from "../assets/images/close-visit.svg";
+
 import { checkCredits, updateCredits } from "../redux/monetizationSlice";
 import ExpiredSubModal from "../pages/monetization/components/ExpiredSubModal";
 import FreeTrialButton from "../pages/monetization/components/FreeTrialButton";
@@ -92,12 +76,9 @@ import { services } from "../redux/doctorsSlice";
 import SCBanner from "./SCBanner";
 import GenRxKnowMore from "./GenRxKnowMore";
 import { setSelectAutofill } from "../redux/ddxSlice";
-import growIcon from "../assets/images/grow.svg";
-import accuracyIcon from "../assets/images/accuracy.svg";
-import healthIcon from "../assets/images/health-care.svg";
-import playIcons from "../assets/images/tube-icon.svg";
+
 import VideoModal from "../common/VideoModal";
-import tagNew from "../assets/images/new-gif.gif";
+
 import CustomMedicinePopup from "./CustomMedicinePopup";
 import {
   getFrequentlySearchedMedication,
@@ -124,6 +105,34 @@ import {
 import config from "../config";
 import { isMobile } from "react-device-detect";
 import GenRXLoaders from "./GenRxLoaders";
+import { ASSETS } from "../assets";
+const {
+  deleteGenRx: deleteIcon,
+  micGenRx: micIcon,
+  pause: pauseIcon,
+  voiceRxButton,
+  voiceRxSendButton,
+  vitalsIcons,
+  stopIcon,
+  microphone2: muteIcon,
+  mutedMicrophoneIconNew: mutedMicrophoneIcon,
+  ellipse895,
+  tutorialIcon,
+  deleteIconBlue: deleteModuleIcon,
+  alerticon: alertIcon,
+  intersect: zydusDataEngineIcon,
+  doctorAvatar,
+  arrowBoxDown,
+  dictateActive: dictateActiveIcon,
+  ambientModeActive: ambientActiveIcon,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+  grow: growIcon,
+  accuracy: accuracyIcon,
+  healthCare: healthIcon,
+  tubeIcon: playIcons,
+  newGif: tagNew,
+} = ASSETS.images;
 
 const ConsultationDrawerMobile = ({
   visible,
@@ -293,7 +302,6 @@ const ConsultationDrawerMobile = ({
     }
     return false;
   }, [queries, fullTranscript, genRxDetails?.source, typedInputText, isSymptomCollectorJSON]);
-
 
   useEffect(() => {
     if (mode === 'ambient') {
@@ -3676,7 +3684,6 @@ const ConsultationDrawerMobile = ({
       }
       setParentSearchOptions(data);
     }, [investigationParentOptionsList]);
-
 
   
   const handleAmbientItemClick = (type, index, item) => {
