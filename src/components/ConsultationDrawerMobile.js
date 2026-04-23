@@ -2430,17 +2430,6 @@ const ConsultationDrawerMobile = ({
     quantityActionMedicine,
     sanitizedMedications
   ) => {
-    const isFromSC = false;
-    const modeForEvent =
-      isAmbientMode ||
-      mode === "ambient" ||
-      window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX ||
-      genRxDetails?.type === "ambient"
-        ? "ambient"
-        : "dictation";
-    const submitId = `mobile-voice-update-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const requestId = submitId;
-    const voiceApiStartMs = Date.now();
     try {
       let response;
       // others: backend expects string[] only, e.g. ["Cross refer to her to her"] — no { value } wrapping
