@@ -1,4 +1,6 @@
-// cleanup service worker
+/*! MoEngage Service Worker */
+
+importScripts("https://cdn.moengage.com/release/dc_3/serviceworker_cdn.min.latest.js");
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -6,17 +8,11 @@ self.addEventListener('install', () => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // Delete all caches
+    // Clean old caches once
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => caches.delete(k)));
 
-    // Unregister itself
-    await self.registration.unregister();
-
-    // Refresh all open tabs
-    const clients = await self.clients.matchAll({ type: 'window' });
-    for (const client of clients) {
-      client.navigate(client.url);
-    }
+    // Take control without forcing reload
+    await self.clients.claim();
   })());
 });
