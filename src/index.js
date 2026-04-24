@@ -94,7 +94,7 @@ if (typeof window !== "undefined") {
   const CHUNK_RELOAD_KEY = "chunk-reload-v1";
 
   const isChunkLoadError = (message = "") =>
-    /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module/i.test(
+    /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module|Loading CSS chunk/i.test(
       message
     );
 
