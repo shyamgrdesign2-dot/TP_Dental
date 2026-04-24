@@ -806,6 +806,9 @@ function App() {
             </AppStoreProvider>
           </Suspense>
         )}
+        <div className="no-print app-version-tag">
+          v1.0.0
+        </div>
       </ErrorBoundary>
     </GrowthBookProvider>
   );
