@@ -807,7 +807,7 @@ function App() {
           </Suspense>
         )}
         <div className="no-print app-version-tag">
-          v1.0.0
+          v2.1.17
         </div>
       </ErrorBoundary>
     </GrowthBookProvider>
