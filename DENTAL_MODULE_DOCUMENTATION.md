@@ -1,7 +1,7 @@
 # Dental Module Documentation — TatvaPractice Demo
 
 > **Purpose**: Context-sharing document for AI tools and developers working on the dental module.
-> **Last updated**: 2026-04-06
+> **Last updated**: 2026-04-27
 
 ---
 
@@ -21,6 +21,7 @@
 12. [Naming Conventions](#12-naming-conventions)
 13. [File Inventory](#13-file-inventory)
 14. [Recent Changes](#14-recent-changes)
+15. [3D Performance & Loading](#15-3d-performance--loading)
 
 ---
 
@@ -570,6 +571,69 @@ Quadrant labels are defined in `QUADRANT_LABELS`:
 | **Enhanced 4-section dentition tooltip** | The dentition hover tooltip now shows 4 subheadings: Treatment History, Diagnosis, Treatment Plan, Notes (previously showed fewer sections) |
 | **Dental plan navigation to standalone page** | "Dental Treatment Plan" in both PatientDetailPage sidebar and RxPad secondary sidebar now navigates to `/treatment-plan` instead of rendering inline. The TreatmentPlanTab import was removed from PatientDetailPage |
 | **Full quadrant names in tooth records** | Tooth records and headers now display full quadrant names (e.g., "Upper Right Lateral Incisor") via `QUADRANT_LABELS` instead of abbreviated forms |
+| **3D performance overhaul** *(2026-04-27)* | All `public/models/*.glb` DRACO-compressed: total payload 53 MB → 5.3 MB (90% smaller). Anterior/posterior teeth ~70–95 KB each post-compression. DRACO decoder self-hosted at `public/draco/`. Long-cache headers added in `next.config.mjs` for `/models` and `/draco` (`max-age=31536000, immutable`). |
+| **CanvasLoader** *(2026-04-27)* | New component `components/dental/examination/CanvasLoader.jsx` shows a single-tooth shimmer overlay over the 3D viewer **only if loading drags past 2 s**. Tracks `useProgress()` from drei. On fast machines never renders; on slow 5G / throttled CPU it replaces the previous blank canvas. `pointerEvents: none`, ARIA `role="status"`. |
+| **Project housekeeping** *(2026-04-27)* | Removed 25 orphaned assets from `public/assets/`, the entire dead `lib/export-*` chain (7 files: `export-figma.ts`, `export-figma-html.ts`, `export-component-specs.ts`, `export-tokens.ts`, `export-library.ts`, `component-tokens.ts`, `docs-navigation.ts`), unused `components/shared/TopHeader.jsx` (DrAgentPage has its own inline `TopHeader`), and stale `tsconfig.tsbuildinfo`. |
+
+---
+
+## 15. 3D Performance & Loading
+
+The 3D dental viewer was the highest-impact perf surface in the app. As of the 2026-04-27 pass:
+
+### Network budget
+
+| Surface | Cold network | Notes |
+|---|---|---|
+| Full Adult Dentition (16 maxillary + mandibular permanent teeth + implant + DRACO decoder) | ~6 MB | First visit only; subsequent visits hit disk cache |
+| Single Tooth view | ~70–130 KB per tooth | After preload (which fires when `Tooth.jsx` is imported) all switches are instant |
+| Repeat visits | 0 bytes for `/models/*` and `/draco/*` | Served from disk cache via `Cache-Control: public, max-age=31536000, immutable` |
+
+### Per-model breakdown (post-DRACO)
+
+| Model | Original | Compressed | Why |
+|---|---|---|---|
+| `tooth_11.glb` … `tooth_38.glb` (15 perm. teeth) | 2.2 – 5.0 MB each | 65 – 130 KB each | Pure mesh; DRACO quantizes geometry to ~3% of original |
+| `implant.glb` | 1.6 MB | 79 KB | Small mesh, no textures |
+| `implant_pro.glb` | 4.1 MB | 163 KB | Slightly bigger detailed implant |
+| `maxillary_first_molar.glb` | 4.5 MB | 2.2 MB | Has baked PNG textures — only mesh is DRACO-compressed |
+| `reference_molar.glb` | 3.2 MB | 1.4 MB | Same — texture-bound |
+
+### How it works (file map)
+
+| Concern | File | Notes |
+|---|---|---|
+| Decoder bootstrap | `components/dental/examination/Tooth.jsx` (top of file) | `useGLTF.setDecoderPath('/draco/')` — global setter, runs once at module load |
+| Decoder files | `public/draco/draco_decoder.wasm`, `draco_wasm_wrapper.js`, `draco_decoder.js` | Copied from `node_modules/three/examples/jsm/libs/draco/gltf/`; self-hosted to avoid CDN dependency |
+| Models | `public/models/*.glb` | Binary glTF, DRACO-compressed; verify with `file public/models/<x>.glb` → `glTF binary model, version 2` |
+| Cache headers | `next.config.mjs` `headers()` | Matches `/models/*` and `/draco/*` |
+| Eager preload | bottom of `components/dental/examination/Tooth.jsx` | `ALL_MODEL_PATHS.forEach(p => useGLTF.preload(p))` — fires when Tooth module loads (i.e. when ExaminationTab mounts) |
+| Loader UI | `components/dental/examination/CanvasLoader.jsx` | 2-second delayed shimmer; uses `useProgress()` from drei |
+
+### Loader contract
+
+* Renders nothing until `active && loadStart + 2000 ms`.
+* Resets `visible` to `false` whenever `active` flips to `false` (so it disappears the instant loading finishes).
+* Pointer-events disabled — never blocks interaction with the underlying scene.
+* Inline `<style>` block keeps the component self-contained; no global CSS coupling.
+* Inline tooth SVG (~400 bytes); no external icon dependency.
+
+### Recompressing a model
+
+```bash
+npx --yes @gltf-transform/cli@latest draco \
+  public/models/<name>.glb \
+  public/models/<name>.glb \
+  --quantize-position 14 --quantize-normal 10 \
+  --quantize-texcoord 12 --quantize-color 8 --quantize-generic 12
+```
+
+Pitfall: writing to a `.tmp` extension makes gltf-transform default to glTF JSON output. Always write to a `.glb` filename (use a sibling subdir if you need a temp location, then `mv`).
+
+### Things tried but NOT shipped
+
+* **WebP texture transcode on the two textured molars** — gltf-transform's `webp` step extracts textures and re-references them, breaking the binary GLB packaging in our environment. Possible follow-up: extract → resize to 1024² → re-pack with explicit `glb` output, but the gain is marginal (~3 MB total).
+* **Dynamic `next/dynamic` import of `DentalCanvas`** — `MiniToothCanvas` is statically imported by `ExaminationTab` and already drags Three.js into the bundle, so dynamic-importing only `DentalCanvas` doesn't shrink the initial JS chunk. Would need a coordinated dynamic-import of both.
 
 ---
 

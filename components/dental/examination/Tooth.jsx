@@ -3,6 +3,10 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
 import * as THREE from 'three';
 import { useGLTF, Center, Html } from '@react-three/drei';
+// Self-host DRACO decoder (public/draco/) so all GLBs in /models/ — which are
+// DRACO-compressed (~90% smaller than uncompressed) — decode without hitting a
+// third-party CDN. Global setter; covers DentitionView + MiniToothCanvas too.
+useGLTF.setDecoderPath('/draco/');
 import { useFrame, useThree } from '@react-three/fiber';
 import { ZONE_INFO, ALL_ZONES, isPatientRightQuadrant, TEETH } from './types';
 import { Annotations } from './Annotations';
