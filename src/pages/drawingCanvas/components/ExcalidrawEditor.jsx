@@ -43,6 +43,8 @@ export default function ExcalidrawEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [canvasHasContent, setCanvasHasContent] = useState(false);
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [pendingCanvasName, setPendingCanvasName] = useState("");
 
   useEffect(() => {
     setLocalTitle(canvasName || "Untitled Canvas");
@@ -174,7 +176,7 @@ export default function ExcalidrawEditor({
     onOpenSaveTemplate();
   };
 
-  const handleSave = async () => {
+  const performSave = async (titleToSave) => {
     if (!excalidrawAPI || isSaving) return;
 
     const currentAppState = excalidrawAPI.getAppState();
@@ -199,11 +201,29 @@ export default function ExcalidrawEditor({
     if (onSave) {
       setIsSaving(true);
       try {
-        await onSave(payload, localTitle, { showInRx });
+        await onSave(payload, titleToSave, { showInRx });
       } finally {
         setIsSaving(false);
       }
     }
+  };
+
+  const handleSave = async () => {
+    const isUntitled = !localTitle || localTitle.trim().toLowerCase() === "untitled canvas";
+    if (isUntitled) {
+      setPendingCanvasName("");
+      setIsNameModalOpen(true);
+      return;
+    }
+    await performSave(localTitle.trim());
+  };
+
+  const handleConfirmNameAndSave = async () => {
+    const nextName = pendingCanvasName.trim();
+    if (!nextName) return;
+    setLocalTitle(nextName);
+    setIsNameModalOpen(false);
+    await performSave(nextName);
   };
 
   const handlePrint = async () => {
@@ -236,6 +256,17 @@ export default function ExcalidrawEditor({
       setIsPrinting(false);
     }
   };
+
+  const suggestedCanvasNames = React.useMemo(() => {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const patientToken = "Patient";
+    return [
+      `${patientToken}_${dateStr}`,
+      `${dateStr}_${patientToken}`,
+      `${patientToken}_Canvas_${dateStr}`,
+    ];
+  }, []);
 
   useEffect(() => {
     if (!excalidrawAPI || templateTrigger <= 0 || !templateData) return;
@@ -534,6 +565,58 @@ export default function ExcalidrawEditor({
           </Excalidraw>
         )}
       </div>
+
+      <CommonModal
+        isModalOpen={isNameModalOpen}
+        onCancel={() => setIsNameModalOpen(false)}
+        modalWidth={540}
+        title={"Give this canvas a name"}
+        modalBody={
+          <>
+            <div className="mb-3">
+              <Input
+                autoFocus
+                placeholder="Enter canvas name"
+                value={pendingCanvasName}
+                maxLength={40}
+                onChange={(e) => setPendingCanvasName(e.target.value)}
+                onPressEnter={handleConfirmNameAndSave}
+              />
+            </div>
+            <div className="mb-2 text-muted" style={{ fontSize: 13 }}>
+              Suggestions
+            </div>
+            <div className="d-flex flex-wrap gap-2 mb-4">
+              {suggestedCanvasNames.map((name) => (
+                <Button
+                  key={name}
+                  size="small"
+                  onClick={() => setPendingCanvasName(name)}
+                >
+                  {name}
+                </Button>
+              ))}
+            </div>
+            <div className="d-flex align-items-center justify-content-end mt-2">
+              <Button
+                onClick={() => setIsNameModalOpen(false)}
+                className="me-2"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="primary"
+                className="btn btn-primary3 btn-41 px-4"
+                disabled={!pendingCanvasName.trim()}
+                loading={isSaving}
+                onClick={handleConfirmNameAndSave}
+              >
+                Save
+              </Button>
+            </div>
+          </>
+        }
+      />
 
       <CommonModal
         isModalOpen={isBackModalOpen}

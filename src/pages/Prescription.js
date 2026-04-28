@@ -512,8 +512,21 @@ function Prescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const normalizeCanvasIds = React.useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, []);
+
   const [drawingCanvases, setDrawingCanvases] = useState([]);
-  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(caseManagerData?.canvas_filename || []);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(() =>
+    normalizeCanvasIds(caseManagerData?.canvas_filename)
+  );
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
@@ -633,8 +646,8 @@ function Prescription() {
   // Session list: hydrate from case manager only when consultation identity changes (not on every CM patch).
   useEffect(() => {
     const next = caseManagerData?.canvas_filename;
-    setRxDrawingCanvasIds(Array.isArray(next) ? [...next] : []);
-  }, [tcmId, pamId]);
+    setRxDrawingCanvasIds(normalizeCanvasIds(next));
+  }, [tcmId, pamId, normalizeCanvasIds]);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [filesData, setFilesData] = useState([]);

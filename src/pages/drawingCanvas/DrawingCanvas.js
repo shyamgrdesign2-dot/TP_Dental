@@ -45,11 +45,21 @@ const DrawingCanvas = ({
   const excalidrawApiRef = useRef(null);
 
   const hasCanvases = Array.isArray(internalCanvases) && internalCanvases.length > 0;
+  const normalizedRxDrawingCanvasIds = useMemo(() => {
+    if (Array.isArray(rxDrawingCanvasIds)) return rxDrawingCanvasIds;
+    if (typeof rxDrawingCanvasIds === "string") {
+      return rxDrawingCanvasIds
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, [rxDrawingCanvasIds]);
 
   const editorInitialShowInRx = useMemo(() => {
     if (editorCanvasId === "new" || editorCanvasId == null) return true;
-    return rxDrawingCanvasIds.some((id) => String(id) === String(editorCanvasId));
-  }, [editorCanvasId, rxDrawingCanvasIds]);
+    return normalizedRxDrawingCanvasIds.some((id) => String(id) === String(editorCanvasId));
+  }, [editorCanvasId, normalizedRxDrawingCanvasIds]);
 
   useEffect(() => {
     setInternalCanvases(prev => {
@@ -336,7 +346,7 @@ const DrawingCanvas = ({
               <div key={canvas?.id ?? idx} className="drawing-canvas__grid-item">
                 <DrawingCanvasCard
                   canvas={canvas}
-                  rxDrawingCanvasIds={rxDrawingCanvasIds}
+                  rxDrawingCanvasIds={normalizedRxDrawingCanvasIds}
                   onToggleRx={(checked) => onToggleRx(canvas?.id, checked)}
                   onOpen={() => openEditorForCanvas(canvas?.id)}
                   onPreview={previewCanvas}

@@ -495,8 +495,21 @@ function TabPrescription() {
     setIsSubModalOpen(!isSubModalOpen);
   }
 
+  const normalizeCanvasIds = React.useCallback((value) => {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string") {
+      return value
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, []);
+
   const [drawingCanvases, setDrawingCanvases] = useState([]);
-  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(caseManagerData?.canvas_filename || []);
+  const [rxDrawingCanvasIds, setRxDrawingCanvasIds] = useState(() =>
+    normalizeCanvasIds(caseManagerData?.canvas_filename)
+  );
 
   const contextApi = {
     patient_data,
@@ -642,8 +655,8 @@ function TabPrescription() {
 
   useEffect(() => {
     const next = caseManagerData?.canvas_filename;
-    setRxDrawingCanvasIds(Array.isArray(next) ? [...next] : []);
-  }, [tcmId, pamId]);
+    setRxDrawingCanvasIds(normalizeCanvasIds(next));
+  }, [tcmId, pamId, normalizeCanvasIds]);
   
   // Initialize mobileQueries from location.state to persist across navigation
   // IMPORTANT: This only runs on component MOUNT, not on re-renders
