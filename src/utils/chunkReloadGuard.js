@@ -1,5 +1,5 @@
 const CHUNK_RELOAD_STATE_KEY = "chunk-reload-state-v1";
-const MAX_RELOAD_ATTEMPTS = 3;
+const MAX_RELOAD_ATTEMPTS = 2;
 const RELOAD_WINDOW_MS = 10 * 60 * 1000;
 const SIGNATURE_DEDUPE_MS = 1500;
 
@@ -37,7 +37,7 @@ export const clearChunkReloadState = () => {
 };
 
 export const isChunkLoadError = (message = "") =>
-  /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module|Loading CSS chunk|Unable to preload CSS/i.test(
+  /ChunkLoadError|Loading chunk [^ ]+ failed|Failed to fetch dynamically imported module|error loading dynamically imported module|Loading CSS chunk|Unable to preload CSS/i.test(
     message
   );
 
