@@ -29,6 +29,7 @@ const DrawingCanvasList = ({ drawingCanvases, setDrawingCanvases, handleDrawerDr
                     setDrawingCanvases(prev => prev.filter(c => c.id !== deletedCanvas.id));
                   }}
                   hideShowInRx={true}
+                  hideMoreOptions={true}
                 />
               </div>
             </Col>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Button, Drawer, message } from "antd";
 import { saveAs } from "file-saver";
 
@@ -6,6 +6,7 @@ import DrawingCanvasEmptyState from "./components/DrawingCanvasEmptyState";
 import DrawingCanvasCard from "./components/DrawingCanvasCard";
 import ExcalidrawEditor from "./components/ExcalidrawEditor";
 import TemplatesDrawer from "./components/TemplatesDrawer";
+import SaveTemplateDrawer from "./components/SaveTemplateDrawer";
 import CanvasPreview from "./components/CanvasPreview";
 import { 
   createCustomCanvas, 
@@ -31,19 +32,26 @@ const DrawingCanvas = ({
   const emptyScene = { elements: [], appState: {}, files: {} };
   const fromProps = Array.isArray(canvases) && canvases.length > 0;
 
-  const [editorOpen, setEditorOpen] = React.useState(false);
-  const [editorCanvasId, setEditorCanvasId] = React.useState(null);
-  const [internalCanvases, setInternalCanvases] = React.useState(canvases || []);
-  const [templateDrawerOpen, setTemplateDrawerOpen] = React.useState(false);
-  const [shouldShowPreview, setShouldShowPreview] = React.useState(false);
-  const [previewCanvasId, setPreviewCanvasId] = React.useState(null);
-  const [templateData, setTemplateData] = React.useState(null);
-  const [templateTrigger, setTemplateTrigger] = React.useState(0);
-  const [isFirstTimeUser, setIsFirstTimeUser] = React.useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorCanvasId, setEditorCanvasId] = useState(null);
+  const [internalCanvases, setInternalCanvases] = useState(canvases || []);
+  const [templateDrawerOpen, setTemplateDrawerOpen] = useState(false);
+  const [shouldShowPreview, setShouldShowPreview] = useState(false);
+  const [previewCanvasId, setPreviewCanvasId] = useState(null);
+  const [templateData, setTemplateData] = useState(null);
+  const [templateTrigger, setTemplateTrigger] = useState(0);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  const [saveTemplateDrawerOpen, setSaveTemplateDrawerOpen] = useState(false);
+  const excalidrawApiRef = useRef(null);
 
   const hasCanvases = Array.isArray(internalCanvases) && internalCanvases.length > 0;
 
-  React.useEffect(() => {
+  const editorInitialShowInRx = useMemo(() => {
+    if (editorCanvasId === "new" || editorCanvasId == null) return true;
+    return rxDrawingCanvasIds.some((id) => String(id) === String(editorCanvasId));
+  }, [editorCanvasId, rxDrawingCanvasIds]);
+
+  useEffect(() => {
     setInternalCanvases(prev => {
       if (!Array.isArray(canvases)) return prev;
       return canvases.map(newCanvas => {
@@ -56,7 +64,7 @@ const DrawingCanvas = ({
     });
   }, [canvases]);
   
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchMetadata = async () => {
       const res = await getShowCanvasPopup();
       if (res.status && typeof res.isCanvasPopup !== 'undefined') {
@@ -66,7 +74,7 @@ const DrawingCanvas = ({
     fetchMetadata();
   }, []);
 
-  const openEditorForCanvas = React.useCallback(async (canvasId) => {
+  const openEditorForCanvas = useCallback(async (canvasId) => {
     // If scene is missing but we have a url, fetch it
     const canvas = internalCanvases.find(c => c.id === canvasId);
     if (canvas && !canvas.scene && canvas.url) {
@@ -82,7 +90,7 @@ const DrawingCanvas = ({
     setEditorOpen(true);
   }, [internalCanvases]);
 
-  const previewCanvas = React.useCallback(async (canvas) => {
+  const previewCanvas = useCallback(async (canvas) => {
     if (!canvas.scene && canvas.url) {
       try {
         const res = await fetch(canvas.url);
@@ -96,26 +104,26 @@ const DrawingCanvas = ({
     setShouldShowPreview(true);
   }, []);
 
-  const handleDuplicate = React.useCallback((canvas) => {
+  const handleDuplicate = useCallback((canvas) => {
     const newCanvas = { ...canvas, id: Date.now().toString(), name: `${canvas.name || canvas.title} (Copy)` };
     const updated = [...internalCanvases, newCanvas];
     setInternalCanvases(updated);
     if (typeof onSave === "function") onSave(updated);
   }, [internalCanvases, onSave]);
 
-  const handleDelete = React.useCallback((canvas) => {
+  const handleDelete = useCallback((canvas) => {
     const updated = internalCanvases.filter(c => c.id !== canvas.id);
     setInternalCanvases(updated);
     if (typeof onSave === "function") onSave(updated);
   }, [internalCanvases, onSave]);
 
-  const handleRename = React.useCallback((canvas, newName) => {
+  const handleRename = useCallback((canvas, newName) => {
     const updated = internalCanvases.map(c => c.id === canvas.id ? { ...c, name: newName } : c);
     setInternalCanvases(updated);
     if (typeof onSave === "function") onSave(updated);
   }, [internalCanvases, onSave]);
 
-  const openEditorForNewCanvas = React.useCallback(async () => {
+  const openEditorForNewCanvas = useCallback(async () => {
     if (isFirstTimeUser) {
       await setShowCanvasPopup(false);
       setIsFirstTimeUser(false);
@@ -125,16 +133,30 @@ const DrawingCanvas = ({
     if (typeof onCreateCanvas === "function") onCreateCanvas();
   }, [onCreateCanvas, isFirstTimeUser]);
 
-  const handleCloseEditor = React.useCallback(() => {
+  const handleCloseEditor = useCallback(() => {
     setEditorOpen(false);
     setTemplateData(null);
     setTemplateTrigger(0);
     setEditorCanvasId(null);
+    setSaveTemplateDrawerOpen(false);
+    excalidrawApiRef.current = null;
   }, []);
 
-  const handleEditorSave = React.useCallback(
-    async (payload, canvasTitle) => {
+  const handleOpenSaveTemplateDrawer = useCallback(() => {
+    setSaveTemplateDrawerOpen(true);
+  }, []);
+
+  const handleCloseSaveTemplateDrawer = useCallback(() => {
+    setSaveTemplateDrawerOpen(false);
+  }, []);
+
+  const getExcalidrawApi = useCallback(() => excalidrawApiRef.current, []);
+
+  const handleEditorSave = useCallback(
+    async (payload, canvasTitle, saveMeta = {}) => {
       if (!editorCanvasId) return false;
+
+      const showInRxValue = saveMeta?.showInRx !== false;
 
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
@@ -144,8 +166,16 @@ const DrawingCanvas = ({
       if (editorCanvasId === "new") {
           const linkRes = await linkCanvasToPatient(canvasTitle || "New Canvas", file, patientId, tcmId);
           if (linkRes.status === true) {
+              const mappingId =
+                linkRes.mapping_id ??
+                linkRes.mappingId ??
+                linkRes?.data?.mapping_id;
               if (typeof onSave === "function") {
-                onSave(); 
+                if (mappingId != null && mappingId !== "") {
+                  onSave(null, { mappingId, showInRx: showInRxValue });
+                } else {
+                  onSave();
+                }
               }
               message.open({
                 type: "success",
@@ -167,7 +197,7 @@ const DrawingCanvas = ({
       const editRes = await editMapping(editorCanvasId, file);
       if (editRes.status === true) {
           if (typeof onSave === "function") {
-            onSave(); 
+            onSave(null, { mappingId: editorCanvasId, showInRx: showInRxValue });
           }
           message.open({
             type: "success",
@@ -189,17 +219,33 @@ const DrawingCanvas = ({
     [editorCanvasId, patientId, tcmId, onSave, handleCloseEditor]
   );
 
-  const handleTemplatesToggle = React.useCallback(() => {
+  const handleTemplatesToggle = useCallback(() => {
     setTemplateDrawerOpen(prev => !prev);
   }, []);
 
-  const handleSelectTemplate = React.useCallback(async (template) => {
+  const handleSelectTemplate = useCallback(async (template) => {
     if (!editorCanvasId) return;
 
+    const templateUrl = template?.canvas_url || template?.url;
+    const templateFileType = String(template?.file_type || "").toLowerCase();
+    const isImageTemplate = ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(templateFileType);
+
+    if (isImageTemplate && templateUrl) {
+      setTemplateData({
+        templateType: "image",
+        url: templateUrl,
+        name: template?.name || "Template image",
+        fileType: templateFileType,
+      });
+      setTemplateTrigger(prev => prev + 1);
+      setTemplateDrawerOpen(false);
+      return;
+    }
+
     let templateScene = null;
-    if (template.canvas_url) {
+    if (templateUrl) {
         try {
-            const res = await fetch(template.canvas_url);
+            const res = await fetch(templateUrl);
             templateScene = await res.json();
         } catch(e) {
             console.error("Error fetching template", e);
@@ -213,7 +259,7 @@ const DrawingCanvas = ({
     setTemplateDrawerOpen(false);
   }, [editorCanvasId, emptyScene]);
 
-  const handleSaveTemplateWrapper = React.useCallback(async (payload, canvasTitle) => {
+  const handleSaveTemplateWrapper = useCallback(async (payload, canvasTitle) => {
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
@@ -233,7 +279,7 @@ const DrawingCanvas = ({
     return false;
   }, []);
 
-  const editorInitialData = React.useMemo(() => {
+  const editorInitialData = useMemo(() => {
     if (!editorCanvasId) return emptyScene;
     const c = internalCanvases.find((x) => x?.id === editorCanvasId);
     return c?.scene || emptyScene;
@@ -324,7 +370,9 @@ const DrawingCanvas = ({
             onSave={handleEditorSave}
             onBack={handleCloseEditor}
             onOpenTemplates={handleTemplatesToggle}
-            onSaveTemplate={handleSaveTemplateWrapper}
+            onOpenSaveTemplate={handleOpenSaveTemplateDrawer}
+            excalidrawApiRef={excalidrawApiRef}
+            initialShowInRx={editorInitialShowInRx}
             templateData={templateData}
             templateTrigger={templateTrigger}
           />
@@ -376,6 +424,13 @@ const DrawingCanvas = ({
           onSelectTemplate={handleSelectTemplate} 
         />
       </Drawer>
+
+      <SaveTemplateDrawer
+        open={saveTemplateDrawerOpen}
+        onClose={handleCloseSaveTemplateDrawer}
+        getExcalidrawApi={getExcalidrawApi}
+        onSaveTemplate={handleSaveTemplateWrapper}
+      />
     </div>
   );
 };

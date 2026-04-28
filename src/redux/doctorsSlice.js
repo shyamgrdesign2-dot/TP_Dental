@@ -8,26 +8,6 @@ import ApiMedicalCertificate from "../api/services/ApiMedicalCertificate";
 import ApiMonetization from "../api/services/ApiMonetization";
 import { S_ASK_TATVA, S_BILLING, S_DDX, S_IPD, S_PHARMACY, S_RECEPTIONIST_AGENT, S_RX_DIGITIZATION, S_SMARTSYNC, S_TATVA_PRACTICE, S_VOICE_RX } from "../utils/constants";
 
-const DRAWING_CANVAS_PAD_MODULE = {
-  tmdpm_id: 999,
-  tmdpm_name: "Drawing Canvas",
-  tmdpm_type: "default",
-  tmdpm_status: 0,
-};
-
-const ensureDrawingCanvasInLeft = (left) => {
-  if (!Array.isArray(left)) return [DRAWING_CANVAS_PAD_MODULE];
-
-  const hasDrawingCanvas = left.some(
-    (m) =>
-      m?.tmdpm_id === DRAWING_CANVAS_PAD_MODULE.tmdpm_id ||
-      String(m?.tmdpm_name || "").toLowerCase() ===
-        String(DRAWING_CANVAS_PAD_MODULE.tmdpm_name).toLowerCase()
-  );
-
-  return hasDrawingCanvas ? left : [DRAWING_CANVAS_PAD_MODULE, ...left];
-};
-
 const initialState = {
   sort_order: 'ascend',
   // sort_bill: {
@@ -39,7 +19,7 @@ const initialState = {
   profile: null,
   loading: false,
   error: null,
-  customizedPadLeftList: [DRAWING_CANVAS_PAD_MODULE],
+  customizedPadLeftList: [],
   customizedPadRightList: [],
   opthalModuleAutoAdded: false,
   timingList: [],
@@ -461,7 +441,7 @@ const doctorsSlice = createSlice({
     setCustomizedPadLists: (state, action) => {
       const { left, right, opthalModuleAutoAdded } = action.payload || {};
       if (left) {
-        state.customizedPadLeftList = ensureDrawingCanvasInLeft(left);
+        state.customizedPadLeftList = left;
       }
       if (right) {
         state.customizedPadRightList = right;
@@ -502,9 +482,7 @@ const doctorsSlice = createSlice({
       })
       .addCase(customizedPad.fulfilled, (state, action) => {
         state.loading = false;
-        state.customizedPadLeftList = ensureDrawingCanvasInLeft(
-          action.payload.left != undefined ? action.payload.left : []
-        );
+        state.customizedPadLeftList = action.payload.left != undefined ? action.payload.left : [];
         state.customizedPadRightList = action.payload.right != undefined ? action.payload.right : []
         state.opthalModuleAutoAdded = false;
       })

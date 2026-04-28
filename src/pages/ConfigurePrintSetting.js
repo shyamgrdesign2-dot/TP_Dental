@@ -616,6 +616,8 @@ function ConfigurePrintSetting() {
         )
     );
 
+    const hasDrawingCanvasData = Array.isArray(drawingCanvases) && drawingCanvases.length > 0;
+
     // Fetch appointment agent link
     useEffect(() => {
         const fetchAppointmentLink = async () => {
@@ -739,15 +741,27 @@ function ConfigurePrintSetting() {
                 }
             }
 
-            if (copyPrintSettings?.prescription?.case_option) {
+            // Drawing canvas (id 25): add when patient has linked canvases with renderable scene data (skip written Rx snap/smart).
+            // Same idea as Ophthalmology (id 20): inject into case_option from defaults so Format Style does not require a manual click.
+            if (hasDrawingCanvasData && copyPrintSettings?.prescription?.case_option) {
                 const defaultCanvas = defaultPrintSettings?.prescription?.case_option?.find((o) => o.id === 25);
-                const hasCanvas = copyPrintSettings.prescription.case_option.some((o) => o.id === 25);
-                if (defaultCanvas && !hasCanvas) {
-                    copyPrintSettings.prescription.case_option.push({
-                        ...defaultCanvas,
-                        format: defaultCanvas.format || "inline",
-                        custom_status: defaultCanvas.custom_status || "Y",
-                    });
+                const hasCanvasOption = copyPrintSettings.prescription.case_option.some((o) => o.id === 25);
+                if (!hasCanvasOption) {
+                    if (defaultCanvas) {
+                        copyPrintSettings.prescription.case_option.push({
+                            ...defaultCanvas,
+                            format: defaultCanvas.format || "inline",
+                            custom_status: defaultCanvas.custom_status || "Y",
+                        });
+                    } else {
+                        copyPrintSettings.prescription.case_option.push({
+                            id: 25,
+                            title: "Drawing Canvas",
+                            format: "inline",
+                            enable: "Y",
+                            custom_status: "Y",
+                        });
+                    }
                 }
                 copyPrintSettings.prescription.case_option = copyPrintSettings.prescription.case_option.map((o) =>
                     o.id === 25 && (!o.format || String(o.format).trim() === "")
@@ -766,7 +780,7 @@ function ConfigurePrintSetting() {
             }
         }
         makeData()
-    },[defaultPrintSettings, hasOphthalModuleData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
+    },[defaultPrintSettings, hasOphthalModuleData, hasDrawingCanvasData, appointmentLinkShared, profile?.publish_url, profile?.micrositeUrl]);
 
     useEffect(() => {
         if (!fileFooter?.showFile) return;

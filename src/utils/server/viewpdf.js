@@ -16779,7 +16779,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           </View>
 
           {/* Rendering the Excalidraw Canvases */}
-          {drawingCanvases && drawingCanvases.length > 0 && (
+          {shouldRenderSection(25) && drawingCanvases && drawingCanvases.length > 0 && (
             <View style={{ marginTop: PX_TO_PT * 20 }} wrap={true}>
               {drawingCanvases.map((canvasObj, i) => (
                 <View key={`canvas-${i}`} wrap={false} style={{ marginBottom: PX_TO_PT * 15 }}>

@@ -14,11 +14,24 @@ const duplicateIcon = ASSETS.images.onboardPageIcons.copy;
 const previewIcon = ASSETS.images.eyePreview;
 const alertIcon = ASSETS.images.alerticon;
 
-const DrawingCanvasCard = ({ canvas, rxDrawingCanvasIds = [], onToggleRx = () => {}, onOpen, onPreview, onRename, onDuplicate, onDelete, hideShowInRx = false }) => {
+const DrawingCanvasCard = ({
+  canvas,
+  rxDrawingCanvasIds = [],
+  onToggleRx = () => {},
+  onOpen,
+  onPreview,
+  onRename,
+  onDuplicate,
+  onDelete,
+  hideShowInRx = false,
+  hideMoreOptions = false
+}) => {
   const [localTitle, setLocalTitle] = useState(canvas?.title || canvas?.name || "Untitled Canvas");
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const isShowInRx = rxDrawingCanvasIds.includes(canvas?.id);
+  const isShowInRx = (rxDrawingCanvasIds || []).some(
+    (rid) => String(rid) === String(canvas?.id)
+  );
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
 
@@ -245,7 +258,11 @@ const DrawingCanvasCard = ({ canvas, rxDrawingCanvasIds = [], onToggleRx = () =>
         {!hideShowInRx && (
           <div className="drawing-canvas-card__rx-toggle" onClick={(e) => e.stopPropagation()}>
             <span>Show in Rx</span>
-            <Switch checked={isShowInRx} onChange={handleToggleRx} size="small" />
+            <Switch
+              checked={isShowInRx}
+              onChange={handleToggleRx}
+              size="small"
+            />
           </div>
         )}
 
@@ -285,7 +302,7 @@ const DrawingCanvasCard = ({ canvas, rxDrawingCanvasIds = [], onToggleRx = () =>
                 {/* Dummy date for placeholder visualization */}
                 <div className="drawing-canvas-card__subtitle">12 Aug&apos;26</div>
               </div>
-              <div onClick={(e) => e.stopPropagation()}>
+             {!hideMoreOptions ? <div onClick={(e) => e.stopPropagation()}>
                 <Dropdown
                   menu={{ items: menuItems, onClick: handleMenuClick }}
                   trigger={['click']}
@@ -295,7 +312,7 @@ const DrawingCanvasCard = ({ canvas, rxDrawingCanvasIds = [], onToggleRx = () =>
                     <i className="icon-More iconrotate90" style={{ fontSize: 18 }} />
                   </div>
                 </Dropdown>
-              </div>
+              </div> : null}
             </>
           )}
         </div>

@@ -608,13 +608,33 @@ function Prescription() {
     fetchPatientCanvases();
   }, [patient_data?.patient_unique_id, tcmId]);
 
-  const handleSaveDrawingCanvas = (updatedCanvases) => {
+  const handleSaveDrawingCanvas = (updatedCanvases, meta) => {
     if (updatedCanvases && Array.isArray(updatedCanvases)) {
       setDrawingCanvases(updatedCanvases);
+      const knownIds = new Set(
+        updatedCanvases.map((c) => String(c?.id)).filter(Boolean)
+      );
+      setRxDrawingCanvasIds((prev) =>
+        prev.filter((id) => knownIds.has(String(id)))
+      );
     } else {
       fetchPatientCanvases();
     }
+    if (meta && meta.mappingId != null && meta.mappingId !== "") {
+      setRxDrawingCanvasIds((prev) => {
+        if (meta.showInRx !== false) {
+          return [...new Set([...prev, meta.mappingId])];
+        }
+        return prev.filter((id) => String(id) !== String(meta.mappingId));
+      });
+    }
   };
+
+  // Session list: hydrate from case manager only when consultation identity changes (not on every CM patch).
+  useEffect(() => {
+    const next = caseManagerData?.canvas_filename;
+    setRxDrawingCanvasIds(Array.isArray(next) ? [...next] : []);
+  }, [tcmId, pamId]);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [filesData, setFilesData] = useState([]);
@@ -1567,13 +1587,60 @@ function Prescription() {
     setZydusTestReportDrawer(!zydusTestReportDrawer);
   };
 
-  // Temporary module visibility check for Drawing Canvas.
-  // TODO: Replace `true` with the correct `tmdpm_id` / backend condition.
-  const shouldShowDrawingCanvasModule = () => true;
-
   const CUSTOMIZED_PAD_LEFT_LIST = () => {
     const modules = customizedPadLeftListForUI?.map((e, i) => {
-      return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
+      return (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0 ? (
+        <div key={i} className="prescription-box-sm p-14">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              {/* Inline icon to avoid adding new shared assets */}
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="me-3"
+              >
+                <rect x="4.5" y="3.5" width="15" height="15" rx="5" fill="#D9CBFF" />
+                <path
+                  d="M14.7 9.1C14.3 8.4 13.5 8 12.7 8C11.6 8 10.8 9 10.8 10C10.8 11.1 11.7 12 12.8 12C13.6 12 14.3 11.6 14.7 10.9L16.2 12.4L14.8 13.9H8.9V8H10.3L14.7 9.1Z"
+                  fill="#A061FF"
+                  opacity="0.9"
+                />
+                <path
+                  d="M9.1 15.2L15.9 8.4"
+                  stroke="#7A2BFF"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="title-common">Drawing Canvas</div>
+            </div>
+
+            <button
+              className="btn d-flex align-items-center btn-text"
+              style={{ paddingRight: drawingCanvases.length > 0 ? 0 : 12 }}
+              onClick={handleDrawerDrawingCanvas}
+            >
+              {drawingCanvases.length === 0 && (
+                <i className="icon-Add me-1 fs-5" />
+              )}
+              <span>{`${
+                drawingCanvases.length > 0 ? "View All" : "Add"
+              }`}</span>
+              {drawingCanvases.length > 0 && (
+                <i className="icon-right iconrotate180 ms-auto me-1 fs-5" />
+              )}
+            </button>
+          </div>
+          <DrawingCanvasList
+            drawingCanvases={drawingCanvases}
+            setDrawingCanvases={setDrawingCanvases}
+            handleDrawerDrawingCanvas={handleDrawerDrawingCanvas}
+          />
+        </div>
+      ) : e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
             <div className="d-flex align-items-center">
@@ -1912,61 +1979,6 @@ function Prescription() {
         </div>
       ) : null;
     });
-
-    if (shouldShowDrawingCanvasModule()) {
-      modules.unshift(
-        <div key="drawing-canvas-module" className="prescription-box-sm p-14">
-          <div className="d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center">
-              {/* Inline icon to avoid adding new shared assets */}
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="me-3"
-              >
-                <rect x="4.5" y="3.5" width="15" height="15" rx="5" fill="#D9CBFF" />
-                <path
-                  d="M14.7 9.1C14.3 8.4 13.5 8 12.7 8C11.6 8 10.8 9 10.8 10C10.8 11.1 11.7 12 12.8 12C13.6 12 14.3 11.6 14.7 10.9L16.2 12.4L14.8 13.9H8.9V8H10.3L14.7 9.1Z"
-                  fill="#A061FF"
-                  opacity="0.9"
-                />
-                <path
-                  d="M9.1 15.2L15.9 8.4"
-                  stroke="#7A2BFF"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="title-common">Drawing Canvas</div>
-            </div>
-
-            <button
-              className="btn d-flex align-items-center btn-text"
-              style={{ paddingRight: drawingCanvases.length > 0 ? 0 : 12 }}
-              onClick={handleDrawerDrawingCanvas}
-            >
-              {drawingCanvases.length === 0 && (
-                <i className="icon-Add me-1 fs-5" />
-              )}
-              <span>{`${
-                drawingCanvases.length > 0 ? "View All" : "Add"
-              }`}</span>
-              {drawingCanvases.length > 0 && (
-                <i className="icon-right iconrotate180 ms-auto me-1 fs-5" />
-              )}
-            </button>
-          </div>
-          <DrawingCanvasList
-            drawingCanvases={drawingCanvases}
-            setDrawingCanvases={setDrawingCanvases}
-            handleDrawerDrawingCanvas={handleDrawerDrawingCanvas}
-          />
-        </div>
-      );
-    }
 
     // Add Zydus Test Reports module if user has Zydus business ID
     if (tokenData?.hospital_business_id == env.zydus_business_id) {
@@ -2537,8 +2549,10 @@ function Prescription() {
               canvases={drawingCanvases}
               rxDrawingCanvasIds={rxDrawingCanvasIds}
               onToggleRx={(canvasId, checked) => {
-                 setRxDrawingCanvasIds(prev => 
-                   checked ? [...Array.from(new Set([...prev, canvasId]))] : prev.filter(id => id !== canvasId)
+                 setRxDrawingCanvasIds(prev =>
+                   checked
+                     ? [...Array.from(new Set([...prev, canvasId]))]
+                     : prev.filter((id) => String(id) !== String(canvasId))
                  );
               }}
               onCreateCanvas={() => {}}
