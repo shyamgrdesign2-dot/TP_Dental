@@ -17,7 +17,7 @@ import './TemplatesDrawer.scss';
 const alertIcon = ASSETS.images.alerticon;
 
 
-const TemplatesDrawer = ({ onClose, onSelectTemplate }) => {
+const TemplatesDrawer = ({ onClose, onSelectTemplate, open = false, refreshKey = 0 }) => {
   const [templates, setTemplates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -26,6 +26,8 @@ const TemplatesDrawer = ({ onClose, onSelectTemplate }) => {
   const [templateToDelete, setTemplateToDelete] = useState(null);
 
   React.useEffect(() => {
+    if (!open) return;
+
     const fetchTemplates = async () => {
       const res = await listTemplates();
       if (res.status) {
@@ -36,16 +38,20 @@ const TemplatesDrawer = ({ onClose, onSelectTemplate }) => {
         if (res.custom_templates) {
           allTemplates = [...allTemplates, ...res.custom_templates];
         }
-        
-        const mapped = allTemplates.map(t => ({
-          ...t,
-          id: t.canvas_id,  // ensure id exists for list keys and internal tracking
-        }));
+
+        const mapped = allTemplates
+          .map(t => ({
+            ...t,
+            id: t.canvas_id,  // ensure id exists for list keys and internal tracking
+          }))
+          .sort((a, b) => (a?.name || "").localeCompare(b?.name || "", undefined, { sensitivity: "base" }));
         setTemplates(mapped);
+      } else {
+        setTemplates([]);
       }
     };
     fetchTemplates();
-  }, []);
+  }, [open, refreshKey]);
 
   const filteredTemplates = useMemo(() => {
     return templates.filter(temp => 

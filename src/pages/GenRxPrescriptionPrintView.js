@@ -204,6 +204,7 @@ function GenRxPrescriptionPrintView() {
     selectedLang,
     payloadOverride: null,
     skipFetch: shouldSkipAutoFetch,
+    patientId: patient_data?.patient_unique_id
   });
 
   useEffect(() => {

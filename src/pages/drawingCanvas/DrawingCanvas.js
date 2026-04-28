@@ -40,6 +40,7 @@ const DrawingCanvas = ({
   const [previewCanvasId, setPreviewCanvasId] = useState(null);
   const [templateData, setTemplateData] = useState(null);
   const [templateTrigger, setTemplateTrigger] = useState(0);
+  const [templatesRefreshKey, setTemplatesRefreshKey] = useState(0);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
   const [saveTemplateDrawerOpen, setSaveTemplateDrawerOpen] = useState(false);
   const excalidrawApiRef = useRef(null);
@@ -277,6 +278,7 @@ const DrawingCanvas = ({
 
     const res = await createCustomCanvas(canvasTitle || "New Template", file);
     if (res.status === true) {
+      setTemplatesRefreshKey((prev) => prev + 1);
       return true;
     }
     message.open({
@@ -430,6 +432,8 @@ const DrawingCanvas = ({
         bodyStyle={{ padding: '0 20px' }}
       >
         <TemplatesDrawer 
+          open={templateDrawerOpen}
+          refreshKey={templatesRefreshKey}
           onClose={handleTemplatesToggle} 
           onSelectTemplate={handleSelectTemplate} 
         />

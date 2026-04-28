@@ -106,9 +106,39 @@ export const usePrintPayloadPdf = ({
             try {
                 const res = await listPatientCanvasMapping(resolvedPatientId, resolvedTcmId);
                 const recordsArray = res?.records || res?.data?.records;
+                const canvasFilename = payload?.caseManagerData?.canvas_filename;
 
-                if (res?.status && Array.isArray(recordsArray)) {
-                    for (const record of recordsArray) {
+                const getCanvasId = (item) => {
+                  if (!item || typeof item !== "object") return null;
+                  return (
+                    item.canvas_id ??
+                    item.canvasId ??
+                    item.id ??
+                    item.mapping_id ??
+                    null
+                  );
+                };
+                
+                const allowedCanvasIds = typeof canvasFilename === "string"
+                  ? new Set(
+                      canvasFilename
+                        .split(",")
+                        .map((id) => id.trim())
+                        .filter(Boolean)
+                    )
+                  : null;
+
+                const filteredRecordsArray = Array.isArray(recordsArray)
+                  ? recordsArray.filter((record) => {
+                      if (allowedCanvasIds.size === 0) return false;
+                      const recordId = getCanvasId(record);
+                      if (recordId === null || recordId === undefined) return false;
+                      return allowedCanvasIds.has(String(recordId));
+                    })
+                  : [];
+
+                if (res?.status && filteredRecordsArray.length > 0) {
+                    for (const record of filteredRecordsArray) {
                         try {
                             if (!record?.canvas_url) continue;
                             const response = await fetch(record.canvas_url);
