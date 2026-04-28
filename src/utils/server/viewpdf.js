@@ -2226,18 +2226,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             : printSettings?.header_footer?.header?.clinic_info
                                 ?.header}
                         </Text>
-                        <Text
-                          style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
-                        >
-                          {printSettings?.header_footer?.header?.doctor_info
-                            ?.place === "L"
-                            ? printSettings?.header_footer?.header?.doctor_info
-                                ?.subheader
-                            : printSettings?.header_footer?.header?.clinic_info
-                                ?.subheader}
-                        </Text>
+                        {!cvtExtHosPatientMapEnabled && 
+                          <Text
+                            style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
+                          >
+                            {printSettings?.header_footer?.header?.doctor_info
+                              ?.place === "L"
+                              ? printSettings?.header_footer?.header?.doctor_info
+                                  ?.subheader
+                              : printSettings?.header_footer?.header?.clinic_info
+                                  ?.subheader}
+                          </Text>
+                        }
                       </View>
-                      {printSettings?.logo_enable === "Y" && (
+                      {printSettings?.logo_enable === "Y" && !cvtExtHosPatientMapEnabled && (
                         <View
                           style={{
                             width: 82,
@@ -2267,23 +2269,25 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             : printSettings?.header_footer?.header?.clinic_info
                                 ?.header}
                         </Text>
-                        <Text
-                          style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
-                        >
-                          {printSettings?.header_footer?.header?.doctor_info
-                            ?.place === "R"
-                            ? printSettings?.header_footer?.header?.doctor_info
-                                ?.subheader
-                            : printSettings?.header_footer?.header?.clinic_info
-                                ?.subheader}
-                        </Text>
+                        {!cvtExtHosPatientMapEnabled && 
+                          <Text
+                            style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
+                          >
+                            {printSettings?.header_footer?.header?.doctor_info
+                              ?.place === "R"
+                              ? printSettings?.header_footer?.header?.doctor_info
+                                  ?.subheader
+                              : printSettings?.header_footer?.header?.clinic_info
+                                  ?.subheader}
+                          </Text>
+                        }
                       </View>
                     </View>
                   ) : (
                     <View
                       style={{ flexDirection: "row", alignItems: "center" }}
                     >
-                      {printSettings?.logo_enable === "Y" && (
+                      {printSettings?.logo_enable === "Y" && !cvtExtHosPatientMapEnabled && (
                         <View
                           style={{
                             width: 82,
@@ -2325,7 +2329,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               : printSettings?.header_footer?.header
                                   ?.clinic_info?.header}
                           </Text>
-                          <Text
+                          {!cvtExtHosPatientMapEnabled && <Text
                             style={[
                               styles.subTitle,
                               { marginTop: PX_TO_PT * 4 },
@@ -2337,7 +2341,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   ?.doctor_info?.subheader
                               : printSettings?.header_footer?.header
                                   ?.clinic_info?.subheader}
-                          </Text>
+                          </Text>}
                         </View>
                       ) : (
                         printSettings?.header_footer?.header?.clinic_info
@@ -2361,7 +2365,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 : printSettings?.header_footer?.header
                                     ?.clinic_info?.header}
                             </Text>
-                            <Text
+                            {!cvtExtHosPatientMapEnabled && <Text
                               style={[
                                 styles.subTitle,
                                 { marginTop: PX_TO_PT * 4 },
@@ -2373,7 +2377,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     ?.doctor_info?.subheader
                                 : printSettings?.header_footer?.header
                                     ?.clinic_info?.subheader}
-                            </Text>
+                            </Text>}
                           </View>
                         )
                       )}
@@ -2399,7 +2403,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   printSettings?.header_footer?.header?.clinic_info?.enable ===
                     "Y" ? (
                     <View style={styles.directionCasemanager}>
-                      <View style={{ flex: 1 }}>
+                      {/* <View style={{ flex: 1 }}>
                         <Text style={styles.mainTitle}>
                           {printSettings?.header_footer?.header?.doctor_info
                             ?.place === "L"
@@ -2418,8 +2422,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             : printSettings?.header_footer?.header?.clinic_info
                                 ?.subheader}
                         </Text>
-                      </View>
-                      {printSettings?.logo_enable === "Y" && (
+                      </View> */}
+                      {printSettings?.logo_enable === "Y" && !cvtExtHosPatientMapEnabled && (
                         <View
                           style={{
                             width: 82,
@@ -2465,7 +2469,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     <View
                       style={{ flexDirection: "row", alignItems: "center" }}
                     >
-                      {printSettings?.logo_enable === "Y" && (
+                      {printSettings?.logo_enable === "Y" && !cvtExtHosPatientMapEnabled && (
                         <View
                           style={{ width: 82, height: 82, overflow: "hidden" }}
                         >
@@ -2507,7 +2511,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               : printSettings?.header_footer?.header
                                   ?.clinic_info?.header}
                           </Text>
-                          <Text
+                         {!cvtExtHosPatientMapEnabled && <Text
                             style={[
                               styles.subTitle,
                               { marginTop: PX_TO_PT * 4 },
@@ -2519,7 +2523,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   ?.doctor_info?.subheader
                               : printSettings?.header_footer?.header
                                   ?.clinic_info?.subheader}
-                          </Text>
+                          </Text>}
                         </View>
                       ) : (
                         printSettings?.header_footer?.header?.clinic_info
@@ -2548,7 +2552,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 : printSettings?.header_footer?.header
                                     ?.clinic_info?.header}
                             </Text>
-                            <Text
+                            { !cvtExtHosPatientMapEnabled && <Text
                               style={[
                                 styles.subTitle,
                                 { marginTop: PX_TO_PT * 4 },
@@ -2560,7 +2564,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     ?.doctor_info?.subheader
                                 : printSettings?.header_footer?.header
                                     ?.clinic_info?.subheader}
-                            </Text>
+                            </Text>}
                           </View>
                         )
                       )}
