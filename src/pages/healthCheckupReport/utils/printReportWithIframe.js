@@ -62,7 +62,21 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
 
   const finalHtmlStructure = `
     <div class="print-padding-wrapper">
-      <table class="print-content-table">
+      <div class="print-source-content smart-editor-editable">
+        ${htmlContent}
+      </div>
+
+      <table class="print-first-page-table">
+        <tbody>
+          <tr>
+            <td>
+              <div class="smart-editor-editable print-first-page-content"></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="print-content-table print-repeat-pages-table">
         <thead>
           <tr>
             <td>
@@ -73,19 +87,10 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
         <tbody>
           <tr>
             <td>
-              <div class="smart-editor-editable">
-                ${htmlContent}
-              </div>
+              <div class="smart-editor-editable print-rest-pages-content"></div>
             </td>
           </tr>
         </tbody>
-        <tfoot>
-          <tr>
-            <td>
-              <div class="page-bottom-margin"></div>
-            </td>
-          </tr>
-        </tfoot>
       </table>
     </div>
   `;
@@ -124,13 +129,16 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     }
     
     @page {
+      size: A4 portrait !important;
       margin: 0 !important;
     }
 
     .print-padding-wrapper {
-      padding: 14px 1cm 3cm 2cm !important;
+      padding: 10mm 1cm 3cm 2cm !important;
       box-sizing: border-box !important;
       width: 100% !important;
+      max-width: 100% !important;
+      overflow: visible !important;
     }
     
     .print-content-table, .smart-editor-editable, .health-checkup-editor__document-paper, .health-checkup-editor__document-wrap {
@@ -147,11 +155,21 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       page-break-after: auto !important;
       page-break-inside: auto !important;
     }
+
+    .print-source-content {
+      display: none !important;
+    }
     
     /* --- Repeating Header CSS --- */
+    .print-first-page-table,
     .print-content-table {
       border-collapse: collapse;
       border: none;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    .print-first-page-table > tbody {
+      display: table-row-group;
     }
     .print-content-table > thead {
       display: table-header-group;
@@ -159,20 +177,26 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     .print-content-table > tbody {
       display: table-row-group;
     }
+    .print-first-page-table > tbody > tr > td,
     .print-content-table > thead > tr > td,
     .print-content-table > tbody > tr > td {
       border: none;
       padding: 0;
     }
+
+    .print-first-page-table.has-rest-pages {
+      page-break-after: always !important;
+      break-after: page !important;
+    }
     
     .report-doc-header {
-      margin-top: -2.4cm !important; /* Pull up to overlap the thead gap on Page 1 only */
+      margin-top: 0 !important;
       background: white !important;
       position: relative !important;
       z-index: 1000 !important;
-      padding-top: 0.5cm !important;
-      padding-bottom: 0.6cm !important;
-      border-bottom: none !important; /* Remove the main header's border on the first page since the repeating one's border will be visible instead */
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      border-bottom: none !important;
     }
 
     .print-repeating-header {
@@ -181,11 +205,13 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       border-bottom: 1px solid #e2e2ea;
       padding-bottom: 8px;
       margin-bottom: 12px;
-      margin-top: 2cm;
+      margin-top: 2cm !important;
       font-family: 'Poppins', sans-serif;
       font-size: 14px;
       line-height: 18px;
       color: #171725;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     
     /* Ensure the body actually takes up A4 width for printing and add document margins */
@@ -197,8 +223,10 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       table-layout: auto !important; /* using auto instead of fixed to avoid overlapping headers when content is long */
       border-collapse: collapse !important;
       width: 100% !important;
+      max-width: 100% !important;
       border: 1px solid #d1d5db !important;
       page-break-inside: auto !important;
+      overflow: visible !important;
     }
     .smart-editor-editable tr {
       page-break-inside: avoid !important;
@@ -209,6 +237,9 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     .smart-editor-editable > table:not(:first-of-type) th,
     .smart-editor-editable > table:not(:first-of-type) td {
       border: 1px solid #d1d5db !important;
+      white-space: normal !important;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
     }
   `;
   doc.write(
@@ -230,10 +261,84 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     printWindow.print();
   };
 
+  const waitForStableLayout = async () => {
+    const printDoc = printWindow.document;
+    try {
+      if (printDoc.fonts && typeof printDoc.fonts.ready?.then === "function") {
+        await printDoc.fonts.ready;
+      }
+    } catch (_) {
+      // Ignore font readiness errors and continue with best-effort layout.
+    }
+
+    // Let the browser flush final layout after font load.
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  };
+
+  const preparePaginatedLayout = () => {
+    const printDoc = printWindow.document;
+    const source = printDoc.querySelector(".print-source-content");
+    const firstPageContainer = printDoc.querySelector(".print-first-page-content");
+    const restPagesContainer = printDoc.querySelector(".print-rest-pages-content");
+    const firstPageTable = printDoc.querySelector(".print-first-page-table");
+    const repeatPagesTable = printDoc.querySelector(".print-repeat-pages-table");
+
+    if (!source || !firstPageContainer || !restPagesContainer || !firstPageTable || !repeatPagesTable) {
+      return;
+    }
+
+    const mmProbe = printDoc.createElement("div");
+    mmProbe.style.height = "1mm";
+    mmProbe.style.width = "1px";
+    mmProbe.style.position = "absolute";
+    mmProbe.style.visibility = "hidden";
+    printDoc.body.appendChild(mmProbe);
+    const pxPerMm = mmProbe.getBoundingClientRect().height || 3.78;
+    mmProbe.remove();
+
+    const availableFirstPageHeight = (297 - 10 - 30) * pxPerMm;
+    const sourceNodes = Array.from(source.childNodes).filter((node) => {
+      if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent && node.textContent.trim());
+      return true;
+    });
+
+    let spillToRestPages = false;
+
+    sourceNodes.forEach((node) => {
+      const candidate = node.cloneNode(true);
+      if (spillToRestPages) {
+        restPagesContainer.appendChild(candidate);
+        return;
+      }
+
+      firstPageContainer.appendChild(candidate);
+      const firstPageHeight = firstPageTable.getBoundingClientRect().height;
+      const firstPageChildCount = firstPageContainer.childNodes.length;
+
+      const overflowTolerancePx = 6;
+      if (firstPageHeight > availableFirstPageHeight + overflowTolerancePx && firstPageChildCount > 1) {
+        firstPageContainer.removeChild(candidate);
+        restPagesContainer.appendChild(candidate);
+        spillToRestPages = true;
+      }
+    });
+
+    const hasRestPages = restPagesContainer.childNodes.length > 0;
+    if (hasRestPages) {
+      firstPageTable.classList.add("has-rest-pages");
+      repeatPagesTable.style.display = "table";
+    } else {
+      firstPageTable.classList.remove("has-rest-pages");
+      repeatPagesTable.style.display = "none";
+    }
+  };
+
   let printed = false;
-  const printOnce = () => {
+  const printOnce = async () => {
     if (printed) return;
     printed = true;
+    await waitForStableLayout();
+    preparePaginatedLayout();
     printAfterLoad();
   };
 
