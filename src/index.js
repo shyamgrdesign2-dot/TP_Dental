@@ -90,6 +90,7 @@ Sentry.init({
     if (event.environment === "dev") return null;
     return event;
   },
+  enableLogs: true
 });
 
 // Fix for stale lazy-loaded chunks after a new deployment.
