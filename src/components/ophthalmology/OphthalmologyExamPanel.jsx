@@ -290,8 +290,8 @@ const OphthalmologyTable = ({
     return [];
   };
 
-  const handleEyeAutofill = (sourceRowKey) => {
-    const targetRowKey = sourceRowKey === "od" ? "os" : "od";
+  const handleEyeAutofill = (targetRowKey) => {
+    const sourceRowKey = targetRowKey === "od" ? "os" : "od";
     const editableColumns = columns.filter((column) => column.type !== "label");
     if (onChange) {
       editableColumns.forEach((column) => {
@@ -314,8 +314,8 @@ const OphthalmologyTable = ({
     });
   };
 
-  const handleEyeColumnAutofill = (sourceColumnKey) => {
-    const targetColumnKey = sourceColumnKey === "od" ? "os" : "od";
+  const handleEyeColumnAutofill = (targetColumnKey) => {
+    const sourceColumnKey = targetColumnKey === "od" ? "os" : "od";
     if (onChange) {
       rows.forEach((row) => {
         const sourceCellKey = `${row.key}-${sourceColumnKey}`;
@@ -351,7 +351,7 @@ const OphthalmologyTable = ({
                 return <th key={column.key}>{column.label}</th>;
               }
 
-              const targetEyeLabel = column.key === "od" ? "OS" : "OD";
+              const sourceEyeLabel = column.key === "od" ? "OS" : "OD";
               return (
                 <th
                   key={column.key}
@@ -367,7 +367,7 @@ const OphthalmologyTable = ({
                         handleEyeColumnAutofill(column.key);
                       }}
                     >
-                      Autofill to {targetEyeLabel}
+                      Autofill from {sourceEyeLabel}
                     </button>
                   </div>
                 </th>
@@ -383,7 +383,7 @@ const OphthalmologyTable = ({
                   const showEyeAutofill =
                     isAutoRefractionEyeTable &&
                     (row.key === "od" || row.key === "os");
-                  const targetEyeLabel = row.key === "od" ? "OS" : "OD";
+                  const sourceEyeLabel = row.key === "od" ? "OS" : "OD";
                   return (
                     <td
                       key={column.key}
@@ -402,7 +402,7 @@ const OphthalmologyTable = ({
                               handleEyeAutofill(row.key);
                             }}
                           >
-                            Autofill to {targetEyeLabel}
+                            Autofill from {sourceEyeLabel}
                           </button>
                         )}
                       </div>
