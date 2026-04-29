@@ -98,320 +98,287 @@ function SmartHealthCheckupEditor(
   // Initial/controlled content (Editor supports value prop)
   const initialContent = value || HEALTH_CHECKUP_REPORT_TEMPLATE_HTML;
 
-  // Fix Cmd+A / Ctrl+A collapsing styled content to plain text.
+  // Keep paste behavior scoped to this editor and use editor commands
+  // so internal selection/caret state stays consistent.
+  const sanitizePastedHtml = useCallback((html) => {
+    if (!html) return "";
+    const SAFE_TAGS = new Set([
+      "p",
+      "br",
+      "b",
+      "strong",
+      "i",
+      "em",
+      "u",
+      "s",
+      "strike",
+      "del",
+      "ul",
+      "ol",
+      "li",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "blockquote",
+      "pre",
+      "code",
+      "a",
+      "sub",
+      "sup",
+    ]);
+    const SAFE_ATTRS = new Set(["href", "target", "colspan", "rowspan"]);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+
+    const removeComments = (node) => {
+      Array.from(node.childNodes).forEach((child) => {
+        if (child.nodeType === Node.COMMENT_NODE) node.removeChild(child);
+        else removeComments(child);
+      });
+    };
+    removeComments(doc.body);
+
+    let keepGoing = true;
+    while (keepGoing) {
+      keepGoing = false;
+      for (const el of Array.from(doc.body.querySelectorAll("*"))) {
+        if (!SAFE_TAGS.has(el.tagName.toLowerCase())) {
+          const parent = el.parentNode;
+          if (!parent) continue;
+          while (el.firstChild) parent.insertBefore(el.firstChild, el);
+          parent.removeChild(el);
+          keepGoing = true;
+        }
+      }
+    }
+
+    for (const el of Array.from(doc.body.querySelectorAll("*"))) {
+      const toRemove = Array.from(el.attributes)
+        .map((a) => a.name)
+        .filter((n) => !SAFE_ATTRS.has(n.toLowerCase()));
+      toRemove.forEach((a) => el.removeAttribute(a));
+    }
+
+    return doc.body.innerHTML;
+  }, []);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !EditorComponent) return;
 
-    const queryNative = () => container.querySelector("smart-editor");
+    const queryNative = () =>
+      container.querySelector("smart-editor") || container.firstElementChild;
 
-    const handleSelectAll = (e) => {
-      const isSelectAll = (e.metaKey || e.ctrlKey) && (e.key === "a" || e.keyCode === 65);
-      if (!isSelectAll) return;
+    const toHtmlFromPlainText = (text) =>
+      (text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\r\n|\r|\n/g, "<br>");
 
+    const toPlainTextFromHtml = (html) => {
+      if (!html) return "";
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const blockLike = new Set([
+        "p",
+        "div",
+        "li",
+        "tr",
+        "td",
+        "th",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "blockquote",
+        "pre",
+      ]);
+
+      let out = "";
+      const walk = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          out += node.textContent || "";
+          return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+        const tag = node.tagName.toLowerCase();
+        if (tag === "br") {
+          out += "\n";
+          return;
+        }
+        const isBlock = blockLike.has(tag);
+        Array.from(node.childNodes).forEach(walk);
+        if (isBlock && out && !out.endsWith("\n")) out += "\n";
+      };
+
+      Array.from(doc.body.childNodes).forEach(walk);
+      return out.replace(/\n{3,}/g, "\n\n").trim();
+    };
+
+    let cleanup = () => {};
+    let attempts = 0;
+    const bindListeners = () => {
       const native = queryNative();
-      if (!native) return;
+      const editable =
+        native?.shadowRoot?.querySelector(".smart-editor-editable") ||
+        native?.shadowRoot?.querySelector("[contenteditable='true']") ||
+        native?.querySelector(".smart-editor-editable") ||
+        native?.querySelector("[contenteditable='true']");
 
-      const editable = native.shadowRoot?.querySelector(".smart-editor-editable") ||
-                       native.querySelector(".smart-editor-editable") ||
-                       native.shadowRoot?.querySelector("[contenteditable='true']") ||
-                       native.querySelector("[contenteditable='true']");
-      
-      if (editable) {
+      if (!native || !editable) return false;
+
+      const getActiveSelection = () =>
+        native.shadowRoot?.getSelection?.() || window.getSelection();
+
+      const getSectionBoxFromSelection = (selection) => {
+        if (!selection || selection.rangeCount === 0) return null;
+        const range = selection.getRangeAt(0);
+        const node = range.commonAncestorContainer;
+        const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        if (!element) return null;
+        return element.closest?.(".report-section-box") || null;
+      };
+
+      const insertPlainTextWithinSectionBox = (text, sectionBox) => {
+        const selection = getActiveSelection();
+        if (!selection || selection.rangeCount === 0 || !sectionBox) return false;
+        const range = selection.getRangeAt(0);
+        const ancestor = range.commonAncestorContainer;
+        const inSameBox = sectionBox.contains(
+          ancestor.nodeType === Node.ELEMENT_NODE ? ancestor : ancestor.parentNode,
+        );
+        if (!inSameBox) return false;
+
+        range.deleteContents();
+        const lines = String(text || "").split(/\r\n|\r|\n/);
+        const frag = document.createDocumentFragment();
+        lines.forEach((line, idx) => {
+          frag.appendChild(document.createTextNode(line));
+          if (idx < lines.length - 1) frag.appendChild(document.createElement("br"));
+        });
+
+        const lastNode = frag.lastChild;
+        range.insertNode(frag);
+
+        if (lastNode) {
+          const newRange = document.createRange();
+          if (lastNode.nodeType === Node.TEXT_NODE) {
+            newRange.setStart(lastNode, lastNode.textContent?.length || 0);
+          } else {
+            newRange.setStartAfter(lastNode);
+          }
+          newRange.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        }
+        return true;
+      };
+
+      const handlePaste = (e) => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        // Use text node boundaries instead of the container element.
-        // This makes the selection look like a manual mouse drag, bypassing the editor's 
-        // internal 'Select All' block-conversion logic which fires when anchorNode is the container.
-        const getFirstText = (node) => {
-          if (node.nodeType === 3 && node.textContent.trim().length > 0) return node;
-          for (let i = 0; i < (node.childNodes?.length || 0); i++) {
-             const res = getFirstText(node.childNodes[i]);
-             if (res) return res;
-          }
-          return null;
-        };
+        const textData = e.clipboardData?.getData("text/plain") || "";
+        const htmlData = e.clipboardData?.getData("text/html") || "";
+        const htmlAsText = toPlainTextFromHtml(htmlData);
+        const plainTextLooksTruncated =
+          Boolean(htmlAsText) &&
+          (textData.trim().length === 0 || textData.trim().length < Math.min(8, htmlAsText.trim().length)) &&
+          /<br[\s/]*>|<\/(p|div|li|tr|td|th|h[1-6]|blockquote|pre)>/i.test(htmlData);
+        const preferredText = plainTextLooksTruncated ? htmlAsText : textData;
+        const payload = preferredText
+          ? toHtmlFromPlainText(preferredText)
+          : sanitizePastedHtml(htmlData);
 
-        const getLastText = (node) => {
-          if (node.nodeType === 3 && node.textContent.trim().length > 0) return node;
-          for (let i = (node.childNodes?.length || 0) - 1; i >= 0; i--) {
-             const res = getLastText(node.childNodes[i]);
-             if (res) return res;
-          }
-          return null;
-        };
+        if (!payload) return;
 
-        try {
-          editable.focus();
-          const firstText = getFirstText(editable) || editable;
-          const lastText = getLastText(editable) || editable;
-
-          const selection = window.getSelection();
-          const range = document.createRange();
-          
-          if (firstText === editable) {
-            range.selectNodeContents(editable);
-          } else {
-            range.setStart(firstText, 0);
-            range.setEnd(lastText, lastText.nodeType === 3 ? lastText.textContent.length : lastText.childNodes.length);
+        const activeSelection = getActiveSelection();
+        const activeSectionBox = getSectionBoxFromSelection(activeSelection);
+        if (activeSectionBox && preferredText) {
+          if (insertPlainTextWithinSectionBox(preferredText, activeSectionBox)) {
+            return;
           }
-          
-          selection.removeAllRanges();
-          selection.addRange(range);
-        } catch (err) {
-          console.error("Advanced manual selection failed", err);
         }
-      }
-    };
 
-    const tryPatchNative = () => {
-      const native = queryNative();
-      if (!native) return false;
+        const insertWithRangeFallback = () => {
+          const selection =
+            native.shadowRoot?.getSelection?.() || window.getSelection();
+          if (!selection || selection.rangeCount === 0) return false;
+          const range = selection.getRangeAt(0);
+          if (!editable.contains(range.commonAncestorContainer)) return false;
 
-      const editable = native.shadowRoot?.querySelector(".smart-editor-editable") ||
-                       native.querySelector(".smart-editor-editable");
-      
-      if (editable) {
-        editable.addEventListener("keydown", handleSelectAll, { capture: true });
-        
-        const safeSelectAll = function() {
-           handleSelectAll({ 
-             metaKey: true, key: 'a', 
-             preventDefault: () => {}, stopPropagation: () => {}, stopImmediatePropagation: () => {} 
-           });
+          range.deleteContents();
+          const frag = range.createContextualFragment(payload);
+          const lastNode = frag.lastChild;
+          range.insertNode(frag);
+
+          if (lastNode) {
+            const newRange = document.createRange();
+            if (lastNode.nodeType === Node.TEXT_NODE) {
+              newRange.setStart(lastNode, lastNode.textContent?.length || 0);
+            } else {
+              newRange.selectNodeContents(lastNode);
+              newRange.collapse(false);
+            }
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
+          return true;
         };
 
-        // Suppress editor's internal selectAll overrides completely
-        ['selectAll', '_selectAll', '_selectAllClick', '_selectAllHandler'].forEach(m => {
-          native[m] = safeSelectAll;
-        });
-        
-        // Also prevent the standard document.execCommand('selectAll') from bubbling into the editor
-        editable.addEventListener("selectall", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          safeSelectAll();
-        }, { capture: true });
-
-        return true;
-      }
-      return false;
-    };
-
-    let retryCount = 0;
-    const interval = setInterval(() => {
-      if (tryPatchNative() || retryCount > 50) {
-        clearInterval(interval);
-      }
-      retryCount++;
-    }, 150);
-
-    window.addEventListener("keydown", handleSelectAll, { capture: true });
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("keydown", handleSelectAll, { capture: true });
-    };
-  }, [EditorComponent]);
-
-  // Intercept ALL paste events to prevent the editor's native paste handler from
-  // restructuring the document and stripping CSS classes from the report template.
-  //
-  // KEY INSIGHT: The Smart editor registers its paste handler at window/document level
-  // with capture:true, so attaching to the element or shadow root fires too late.
-  // We must register at window capture to beat it, and use direct Range DOM insertion
-  // (not executeCommand / native.executeCommand) to bypass the editor's block-wrapping pipeline.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !EditorComponent) return;
-
-    const queryNative = () => container.querySelector("smart-editor");
-
-    // Tags that are safe to preserve in pasted content
-    const SAFE_TAGS = new Set([
-      'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike', 'del',
-      'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code', 'a',
-      'sub', 'sup',
-    ]);
-    // Attributes that are safe to keep on pasted elements
-    const SAFE_ATTRS = new Set(['href', 'target', 'colspan', 'rowspan']);
-
-    /**
-     * Sanitize arbitrary clipboard HTML into clean, minimal markup:
-     * - Remove Word/Office comment blocks (<!--[if ...]>...<![endif]-->)
-     * - Unwrap vendor-specific wrapper elements (span, font, o:p, w:t, mso:*, etc.)
-     *   while preserving their text content.
-     * - Strip all inline styles, Word/Office classes, and non-essential attributes.
-     * - Flatten any unsupported tags to plain text.
-     */
-    const sanitizePastedHtml = (html) => {
-      if (!html) return "";
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      // Step 1 – Remove comment nodes (Word <!--[if ...]>...<![endif]--> junk)
-      const removeComments = (node) => {
-        Array.from(node.childNodes).forEach((child) => {
-          if (child.nodeType === Node.COMMENT_NODE) {
-            node.removeChild(child);
-          } else {
-            removeComments(child);
-          }
-        });
-      };
-      removeComments(doc.body);
-
-      // Step 2 – Unwrap any element NOT in SAFE_TAGS, bottom-up loop handles nesting
-      let keepGoing = true;
-      while (keepGoing) {
-        keepGoing = false;
-        for (const el of Array.from(doc.body.querySelectorAll('*'))) {
-          if (!SAFE_TAGS.has(el.tagName.toLowerCase())) {
-            const parent = el.parentNode;
-            if (parent) {
-              while (el.firstChild) parent.insertBefore(el.firstChild, el);
-              parent.removeChild(el);
-              keepGoing = true;
+        // Keep editor model + caret in sync by preferring editor commands first.
+        editable.focus();
+        if (typeof native.executeCommand === "function") {
+          const commandCandidates = ["insertHTML", "insertHtml", "insertText"];
+          for (const command of commandCandidates) {
+            try {
+              native.executeCommand(command, payload);
+              return;
+            } catch (_) {
+              // try next command
             }
           }
         }
-      }
 
-      // Step 3 – Strip all unsafe attributes from remaining elements
-      for (const el of Array.from(doc.body.querySelectorAll('*'))) {
-        const toRemove = Array.from(el.attributes)
-          .map((a) => a.name)
-          .filter((n) => !SAFE_ATTRS.has(n.toLowerCase()));
-        toRemove.forEach((a) => el.removeAttribute(a));
-      }
-
-      return doc.body.innerHTML;
-    };
-
-    /**
-     * Locate the shadow-DOM contenteditable surface and the host element.
-     */
-    const getEditorParts = () => {
-      const native = queryNative();
-      if (!native) return { native: null, editable: null };
-      const editable =
-        native.shadowRoot?.querySelector(".smart-editor-editable") ||
-        native.shadowRoot?.querySelector("[contenteditable='true']") ||
-        native.querySelector(".smart-editor-editable") ||
-        native.querySelector("[contenteditable='true']");
-      return { native, editable };
-    };
-
-    /**
-     * Returns true when focus / selection is inside our editor's editable surface.
-     * The editable lives in a shadow root, so document.activeElement == host element;
-     * shadowRoot.activeElement gives the actual focused node.
-     */
-    const isEditorFocused = () => {
-      const { native, editable } = getEditorParts();
-      if (!native || !editable) return false;
-      if (native.shadowRoot?.activeElement === editable) return true;
-      const sel = window.getSelection();
-      if (sel?.rangeCount > 0) {
-        return editable.contains(sel.getRangeAt(0).commonAncestorContainer);
-      }
-      return false;
-    };
-
-    /**
-     * Insert sanitized HTML at the current cursor position by directly manipulating
-     * the DOM via the Range API — completely bypassing the editor's paste pipeline
-     * which wraps content in its own <div data-block-id class="smart-editor-block">.
-     */
-    const insertAtCursor = (html) => {
-      const { editable } = getEditorParts();
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0 || !editable) return;
-
-      const range = sel.getRangeAt(0);
-      if (!editable.contains(range.commonAncestorContainer)) return;
-
-      range.deleteContents();
-
-      const frag = range.createContextualFragment(html);
-      const lastNode = frag.lastChild;
-      range.insertNode(frag);
-
-      // Place cursor just after inserted content
-      if (lastNode) {
-        try {
-          const newRange = document.createRange();
-          newRange.setStartAfter(lastNode);
-          newRange.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(newRange);
-        } catch (_) {
-          range.collapse(false);
+        if (typeof document.execCommand === "function") {
+          const ok =
+            document.execCommand("insertHTML", false, payload) ||
+            document.execCommand("insertText", false, payload.replace(/<br\s*\/?>/gi, "\n"));
+          if (ok) return;
         }
-      }
+
+        insertWithRangeFallback();
+      };
+
+      editable.addEventListener("paste", handlePaste, { capture: true });
+      cleanup = () => editable.removeEventListener("paste", handlePaste, { capture: true });
+      return true;
     };
 
-    /**
-     * Master paste handler registered at window-capture — fires before the Smart
-     * editor's own window/document-level capture listeners.
-     */
-    const handlePaste = (e) => {
-      if (!isEditorFocused()) return; // only intercept when inside our editor
-
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-
-      const htmlData = e.clipboardData?.getData("text/html") || "";
-      const textData = e.clipboardData?.getData("text/plain") || "";
-
-      let contentToInsert;
-      if (htmlData) {
-        contentToInsert = sanitizePastedHtml(htmlData);
-      } else if (textData) {
-        // Plain-text paste: escape HTML special chars and convert newlines to <br>
-        contentToInsert = textData
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/\n/g, "<br>");
-      } else {
-        return; // Nothing in clipboard
-      }
-
-      // Insert directly via Range API — bypasses the editor's block-wrapping pipeline
-      insertAtCursor(contentToInsert);
-    };
-
-    /**
-     * Block `beforeinput` with inputType "insertFromPaste" — modern browsers fire this
-     * before the paste event and the Smart editor uses it to trigger its block-replace logic.
-     */
-    const handleBeforeInput = (e) => {
-      if (
-        e.inputType === "insertFromPaste" ||
-        e.inputType === "insertFromPasteAsQuotation"
-      ) {
-        if (isEditorFocused()) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-        }
-      }
-    };
-
-    // Register at window-capture level — fires before any element-level or
-    // document-level handler the Smart editor may have installed.
-    window.addEventListener("paste", handlePaste, { capture: true });
-    window.addEventListener("beforeinput", handleBeforeInput, { capture: true });
+    const timer = setInterval(() => {
+      attempts += 1;
+      if (bindListeners() || attempts > 40) clearInterval(timer);
+    }, 120);
 
     return () => {
-      window.removeEventListener("paste", handlePaste, { capture: true });
-      window.removeEventListener("beforeinput", handleBeforeInput, { capture: true });
+      clearInterval(timer);
+      cleanup();
     };
-  }, [EditorComponent]);
+  }, [EditorComponent, sanitizePastedHtml]);
 
   if (loadError) {
     return (

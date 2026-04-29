@@ -49,10 +49,11 @@ body {
   }
 
   .print-padding-wrapper {
-    padding: 0 15mm;
-    /* Restore standard 15mm side margins */
+    padding: 10mm 1cm 3cm 2cm;
     box-sizing: border-box;
     width: 100%;
+    max-width: 100%;
+    overflow: visible;
   }
 
   .page-top-margin {
@@ -272,6 +273,7 @@ div.report-section-box.report-general-rec {
 /* ─── Data Tables ────────────────────────────────────────────────────────────── */
 table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   font-family: 'Poppins', sans-serif;
   font-size: 15px;
@@ -312,6 +314,7 @@ table {
   border: 0.607px solid #f1f1f5;
   white-space: normal;
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .report-data-table thead tr th p {
@@ -339,6 +342,8 @@ table {
   min-height: 40px;
   height: auto;
   overflow: visible;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .report-data-table tbody tr td p {
@@ -411,7 +416,9 @@ table.report-general-exam-grid tbody tr th {
   padding: 6px 8px;
   border: 0.607px solid #f1f1f5;
   /* Maintain visual unity */
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   text-align: left;
   vertical-align: middle;
 }
@@ -420,7 +427,9 @@ table.report-general-exam-grid tbody tr td {
   background: transparent;
   padding: 6px 8px;
   border: 0.607px solid #f1f1f5;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   text-align: left;
   vertical-align: middle;
   min-height: 28px;

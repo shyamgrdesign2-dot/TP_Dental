@@ -9,17 +9,6 @@ const PATIENT_HISTORY_ROW_NAMES = [
   "Additional History",
 ];
 
-const GENERAL_EXAM_ROW_NAMES = [
-  "Temperature",
-  "BP",
-  "SpO2",
-  "RR",
-  "Pulse",
-  "Weight",
-  "Height",
-  "BMI",
-];
-
 const RADIOLOGY_ROW_NAMES = [
   "X ray Chest",
   "USG Whole Abdomen",
@@ -28,18 +17,6 @@ const RADIOLOGY_ROW_NAMES = [
   "CT Coronary Angio",
   "Carotid Colour Doppler",
   "MRI",
-];
-
-const CONSULTATIONS_DEPARTMENT_ROW_NAMES = [
-  "Ophthalmologist",
-  "Dentist",
-  "ENT Surgeon",
-  "Orthopaedic Surgeon",
-  "Gynaecology",
-  "Dermatology",
-  "Cardiologist",
-  "Paediatric",
-  "Physician",
 ];
 
 const GENERAL_RECOMMENDATIONS_TEXT =
@@ -314,7 +291,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
 }
 
 function symptomsToHtmlList(symptoms) {
-  if (!symptoms || symptoms.length === 0) return "&nbsp;";
+  if (!symptoms || symptoms.length === 0) return "&#8203;";
 
   const seenIds = new Set();
   const seenFallback = new Set();
@@ -352,7 +329,7 @@ function symptomsToHtmlList(symptoms) {
 }
 
 function medicalHistoryToHtmlList(items) {
-  if (!items || items.length === 0) return "&nbsp;";
+  if (!items || items.length === 0) return "&#8203;";
 
   const seenIds = new Set();
   const seenFallback = new Set();
@@ -426,7 +403,7 @@ function medicalHistoryToHtmlList(items) {
       if (seenFallback.has(fallbackKey)) return "";
       seenFallback.add(fallbackKey);
     }
-    return `&nbsp;`;
+    return `&#8203;`;
   };
 
   const lis = items.map(flatten).flat().join("");
@@ -634,7 +611,7 @@ ${radiologyRows}
           const notes = formatConsultationAsPrintViewNotes(latest);
           if (notes) notesCell = `${escapeHtml(notes).replace(/\n/g, "<br>")}`;
         }
-        return `<tr><td>${escapeHtml(deptName) + (doctorName ? " " + escapeHtml(doctorName) : "")}</td><td>${notesCell}</td></tr>`;
+        return `<tr><td>${escapeHtml(deptName) + (doctorName ? "<br>" + escapeHtml(doctorName) : "")}</td><td>${notesCell}</td></tr>`;
       }
     ).join("\n")
     : `<tr><td>&#8203;</td><td>&#8203;</td></tr>`;
@@ -651,7 +628,7 @@ ${consultationRows}
   // Impression
   const impressionSection = `
 <h2 class="report-section-title print-page-break">${impressionText}</h2>
-<div class="report-section-box">&nbsp;</div>`;
+<div class="report-section-box">&#8203;</div>`;
 
   // Advice
   const adviceText = advice
@@ -660,7 +637,7 @@ ${consultationRows}
     .join("\n\n");
   const adviceSection = `
 <h2 class="report-section-title">Advice</h2>
-<div class="report-section-box">${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&nbsp;"}</div>`;
+<div class="report-section-box">${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&#8203;"}</div>`;
 
   // General Recommendations (fixed text)
   const generalRecSection = `
