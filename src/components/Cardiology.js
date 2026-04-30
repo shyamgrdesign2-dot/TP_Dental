@@ -3494,7 +3494,7 @@ function Cardiology(props) {
                   </Button>
                 </div>
                 <div>
-                  {(!is_draft && !isCvtExtHosAccessableFromGB ) && <button
+                  {(!is_draft) && <button
                     className="btn p-0 ms-3"
                     style={{
                       visibility:

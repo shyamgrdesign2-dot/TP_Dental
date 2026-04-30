@@ -1504,18 +1504,19 @@ function Header({ locationPath }) {
               />
             )}
 
-           {!isCvtExtHosAccessableFromGB && <div>
-              <Button
-                className="btn btn-delete-prescription mx-auto d-block p-0 mb-1"
-                onClick={() =>
-                  window.Moengage.track_event("announcement_button_clicked")
-                }
-                id="beamerButton"
-              >
-                <img src={Notification} alt="Beamer Notification" width="26px" height="26px" />
-              </Button>
-            </div>
-            }
+           {/* {!isCvtExtHosAccessableFromGB &&  */}
+              <div>
+                <Button
+                  className="btn btn-delete-prescription mx-auto d-block p-0 mb-1"
+                  onClick={() =>
+                    window.Moengage.track_event("announcement_button_clicked")
+                  }
+                  id="beamerButton"
+                >
+                  <img src={Notification} alt="Beamer Notification" width="26px" height="26px" />
+                </Button>
+              </div>
+            {/* } */}
 
             {SWITCH_TO_OLD_MODAL}
 

@@ -799,7 +799,7 @@ function SmartRxPreview() {
                                     <span className="fw-semibold">{showDigitalRx ? "Download Digital Rx" : "Download Written Rx"}</span>
                                     <i className="icon-right iconrotate180 ms-auto"></i>
                                 </Button>
-                               { !isCvtExtHosAccessableFromGB &&
+                               {/* { !isCvtExtHosAccessableFromGB && */}
                                     <Button
                                             type="text"
                                             className="btn btn-input btnicon20 align-items-center d-flex mb-3  btn-41 w-100"
@@ -810,7 +810,7 @@ function SmartRxPreview() {
                                             <span className="fw-semibold">{showDigitalRx ? "Edit Digital Rx" : "Edit Written Rx"}</span>
                                             <i className="icon-right iconrotate180 ms-auto"></i>
                                     </Button>
-                               }
+                               {/* } */}
 
                             </div>
 
