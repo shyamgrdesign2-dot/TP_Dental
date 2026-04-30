@@ -50,9 +50,11 @@ import {
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
 import { vitalScalarString } from "../utils/symptomCollectorVitalsMerge";
-import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  ensureLabInvestigationMetadataForRxSave,
+  ensureMedicationGroundedForRxSave,
+} from "../utils/medicationRxPayload";
 
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
@@ -1590,7 +1592,7 @@ const ConsultationDrawer = ({
           } else if (item.metadata?.um_id !== undefined) {
             mappedItem.um_id = item.metadata.um_id;
           }
-          return mappedItem;
+          return ensureLabInvestigationMetadataForRxSave(mappedItem);
         })
       : [];
     
@@ -2703,6 +2705,11 @@ const ConsultationDrawer = ({
 
           return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }),
+        labInvestigation: Array.isArray(prescriptionData?.labInvestigation)
+          ? prescriptionData.labInvestigation.map((item) =>
+              ensureLabInvestigationMetadataForRxSave(item)
+            )
+          : [],
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };

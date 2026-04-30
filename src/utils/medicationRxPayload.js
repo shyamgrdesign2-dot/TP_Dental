@@ -18,3 +18,27 @@ export function ensureMedicationGroundedForRxSave(item) {
   }
   return next;
 }
+
+export function ensureLabInvestigationMetadataForRxSave(item) {
+  if (!item || typeof item !== "object") return item;
+  const next = { ...item };
+  const metadata = {
+    ...(next.metadata && typeof next.metadata === "object" ? next.metadata : {}),
+  };
+
+  if (next.isFuzzyCorrected !== undefined && metadata.isFuzzyCorrected === undefined) {
+    metadata.isFuzzyCorrected = next.isFuzzyCorrected;
+  }
+  if (next.fuzzyCorrectedName && !metadata.fuzzyCorrectedName) {
+    metadata.fuzzyCorrectedName = next.fuzzyCorrectedName;
+  }
+  if (next.originalName && !metadata.originalName) {
+    metadata.originalName = next.originalName;
+  }
+
+  if (Object.keys(metadata).length > 0) {
+    next.metadata = metadata;
+  }
+
+  return next;
+}
