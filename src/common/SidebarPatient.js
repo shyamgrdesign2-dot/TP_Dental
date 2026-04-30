@@ -154,7 +154,11 @@ function SidebarPatient({
                     <div className="round-box bg-body-secondary"><i className="icon-Id fs-21"></i></div>
                     <div className="text-truncate">
                         <div className="fontroboto letterspacing">Patient Id</div>
-                        <div className="fontroboto letterspacing fw-medium">{patient_data !== undefined ? patient_data.pm_pid : "000000"}</div>
+                        <div className="fontroboto letterspacing fw-medium">
+                            {isCvtExtHosAccessableFromGB
+                                ? (patients_details?.pm_reference_id || patient_data?.pm_reference_id || patient_data?.tpml_refrence_id || "000000")
+                                : (patient_data !== undefined ? patient_data.pm_pid : "000000")}
+                        </div>                    
                     </div>
                 </div>
             )}

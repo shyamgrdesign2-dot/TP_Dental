@@ -5,6 +5,7 @@ import { Button } from 'antd';
 import { useSelector, useDispatch } from "react-redux";
 
 import { errorMessage, makeDefaultLogo, stopAllActiveRecorders } from "../utils/utils";
+import { GB_CVT_EXT_HOS, LANGUAGE_LIST } from "../utils/constants";
 import {
     sendCashsheetWhatsapp,
 } from "../redux/caseManagerSlice";
@@ -15,6 +16,7 @@ import { syncDigitizationStatus, updateVisitStatus } from '../api/services/Visit
 import { resetUploadDocState } from '../redux/uploadDocSlice';
 import { resetDDxState } from '../redux/ddxSlice';
 import { NEO_NATOLOGISTS_DP_ID } from '../utils/constants';
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToAppointment, pam_id, isSnapRx, selectedLang, isVoiceOrAmbientFlow }) {
     const navigate = useNavigate();
@@ -26,6 +28,8 @@ function HeaderPrescriptionPrint({ patient_data, tcm_id, printUrl, handleGoToApp
     const dispatch = useDispatch();
     const urlParams = new URLSearchParams(window.location.search);
     const isReceptionist = urlParams.has("receptionist");
+
+    const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
     const onEndVisitClick = async () => {
         if (isVoiceOrAmbientFlow) {

@@ -3405,7 +3405,11 @@ function Cardiology(props) {
             <Card.Header className="bg-white py-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
+                  <div className="title2">
+                    {isCvtExtHosAccessableFromGB
+                      ? viewCaseManagerData?.doctor_data?.doctor_name
+                      : `${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}
+                  </div>                  
                   <div className="subtitle d-flex align-items-center">
                     {viewCaseManagerData?.showConsultationDateTime}
                     {hasVideoConsult && (

@@ -17,7 +17,7 @@ import { useDeviceType } from "../utils/deviceDetection";
 
 import { useSelector, useDispatch } from "react-redux";
 import WalkInConsultationZydus from "./WalkInConsultationZydus";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, GB_CVT_EXT_HOS } from "../utils/constants";
 import { jwtDecode } from "jwt-decode";
 import { setUserId } from "../redux/doctorsSlice";
 import ExtendTrialModal from "./monetization/components/ExtendTrialModal";
@@ -27,6 +27,7 @@ import config from "../config";
 import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import VoiceRxPromoModal from "../components/VoiceRxPromoModal";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 function AppointmentList() {
   const dispatch = useDispatch();
@@ -41,6 +42,8 @@ function AppointmentList() {
   const [agentsData, setAgentsData] = useState(null);
   const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const shouldShowMobileDashboard = isMobileDevice && !isTablet && !isReceptionist;
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+
   
   useEffect(() => {
     setLocationPath(location.pathname);
@@ -120,7 +123,7 @@ function AppointmentList() {
             <Route path="edit_patient" element={<EditNewPatient />} />
             <Route path="bulk_messages" element={<MessagesData appointmentAgentsData={agentsData} />} />
           </Routes>
-          {(!isZydus && !isApollo) && <DocumentVerificationPopup />}
+          {(!isZydus && !isApollo && !isCvtExtHosAccessableFromGB) &&  <DocumentVerificationPopup />}
           <VoiceRxPromoModal />
         </div>
       </div>
