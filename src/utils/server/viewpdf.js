@@ -2269,7 +2269,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             : printSettings?.header_footer?.header?.clinic_info
                                 ?.header}
                         </Text>
-                        {!cvtExtHosPatientMapEnabled && 
+                        {/* {!cvtExtHosPatientMapEnabled &&  */}
                           <Text
                             style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
                           >
@@ -2280,7 +2280,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               : printSettings?.header_footer?.header?.clinic_info
                                   ?.subheader}
                           </Text>
-                        }
+                        {/* } */}
                       </View>
                     </View>
                   ) : (

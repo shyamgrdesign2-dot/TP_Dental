@@ -111,11 +111,12 @@ const resolvePatientIdOrUhid = (patient) =>
 
 const resolveMobile = (patient) =>
   firstDefinedString(patient, [
+    "patient_contact_no",
+    "pm_contact_no",
     "mobile",
     "phone",
     "contact",
     "pt_mobile",
-    "pm_contact_no",
   ]) || "-";
 
 const resolveAddress = (patient) =>
@@ -150,8 +151,6 @@ export function getCvtExtHosPatientDataShowValue(id, args) {
     isPediatricAccessable,
     formatPediatricHtWt,
   } = args;
-  console.log(patient,"patient")
-  console.log(caseManagerData,"caseManagerData")
 
   if (!patient) {
     if (id == 15) {
