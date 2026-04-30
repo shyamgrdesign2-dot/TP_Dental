@@ -781,7 +781,7 @@ function Header({ locationPath }) {
     clickBuyNow()
   };
 
-  const getMenuItems = () => {
+  const getMenuItems = (logoutOnly = false) => {
     const commonItems = [
       {
         label: (
@@ -1033,6 +1033,10 @@ function Header({ locationPath }) {
         className: "logout-menu-item"
       },
     ];
+
+    if (logoutOnly) {
+      return [logoutItem[1]];
+    }
 
     // Combine commonItems, extraItems (if applicable), and logoutItem (always at the end)
     const items = isOpdPlansAccessableFromGB
@@ -1520,30 +1524,29 @@ function Header({ locationPath }) {
 
             {SWITCH_TO_OLD_MODAL}
 
-          {!isCvtExtHosAccessableFromGB &&
             <Dropdown
-              menu={{
-                items: getMenuItems(),
-              }}
-              trigger={['click']}
-              className="py-0 nav-link cursor-pointer"
-              overlayClassName="prfile-dropdown"
-            >
-              <a onClick={handeProfileDD}>
-                {profile?.um_image && planDetails?.currentPlanStatus !== "PAID" ? (
-                  <img
-                    src={profile?.um_image ?? defaultprofile}
-                    alt="Profile"
-                    className="rounded-circle"
-                    style={{ width: "35px", height: "35px" }}
-                  />
-                ) : planDetails?.currentPlanStatus === "PAID" ? (
-                  <PremiumUser />
-                ) :
-                  <div className='rounded-pill patientProfile border'>{makeDefaultLogo(profile?.um_name)}</div>
-                }
-              </a>
-            </Dropdown>}
+            menu={{
+              items: getMenuItems(isCvtExtHosAccessableFromGB),
+            }}
+            trigger={['click']}
+            className="py-0 nav-link cursor-pointer"
+            overlayClassName={`prfile-dropdown ${isCvtExtHosAccessableFromGB ? "logout-only-dropdown" : ""}`}
+          >
+            <a onClick={handeProfileDD}>
+              {profile?.um_image && planDetails?.currentPlanStatus !== "PAID" ? (
+                <img
+                  src={profile?.um_image ?? defaultprofile}
+                  alt="Profile"
+                  className="rounded-circle"
+                  style={{ width: "35px", height: "35px" }}
+                />
+              ) : planDetails?.currentPlanStatus === "PAID" ? (
+                <PremiumUser />
+              ) :
+                <div className='rounded-pill patientProfile border'>{makeDefaultLogo(profile?.um_name)}</div>
+              }
+            </a>
+          </Dropdown>
           </Nav>
         </Container>
       </Navbar>
