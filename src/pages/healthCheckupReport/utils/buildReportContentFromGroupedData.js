@@ -465,8 +465,10 @@ export function buildReportContentFromGroupedData(
   const chiefHtml =
     symptoms.length > 0 ? symptomsToHtmlList(symptoms) : "&#8203;";
   const chiefSection = `
+<div class="print-section-group">
 <h2 class="report-section-title">Chief Complaints:</h2>
-<div class="report-section-box">${chiefHtml}</div>`;
+<div class="report-section-box">${chiefHtml}</div>
+</div>`;
 
 
   // Patient History: aggregate by row name
@@ -526,12 +528,14 @@ export function buildReportContentFromGroupedData(
   }).join("\n");
 
   const patientHistorySection = `
+<div class="print-section-group">
 <h2 class="report-section-title">Patient History</h2>
 <table class="report-data-table">
   <tbody>
 ${historyRows}
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   // General Examination vitals
   const latestVital =
@@ -544,6 +548,7 @@ ${historyRows}
   const v = typeof latestVital === "object" ? latestVital : {};
 
   const generalExaminationSection = `
+<div class="print-section-group">
 <h2 class="report-section-title">General Examination</h2>
 <table class="report-data-table report-general-exam-grid top-row-grid">
   <tbody>
@@ -564,21 +569,25 @@ ${historyRows}
       <th>BMI</th><td>${escapeHtml(v.bmi ?? "") || "&#8203;"}</td>
     </tr>
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   // Radiology table (static row names, empty notes for now unless we have a mapping)
   const radiologyRows = RADIOLOGY_ROW_NAMES.map(
     (name) => `    <tr><td>${escapeHtml(name)}</td><td>&#8203;</td></tr>`
   ).join("\n");
 
+  /* Wrapper keeps heading + table atomic for print iframe pagination (avoids h2 alone on prior page). */
   const radiologySection = `
-<h2 class="report-section-title print-page-break">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
   <thead><tr><th>Modality</th><th>Impressions</th></tr></thead>
   <tbody>
 ${radiologyRows}
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   const consultationsByDept = {};
   consultations.forEach((c) => {
@@ -617,18 +626,22 @@ ${radiologyRows}
     : `<tr><td>&#8203;</td><td>&#8203;</td></tr>`;
 
   const consultationsSection = `
-<h2 class="report-section-title print-page-break">Consultations</h2>
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">Consultations</h2>
 <table class="report-data-table">
   <thead><tr><th>DEPARTMENT & DOCTOR NAME</th><th>NOTES</th></tr></thead>
   <tbody>
 ${consultationRows}
   </tbody>
-</table>`;
+</table>
+</div>`;
 
   // Impression
   const impressionSection = `
-<h2 class="report-section-title print-page-break">${impressionText}</h2>
-<div class="report-section-box">&#8203;</div>`;
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">${impressionText}</h2>
+<div class="report-section-box">&#8203;</div>
+</div>`;
 
   // Advice
   const adviceText = advice
@@ -636,13 +649,17 @@ ${consultationRows}
     .filter(Boolean)
     .join("\n\n");
   const adviceSection = `
+<div class="print-section-group">
 <h2 class="report-section-title">Advice</h2>
-<div class="report-section-box">${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&#8203;"}</div>`;
+<div class="report-section-box">${adviceText ? escapeHtml(adviceText).replace(/\n/g, "<br>") : "&#8203;"}</div>
+</div>`;
 
   // General Recommendations (fixed text)
   const generalRecSection = `
-<h2 class="report-section-title print-page-break">General Recommendations</h2>
-<div class="report-section-box">${formatReportText(GENERAL_RECOMMENDATIONS_TEXT)}</div>`;
+<div class="print-section-group print-page-break">
+<h2 class="report-section-title">General Recommendations</h2>
+<div class="report-section-box">${formatReportText(GENERAL_RECOMMENDATIONS_TEXT)}</div>
+</div>`;
 
 
   // Prepared By / Verified By
