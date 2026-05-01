@@ -471,12 +471,35 @@ li p {
     break-after: avoid;
   }
 
-  .print-page-break {
+  /* Page break at section start (wrapper, not heading alone — keeps heading with following block/table). */
+  .print-section-group.print-page-break {
     page-break-before: always !important;
     break-before: page !important;
   }
 
+  /* Legacy: heading-only class still forces break if present without wrapper */
+  .print-page-break:not(.print-section-group) {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .print-section-group {
+    /* Prefer keeping heading + body together; allow break inside if section is taller than one sheet */
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
   .report-data-table {
     break-inside: avoid;
+  }
+
+  /*
+   * Overflow continuation lives in .print-repeat-pages-table after a repeating <thead>.
+   * Without a forced break, that thead prints directly under the first-page table — between
+   * a section heading and its tables. Start continuation on the next printed page.
+   */
+  .print-repeat-pages-table.print-repeat-starts-new-page {
+    page-break-before: always !important;
+    break-before: page !important;
   }
 }

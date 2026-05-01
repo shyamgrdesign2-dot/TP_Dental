@@ -184,9 +184,18 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       padding: 0;
     }
 
+    /*
+     * When content spills into .print-repeat-pages-table, that table's <thead> (patient strip)
+     * must not render immediately after the first-page table — it would sit between e.g.
+     * "General Examination" and its vitals tables. Force the repeat table to start on a new sheet.
+     */
+    .print-repeat-pages-table.print-repeat-starts-new-page {
+      page-break-before: always !important;
+      break-before: page !important;
+    }
+
     .print-first-page-table.has-rest-pages {
-      page-break-after: always !important;
-      break-after: page !important;
+      page-break-after: auto !important;
     }
     
     .report-doc-header {
@@ -210,7 +219,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       font-size: 14px;
       line-height: 18px;
       color: #171725;
-      page-break-inside: avoid !important;
+      // page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
     
@@ -225,7 +234,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       width: 100% !important;
       max-width: 100% !important;
       border: 1px solid #d1d5db !important;
-      page-break-inside: auto !important;
+      // page-break-inside: auto !important;
       overflow: visible !important;
     }
     .smart-editor-editable tr {
@@ -287,6 +296,9 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       return;
     }
 
+    /* Continuation table must not participate in height measurement (thead skews layout). */
+    repeatPagesTable.style.display = "none";
+
     const mmProbe = printDoc.createElement("div");
     mmProbe.style.height = "1mm";
     mmProbe.style.width = "1px";
@@ -296,29 +308,88 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     const pxPerMm = mmProbe.getBoundingClientRect().height || 3.78;
     mmProbe.remove();
 
-    const availableFirstPageHeight = (297 - 10 - 30) * pxPerMm;
+    /* Matches .print-padding-wrapper vertical padding (~10mm top + ~30mm bottom); small slack for font/layout variance */
+    const availableFirstPageHeight = (297 - 10 - 30 + 5) * pxPerMm;
     const sourceNodes = Array.from(source.childNodes).filter((node) => {
       if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent && node.textContent.trim());
       return true;
     });
 
+    /**
+     * Split by atomic chunks so we never move only part of a section (e.g. "General Examination"
+     * h2 without its vitals tables). Already-wrapped .print-section-group is one chunk; legacy HTML
+     * uses h2.report-section-title + following siblings until the next section heading.
+     */
+    const groupNodesForPrintPagination = (nodes) => {
+      const chunks = [];
+      let i = 0;
+      while (i < nodes.length) {
+        const node = nodes[i];
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          chunks.push([node]);
+          i += 1;
+          continue;
+        }
+        const el = node;
+        if (el.classList?.contains("print-section-group")) {
+          chunks.push([el]);
+          i += 1;
+          continue;
+        }
+        const isH2SectionTitle =
+          el.tagName === "H2" && el.classList?.contains("report-section-title");
+        if (isH2SectionTitle) {
+          const chunk = [el];
+          i += 1;
+          while (i < nodes.length) {
+            const next = nodes[i];
+            if (next.nodeType !== Node.ELEMENT_NODE) {
+              chunk.push(next);
+              i += 1;
+              continue;
+            }
+            const nextEl = next;
+            if (nextEl.classList?.contains("print-section-group")) break;
+            if (
+              nextEl.tagName === "H2" &&
+              nextEl.classList?.contains("report-section-title")
+            ) {
+              break;
+            }
+            if (nextEl.classList?.contains("report-doc-header")) break;
+            chunk.push(next);
+            i += 1;
+          }
+          chunks.push(chunk);
+          continue;
+        }
+        chunks.push([el]);
+        i += 1;
+      }
+      return chunks;
+    };
+
+    const chunks = groupNodesForPrintPagination(sourceNodes);
+
     let spillToRestPages = false;
 
-    sourceNodes.forEach((node) => {
-      const candidate = node.cloneNode(true);
+    chunks.forEach((chunkNodes) => {
+      const clones = chunkNodes.map((node) => node.cloneNode(true));
       if (spillToRestPages) {
-        restPagesContainer.appendChild(candidate);
+        clones.forEach((c) => restPagesContainer.appendChild(c));
         return;
       }
 
-      firstPageContainer.appendChild(candidate);
+      const prevChildCount = firstPageContainer.childNodes.length;
+      clones.forEach((c) => firstPageContainer.appendChild(c));
       const firstPageHeight = firstPageTable.getBoundingClientRect().height;
-      const firstPageChildCount = firstPageContainer.childNodes.length;
 
-      const overflowTolerancePx = 6;
-      if (firstPageHeight > availableFirstPageHeight + overflowTolerancePx && firstPageChildCount > 1) {
-        firstPageContainer.removeChild(candidate);
-        restPagesContainer.appendChild(candidate);
+      const overflowTolerancePx = 24;
+      const overflows =
+        firstPageHeight > availableFirstPageHeight + overflowTolerancePx;
+      if (overflows && prevChildCount > 0) {
+        clones.forEach((c) => firstPageContainer.removeChild(c));
+        clones.forEach((c) => restPagesContainer.appendChild(c));
         spillToRestPages = true;
       }
     });
@@ -327,9 +398,11 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     if (hasRestPages) {
       firstPageTable.classList.add("has-rest-pages");
       repeatPagesTable.style.display = "table";
+      repeatPagesTable.classList.add("print-repeat-starts-new-page");
     } else {
       firstPageTable.classList.remove("has-rest-pages");
       repeatPagesTable.style.display = "none";
+      repeatPagesTable.classList.remove("print-repeat-starts-new-page");
     }
   };
 
@@ -338,6 +411,19 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     if (printed) return;
     printed = true;
     await waitForStableLayout();
+    /*
+     * The iframe starts at 0×0 for stealth. That width forces tables/blocks to wrap as if the
+     * viewport were one column tall → huge measured heights → pagination wrongly spills sections
+     * (e.g. entire General Examination) to the continuation page despite empty space on sheet 1.
+     * Use ~A4 width before measuring and printing so heights match real print layout.
+     */
+    iframe.style.width = "210mm";
+    iframe.style.maxWidth = "210mm";
+    iframe.style.minHeight = "297mm";
+    iframe.style.height = "auto";
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
     preparePaginatedLayout();
     printAfterLoad();
   };
