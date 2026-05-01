@@ -1,5 +1,6 @@
 import { getTokenData } from '../../../utils/utils';
 import { A4_BASE_WIDTH, A4_BASE_HEIGHT } from '../../tabRx/utils/constants';
+import moment from 'moment';
 
 /**
  * Load a remote image in a way that does not taint the canvas (required for toDataURL).
@@ -47,19 +48,62 @@ const getPatientValue = (patient, keys, fallback = '-') => {
     return fallback;
 };
 
-const formatDateTime = (value) => {
-    if (!value) return '-';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return String(value);
+const SHOW_DATE_FORMAT = 'DD/MM/YYYY';
 
-    return parsed.toLocaleString('en-IN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
+const formatAppointmentDate = (value) => {
+    if (!value) return '-';
+    const raw = String(value).trim();
+    const normalizedRaw = raw
+        .replace(/^['"]+|['"]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const parseFormats = [
+        SHOW_DATE_FORMAT,
+        'DD/MM/YYYY',
+        'DD-MM-YYYY',
+        'Do MMM YYYY',
+        'D MMM YYYY',
+        'Do MMMM YYYY',
+        'D MMMM YYYY',
+        'YYYY-MM-DD',
+        'YYYY/MM/DD',
+        'DD/MM/YYYY hh:mm A',
+        'DD/MM/YYYY h:mmA',
+        'DD-MM-YYYY hh:mm A',
+        'DD-MM-YYYY h:mmA',
+        'YYYY-MM-DD HH:mm:ss',
+        moment.ISO_8601
+    ];
+
+    const parsedKnownFormat = moment(normalizedRaw, parseFormats, 'en', true);
+
+    if (parsedKnownFormat.isValid()) {
+        return parsedKnownFormat.format(SHOW_DATE_FORMAT);
+    }
+
+    // Relaxed parse helps when backend adds small format deviations.
+    const parsedRelaxed = moment(normalizedRaw, parseFormats, 'en', false);
+    if (parsedRelaxed.isValid()) {
+        return parsedRelaxed.format(SHOW_DATE_FORMAT);
+    }
+
+    const parsedFallback = moment(normalizedRaw);
+    if (parsedFallback.isValid()) {
+        return parsedFallback.format(SHOW_DATE_FORMAT);
+    }
+
+    return normalizedRaw;
+};
+
+const formatAppointmentDateTime = (dateValue, timeValue) => {
+    const formattedDate = formatAppointmentDate(dateValue);
+    const formattedTime = timeValue;
+
+    if (formattedDate === '-' && formattedTime === '-') return '-';
+    if (formattedTime === '-') return formattedDate;
+    if (formattedDate === '-') return formattedTime;
+    return `${formattedDate} ${formattedTime}`;
 };
 
 const normalizeDoctorName = (name) => {
@@ -71,6 +115,7 @@ const normalizeDoctorName = (name) => {
 
 const DUMMY_PATIENT_DATA = {
     visitDate: '08/04/2026 09:17 AM',
+    visitTime: '9:17AM',
     uhid: '816172',
     mobile: '9732300610',
     age: '63 Yrs',
@@ -116,18 +161,19 @@ export const generateMissionHosTemplateBackground = async (profile, patient = nu
     const hospital = profile?.hospital_data?.find((e) => e.hm_id == hospitalId) || {};
 
     const doctorName = normalizeDoctorName(profile?.um_name);
-    const visitDateRaw = getPatientValue(patient, ['appointment_time', 'visit_time', 'created_at', 'consultation_date', 'date'], DUMMY_PATIENT_DATA.visitDate);
-    const visitDate = formatDateTime(visitDateRaw);
-    const uhid = getPatientValue(patient, ['uhid', 'patient_uhid', 'patientUHID', 'pm_pid', 'patient_unique_id', 'id'], DUMMY_PATIENT_DATA.uhid);
+    const visitDateRaw = getPatientValue(patient, ['apDate', 'consultation_date', 'date'], DUMMY_PATIENT_DATA.visitDate);
+    const visitTimeRaw = getPatientValue(patient, ['apTime', 'consultation_time', 'time'], DUMMY_PATIENT_DATA.visitTime);
+    const visitDate = formatAppointmentDateTime(visitDateRaw, visitTimeRaw);
+    const uhid = getPatientValue(patient, ['pm_reference_id','uhid', 'patient_uhid', 'patientUHID', 'pm_pid', 'patient_unique_id', 'id'], "");
     const mobile = getPatientValue(patient, ['mobile', 'phone', 'contact', 'pt_mobile', 'pm_contact_no'], DUMMY_PATIENT_DATA.mobile);
-    const age = getPatientValue(patient, ['patient_age', 'age', 'pt_age', 'ageYears'], DUMMY_PATIENT_DATA.age);
-    const sex = getPatientValue(patient, ['gender', 'sex', 'pt_gender', 'pm_gender'], DUMMY_PATIENT_DATA.sex);
-    const patientName = getPatientValue(patient, ['patient_name', 'name', 'pt_name', 'pm_fullname'], DUMMY_PATIENT_DATA.patientName);
+    const age = getPatientValue(patient, ['ageYears'], "");
+    const sex = getPatientValue(patient, ['pm_gender'], "");
+    const patientName = getPatientValue(patient, ['pm_fullname'], "");
     const payer = getPatientValue(patient, ['payment_type', 'payer', 'payment_mode'], DUMMY_PATIENT_DATA.payer);
     const shouldKeepAddressBlank = options?.forceBlankAddress === true;
     const address = shouldKeepAddressBlank
         ? ''
-        : getPatientValue(patient, ['address', 'pt_address', 'full_address', 'patient_address', 'pm_address'], hospital?.hm_address || DUMMY_PATIENT_DATA.address);
+        : getPatientValue(patient, ['pm_address'], hospital?.hm_address || DUMMY_PATIENT_DATA.address);
 
     // Patient header block geometry tuned to Mission Hos printed pad:
     // margins are intentionally asymmetrical to match the scanned template.
