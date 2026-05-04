@@ -3,7 +3,7 @@ import moment from "moment";
 import config from "../config";
 import { message } from "antd";
 import { MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID, PAEDIATRICS_DP_ID, SNAP_RX_TOKENS_STORAGE_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
-import { browserName, deviceDetect, isBrowser } from "react-device-detect";
+import { browserName, deviceDetect, isBrowser, isMobile } from "react-device-detect";
 import html2pdf from "html2pdf.js";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../src/firebase.js";
@@ -940,6 +940,121 @@ export const trackEvent = (eventName, attributes) => {
   }
 };
 
+/**
+ * Route-based Voice Rx surface for analytics (same event names; segment by `surface` + `platform`).
+ */
+const inferVoiceRxSurfaceFromRoute = (route = "") => {
+  if (route.includes("/voice-rx-consult")) return "voice_rx_consult";
+  if (route.includes("/voice-recording")) return "voice_recording";
+  if (route.includes("/prescription")) return "rx_pad";
+  return "";
+};
+
+/**
+ * Cross-platform segmentation for Voice Rx funnels (additive fields; safe for existing dashboards).
+ * - platform: web | mobile_web | android_app | ios_app
+ * - client_type: browser | native (WebView in hybrid app)
+ */
+export const getVoiceRxSegmentationContext = (overrides = {}) => {
+  const empty = {
+    platform: "web",
+    client_type: "browser",
+    route: "",
+    surface: "",
+    entry_point: "",
+    web_app_version: packageJson?.version || "",
+    device_os: "",
+  };
+
+  if (typeof window === "undefined") {
+    return { ...empty, ...overrides };
+  }
+
+  const ua = navigator.userAgent || "";
+  const route = window.location?.pathname || "";
+
+  let platform = "web";
+  let client_type = "browser";
+
+  if (isInNativeApp()) {
+    client_type = "native";
+    if (/Android/i.test(ua)) platform = "android_app";
+    else if (/iPhone|iPad|iPod/i.test(ua)) platform = "ios_app";
+    else platform = "mobile_web";
+  } else if (isMobile) {
+    platform = "mobile_web";
+  }
+
+  let device_os = "";
+  try {
+    const d = typeof deviceDetect === "function" ? deviceDetect() : {};
+    device_os = d?.os || d?.os_version || "";
+  } catch (e) {
+    device_os = "";
+  }
+
+  const inferredSurface = inferVoiceRxSurfaceFromRoute(route);
+  const surface =
+    overrides.surface !== undefined && overrides.surface !== ""
+      ? overrides.surface
+      : inferredSurface;
+
+  return {
+    ...overrides,
+    platform,
+    client_type,
+    route,
+    surface,
+    entry_point: overrides.entry_point || "",
+    web_app_version: packageJson?.version || "",
+    device_os,
+  };
+};
+
+/**
+ * Shared Voice Rx MoEngage identity payload.
+ * format:
+ * - "clinical": snake_case keys used in TP_AV_* events
+ * - "technical": camelCase keys used in TP_Voice_* telemetry events
+ * segmentation: optional overrides for getVoiceRxSegmentationContext (surface, entry_point, etc.)
+ */
+export const getVoiceRxMoengageBasePayload = ({
+  profile,
+  userId,
+  patientData,
+  clinic,
+  format = "clinical",
+  segmentation = {},
+}) => {
+  const seg = getVoiceRxSegmentationContext(segmentation);
+
+  if (format === "technical") {
+    return {
+      doctorId: profile?.doctor_unique_id || "",
+      doctorName: profile?.um_name || "",
+      patientId: patientData?.patient_unique_id || "",
+      patientName: patientData?.pm_fullname || "",
+      hospitalId: clinic?.hm_id || "",
+      hospitalName: clinic?.hm_name || "",
+      ...seg,
+    };
+  }
+
+  return {
+    patient_id: patientData?.patient_unique_id || "",
+    patient_name: patientData?.pm_fullname || "",
+    patient_mobile_number: patientData?.pm_contact_no || "",
+    doctor_id: profile?.doctor_unique_id || "",
+    user_id: userId,
+    doctor_name: profile?.um_name || "",
+    doctor_specialty: profile?.dp_name || "",
+    doctor_mobile_number: profile?.um_contact || "",
+    hm_id: clinic?.hm_id || "",
+    clinic_name: clinic?.hm_name || "",
+    ...seg,
+  };
+};
+
 export const getDraftMoengageDoctorAttributes = (profile, userId) => {
   const tokenData = getDecodedToken()?.result;
 
@@ -1502,6 +1617,62 @@ export const detectOperatingSystem = () => {
   };
 
   return Object.keys(os).find((key) => os[key]) || "Unknown";
+};
+
+/**
+ * Normalized onboarding device label: os_formFactor
+ * Desktop uses OS-specific keys (mac_desktop, windows_desktop, linux_desktop).
+ */
+export const getOnboardingDeviceSource = () => {
+  if (typeof window === "undefined" || !window.navigator) {
+    return "other_desktop";
+  }
+
+  const ua = window.navigator.userAgent || "";
+  const maxTouchPoints = Number(window.navigator.maxTouchPoints || 0);
+  const innerWidth =
+    typeof window.innerWidth === "number" ? window.innerWidth : 0;
+
+  // iPad / iPadOS (Safari reports Macintosh + touch)
+  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && maxTouchPoints > 1)) {
+    return "ios_tablet";
+  }
+  if (/iPhone|iPod/i.test(ua)) {
+    return "ios_phone";
+  }
+
+  const isAndroid = /Android/i.test(ua);
+  if (isAndroid) {
+    // Android phones generally include "Mobile" somewhere in UA
+    const hasAndroidMobileSegment = /Android/i.test(ua) && /Mobile/i.test(ua);
+    const looksLikeTablet =
+      /Tablet|SM-T\d|GT-P\d|KFAPWI|Kindle|Silk|Nexus\s(?:7|9|10)\b/i.test(
+        ua
+      );
+
+    if (hasAndroidMobileSegment || /Mobi/i.test(ua)) {
+      return "android_phone";
+    }
+    if (looksLikeTablet || maxTouchPoints > 1) {
+      return "android_tablet";
+    }
+    // Android UA without Mobile: TV, some WebViews, or desktop-like / emulator
+    const finePointer =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: fine)")?.matches;
+    if (finePointer && innerWidth >= 1024) {
+      return "android_desktop";
+    }
+    return "android_tablet";
+  }
+
+  const os = detectOperatingSystem();
+  if (os === "MacOS") return "mac_desktop";
+  if (os === "Windows") return "windows_desktop";
+  if (os === "Linux") return "linux_desktop";
+  if (os === "Android") return "android_desktop";
+  if (os === "iOS") return "ios_phone";
+  return "other_desktop";
 };
 
 export const sendMessageToParent = (eventName, data = {}) => {

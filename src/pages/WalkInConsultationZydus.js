@@ -17,7 +17,6 @@ import { clearSearch, searchPatients, synczyduspatient } from "../redux/appointm
 import { isNumeric, isAlphabet, calculateAge, errorMessage, removeSpecialCharectorWithoutDotSpace, getClinic, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
-import smartPad from "../assets/images/smartPad.svg";
 import { GB_ISCRIBE, GB_SNAP_RX, PAID, S_VOICE_RX, GB_VOICE_RX_FREE } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
@@ -129,7 +128,6 @@ function WalkInConsultationZydus() {
     //   e.stopPropagation();
     //   // setOpenRowIndex(patient?.patient_unique_id);
     // };
-
 
     const onConsultClick = async (record) => {
         const action = await dispatch(synczyduspatient(record));
@@ -360,7 +358,6 @@ function WalkInConsultationZydus() {
 
         return items;
     };
-
 
     const PatientPlank = (patient) => {
         return (

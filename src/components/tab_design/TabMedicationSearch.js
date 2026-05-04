@@ -46,15 +46,18 @@ import {
 import TabSearchHeader from "./TabSearchHeader";
 import TabMedicationMoreModal from "./TabMedicationMoreModal";
 
-import noRecordFound from '../../assets/images/no-record-round.svg';
-import calculatorIconBlue from '../../assets/images/calculator-blue.svg';
-import visitEnd from '../../assets/images/end-visit.svg';
-import imgCloseVisit from '../../assets/images/close-visit.svg';
 import { EXTRA_OPTIONS, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../../utils/constants";
 
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import DoseCalculator from "../dose_calculator/doseCalculator";
 import FreeBadge from "../../common/FreeBadge";
+import { ASSETS } from "../../assets";
+const {
+  noRecordRound: noRecordFound,
+  calculatorBlue: calculatorIconBlue,
+  endVisit: visitEnd,
+  closeVisit: imgCloseVisit,
+} = ASSETS.images;
 
 function TabMedicationSearch({ passIndex, onClose }) {
 

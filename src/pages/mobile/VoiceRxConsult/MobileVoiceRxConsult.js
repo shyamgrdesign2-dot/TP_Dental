@@ -5,21 +5,34 @@ import { useSelector, useDispatch } from 'react-redux';
 import { getProfile, services } from '../../../redux/doctorsSlice';
 import { isMobile } from 'react-device-detect';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
-import { getClinic, getClinicName, getDeviceSdkData, getTokenData, isVoiceRxFree } from '../../../utils/utils';
+import {
+  getClinic,
+  getClinicName,
+  getDeviceSdkData,
+  getTokenData,
+  getVoiceRxMoengageBasePayload,
+  isVoiceRxFree,
+} from '../../../utils/utils';
 import { FAILED_VERIFICATION, FREE, GB_VOICE_RX_FREE, S_VOICE_RX } from '../../../utils/constants';
 import ExpiredSubModal from '../../monetization/components/ExpiredSubModal';
 import FreeTrialButton from '../../monetization/components/FreeTrialButton';
-import arrowLeftIcon from '../../../assets/mobile/arrow-left.svg';
-import userGrayIcon from '../../../assets/mobile/user_gray.svg';
-import imageBackground from '../../../assets/mobile/Image Background.svg';
-import ddxIcon from '../../../assets/mobile/ddx.svg';
-import startVoiceIcon from '../../../assets/mobile/start_voice.svg';
-import checkIcon from '../../../assets/images/check.svg';
-import closeIcon from '../../../assets/images/close.svg';
-import voiceModeDictation from '../../../assets/images/voice-mode-dictation.svg';
-import voiceMode2 from '../../../assets/images/voice-mode-2.svg';
+
 import PatientDetailsBottomSheet from '../../../components/mobile/PatientDetailsBottomSheet';
 import './MobileVoiceRxConsult.scss';
+import { ASSETS } from "../../../assets";
+const {
+  arrowLeft: arrowLeftIcon,
+  userGray: userGrayIcon,
+  imageBackground,
+  ddx: ddxIcon,
+  startVoice: startVoiceIcon,
+} = ASSETS.mobile;
+const {
+  check: checkIcon,
+  close: closeIcon,
+  voiceModeDictation,
+  voiceMode2,
+} = ASSETS.images;
 
 function MobileVoiceRxConsult() {
   const location = useLocation();
@@ -95,7 +108,7 @@ function MobileVoiceRxConsult() {
     setIsSubModalOpen((prev) => !prev);
     const deviceSdkData = getDeviceSdkData();
     if (window.Moengage && profile && clinicName) {
-      window.Moengage.track_event('TP_voiceRx_FreeTrailInfo', {
+      window.Moengage.track_event('TP_App_voiceRx_FreeTrailInfo', {
         doctor_name: profile?.um_name,
         doctor_number: profile?.um_contact,
         doctor_unique_id: profile?.doctor_unique_id,
@@ -130,17 +143,13 @@ function MobileVoiceRxConsult() {
 
   const handleDictationMode = () => {
     if (window.Moengage && profile && clinic) {
-      window.Moengage.track_event('TP_AV_StartDictate', {
-        patient_id: patient_data?.patient_unique_id || '',
-        patient_name: patient_data?.pm_fullname || '',
-        patient_mobile_number: patient_data?.pm_contact_no || '',
-        doctor_id: profile?.doctor_unique_id,
-        user_id: userId,
-        doctor_name: profile?.um_name,
-        doctor_specialty: profile?.dp_name,
-        doctor_mobile_number: profile?.um_contact,
-        hm_id: clinic?.hm_id,
-        clinic_name: clinic?.hm_name,
+      window.Moengage.track_event('TP_App_AV_StartDictate', {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+        }),
       });
     }
     navigate('/voice-recording', {
@@ -159,17 +168,13 @@ function MobileVoiceRxConsult() {
       return;
     }
     if (window.Moengage && profile && clinic) {
-      window.Moengage.track_event('TP_AV_StartConversation', {
-        patient_id: patient_data?.patient_unique_id || '',
-        patient_name: patient_data?.pm_fullname || '',
-        patient_mobile_number: patient_data?.pm_contact_no || '',
-        doctor_id: profile?.doctor_unique_id,
-        user_id: userId,
-        doctor_name: profile?.um_name,
-        doctor_specialty: profile?.dp_name,
-        doctor_mobile_number: profile?.um_contact,
-        hm_id: clinic?.hm_id,
-        clinic_name: clinic?.hm_name,
+      window.Moengage.track_event('TP_App_AV_StartConversation', {
+        ...getVoiceRxMoengageBasePayload({
+          profile,
+          userId,
+          patientData: patient_data,
+          clinic,
+        }),
       });
     }
 
@@ -391,17 +396,13 @@ function MobileVoiceRxConsult() {
                     onClick={() => {
                       setConsentChecked(!consentChecked);
                       if (window.Moengage && profile && clinic) {
-                        window.Moengage.track_event('TP_AV_StartDictate', {
-                          patient_id: patient_data?.patient_unique_id || '',
-                          patient_name: patient_data?.pm_fullname || '',
-                          patient_mobile_number: patient_data?.pm_contact_no || '',
-                          doctor_id: profile?.doctor_unique_id,
-                          user_id: userId,
-                          doctor_name: profile?.um_name,
-                          doctor_specialty: profile?.dp_name,
-                          doctor_mobile_number: profile?.um_contact,
-                          hm_id: clinic?.hm_id,
-                          clinic_name: clinic?.hm_name,
+                        window.Moengage.track_event('TP_App_AV_StartDictate', {
+                          ...getVoiceRxMoengageBasePayload({
+                            profile,
+                            userId,
+                            patientData: patient_data,
+                            clinic,
+                          }),
                           status: consentChecked ? 'enabled' : 'disabled',
                         });
                       }

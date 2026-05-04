@@ -10,13 +10,6 @@ import { v4 as uuidv4 } from 'uuid';
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, removeBeforeWhiteSpace, onlyNumberFormat, hasNumber, capitalizeAfterSentence, isNumeric } from "../utils/utils";
 
-import noRecordFound from '../assets/images/no-record-round.svg';
-import verticleUpDown from '../assets/images/verticle-up-down.svg';
-import ActiveverticleUpDown from '../assets/images/active-verticle-up-down.svg';
-import InActiveverticleUpDown from '../assets/images/inactive-verticle-up-down.svg';
-import NoHypertension from '../assets/images/no-hypertension.webp';
-import playIcons from "../assets/images/tube-icon.svg";
-import tutorial2 from "../assets/images/tutorial2.webp";
 import moment from "moment";
 import dayjs from "dayjs";
 
@@ -40,6 +33,16 @@ import {
 } from "../utils/medicalHistoryUtils";
 import VideoModal from "../common/VideoModal";
 import TextArea from "antd/es/input/TextArea";
+import { ASSETS } from "../assets";
+const {
+  noRecordRound: noRecordFound,
+  verticleUpDown,
+  activeVerticleUpDown: ActiveverticleUpDown,
+  inactiveVerticleUpDown: InActiveverticleUpDown,
+  noHypertension: NoHypertension,
+  tubeIcon: playIcons,
+  tutorial2,
+} = ASSETS.images;
 
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD-MM-YYYY'
@@ -303,7 +306,6 @@ function MedicalHistoryBox(props) {
             console.error(e);
         }
     }, []);
-
 
     useEffect(() => {
         const isPrescriptionOnly = overrideMedicalHistoryData != null;
@@ -579,7 +581,6 @@ function MedicalHistoryBox(props) {
         }
     }, [addEditData, selectData, cloneMedicalHistoryData]);
 
-
     const onAddEditClick = useCallback((e) => {
         let modifyData = JSON.parse(JSON.stringify(e))
         modifyData.tags.map((e) => {
@@ -825,7 +826,6 @@ function MedicalHistoryBox(props) {
         },
         [selectData, sinceOptions, cloneMedicalHistoryData]
     );
-
 
     const onChangeStatus = useCallback((key) => {
         if (key != cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.status) {
@@ -2163,6 +2163,5 @@ function MedicalHistoryBox(props) {
         </>
     );
 }
-
 
 export default MedicalHistoryBox;

@@ -10,30 +10,6 @@ import { useSelector } from "react-redux";
 import api from "../api/services/axiosService";
 import PrescriptionSkeleton from "./mobile/PrescriptionSkeleton";
 
-import Symptomsicon from "../assets/images/Symptoms.svg";
-import surgeryIcon from "../assets/images/surgery.svg";
-import Examinationsicon from "../assets/images/Examination.svg";
-import Diagnosisicon from "../assets/images/Diagnosis.svg";
-import Medicationicon from "../assets/images/Medication.svg";
-import Frameicon from "../assets/images/Frame.svg";
-import Investigationicon from "../assets/images/Lab.svg";
-import notesicon from "../assets/images/notes.svg";
-import calenderBlank from "../assets/images/calenderBlank.svg";
-import followUp from "../assets/images/followup.svg";
-import smartPadGrey from "../assets/images/smartPadGrey.svg";
-import successIcon from "../assets/images/success-icon.svg";
-import vitalsIcon from "../assets/images/Vitals.svg";
-import medicalHistoryIcon from "../assets/images/Medical-History.svg";
-import vaccinationIcon from "../assets/images/Vaccination.svg";
-import customModuleIcon from "../assets/images/custom-module.svg";
-import videoIcon from "../assets/images/video_icon.svg";
-import visualAcuityIcon from "../assets/images/visual-acuity-test.svg";
-import autoRefractionIcon from "../assets/images/auto-refraction-test.svg";
-import lensometerIcon from "../assets/images/lensometer-values.svg";
-import glassPrescriptionIcon from "../assets/images/glass-prescription.svg";
-import iopIcon from "../assets/images/intra-ocular-pressure.svg";
-import slitLampIcon from "../assets/images/slit-lamp-examination.svg";
-import fundusIcon from "../assets/images/fundus-examination.svg";
 import {
   getClinic,
   getTokenData,
@@ -81,7 +57,7 @@ import { getModules } from "../redux/customModuleSlice";
 import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
-import draftIcon from "../assets/images/draft-document.svg";
+
 import { uploadDocsToAzure } from "../pages/medicalRecords/service";
 import { getTabRxFiles } from "../pages/tabRx/services/tabRxService";
 
@@ -99,6 +75,35 @@ import { formatGynecDisplayLines, getNormalizedGynecHistory, isGynecDataEmpty } 
 import PrimaryActionButton from "./PrimaryActionButton";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
+import { renderPrintPayloadToBlob } from "../utils/printPayload";
+import { ASSETS } from "../assets";
+const {
+  symptoms: Symptomsicon,
+  surgery: surgeryIcon,
+  examination: Examinationsicon,
+  diagnosis: Diagnosisicon,
+  medication: Medicationicon,
+  frame: Frameicon,
+  lab: Investigationicon,
+  notes: notesicon,
+  calenderblank: calenderBlank,
+  followup: followUp,
+  smartpadgrey: smartPadGrey,
+  successIcon,
+  vitals: vitalsIcon,
+  medicalHistory: medicalHistoryIcon,
+  vaccination: vaccinationIcon,
+  customModule: customModuleIcon,
+  videoIcon,
+  visualAcuityTest: visualAcuityIcon,
+  autoRefractionTest: autoRefractionIcon,
+  lensometerValues: lensometerIcon,
+  glassPrescription: glassPrescriptionIcon,
+  intraOcularPressure: iopIcon,
+  slitLampExamination: slitLampIcon,
+  fundusExamination: fundusIcon,
+  draftDocument: draftIcon,
+} = ASSETS.images;
 
 const pdfWorker = require("pdfjs-dist/build/pdf.worker.min.js");
 pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -565,6 +570,9 @@ function Cardiology(props) {
   const [selectedLang, setSelectedLang] = useState("");
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [mobilePdfNumPages, setMobilePdfNumPages] = useState(0);
+  const [mobileExpectedPrintUrl, setMobileExpectedPrintUrl] = useState(null);
+  const [mobileGenerationSeen, setMobileGenerationSeen] = useState(false);
+  const [mobilePreviewReady, setMobilePreviewReady] = useState(false);
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
@@ -897,7 +905,6 @@ function Cardiology(props) {
   const {
     printBlob: printPayloadBlob,
     isGenerating: isPrintPayloadGenerating,
-    error: printPayloadError,
   } = usePrintPayloadPdf({
     printUrl: printUrlWithLang,
     selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
@@ -906,17 +913,60 @@ function Cardiology(props) {
     skipFetch: !printUrlWithLang,
   });
 
-  const {
-    printBlob: printRxPayloadBlob,
-    isGenerating: isPrintRxPayloadGenerating,
-    error: printRxPayloadError,
-  } = usePrintPayloadPdf({
-    printUrl: printRxUrlWithLang,
-    selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
-    isGynaecHistoryAccessable: false,
-    payloadOverride: null,
-    skipFetch: !printRxUrlWithLang,
-  });
+  const buildPayloadBlobFromPrintUrl = useCallback(async (sourceUrl) => {
+    if (!sourceUrl) return null;
+    const urlObj = new URL(sourceUrl, window.location.origin);
+    urlObj.searchParams.set("output", "json");
+    const response = await axios.get(urlObj.toString());
+    const payload = response?.data?.data || null;
+    if (!payload) return null;
+    const blob = await renderPrintPayloadToBlob(payload, {
+      selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
+      isGynaecHistoryAccessable: false,
+    });
+    if (!(blob instanceof Blob)) return null;
+    const header = await blob.slice(0, 5).text();
+    if (header !== "%PDF-") return null;
+    return blob;
+  }, [selectedLang]);
+
+  useEffect(() => {
+    if (!(isMobile && !isTablet) || !showDigitalGenRx || !printUrlWithLang) {
+      setMobileExpectedPrintUrl(null);
+      setMobileGenerationSeen(false);
+      setMobilePreviewReady(false);
+      return;
+    }
+    setMobileExpectedPrintUrl(printUrlWithLang);
+    setMobileGenerationSeen(false);
+    setMobilePreviewReady(false);
+  }, [isMobile, isTablet, showDigitalGenRx, printUrlWithLang]);
+
+  useEffect(() => {
+    if (!(isMobile && !isTablet) || !showDigitalGenRx || !mobileExpectedPrintUrl) {
+      return;
+    }
+    if (printUrlWithLang !== mobileExpectedPrintUrl) {
+      return;
+    }
+    if (isPrintPayloadGenerating) {
+      setMobileGenerationSeen(true);
+      setMobilePreviewReady(false);
+      return;
+    }
+    setMobilePreviewReady(
+      mobileGenerationSeen && printPayloadBlob instanceof Blob
+    );
+  }, [
+    isMobile,
+    isTablet,
+    showDigitalGenRx,
+    mobileExpectedPrintUrl,
+    printUrlWithLang,
+    mobileGenerationSeen,
+    isPrintPayloadGenerating,
+    printPayloadBlob,
+  ]);
 
   const getPatientDefaultLanguage = async () => {
     const res = await fetchPatientDefaultLanguage(patient_data?.patient_unique_id);
@@ -985,7 +1035,6 @@ function Cardiology(props) {
     );
     setSnapRxFile(response?.uploaded_files || []);
   };
-
 
   const isSymptomCollectorJSON = useCallback((text) => {
     if (typeof text !== "string") return false;
@@ -1121,15 +1170,35 @@ function Cardiology(props) {
       errorMessage("Print URL is missing.");
       return;
     }
-    if (printRxPayloadError) {
-      message.error("Something went wrong, please try again.");
+    let blobToPrint = null;
+
+    const messageKey = "mobile-print-rx-generate";
+    message.open({
+      key: messageKey,
+      type: "loading",
+      content: "Preparing PDF...",
+      duration: 0,
+    });
+    try {
+      blobToPrint = await buildPayloadBlobFromPrintUrl(printRxUrlWithLang);
+    } catch (err) {
+      message.open({
+        key: messageKey,
+        type: "error",
+        content: "Failed to generate PDF.",
+        duration: 2,
+      });
+      return;
+    } finally {
+      message.destroy(messageKey);
+    }
+
+    if (!(blobToPrint instanceof Blob)) {
+      message.error("Failed to generate PDF.");
       return;
     }
-    if (isPrintRxPayloadGenerating || !(printRxPayloadBlob instanceof Blob)) {
-      message.error("The PDF is not ready yet. Please wait a moment and try again.");
-      return;
-    }
-    const blobURL = URL.createObjectURL(printRxPayloadBlob);
+
+    const blobURL = URL.createObjectURL(blobToPrint);
     window.open(blobURL, "_blank");
   }
 
@@ -1362,22 +1431,56 @@ function Cardiology(props) {
       errorMessage("Print URL is missing.");
       return;
     }
-    if (printPayloadError) {
-      message.error("Something went wrong, please try again.");
+    if (isMobile && !isTablet) {
+      if (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) {
+        message.error("The PDF is not ready yet. Please wait a moment and try again.");
+        return;
+      }
+      const blobURL = URL.createObjectURL(printPayloadBlob);
+      window.open(blobURL, "_blank");
       return;
     }
-    if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+    if (isPrintPayloadGenerating) {
       message.error("The PDF is not ready yet. Please wait a moment and try again.");
       return;
     }
-    const blobURL = URL.createObjectURL(printPayloadBlob);
+    let blobToPrint = printPayloadBlob;
+
+    if (!(blobToPrint instanceof Blob)) {
+      const messageKey = "mobile-print-generate";
+      message.open({
+        key: messageKey,
+        type: "loading",
+        content: "Preparing PDF...",
+        duration: 0,
+      });
+      try {
+        blobToPrint = await buildPayloadBlobFromPrintUrl(printUrlWithLang);
+      } catch (err) {
+        message.open({
+          key: messageKey,
+          type: "error",
+          content: "Failed to generate PDF.",
+          duration: 2,
+        });
+        return;
+      }
+      message.destroy(messageKey);
+    }
+
+    if (!(blobToPrint instanceof Blob)) {
+      message.error("Failed to generate PDF.");
+      return;
+    }
+
+    const blobURL = URL.createObjectURL(blobToPrint);
     window.open(blobURL, "_blank");
   };
 
   const isPrintDisabled =
     (isChrome || isSafari) &&
     !!printUrlWithLang &&
-    (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob));
+    isPrintPayloadGenerating;
 
   const printDisabledTooltip = isPrintDisabled
     ? "PDF is getting created. Please wait a moment."
@@ -1430,16 +1533,48 @@ function Cardiology(props) {
         errorMessage("Download URL is missing.");
         return;
       }
-      if (printPayloadError) {
-        message.error("Something went wrong, please try again.");
+      if (isMobile && !isTablet) {
+        if (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) {
+          message.error("The PDF is not ready yet. Please wait a moment and try again.");
+          return;
+        }
+        const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
+        saveAs(printPayloadBlob, fileName);
         return;
       }
-      if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+      if (isPrintPayloadGenerating) {
         message.error("The PDF is not ready yet. Please wait a moment and try again.");
         return;
       }
       const fileName = `prescription_${moment(viewCaseManagerData?.consultation_date).format('YYYY-MM-DD')}.pdf`;
-      saveAs(printPayloadBlob, fileName);
+      let blobToDownload = printPayloadBlob;
+      if (!(blobToDownload instanceof Blob)) {
+        const messageKey = "mobile-download-generate";
+        message.open({
+          key: messageKey,
+          type: "loading",
+          content: "Preparing PDF...",
+          duration: 0,
+        });
+        try {
+          blobToDownload = await buildPayloadBlobFromPrintUrl(printUrlWithLang);
+        } catch (err) {
+          message.open({
+            key: messageKey,
+            type: "error",
+            content: "Failed to generate PDF.",
+            duration: 2,
+          });
+          return;
+        } finally {
+          message.destroy(messageKey);
+        }
+      }
+      if (!(blobToDownload instanceof Blob)) {
+        message.error("Failed to generate PDF.");
+        return;
+      }
+      saveAs(blobToDownload, fileName);
       return;
     } catch (error) {
       console.error('Error downloading file:', error);
@@ -1453,16 +1588,60 @@ function Cardiology(props) {
         errorMessage("Download URL is missing.");
         return;
       }
-      if (printPayloadError) {
-        message.error("Something went wrong, please try again.");
+      if (isMobile && !isTablet) {
+        if (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) {
+          message.error("PDF is not ready yet.");
+          return;
+        }
+        const file = new File(
+          [printPayloadBlob],
+          `${new Date().toISOString().split("T")[0]}.pdf`,
+          { type: "application/pdf" }
+        );
+        const formData = new FormData();
+        formData.append(file?.name, file);
+        const res = await uploadDocsToAzure(formData);
+        const uploadedUrl = res?.[0]?.url;
+        if (!uploadedUrl) {
+          message.error("Failed to upload PDF.");
+          return;
+        }
+        sendMessageToParent(EVENTS.DOWNLOAD, { url: uploadedUrl });
         return;
       }
-      if (isPrintPayloadGenerating || !(printPayloadBlob instanceof Blob)) {
+      if (isPrintPayloadGenerating) {
         message.error("PDF is not ready yet.");
         return;
       }
+      let blobToUpload = printPayloadBlob;
+      if (!(blobToUpload instanceof Blob)) {
+        const messageKey = "mobile-download-parent-generate";
+        message.open({
+          key: messageKey,
+          type: "loading",
+          content: "Preparing PDF...",
+          duration: 0,
+        });
+        try {
+          blobToUpload = await buildPayloadBlobFromPrintUrl(printUrlWithLang);
+        } catch (err) {
+          message.open({
+            key: messageKey,
+            type: "error",
+            content: "Failed to generate PDF.",
+            duration: 2,
+          });
+          return;
+        } finally {
+          message.destroy(messageKey);
+        }
+      }
+      if (!(blobToUpload instanceof Blob)) {
+        message.error("Failed to generate PDF.");
+        return;
+      }
       const file = new File(
-        [printPayloadBlob],
+        [blobToUpload],
         `${new Date().toISOString().split("T")[0]}.pdf`,
         { type: "application/pdf" }
       );
@@ -1515,8 +1694,17 @@ function Cardiology(props) {
         editRx: handleEditRxClick,
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPrintHandlersReady, isChrome, isSafari, showDigitalRx, showDigitalSnapRx, showDigitalGenRx, isSmartRxFile, isTabRx, isSnapRx, isAmbientRx, printUrl, selectedLang, viewCaseManagerData, smartRxFile]);
+  }, [
+    onPrintHandlersReady,
+    isChrome,
+    isSafari,
+    printInAppContent,
+    printContent,
+    downloadInAppContent,
+    downloadContent,
+    printRxInAppContent,
+    printRxContent,
+  ]);
 
   const handleEditRxClick = async () => {
     window.Moengage.track_event("edit_rx_click", {
@@ -3206,9 +3394,6 @@ function Cardiology(props) {
     );
   };
 
-
-
-
   return (
     <div className="appointment-wrap PatientDetailswrap m-0">
       <Card className="" style={(isMobile && !isTablet) ? { border: 'none', padding: '6px' } : {}}>
@@ -3562,12 +3747,12 @@ function Cardiology(props) {
             )}
             {/* Mobile view: Show prescription PDF inline using react-pdf */}
             {/* MOBILE OPTIMIZATION: Use memoized mobilePdfUrl and pdfPages instead of calculating in render */}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && !mobilePdfUrl && showDigitalGenRx && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 <PrescriptionSkeleton />
               </Card.Body>
             )}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && mobilePdfUrl && showDigitalGenRx && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && mobilePreviewReady && (printPayloadBlob instanceof Blob) && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 {isPdfLoading && (
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }}>
@@ -3584,7 +3769,7 @@ function Cardiology(props) {
                   }}
                 >
                   <Document
-                    file={mobilePdfUrl}
+                    file={printPayloadBlob}
                     loading={null}
                     onLoadSuccess={({ numPages }) => {
                       setMobilePdfNumPages(numPages);

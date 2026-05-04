@@ -37,6 +37,7 @@ import { fetchAgents } from "./appointmentAgent/service";
 import { ophthalmologyDefaultPrintSettings } from "../utils/ophthalmologyDefaultPrintSettings";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
+import { setCurrentSessionRx } from "../redux/obstetricSlice";
 
 
 function ConfigurePrintSetting() {
@@ -78,6 +79,14 @@ function ConfigurePrintSetting() {
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
+
+    useEffect(() => {
+        // Prevent stale preview blob leakage across print flows.
+        dispatch(setCurrentSessionRx(null));
+        return () => {
+            dispatch(setCurrentSessionRx(null));
+        };
+    }, [dispatch]);
 
     const zydusSelectedLabParams = caseManagerData?.zydusSelectedLabParams || [];
 

@@ -29,12 +29,12 @@ import PrivateRoute from "./pages/auth/components/PrivateRoute";
 import { useTncConsent } from "./hooks/useTncConsent";
 import FullPageLoader from "./pages/vaccination/components/Loader";
 import { lazyRetry } from "./utils/lazyRetry";
+import PatientDetails from "./pages/PatientDetails";
+import MobilePatientDetails from "./pages/mobile/PatientDetails/PatientDetails";
+import useRouteTracking from "./hooks/useRouteTracking";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
-);
-const PatientDetails = React.lazy(() =>
-  lazyRetry(() => import("./pages/PatientDetails"))
 );
 const Prescription = React.lazy(() =>
   lazyRetry(() => import("./pages/Prescription"))
@@ -165,9 +165,6 @@ const BottomSheetManager = React.lazy(() =>
 const UpgradeServicesModal = React.lazy(() =>
   lazyRetry(() => import("./pages/monetization/components/UpgradeServicesModal"))
 );
-const MobilePatientDetails = React.lazy(() =>
-  lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
-);
 const MobileAllPatients = React.lazy(() =>
   lazyRetry(() => import("./pages/mobile/AllPatients/AllPatients"))
 );
@@ -232,6 +229,8 @@ function App() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
+
+  useRouteTracking();
 
   const openUrlsSilently = async (urls) => {
     return Promise.all(
@@ -806,6 +805,9 @@ function App() {
             </AppStoreProvider>
           </Suspense>
         )}
+        <div className="no-print app-version-tag">
+          v2.1.17
+        </div>
       </ErrorBoundary>
     </GrowthBookProvider>
   );

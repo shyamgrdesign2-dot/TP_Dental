@@ -4,7 +4,7 @@ import { Row, Col, Spin } from "antd";
 import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
-import documentIcon from "../../assets/images/document-normal.svg";
+
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, ADD, GB_MANYA_DENTAL } from "../../utils/constants";
 import { useSelector, useDispatch } from "react-redux";
 import { getInvestigationAndMedicine, addCaseManager, editCaseManager, viewCaseManager } from "../../redux/caseManagerSlice";
@@ -30,6 +30,8 @@ import { GB_ZYDUS_USER } from "../../utils/constants";
 import ApiMedication from "../../api/services/ApiMedication";
 import { setDentalData, clearDentalData } from "../../redux/dentalRxSlice";
 import { ensureMedicationGroundedForRxSave } from "../../utils/medicationRxPayload";
+import { ASSETS } from "../../assets";
+const documentIcon = ASSETS.images.documentNormal;
 
 function SnapRxDigitise({isTabRx = false}) {
   const divRef = useRef(null);

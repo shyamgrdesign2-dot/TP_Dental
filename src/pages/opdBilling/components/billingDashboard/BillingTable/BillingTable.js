@@ -23,10 +23,12 @@ import {
   fetchBillsByPatient,
   listAdvancedDepositByPatient,
   fetchItemizedBillData,
+  fetchAdvanceSetting,
 } from "../../../service.js";
 import BillTable from "./BillTable.js";
 import ItemizedBillChart from "../ItemizedBillChart/ItemizedBillChart.js";
 import { listDoctor } from "../../../../../redux/bulkMessagesSlice.js";
+import { setAdvancedSettings } from "../../../../../redux/billingSlice.js";
 import { useDispatch } from "react-redux";
 import { useSelector } from "react-redux";
 import { getDecodedToken } from "../../../../../utils/localStorage.js";
@@ -36,7 +38,9 @@ import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
 import { getClinic, trackEvent } from "../../../../../utils/utils.js";
 import { MESSAGE_KEY } from "../../../../../utils/constants.js";
-import imgCloseVisit from "../../../../../assets/images/close-visit.svg";
+import { ASSETS } from "../../../../../assets";
+const imgCloseVisit = ASSETS.images.closeVisit;
+
 const { RangePicker } = DatePicker;
 
 const { Option } = Select;
@@ -324,6 +328,8 @@ export default function BillingTable({
   billData,
   setBillData,
   setBillingCount,
+  isReceptionistUser = false,
+  advancedSettings = {},
 }) {
   const decodedToken = getDecodedToken();
   const isAdmin = decodedToken?.result?.admin;
@@ -1477,9 +1483,23 @@ export default function BillingTable({
     setForm3cTriggered((prev) => !prev); // Toggle state to trigger useEffect
   };
 
+  const refreshAdvancedSettingsIfNeeded = useCallback(async () => {
+    // Refresh receptionist edit-access control along with OPD table refresh.
+    if (billType !== "opd") return;
+    try {
+      const latestAdvancedSettings = await fetchAdvanceSetting();
+      if (latestAdvancedSettings) {
+        dispatch(setAdvancedSettings(latestAdvancedSettings));
+      }
+    } catch (error) {
+      console.error("Error refreshing advanced settings:", error);
+    }
+  }, [billType, dispatch]);
+
   const loadData = async (resetData = true) => {
     // setLoading(true);
     if (!hasMore && !resetData) return;
+    await refreshAdvancedSettingsIfNeeded();
     const params = {
       status:
         selectedCard === 1
@@ -1550,6 +1570,7 @@ export default function BillingTable({
 
   const patientBillingData = async (resetData = true) => {
     if (!hasMore && !resetData) return;
+    await refreshAdvancedSettingsIfNeeded();
 
     const params = {
       status:
@@ -1956,6 +1977,8 @@ export default function BillingTable({
             totalAdvanceBalance={totalAdvanceBalance}
             showHideSubModal={showHideSubModal}
             billType={billType}
+            isReceptionistUser={isReceptionistUser || isReceptionist}
+            advancedSettings={advancedSettings}
           />
         </Row>
 

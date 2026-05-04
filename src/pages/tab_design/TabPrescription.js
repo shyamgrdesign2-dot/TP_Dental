@@ -33,41 +33,8 @@ import TabMedicalHistoryList from "../../components/tab_design/TabMedicalHistory
 import PrivateNotesBox from "../../components/PrivateNotesBox";
 import TabPrivateNotesList from "../../components/tab_design/TabPrivateNotesList";
 
-import vitalsWhite from "../../assets/images/vitals-white.svg";
-import vitalsDark from "../../assets/images/vitals-dark.svg";
-import medicalHistoryWhite from "../../assets/images/medical-history-white.svg";
-import medicalHistoryDark from "../../assets/images/medical-history-dark.svg";
-import vaccinationWhite from "../../assets/images/vaccination-white.svg";
-import vaccinationDark from "../../assets/images/Vaccination.svg";
-import alertIcon from "../../assets/images/alertIcon.svg";
-import growthChart from "../../assets/images/growth-chart.svg";
-import growthChartDark from "../../assets/images/growth-chart-dark.svg";
-import privateNotesWhite from "../../assets/images/private-notes-white.svg";
-import privateNotesDark from "../../assets/images/private-notes-dark.svg";
-import apexAIImg from "../../assets/images/apexAI.svg";
-import blinkingDotWebm from "../../assets/images/blinkingDot.webm";
-import blinkingDotMp4 from "../../assets/images/blinkingDot.mp4";
+import { ASSETS } from "../../assets";
 import LoopingVideo from "../../components/common/LoopingVideo";
-import ddxVector from "../../assets/images/ddx-tab-vector.svg";
-import ddxImg from "../../assets/images/ddx.svg";
-import ddxInactiveImg from "../../assets/images/tab-ddx-inactive.svg";
-import genRxImg from "../../assets/images/gen-rx-mic.svg";
-import voiceRxDefault from "../../assets/images/voice-rx-default.svg";
-import obstetricWhite from "../../assets/images/obstetric-white.svg";
-import obstetricDark from "../../assets/images/obstetric-dark.svg";
-import medicalRecordsWhite from "../../assets/images/upload-doc-white.svg";
-import medicalRecordsDark from "../../assets/images/upload-doc-dark.svg";
-import labParamsWhite from "../../assets/images/lab-parameters-white.svg";
-import labParamsDark from "../../assets/images/Lab-Parameters.svg";
-import groundingImgWhite from "../../assets/images/grounding-white.svg";
-import groundingImgDark from "../../assets/images/grounding-purple.svg";
-import genRxBgWebm from "../../assets/images/gen-rx-bg.webm";
-import genRxBgMp4 from "../../assets/images/gen-rx-bg.mp4";
-import carePlanIcon from "../../assets/images/Care plan.svg";
-import carePlanIconDark from "../../assets/images/Care plan_Active_solid.svg";
-// import labParametersWhite from '../../assets/images/lab-parameters-white.svg';
-// import notesWhite from '../../assets/images/notes-white.svg';
-// import docsWhite from '../../assets/images/docs-white.svg';
 import Sider from "antd/es/layout/Sider";
 import Vaccination from "../vaccination/Vaccination";
 import GrowthChart from "../growthChart/GrowthChart";
@@ -144,6 +111,40 @@ import {
 } from "../../redux/ophthalmologyExamSlice";
 
 function TabPrescription() {
+  const {
+    vitalsWhite,
+    vitalsDark,
+    medicalHistoryWhite,
+    medicalHistoryDark,
+    vaccinationWhite,
+    vaccination: vaccinationDark,
+    alerticon: alertIcon,
+    growthChart,
+    growthChartDark,
+    privateNotesWhite,
+    privateNotesDark,
+    apexai: apexAIImg,
+    blinkingdot_3: blinkingDotWebm,
+    blinkingdot_2: blinkingDotMp4,
+    ddxTabVector: ddxVector,
+    ddx: ddxImg,
+    tabDdxInactive: ddxInactiveImg,
+    genRxMic: genRxImg,
+    voiceRxDefault,
+    obstetricWhite,
+    obstetricDark,
+    uploadDocWhite: medicalRecordsWhite,
+    uploadDocDark: medicalRecordsDark,
+    labParametersWhite: labParamsWhite,
+    labParameters: labParamsDark,
+    groundingWhite: groundingImgWhite,
+    groundingPurple: groundingImgDark,
+    genRxBg_2: genRxBgWebm,
+    genRxBg: genRxBgMp4,
+    carePlan: carePlanIcon,
+    carePlanActiveSolid: carePlanIconDark,
+  } = ASSETS.images;
+
   const { isMobile: isMobileDevice, isTablet } = useDeviceType();
   const {
     customizedPadLeftList,
@@ -733,6 +734,19 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
+    const clinic_name = getClinicName(profile?.hospital_data);
+    tcmId == 0
+      ? window.Moengage.track_event("TP_App_Consultation_Started", {
+          clinic_name,
+          patient_number: patient_data?.pm_contact_no,
+          patient_id: patient_data?.patient_unique_id,
+          tcm_id: tcmId,
+        })
+      : window.Moengage.track_event("TP_App_Consultation_edit_started", {
+          clinic_name,
+          patient_number: patient_data?.pm_contact_no,
+          patient_id: patient_data?.patient_unique_id,
+        });
     const sendData = {
       patient_unique_id: patient_data?.patient_unique_id,
     };
@@ -1039,7 +1053,7 @@ function TabPrescription() {
     setCollapsedFlag(3);
     setVaccinationDrawer(!vaccinationDrawer);
     if (!vaccinationDrawer) {
-      trackEvent("TP_Vac_Module", {
+      trackEvent("TP_App_Vac_Module", {
         patientName: patient_data?.pm_fullname || "",
         patientId: patient_data?.patient_unique_id || "",
         doctorSpeciality: profile?.dp_name,
@@ -1305,7 +1319,7 @@ function TabPrescription() {
     if (fromVoiceRecording && audioBlob) {
       setIsGenRxDrawerVisible(true);
       const clinic_name = getClinicName(profile?.hospital_data);
-      trackEvent("TP_VoiceRx_Start", {
+      trackEvent("TP_App_VoiceRx_Start", {
         patient_contact: patient_data?.pm_contact_no || "",
         patient_id: patient_data?.patient_unique_id || "",
         doctor_speciality: profile?.dp_name,
@@ -1320,7 +1334,7 @@ function TabPrescription() {
     if (inputText && typeof inputText === 'string' && inputText.trim().length > 0) {
       setIsGenRxDrawerVisible(true);
       const clinic_name = getClinicName(profile?.hospital_data);
-      trackEvent("TP_VoiceRx_Start", {
+      trackEvent("TP_App_VoiceRx_Start", {
         patient_contact: patient_data?.pm_contact_no || "",
         patient_id: patient_data?.patient_unique_id || "",
         doctor_speciality: profile?.dp_name,
@@ -1359,7 +1373,7 @@ function TabPrescription() {
   const handleDDxDrawer = (field) => {
     setDDxDrawer((prev) => !prev);
     if (!ddxDrawer) {
-      window.Moengage.track_event("TP_CDSS_Ddx_reviewed", {
+      window.Moengage.track_event("TP_App_CDSS_Ddx_reviewed", {
         clinic_name: getClinicName(profile?.hospital_data),
         doctor_id: profile?.doctor_unique_id,
         patient_number: patient_data?.pm_contact_no,
@@ -1422,7 +1436,7 @@ function TabPrescription() {
           } else {
             setIsDDxLoading(true);
             setIsDDxGenerated(true);
-            window.Moengage.track_event("TP_CDSS_Ack_GenDx", {
+            window.Moengage.track_event("TP_App_CDSS_Ack_GenDx", {
               clinic_name: getClinicName(profile?.hospital_data),
               doctor_id: profile?.doctor_unique_id,
               patient_number: patient_data?.pm_contact_no,
@@ -1472,7 +1486,7 @@ function TabPrescription() {
     const clinic_name = getClinicName(profile?.hospital_data);
     const tokenData = getTokenData(); 
     const deviceSdkData = getDeviceSdkData();
-    window.Moengage.track_event("TP_Monetization_GenerateDDX", {
+    window.Moengage.track_event("TP_App_Monetization_GenerateDDX", {
       doctor_name: profile?.um_name,
       doctor_number: profile?.um_contact,
       doctor_unique_id: profile?.doctor_unique_id,
@@ -1527,7 +1541,7 @@ function TabPrescription() {
   const handleApexAI = () => {
     dispatch(setIsApexAISelected(true));
     openCollapsed(isGroundingAccessableForZydus ? 12 : (isFreeVoiceRxUser || tp_monetization_enable) ? 10 : 9);
-    window.Moengage.track_event("TP_Apex_AI_Ack", {
+    window.Moengage.track_event("TP_App_Apex_AI_Ack", {
       clinic_name: getClinicName(profile?.hospital_data),
       doctor_id: profile?.doctor_unique_id,
       patient_number: patient_data?.pm_contact_no,
@@ -1538,13 +1552,27 @@ function TabPrescription() {
   const handleGenRx = () => {
     setIsGenRxDrawerVisible(true);
     const clinic_name = getClinicName(profile?.hospital_data);
-    trackEvent("TP_VoiceRx_Start", {
+    trackEvent("TP_App_VoiceRx_Start", {
       patient_contact: patient_data?.pm_contact_no || "",
       patient_id: patient_data?.patient_unique_id || "",
       doctor_speciality: profile?.dp_name,
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
+    if (tcmId == 0) {
+      const tokenData = getTokenData();
+      const deviceSdkData = getDeviceSdkData();
+      window.Moengage.track_event("TP_App_VoiceRx", {
+        doctor_name: profile?.um_name,
+        doctor_number: profile?.um_contact,
+        doctor_unique_id: profile?.doctor_unique_id,
+        doctor_specialty: profile?.dp_name,
+        clinic_id: tokenData?.clinic_id,
+        um_id: tokenData?.user_id,
+        clinic_Name: clinic_name,
+        ...deviceSdkData,
+      });
+    }
 
     navigate("/voice-rx-consult", {
       state: {
@@ -1580,7 +1608,16 @@ function TabPrescription() {
           message.info(response.data.displayMessage || "Audio call initiated successfully");
         }
         
-        trackEvent("TP_VideoConsult_Started_TabPrescription", {
+        trackEvent("TP_App_VideoConsult_Started_TabPrescription", {
+          patient_contact: patient_data?.pm_contact_no || "",
+          patient_id: patient_data?.patient_unique_id || "",
+          doctor_speciality: profile?.dp_name,
+          doctor_unique_id: profile?.doctor_unique_id,
+          clinic_name: getClinicName(profile?.hospital_data),
+          page: "Tab Prescription",
+          call_type: response.data.action,
+        });
+        trackEvent("TP_App_VideoConsult_Started", {
           patient_contact: patient_data?.pm_contact_no || "",
           patient_id: patient_data?.patient_unique_id || "",
           doctor_speciality: profile?.dp_name,
@@ -1617,7 +1654,7 @@ function TabPrescription() {
           dispatch(setActiveTeleconsultConsultationId(data.consultationId));
         }
 
-        window.Moengage.track_event("TP_TC_StartCall", {
+        window.Moengage.track_event("TP_App_TC_StartCall", {
           doctor_name: profile?.um_name,
           doctor_number: profile?.um_contact,
           doctor_specialty: profile?.dp_name,

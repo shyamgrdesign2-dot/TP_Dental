@@ -1,12 +1,17 @@
 import { v4 as uuidv4 } from "uuid";
-import codeIcon from "../assets/images/code.svg";
-import validateHealthcareIcon from "../assets/images/validate-heathcare.svg";
-import clinicalStudyIcon from "../assets/images/clinical-study.svg";
-import apexAI from "../assets/images/apexAI.svg";
-import scannerIcon from "../assets/images/scanner.webp";
-import sunIcon from "../assets/images/sun.webp";
-import cameraIcon from "../assets/images/camera.webp";
-import cropIcon from "../assets/images/crop.webp";
+
+/** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
+export const TP_ASSETS_BASE =
+  "https://pmdoctorportal.blob.core.windows.net/tp-assets/assets";
+
+const codeIcon = `${TP_ASSETS_BASE}/images/code.svg`;
+const validateHealthcareIcon = `${TP_ASSETS_BASE}/images/validate-heathcare.svg`;
+const clinicalStudyIcon = `${TP_ASSETS_BASE}/images/clinical-study.svg`;
+const apexAI = `${TP_ASSETS_BASE}/images/apexAI.svg`;
+const scannerIcon = `${TP_ASSETS_BASE}/images/scanner.webp`;
+const sunIcon = `${TP_ASSETS_BASE}/images/sun.webp`;
+const cameraIcon = `${TP_ASSETS_BASE}/images/camera.webp`;
+const cropIcon = `${TP_ASSETS_BASE}/images/crop.webp`;
 
 export const PERSISTANT_STORAGE_KEY_AUTH_TOKEN =
   "persistant.storage.key.auth-token";

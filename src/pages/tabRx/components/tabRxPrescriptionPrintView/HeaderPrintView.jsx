@@ -23,13 +23,16 @@ import {
   LANGUAGE_LIST,
   NEO_NATOLOGISTS_DP_ID,
 } from "../../../../utils/constants";
-import profileImg from "../../../../assets/images/profile-img.svg";
-import playIcon from "../../../../assets/images/h-play-icon.svg";
-import tutorial2 from "../../../../assets/images/tutorial.svg";
-import settingsIcon from "../../../../assets/images/settings.svg";
-import languageIcon from "../../../../assets/images/language-icon.svg";
-import shadedArrow from "../../../../assets/images/shaded-arrow.svg";
 import { useChikitsalay } from "../../../chikitsalay/useChikitsalay";
+import { ASSETS } from "../../../../assets";
+const {
+  profileImg,
+  hPlayIcon: playIcon,
+  tutorial: tutorial2,
+  settings: settingsIcon,
+  languageIcon,
+  shadedArrow,
+} = ASSETS.images;
 
 function HeaderPrintView({
   patient_data,

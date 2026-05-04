@@ -12,11 +12,14 @@ import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
 import CheckableTag from 'antd/es/tag/CheckableTag';
 import CommonModal from '../common/CommonModal';
-import alertIcon from '../assets/images/alertIcon.svg';
-import editIcon from '../assets/images/edit.svg';
+
 import { ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
 import _ from 'lodash';
-
+import { ASSETS } from "../assets";
+const {
+  alerticon: alertIcon,
+  edit: editIcon,
+} = ASSETS.images;
 
 const LabResultsTable = ({
     handleAddLabParamsDrawer,
@@ -679,7 +682,6 @@ const LabResultsTable = ({
     });
     return updatedValues;
   }
-
 
     function deleteDateByIndex(inputValues, date) {
       const updatedValues = { ...inputValues };
