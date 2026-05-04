@@ -37,6 +37,7 @@ import {
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
+  GB_CVT_EXT_HOS,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -584,6 +585,7 @@ function Cardiology(props) {
   const isTabRxCVTAccessableFromGB = useFeatureIsOn(GB_TAB_RX_CVT);
   const isVideoConsultOn = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultOn = useFeatureIsOn(GB_TELE_CONSULT);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
@@ -3403,7 +3405,11 @@ function Cardiology(props) {
             <Card.Header className="bg-white py-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <div className="title2">{`${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}</div>
+                  <div className="title2">
+                    {isCvtExtHosAccessableFromGB
+                      ? viewCaseManagerData?.doctor_data?.doctor_name
+                      : `${viewCaseManagerData?.doctor_data?.doctor_name} | ${viewCaseManagerData?.doctor_data?.dp_name}`}
+                  </div>                  
                   <div className="subtitle d-flex align-items-center">
                     {viewCaseManagerData?.showConsultationDateTime}
                     {hasVideoConsult && (
@@ -3488,7 +3494,7 @@ function Cardiology(props) {
                   </Button>
                 </div>
                 <div>
-                  {!is_draft && <button
+                  {(!is_draft) && <button
                     className="btn p-0 ms-3"
                     style={{
                       visibility:
@@ -3532,7 +3538,7 @@ function Cardiology(props) {
                       </button>
                     </span>
                   </Tooltip>
-                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx && !isTabRx) &&
+                  {(isSnapRx && isSnapRxdigitised) || (!isSmartRxFile && !isSnapRx && !isTabRx) && !isCvtExtHosAccessableFromGB &&
                     !isValidMongoId(
                       viewCaseManagerData?.smart_prescription_filename
                     ) && (

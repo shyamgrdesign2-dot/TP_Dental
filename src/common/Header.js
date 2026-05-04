@@ -23,7 +23,7 @@ import ApiAbha from "../api/services/ApiAbha";
 import { viewDoctorWebsite } from "../redux/doctorWebsiteSlice";
 
 import { useLocalStorage, clearLocalStorage, getDecodedToken } from "../utils/localStorage";
-import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP } from "../utils/constants";
+import { TRIAL, GB_ZYDUS_USER, OPD_API_KEY, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_TATVA_PRACTICE, PERSISTANT_STORAGE_KEY_BILL_TOKEN, FROM_NATIVE_APP, GB_CVT_EXT_HOS } from "../utils/constants";
 import { errorMessage, getClinicName, makeDefaultLogo, shouldMonetizationDisabled, getTokenData, getDeviceSdkData } from "../utils/utils";
 import { createAbhaPrintHandlerConfig, createAbhaDownloadHandler } from "./abhaQrHelper";
 import { Modal, Card } from "antd";
@@ -91,6 +91,7 @@ function Header({ locationPath }) {
   );
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isAbhaQRAccessableFromGB = useFeatureIsOn("abha-qr");
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();
 
   const decodedToken = getDecodedToken();
@@ -780,7 +781,7 @@ function Header({ locationPath }) {
     clickBuyNow()
   };
 
-  const getMenuItems = () => {
+  const getMenuItems = (logoutOnly = false) => {
     const commonItems = [
       {
         label: (
@@ -1033,6 +1034,10 @@ function Header({ locationPath }) {
       },
     ];
 
+    if (logoutOnly) {
+      return [logoutItem[1]];
+    }
+
     // Combine commonItems, extraItems (if applicable), and logoutItem (always at the end)
     const items = isOpdPlansAccessableFromGB
       ? [...commonItems, ...extraItems, ...logoutItem]
@@ -1132,8 +1137,10 @@ function Header({ locationPath }) {
         <Container fluid>
           <div>
             <img onClick={() => {
-              window.Moengage.track_event("TP_Tatvapedia_clicked");
-              showHideLogoModal()
+              if(!isCvtExtHosAccessableFromGB){
+                window.Moengage.track_event("TP_Tatvapedia_clicked");
+                showHideLogoModal()
+              }
             }}
               src={ASSETS.images.logo}
               className={`d-inline-block align-top cursor-pointer`}
@@ -1406,49 +1413,51 @@ function Header({ locationPath }) {
               </Modal>
             )}
 
-            {locationPath == "/" || locationPath == "/bulk_messages" ? (
-              <div onClick={handleDrawervideo} className="cursor-pointer me-2 video-animat">
-                <img src={playIcon} />
-                <LoopingVideo
-                  webm={videorotateWebm}
-                  mp4={videorotateMp4}
-                  ariaLabel="Video"
-                />
-              </div>) : locationPath == "/billing-dashboard" ? (
+            { !isCvtExtHosAccessableFromGB &&
+              (locationPath == "/" || locationPath == "/bulk_messages" ? (
+                <div onClick={handleDrawervideo} className="cursor-pointer me-2 video-animat">
+                  <img src={playIcon} />
+                  <LoopingVideo
+                    webm={videorotateWebm}
+                    mp4={videorotateMp4}
+                    ariaLabel="Video"
+                  />
+                </div>) : locationPath == "/billing-dashboard" ? (
+                  <Popover
+                    open={popOverVideo}
+                    onOpenChange={showHideVideoListPopover}
+                    content={VIDEO_CONTENT(16)}
+                    trigger="click"
+                    overlayClassName="pop-430 pp-0 videoTutorial"
+                    placement="bottom"
+                  >
+                    <div className="cursor-pointer me-2 video-animat">
+                      <img src={playIcon} />
+                      <LoopingVideo
+                        webm={videorotateWebm}
+                        mp4={videorotateMp4}
+                        ariaLabel="Video"
+                      />
+                    </div>
+                  </Popover>
+                ) : (
                 <Popover
                   open={popOverVideo}
                   onOpenChange={showHideVideoListPopover}
-                  content={VIDEO_CONTENT(16)}
+                  content={VIDEO_CONTENT(3)}
                   trigger="click"
                   overlayClassName="pop-430 pp-0 videoTutorial"
                   placement="bottom"
                 >
-                  <div className="cursor-pointer me-2 video-animat">
-                    <img src={playIcon} />
-                    <LoopingVideo
-                      webm={videorotateWebm}
-                      mp4={videorotateMp4}
-                      ariaLabel="Video"
-                    />
-                  </div>
+                  <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'>
+                    {/* onClick={showHideVideoListPopover} */}
+                    <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
+                  </button>
                 </Popover>
-              ) : (
-              <Popover
-                open={popOverVideo}
-                onOpenChange={showHideVideoListPopover}
-                content={VIDEO_CONTENT(3)}
-                trigger="click"
-                overlayClassName="pop-430 pp-0 videoTutorial"
-                placement="bottom"
-              >
-                <button className='btn d-flex align-items-center btn-text mx-3 tutorial p-0'>
-                  {/* onClick={showHideVideoListPopover} */}
-                  <span className='text-decoration-none rounded-5 pe-3 bg-white shadow2'><img height={42} src={tutorial} />Tutorial</span>
-                </button>
-              </Popover>
-            )}
+              ))
+            }
 
-            {tp_monetization_enable && (
+            {tp_monetization_enable && !isCvtExtHosAccessableFromGB && (
               <div className="mx-3 cursor-pointer" onClick={handleAiSuite}>
                 <img src={AISuite} alt="AI Suite" />
               </div>
@@ -1499,43 +1508,45 @@ function Header({ locationPath }) {
               />
             )}
 
-            <div>
-              <Button
-                className="btn btn-delete-prescription mx-auto d-block p-0 mb-1"
-                onClick={() =>
-                  window.Moengage.track_event("announcement_button_clicked")
-                }
-                id="beamerButton"
-              >
-                <img src={Notification} alt="Beamer Notification" width="26px" height="26px" />
-              </Button>
-            </div>
+           {/* {!isCvtExtHosAccessableFromGB &&  */}
+              <div>
+                <Button
+                  className="btn btn-delete-prescription mx-auto d-block p-0 mb-1"
+                  onClick={() =>
+                    window.Moengage.track_event("announcement_button_clicked")
+                  }
+                  id="beamerButton"
+                >
+                  <img src={Notification} alt="Beamer Notification" width="26px" height="26px" />
+                </Button>
+              </div>
+            {/* } */}
 
             {SWITCH_TO_OLD_MODAL}
 
             <Dropdown
-              menu={{
-                items: getMenuItems(),
-              }}
-              trigger={['click']}
-              className="py-0 nav-link cursor-pointer"
-              overlayClassName="prfile-dropdown"
-            >
-              <a onClick={handeProfileDD}>
-                {profile?.um_image && planDetails?.currentPlanStatus !== "PAID" ? (
-                  <img
-                    src={profile?.um_image ?? defaultprofile}
-                    alt="Profile"
-                    className="rounded-circle"
-                    style={{ width: "35px", height: "35px" }}
-                  />
-                ) : planDetails?.currentPlanStatus === "PAID" ? (
-                  <PremiumUser />
-                ) :
-                  <div className='rounded-pill patientProfile border'>{makeDefaultLogo(profile?.um_name)}</div>
-                }
-              </a>
-            </Dropdown>
+            menu={{
+              items: getMenuItems(isCvtExtHosAccessableFromGB),
+            }}
+            trigger={['click']}
+            className="py-0 nav-link cursor-pointer"
+            overlayClassName={`prfile-dropdown ${isCvtExtHosAccessableFromGB ? "logout-only-dropdown" : ""}`}
+          >
+            <a onClick={handeProfileDD}>
+              {profile?.um_image && planDetails?.currentPlanStatus !== "PAID" ? (
+                <img
+                  src={profile?.um_image ?? defaultprofile}
+                  alt="Profile"
+                  className="rounded-circle"
+                  style={{ width: "35px", height: "35px" }}
+                />
+              ) : planDetails?.currentPlanStatus === "PAID" ? (
+                <PremiumUser />
+              ) :
+                <div className='rounded-pill patientProfile border'>{makeDefaultLogo(profile?.um_name)}</div>
+              }
+            </a>
+          </Dropdown>
           </Nav>
         </Container>
       </Navbar>
