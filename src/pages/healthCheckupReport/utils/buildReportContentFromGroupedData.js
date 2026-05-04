@@ -160,28 +160,6 @@ function formatConsultationAsPrintViewNotes(consultation) {
     });
     parts.push("Examinations:\n" + lines.join(", "));
   }
-  const mh = consultation.medical_history ?? [];
-  if (mh.length > 0) {
-    const lines = mh
-      .map((item) => {
-        const title = item.title ?? item.name ?? item.conditionName ?? "";
-        const tags = item.tags;
-        const remarks =
-          item.medical_history_remarks ?? item.remarks ?? "";
-        if (Array.isArray(tags) && tags.length > 0) {
-          return tags
-            .map(
-              (t) =>
-                (t.title ?? t.conditionName ?? t.name ?? "") +
-                (t.details ?? t.value ? ` (${t.details ?? t.value})` : "")
-            )
-            .join(", ");
-        }
-        return remarks || title;
-      })
-      .filter(Boolean);
-    if (lines.length) parts.push("Medical History:\n" + lines.join("\n"));
-  }
   const diag = consultation.diagnosis ?? [];
   if (diag.length > 0) {
     const lines = diag.map((item) => {
@@ -433,8 +411,9 @@ export function buildReportContentFromGroupedData(
 
   const patientInfo = getPatientInfo(consultations, patient_data);
   const doctorName = profile?.um_name || profile?.name || profile?.doctorName || "";
+  const normalizedDoctorName = doctorName.trim().replace(/^Dr\.?\s*/i, "");
   const impressionText = doctorName
-    ? `Impression (Dr. ${escapeHtml(doctorName)})`
+    ? `Impression (Dr. ${escapeHtml(normalizedDoctorName)})`
     : "Impression (Dr. ______________)";
 
   const today = new Date();
