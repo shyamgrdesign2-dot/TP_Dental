@@ -408,6 +408,7 @@ function SmartHealthCheckupEditor(
         value={initialContent}
         onChange={handleChange}
         className="health-checkup-editor__document-body"
+        autoSuggest={false}
       />
     </div>
   );
