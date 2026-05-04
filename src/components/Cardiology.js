@@ -913,6 +913,7 @@ function Cardiology(props) {
     isGynaecHistoryAccessable: false,
     payloadOverride: null,
     skipFetch: !printUrlWithLang,
+    isCvtExtHosAccessableFromGB,
   });
 
   const buildPayloadBlobFromPrintUrl = useCallback(async (sourceUrl) => {
@@ -922,15 +923,18 @@ function Cardiology(props) {
     const response = await axios.get(urlObj.toString());
     const payload = response?.data?.data || null;
     if (!payload) return null;
-    const blob = await renderPrintPayloadToBlob(payload, {
-      selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
-      isGynaecHistoryAccessable: false,
-    });
+    const blob = await renderPrintPayloadToBlob(
+      { ...payload, isCvtExtHosAccessableFromGB },
+      {
+        selectedLang: selectedLang ? Number(atob(selectedLang)) : undefined,
+        isGynaecHistoryAccessable: false,
+      },
+    );
     if (!(blob instanceof Blob)) return null;
     const header = await blob.slice(0, 5).text();
     if (header !== "%PDF-") return null;
     return blob;
-  }, [selectedLang]);
+  }, [selectedLang, isCvtExtHosAccessableFromGB]);
 
   useEffect(() => {
     if (!(isMobile && !isTablet) || !showDigitalGenRx || !printUrlWithLang) {
