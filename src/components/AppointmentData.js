@@ -2348,7 +2348,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               <br />{" "}
               <small> {record.pt_name || "--"}</small>
           </div>
-          {advancedSettings?.billingStatusInAppointmentScreen &&
+          {!isCvtExtHosAccessableFromGB &&
+            advancedSettings?.billingStatusInAppointmentScreen &&
             record.billStatus && (
               <div
                 className={`bill-status ${
