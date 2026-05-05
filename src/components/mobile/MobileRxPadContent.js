@@ -5,7 +5,6 @@ import { Input, AutoComplete, Spin } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { searchInvestigation, getFrequentlySearchedInvestigation } from '../../redux/investigationSlice';
 import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
-import { useChikitsalay } from '../../pages/chikitsalay/useChikitsalay';
 import { removeBeforeWhiteSpace } from '../../utils/utils';
 import { convertMedicalHistoryToContextFormat, convertContextToRxPadFormat } from '../../utils/medicalHistoryConverters';
 import CashManagerContext from '../../context/CashManagerContext';
@@ -82,7 +81,6 @@ function enrichVitalsWithCalculations(vital, patientInfo = {}) {
 
 const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEndVisit, isProcessing = false, endVisitLoading = false, isPrescriptionEmpty = false, patient_data, caseManagerData, isVoiceAmbientFlow = true, vitalsFlow = 'voice' }) => {
   const dispatch = useDispatch();
-  const isChikitsalayAccessable = useChikitsalay();
   const navigate = useNavigate();
   const { setMedicalHistoryData, medicalHistoryData: contextMedicalHistoryData, setVitalsData } = useContext(CashManagerContext) || {};
   const { parentOptionsList = [] } = useSelector((state) => state.investigation);
@@ -129,13 +127,7 @@ const MobileRxPadContent = ({ prescriptionData, onUpdate, onEditWithVoice, onEnd
       return;
     }
     medicationSearchDebounceRef.current = setTimeout(() => {
-      dispatch(
-        searchMedication({
-          searchQuery: q,
-          type: 'parent',
-          isChikitsalayAccessable,
-        })
-      );
+      dispatch(searchMedication({ searchQuery: q, type: 'parent' }));
     }, 500);
     return () => { if (medicationSearchDebounceRef.current) clearTimeout(medicationSearchDebounceRef.current); };
   }, [medicationSearch, dispatch]);

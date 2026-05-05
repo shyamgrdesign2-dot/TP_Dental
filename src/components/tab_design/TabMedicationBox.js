@@ -33,7 +33,6 @@ import {
 import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
-import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 
 import CommonModal from '../../common/CommonModal';
 
@@ -94,30 +93,6 @@ const {
 } = ASSETS.images;
 
 function TabMedicationBox() {
-  const isChikitsalayAccessable = useChikitsalay();
-  const renderLowStockBadge = useCallback((qty) => {
-    if (!isChikitsalayAccessable) return null;
-    const n = Number(qty);
-    if (!Number.isFinite(n) || n >= 100) return null;
-    const label = n === 0 ? "No stock" : `Qty ${n}`;
-    return (
-      <span
-        className="ms-2"
-        style={{
-          padding: "2px 8px",
-          borderRadius: 6,
-          background: "#ED8A00",
-          color: "#fff",
-          fontSize: 12,
-          fontWeight: 600,
-          display: "inline-block",
-          lineHeight: "16px",
-        }}
-      >
-        {label}
-      </span>
-    );
-  }, [isChikitsalayAccessable]);
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const {
     dosesList,
@@ -252,11 +227,7 @@ function TabMedicationBox() {
     if (searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({
-            searchQuery: searchMLQuery,
-            type: "parent",
-            isChikitsalayAccessable,
-          })
+          searchMedication({ searchQuery: searchMLQuery, type: "parent" })
         );
       }, 500);
       return () => {
@@ -273,12 +244,7 @@ function TabMedicationBox() {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.tmm_medicine_name,
-        label: (
-          <div>
-            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>
-            {renderLowStockBadge(e?.quantity)}
-          </div>
-        ),
+        label: <div><span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span></div>,
       });
     });
     if (doseCalculatorDrawer) {

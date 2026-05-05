@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from '@growthbook/growthbook-react';
 import { useLocation } from 'react-router-dom';
 import styles from './ConsultationDrawer.module.css';
-import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 
 import {
   searchMedication,
@@ -50,30 +49,6 @@ const MedicationsTable = ({
   isMedInvestigationFeatureOn: isMedInvestigationFeatureOnProp,
 }) => {
   const dispatch = useDispatch();
-  const isChikitsalayAccessable = useChikitsalay();
-  const renderLowStockBadge = useCallback((qty) => {
-    if (!isChikitsalayAccessable) return null;
-    const n = Number(qty);
-    if (!Number.isFinite(n) || n >= 100) return null;
-    const label = n === 0 ? "No stock" : `Qty ${n}`;
-    return (
-      <span
-        className="ms-2"
-        style={{
-          padding: "2px 8px",
-          borderRadius: 6,
-          background: "#ED8A00",
-          color: "#fff",
-          fontSize: 12,
-          fontWeight: 600,
-          display: "inline-block",
-          lineHeight: "16px",
-        }}
-      >
-        {label}
-      </span>
-    );
-  }, [isChikitsalayAccessable]);
   const { parentOptionsList, loading } = useSelector((state) => state.medication);
   const { state } = useLocation();
   const { patient_data } = state || {};
@@ -203,11 +178,10 @@ const MedicationsTable = ({
               {getHmTypeIndicator(medication)}
             </div>
           )}
-          {renderLowStockBadge(medication?.quantity)}
         </div>
       ),
     };
-  }, [renderLowStockBadge]);
+  }, []);
 
   const performFuzzySearch = useCallback(
     async (value) => {
@@ -387,11 +361,7 @@ const MedicationsTable = ({
     hasFuzzyResults.current = false; // Clear fuzzy results flag when user edits
     const timeOutId = setTimeout(() => {
       dispatch(
-        searchMedication({
-          searchQuery: searchQuery,
-          type: "parent",
-          isChikitsalayAccessable,
-        })
+        searchMedication({ searchQuery: searchQuery, type: "parent" })
       );
     }, 500);
     return () => {
