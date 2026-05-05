@@ -90,6 +90,7 @@ import {
   TAB_CLINIC_QUEUE,
   TAB_CLINIC_APPOINTMENT,
   CLINIC_TARGET_STATUS,
+  GB_CVT_EXT_HOS,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
 import { env } from "../EnvironmentConfig";
@@ -488,6 +489,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
   const isAppointmentSequenceFromGB = useFeatureIsOn(GB_APPT_SEQUENCE);
+  const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
@@ -604,7 +606,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         </div>
       ),
     },
-    isSaveAsDraftRxAccessableFromGB && {
+    isSaveAsDraftRxAccessableFromGB &&
+      !isCvtExtHosAccessableFromGB && {
       key: TAB_DRAFT_RX,
       label: (
         <div className="d-flex align-items-center">
@@ -655,7 +658,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
           </div>
         ),
       },
-      isSaveAsDraftRxAccessableFromGB && {
+      isSaveAsDraftRxAccessableFromGB &&
+        !isCvtExtHosAccessableFromGB && {
         key: TAB_DRAFT_RX,
         label: (
           <div className="d-flex align-items-center">
@@ -743,6 +747,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isZydusUserAccessableFromGB,
     isSmartSyncCVTAccessableFromGB,
     isSnapRxDigitizationAccessable,
+    isCvtExtHosAccessableFromGB,
+    isSaveAsDraftRxAccessableFromGB,
+    draftRxCount,
+    selectedTab,
   ]);
 
   const [isDigitisationTab, setIsDigitisationTab] = useState(false);
@@ -757,6 +765,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       setSelectedTab(TAB_ZYDUS_ENCOUNTER);
     }
   }, [isZydusUserAccessableFromGB]);
+
+  useEffect(() => {
+    if (isCvtExtHosAccessableFromGB && selectedTab === TAB_DRAFT_RX) {
+      setSelectedTab(TAB_QUEUE);
+    }
+  }, [isCvtExtHosAccessableFromGB, selectedTab]);
 
   const calanderOptions = [
     { value: 1, label: "Today" },
@@ -2364,7 +2378,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               <br />{" "}
               <small> {record.pt_name || "--"}</small>
           </div>
-          {advancedSettings?.billingStatusInAppointmentScreen &&
+          {!isCvtExtHosAccessableFromGB &&
+            advancedSettings?.billingStatusInAppointmentScreen &&
             record.billStatus && (
               <div
                 className={`bill-status ${
@@ -2742,7 +2757,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             )}
             {!isDigitisationTab &&
               selectedTab != TAB_ZYDUS_ENCOUNTER &&
-              selectedTab != TAB_ZYDUS_APPOINTMENT && (
+              selectedTab != TAB_ZYDUS_APPOINTMENT && 
+              !isCvtExtHosAccessableFromGB && (
                 <Dropdown
                   className="btn btn-outline btn-more ms-3 d-flex align-items-center"
                   menu={{
@@ -3340,7 +3356,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               onChange={onChange}
               activeKey={selectedTab}
             />
-            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) ? (
+            {isAppointmentAgentEnable && (isUserInAgentsData || isAdmin) && !isCvtExtHosAccessableFromGB ? (
               <div
                 className="receptionist-setup-button"
                 onClick={onAppointmentAgentClick}

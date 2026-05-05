@@ -10,6 +10,7 @@ export const usePrintPayloadPdf = ({
   payloadOverride,
   skipFetch = false,
   zydusSelectedLabParams = null,
+  isCvtExtHosAccessableFromGB,
 }) => {
   const [payload, setPayload] = useState(null);
   const [printBlob, setPrintBlob] = useState(null);
@@ -91,11 +92,20 @@ export const usePrintPayloadPdf = ({
       setIsGenerating(true);
       setError(null);
       try {
-        const blob = await renderPrintPayloadToBlob({...payload, zydusLabData: zydusSelectedLabParams}, {
-          selectedLang,
-          isGynaecHistoryAccessable,
-          showSnapRxImages,
-        });
+        const blob = await renderPrintPayloadToBlob(
+          {
+            ...payload,
+            zydusLabData: zydusSelectedLabParams,
+            ...(typeof isCvtExtHosAccessableFromGB === "boolean"
+              ? { isCvtExtHosAccessableFromGB }
+              : {}),
+          },
+          {
+            selectedLang,
+            isGynaecHistoryAccessable,
+            showSnapRxImages,
+          },
+        );
         if (!blob) {
           throw new Error("Failed to generate PDF blob.");
         }
@@ -125,7 +135,7 @@ export const usePrintPayloadPdf = ({
     return () => {
       isCancelled = true;
     };
-  }, [payload, selectedLang, isGynaecHistoryAccessable, skipFetch]);
+  }, [payload, selectedLang, isGynaecHistoryAccessable, skipFetch, isCvtExtHosAccessableFromGB]);
 
   return { payload, printBlob, isGenerating, error };
 };
