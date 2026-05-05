@@ -12,6 +12,7 @@ import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat
 import { MenuOutlined } from '@ant-design/icons';
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 
 import {
   addTemplate,
@@ -55,6 +56,30 @@ const {
 const { TextArea } = Input;
 
 function MedicationsBox() {
+  const isChikitsalayAccessable = useChikitsalay();
+  const renderLowStockBadge = useCallback((qty) => {
+    if (!isChikitsalayAccessable) return null;
+    const n = Number(qty);
+    if (!Number.isFinite(n) || n >= 100) return null;
+    const label = n === 0 ? "No stock" : `Qty ${n}`;
+    return (
+      <h6
+        className="ms-2"
+        style={{
+          padding: "2px 8px",
+          borderRadius: 6,
+          background: "#ED8A00",
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 600,
+          display: "inline-block",
+          lineHeight: "16px",
+        }}
+      >
+        {label}
+      </h6>
+    );
+  }, [isChikitsalayAccessable]);
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const {
     dosesList,
@@ -142,7 +167,11 @@ function MedicationsBox() {
     if (searchParentQuery || searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: doseCalculatorDrawer ? searchMLQuery : searchParentQuery, type: "parent" })
+          searchMedication({
+            searchQuery: doseCalculatorDrawer ? searchMLQuery : searchParentQuery,
+            type: "parent",
+            isChikitsalayAccessable,
+          })
         );
       }, 500);
       return () => {
@@ -163,6 +192,7 @@ function MedicationsBox() {
           <div>
             <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>  {(e?.tmm_hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2' }}>Z</span>}
             <FreeBadge show={e?.is_free} />
+            {renderLowStockBadge(e?.quantity)}
           </div>
         ),
       });
@@ -1082,6 +1112,7 @@ function MedicationsBox() {
                           <Col lg={5} md={5} sm={5} xs={5}>
                             <div className="fontroboto fw-medium p-2 pe-3">
                               <label>{item.tmm_medicine_name}</label>
+                              {renderLowStockBadge(item?.quantity)}
                               <Tooltip placement="bottom" title={item.tmm_generic}>
                                 <div className="text-truncate fw-normal me-1">{item.tmm_generic}</div>
                               </Tooltip>

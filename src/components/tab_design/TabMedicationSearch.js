@@ -28,6 +28,7 @@ import { InfoCircleOutlined } from "@ant-design/icons";
 
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 
 import { errorMessage, onlyNumberFormat, onlyDecimalFormat, isNumeric, hasNumber, removeBeforeWhiteSpace, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, calculateDose } from "../../utils/utils";
 
@@ -60,6 +61,30 @@ const {
 } = ASSETS.images;
 
 function TabMedicationSearch({ passIndex, onClose }) {
+  const isChikitsalayAccessable = useChikitsalay();
+  const renderLowStockBadge = useCallback((qty) => {
+    if (!isChikitsalayAccessable) return null;
+    const n = Number(qty);
+    if (!Number.isFinite(n) || n >= 100) return null;
+    const label = n === 0 ? "No stock" : `Qty ${n}`;
+    return (
+      <span
+        className="ms-2"
+        style={{
+          padding: "2px 8px",
+          borderRadius: 6,
+          background: "#ED8A00",
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 600,
+          display: "inline-block",
+          lineHeight: "16px",
+        }}
+      >
+        {label}
+      </span>
+    );
+  }, [isChikitsalayAccessable]);
 
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const { dosesList, parentOptionsList, childOptionsList, genericList, loading } = useSelector((state) => state.medication);
@@ -148,7 +173,11 @@ function TabMedicationSearch({ passIndex, onClose }) {
     if (searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchMLQuery, type: "parent" })
+          searchMedication({
+            searchQuery: searchMLQuery,
+            type: "parent",
+            isChikitsalayAccessable,
+          })
         );
       }, 500);
       return () => {
@@ -165,7 +194,12 @@ function TabMedicationSearch({ passIndex, onClose }) {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.tmm_medicine_name,
-        label: <div><span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span></div>,
+        label: (
+          <div>
+            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>
+            {renderLowStockBadge(e?.quantity)}
+          </div>
+        ),
       });
     });
     if (doseCalculatorDrawer) {
@@ -203,7 +237,11 @@ function TabMedicationSearch({ passIndex, onClose }) {
     if (searchChildQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchChildQuery, type: "child" })
+          searchMedication({
+            searchQuery: searchChildQuery,
+            type: "child",
+            isChikitsalayAccessable,
+          })
         );
       }, 500);
       return () => {

@@ -10,6 +10,7 @@ import { AutoComplete, Button } from "antd";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 import { searchMedication } from "../redux/medicationSlice";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { searchInvestigation } from "../redux/investigationSlice";
 import CustomMedicinePopup from "./CustomMedicinePopup";
 import CustomModuleRichTextEditor from "./CustomModuleRichTextEditor";
@@ -222,6 +223,7 @@ const DigitisedPrescription = ({
   const suggestionRef = useRef(null);
   const inputRef = useRef(null);
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const { parentOptionsList } = useSelector((state) => state.medication);
   const { parentOptionsList: testOptionsList } = useSelector(
     (state) => state.investigation
@@ -903,7 +905,13 @@ const DigitisedPrescription = ({
     if (activeType !== "medications") return;
     if (!editableText) return;
     const timeoutId = setTimeout(() => {
-      dispatch(searchMedication({ searchQuery: editableText, type: "parent" }));
+      dispatch(
+        searchMedication({
+          searchQuery: editableText,
+          type: "parent",
+          isChikitsalayAccessable,
+        })
+      );
     }, 500);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -4,6 +4,7 @@ import { AutoComplete, Input, Button, Drawer, Select } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 
 import { searchMedication, getFrequentlySearchedMedication } from '../../redux/medicationSlice';
+import { useChikitsalay } from '../../pages/chikitsalay/useChikitsalay';
 import { showMedicineTime, showMedicineFrequency } from '../../redux/doctorsSlice';
 import { removeBeforeWhiteSpace, onlyNumberFormat, onlyDecimalFormat, frequencyFormat, frequencyCombination } from '../../utils/utils';
 import { EXTRA_OPTIONS } from '../../utils/constants';
@@ -40,6 +41,7 @@ const DEFAULT_UNIT_OPTIONS = [
  */
 function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetadata, onSave }) {
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const { parentOptionsList = [] } = useSelector((state) => state.medication);
   const { timingList = [], frequencyList = [] } = useSelector((state) => state.doctors);
   const debounceRef = useRef(null);
@@ -154,7 +156,13 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
       return;
     }
     debounceRef.current = setTimeout(() => {
-      dispatch(searchMedication({ searchQuery: q, type: 'parent' }));
+      dispatch(
+        searchMedication({
+          searchQuery: q,
+          type: 'parent',
+          isChikitsalayAccessable,
+        })
+      );
     }, 500);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [visible, name, dispatch]);
@@ -167,10 +175,34 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
       .filter((m) => m && (m.tmm_medicine_name || m.medicine_name))
       .map((m) => {
         const medicineName = m.tmm_medicine_name || m.medicine_name;
+        const qty = Number(m?.quantity);
+        const showLowStock = isChikitsalayAccessable && Number.isFinite(qty) && qty < 100;
+        const badgeText = qty === 0 ? "No stock" : `Qty ${qty}`;
         return {
           key: JSON.stringify({ ...m }),
           value: medicineName,
-          label: medicineName,
+          label: showLowStock ? (
+            <span>
+              {medicineName}
+              <span
+                style={{
+                  marginLeft: 8,
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  background: "#ED8A00",
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  display: "inline-block",
+                  lineHeight: "16px",
+                }}
+              >
+                {badgeText}
+              </span>
+            </span>
+          ) : (
+            medicineName
+          ),
         };
       });
     if (q.length > 0) {
@@ -186,7 +218,7 @@ function MedicationEditSheet({ visible, onClose, item, prefillName, prefillMetad
       }
     }
     setOptions(opts);
-  }, [parentOptionsList, name]);
+  }, [parentOptionsList, name, isChikitsalayAccessable]);
 
   const onSearch = useCallback((val) => {
     setName(removeBeforeWhiteSpace(val));
