@@ -247,7 +247,7 @@ const PrimaryActionButton = ({
           paddingLeft: "6px",
           justifyContent: "flex-start"
         }
-      : { paddingLeft: "6px" };
+      : { paddingLeft: "0px" };
     
     if (primaryOption.type === "smartrx" || primaryOption.type === "snaprx" || primaryOption.type === "tabrx") {
       return (

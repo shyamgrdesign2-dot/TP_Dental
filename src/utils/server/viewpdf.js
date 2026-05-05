@@ -2140,7 +2140,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             </View>
           </Page>
         ))}
-      {hasAnyData(caseManagerData, rx) && (
+      {hasAnyData(caseManagerData, rx) && (!isCvtExtHosAccessableFromGB || isRxDigitizeBool) && (
         <Page
           size="A4"
           style={[
