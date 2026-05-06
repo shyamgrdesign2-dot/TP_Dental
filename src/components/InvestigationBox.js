@@ -19,7 +19,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
+import { errorMessage, getHmTypeIndicator, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
 
 import { MenuOutlined } from '@ant-design/icons';
 import {
@@ -36,6 +36,7 @@ import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
 const {
   alerticon: alertIcon,
@@ -45,6 +46,7 @@ const {
 const { TextArea } = Input;
 
 function InvestigationBox({handleDDxDrawer, generatedDDx}) {
+  const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
     parentOptionsList,
@@ -162,10 +164,30 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   useEffect(() => {
     const data = [];
     parentOptionsList.map((e) => {
+      const indicator = getHmTypeIndicator(e, isChikitsalayAccessable);
+      const isWideIndicator = indicator.length > 1;
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
-        label: <div>{e.investigation_name} {(e?.hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2'}}>Z</span>}</div>,
+        label: (
+          <div>
+            {e.investigation_name}{" "}
+            {indicator && (
+              <span
+                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                style={{
+                  minWidth: isWideIndicator ? 26 : 18,
+                  height: 18,
+                  padding: isWideIndicator ? "0 6px" : "0 4px",
+                  background: "#c44ea2",
+                  lineHeight: "16px",
+                }}
+              >
+                {indicator}
+              </span>
+            )}
+          </div>
+        ),
       });
     });
     if (searchParentQuery.length === 0) {
@@ -547,6 +569,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
             <div {...provided.droppableProps} ref={provided.innerRef}>
               {investigationData.length > 0 &&
                 investigationData.map((item, index) => (
+                  (() => {
+                    const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
+                    const isWideIndicator = indicator.length > 1;
+                    return (
                   <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
                     {(provided) => (
                       <Row
@@ -566,21 +592,22 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                           </MenuOutlined>
                         </Col>
                         <Col lg={8} md={8} sm={8} xs={8}>
-                          <div className="fontroboto fw-medium">
-                            <AutoComplete
-                              defaultValue={item.investigation_name}
-                              value={item.investigation_name}
-                              placeholder="Investigation Name"
-                              bordered={false}
-                              disabled={true}
-                              defaultOpen={false}
-                              onSearch={(query) => onSearchChild(query, index)}
-                              onFocus={() => onFocusChid(index)}
-                              options={childSearchOptions}
-                              className="autocomplete-custom w-100 inputborder"
-                              defaultActiveFirstOption={true}
-                              onSelect={(data, e) => onSelectChild(data, e, index)}
-                            />
+                          <div className="fontroboto fw-medium d-flex align-items-center gap-1">
+                            <span className="text-truncate">{item.investigation_name}</span>
+                            {indicator && (
+                              <span
+                                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                                style={{
+                                  minWidth: isWideIndicator ? 26 : 18,
+                                  height: 18,
+                                  padding: isWideIndicator ? "0 6px" : "0 4px",
+                                  background: "#c44ea2",
+                                  lineHeight: "16px",
+                                }}
+                              >
+                                {indicator}
+                              </span>
+                            )}
                           </div>
                         </Col>
                         <Col lg={14} md={14} sm={13} xs={13} className="border-start border-end">
@@ -607,6 +634,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                       </Row>
                     )}
                   </Draggable>
+                    );
+                  })()
                 ))}
               {provided.placeholder}
             </div>
