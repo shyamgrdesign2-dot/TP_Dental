@@ -548,7 +548,7 @@ function TabMedicationSearch({ passIndex, onClose }) {
       >
         <div className="text-truncate">
           <div className="d-flex align-items-center gap-1 w-100">
-            <span className="chip-text-white text-truncate" style={{ flex: 1, minWidth: 0 }}>
+            <span className="chip-text text-truncate" style={{ flex: 1, minWidth: 0 }}>
               {item.tmm_medicine_name}
             </span>
             {indicator && (

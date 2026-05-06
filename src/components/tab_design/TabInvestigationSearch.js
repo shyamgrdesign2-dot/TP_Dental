@@ -193,11 +193,10 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
     // }, [investigationData, selectedIndex]);
 
     // Drag & Drop
-    const SortableItem = SortableElement(({ item }) => (
-        (() => {
-            const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
-            const isWideIndicator = indicator.length > 1;
-            return (
+    const SortableItem = SortableElement(({ item }) => {
+        const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
+        const isWideIndicator = indicator.length > 1;
+        return (
         <div
             style={{
                 width: item.investigation_name.length > 12 && item.investigation_name.length < 24
@@ -209,14 +208,14 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
             }}
             className={`${selectedIndex == item.index && "closable-chips-active"} position-relative d-flex align-items-center justify-content-between text-truncate closable-chips`}
         >
-            <div className="text-truncate p-2" style={{ color: "#fff" }} onClick={() => {
+            <div className="text-truncate p-2" onClick={() => {
                 setSelectedIndex(item.index)
             }}>
                 <div className="text-truncate d-flex align-items-center gap-1">
-                    <span className="chip-text-white text-truncate" style={{ color: "#fff" }}>{item.investigation_name}</span>
+                    <span className="chip-text text-truncate">{item.investigation_name}</span>
                     {indicator && (
-                                                                      <span
-                                                                          className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                        <span
+                            className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
                             style={{
                                 minWidth: isWideIndicator ? 26 : 18,
                                 height: 18,
@@ -232,9 +231,9 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                 </div>
                 <div className="text-truncate">
                     {item.note ? (
-                        <div className="chip-subtext-white text-truncate small" style={{ color: "#fff" }}>{item.note}</div>
+                        <div className="chip-subtext text-truncate small">{item.note}</div>
                     ) : (
-                        <div className="chip-subtext-white text-truncate small" style={{ color: "#fff" }}>Add Details</div>
+                        <div className="chip-subtext text-truncate small">Add Details</div>
                     )}
                 </div>
             </div>
@@ -242,9 +241,8 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                 <i className="icon-Cross"></i>
             </Button>
         </div>
-            );
-        })()
-    ));
+        );
+    });
 
     const SortableList = SortableContainer(({ items }) => {
         return (

@@ -851,7 +851,7 @@ function TabMedicationBox() {
         onClick={() => mainMedicationSelect(item?.index)}>
         <div className="text-truncate">
           <div className="d-flex align-items-center gap-1 w-100">
-            <span className="chip-text-white text-truncate" style={{ flex: 1, minWidth: 0 }}>
+            <span className="chip-text text-truncate" style={{ flex: 1, minWidth: 0 }}>
               {item.tmm_medicine_name}
             </span>
             {indicator && (
@@ -871,20 +871,20 @@ function TabMedicationBox() {
             )}
           </div>
           {innerMedication(item?.index)?.length > 1 ? (
-            <div className="text-truncate small">Taper Dose</div>
+            <div className="text-truncate small chip-subtext">Taper Dose</div>
           ) : (
             (item.tmm_dosage || item.tmm_unit_name) ? (
               isNumeric(item.tmf_block) && item.tmf_block == 0 ? (
-                <div className="text-truncate small">{tmm_freq_type_name}</div>
+                <div className="text-truncate small chip-subtext">{tmm_freq_type_name}</div>
               ) : (
-                <div className="text-truncate small">{`
+                <div className="text-truncate small chip-subtext">{`
                         ${item.tmm_dosage && item.tmm_unit_name ? `${item.tmm_dosage} ${item.tmm_unit_name}` + " | " : ""}
                         ${item.tmm_freq_type_name ? item.tmm_freq_type_name + " | " : ""}
                         ${item.tmm_time_name ? item.tmm_time_name : ""}
                         `}</div>
               )
             ) : (
-              <div className="text-truncate small">Note</div>
+              <div className="text-truncate small chip-subtext">Note</div>
             )
           )}
         </div>
