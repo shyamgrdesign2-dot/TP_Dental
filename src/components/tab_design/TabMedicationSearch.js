@@ -414,9 +414,16 @@ function TabMedicationSearch({ passIndex, onClose }) {
             doseCalData['tmm_unit_name'] = unitObj && unitObj !== undefined ? JSON.parse(unitObj.key).tmu_title : "";
           }
 
-          return {
+          const mappedMedication = {
             ...e,
             objectID: item.objectID,
+            tmm_hm_type:
+              e.tmm_hm_type ??
+              item.tmm_hm_type ??
+              item.hm_type ??
+              item.metadata?.tmm_hm_type ??
+              item.metadata?.hm_type,
+            um_id: e.um_id ?? item.um_id ?? item.metadata?.um_id,
             // tmm_unit_name:unitObj && unitObj !== undefined? JSON.parse(unitObj.key).tmu_title : "",
             tmm_freq_type_name:
               frequencyObj !== undefined ? frequencyObj.tmf_title : "",
@@ -429,6 +436,7 @@ function TabMedicationSearch({ passIndex, onClose }) {
             unique_id: uuidv4(),
             ...doseCalData
           };
+          return mappedMedication;
         });
         if (doseCalculatorDrawer) {
           const modifyData = updatedData[0]
@@ -507,20 +515,23 @@ function TabMedicationSearch({ passIndex, onClose }) {
   const SortableItem = SortableElement(({ item }) => {
     let tmm_freq_type_name = `${item.tmm_dosage && item.tmm_unit_name ? `${item.tmm_dosage} ${item.tmm_unit_name}` + " | " : ""}${item.tcm_tmm_freq_morning ? item.tcm_tmm_freq_morning + " - " : "0 -"}${item.tcm_tmm_freq_afternoon ? item.tcm_tmm_freq_afternoon + " - " : "0 -"}${item.tcm_tmm_freq_evening ? item.tcm_tmm_freq_evening + " - " : selectedTab != 'man' ? "0 -" : ""}${item.tcm_tmm_freq_night ? item.tcm_tmm_freq_night + " | " : "0 |"}${item.tmm_time_name ? item.tmm_time_name : ""}`;
     tmm_freq_type_name = tmm_freq_type_name === `0 -0 -0 |None` ? "" : tmm_freq_type_name;
+    const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
+    const isWideIndicator = indicator.length > 1;
+    const chipWidth =
+      item.tmm_medicine_name.length > 12 &&
+      item.tmm_medicine_name.length < 24
+        ? `${item.tmm_medicine_name.length * 10.5 + (indicator ? 32 : 0)}px`
+        : item.tmm_medicine_name.length >= 24
+          ? `${256 + (indicator ? 32 : 0)}px`
+          : `${150 + (indicator ? 32 : 0)}px`;
     return (
     <div
-      style={{
-        width:
-          item.tmm_medicine_name.length > 12 &&
-            item.tmm_medicine_name.length < 24
-            ? `${item.tmm_medicine_name.length * 10.5}px`
-            : item.tmm_medicine_name.length >= 24
-              ? "256px"
-              : "150px",
-        zIndex: 9999,
-      }}
       className={`${selectedIndex1 == item?.index1 && "closable-chips-active"
         } d-flex align-items-center justify-content-between text-truncate closable-chips`}
+      style={{
+        width: chipWidth,
+        zIndex: 9999,
+      }}
     >
       <div
         className="text-truncate p-2"
@@ -536,7 +547,26 @@ function TabMedicationSearch({ passIndex, onClose }) {
         }}
       >
         <div className="text-truncate">
-          {item.tmm_medicine_name}
+          <div className="d-flex align-items-center gap-1 w-100">
+            <span className="chip-text-white text-truncate" style={{ flex: 1, minWidth: 0 }}>
+              {item.tmm_medicine_name}
+            </span>
+            {indicator && (
+              <span
+                className={`chip-vc-badge flex-shrink-0 align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                style={{
+                  minWidth: isWideIndicator ? 26 : 18,
+                  height: 18,
+                  padding: isWideIndicator ? "0 6px" : "0 4px",
+                  background: "#c44ea2",
+                  color: "#fff",
+                  lineHeight: "16px",
+                }}
+              >
+                {indicator}
+              </span>
+            )}
+          </div>
           {innerMedication(item?.index)?.length > 1 ? (
             <div className="text-truncate small">Taper Dose</div>
           ) : (

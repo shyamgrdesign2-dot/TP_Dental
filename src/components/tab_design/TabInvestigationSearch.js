@@ -15,11 +15,12 @@ import TabSearchHeader from "./TabSearchHeader";
 import LoopingVideo from "../common/LoopingVideo";
 
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
-import { getClinicName } from "../../utils/utils";
+import { getClinicName, getHmTypeIndicator } from "../../utils/utils";
 import { useLocation } from "react-router-dom";
 import { getDecodedToken } from "../../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../../utils/constants";
 import { env } from "../../EnvironmentConfig";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../../assets";
 const {
   dragChips_2: dragChipsWebm,
@@ -29,6 +30,7 @@ const {
 } = ASSETS.images;
 
 function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
+    const isChikitsalayAccessable = useChikitsalay();
 
     const {
         parentOptionsList,
@@ -192,6 +194,10 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
 
     // Drag & Drop
     const SortableItem = SortableElement(({ item }) => (
+        (() => {
+            const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
+            const isWideIndicator = indicator.length > 1;
+            return (
         <div
             style={{
                 width: item.investigation_name.length > 12 && item.investigation_name.length < 24
@@ -201,16 +207,34 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                         : '150px',
                 zIndex: 9999,
             }}
-            className={`${selectedIndex == item.index && "closable-chips-active"} d-flex align-items-center justify-content-between text-truncate closable-chips`}
+            className={`${selectedIndex == item.index && "closable-chips-active"} position-relative d-flex align-items-center justify-content-between text-truncate closable-chips`}
         >
-            <div className="text-truncate p-2" onClick={() => {
+            <div className="text-truncate p-2" style={{ color: "#fff" }} onClick={() => {
                 setSelectedIndex(item.index)
             }}>
-                <div className="text-truncate">{item.investigation_name}
+                <div className="text-truncate d-flex align-items-center gap-1">
+                    <span className="chip-text-white text-truncate" style={{ color: "#fff" }}>{item.investigation_name}</span>
+                    {indicator && (
+                                                                      <span
+                                                                          className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                            style={{
+                                minWidth: isWideIndicator ? 26 : 18,
+                                height: 18,
+                                padding: isWideIndicator ? "0 6px" : "0 4px",
+                                background: "#c44ea2",
+                                color: "#fff",
+                                lineHeight: "16px",
+                            }}
+                        >
+                            {indicator}
+                        </span>
+                    )}
+                </div>
+                <div className="text-truncate">
                     {item.note ? (
-                        <div className="text-truncate small">{item.note}</div>
+                        <div className="chip-subtext-white text-truncate small" style={{ color: "#fff" }}>{item.note}</div>
                     ) : (
-                        <div className="text-truncate small">Add Details</div>
+                        <div className="chip-subtext-white text-truncate small" style={{ color: "#fff" }}>Add Details</div>
                     )}
                 </div>
             </div>
@@ -218,6 +242,8 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                 <i className="icon-Cross"></i>
             </Button>
         </div>
+            );
+        })()
     ));
 
     const SortableList = SortableContainer(({ items }) => {
@@ -364,15 +390,18 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                         {searchChildQuery.length > 0 ? (
                                             childSearchOptions.length > 0 &&
                                             childSearchOptions.filter(e => ![...investigationData.map(e1 => e1.investigation_name)].includes(e.value)).map((item, i) => {
+                                                const parsedItem = JSON.parse(item.key);
+                                                const indicator = getHmTypeIndicator(parsedItem, isChikitsalayAccessable);
+                                                const isWideIndicator = indicator.length > 1;
                                                 return (
-                                                    <div className="position-relative">
+                                                    <div>
                                                         {/* i === childSearchOptions.length - 1 ? ( */}
-                                                        {JSON.parse(item.key).change === 1 ? (
+                                                        {parsedItem.change === 1 ? (
                                                             <Button
                                                                 key={i}
                                                                 type="text"
                                                                 className="btn btn-primary2 chips-custom mb-14 chips-addCustom chips-height"
-                                                                onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
+                                                                onClick={() => onSelectParent({ ...parsedItem })}>
                                                                 "{item.value}" <i className="icon-Add mx-2 fs-6"></i> <a className="fw-medium text-decoration-underline text-primary"> Add Custom</a>
                                                             </Button>
                                                         ) : (
@@ -381,21 +410,57 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                                 type="text"
                                                                 style={{ width: item.value.length > 26 && '250px' }}
                                                                 className={`${item.value.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`}
-                                                                onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
-                                                                {item.value}
+                                                                onClick={() => onSelectParent({ ...parsedItem })}>
+                                                                <span className="d-inline-flex align-items-center gap-1">
+                                                                    <span>{item.value}</span>
+                                                                    {indicator && (
+                                                                      <span
+                                                                          className={`chip-vc-badge align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                                                                          style={{
+                                                                            minWidth: isWideIndicator ? 26 : 18,
+                                                                            height: 18,
+                                                                            padding: isWideIndicator ? "0 6px" : "0 4px",
+                                                                            background: "#c44ea2",
+                                                                            color: "#fff",
+                                                                            lineHeight: "16px",
+                                                                          }}
+                                                                        >
+                                                                            {indicator}
+                                                                        </span>
+                                                                    )}
+                                                                </span>
                                                             </Button>
                                                         )}
-                                                        {(JSON.parse(item.key)?.hm_type === 1 && JSON.parse(item.key)?.um_id === 1) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
                                                     </div>
                                                 )
                                             })
                                         ) : (
                                             parentOptionsList.length > 0 &&
                                             parentOptionsList.filter(e => ![...investigationData.map(e1 => e1.investigation_name)].includes(e.investigation_name)).map((item, i) => {
+                                                const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
+                                                const isWideIndicator = indicator.length > 1;
                                                 return (
-                                                    <div className="position-relative">
-                                                        <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{item.investigation_name}</Button>
-                                                        {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                                    <div>
+                                                        <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>
+                                                            <span className="d-inline-flex align-items-center gap-1">
+                                                                <span>{item.investigation_name}</span>
+                                                                {indicator && (
+                                                                  <span
+                                                                      className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                                                                      style={{
+                                                                        minWidth: isWideIndicator ? 26 : 18,
+                                                                        height: 18,
+                                                                        padding: isWideIndicator ? "0 6px" : "0 4px",
+                                                                        background: "#c44ea2",
+                                                                        color: "#fff",
+                                                                        lineHeight: "16px",
+                                                                      }}
+                                                                    >
+                                                                        {indicator}
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        </Button>
                                                     </div>
                                                 )
                                             })
