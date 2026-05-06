@@ -91,11 +91,45 @@ export const getMedicineDetails = createAsyncThunk(
 
 export const getFrequentlySearchedMedication = createAsyncThunk(
   "medication/getFrequentlySearchedMedication",
-  async () => {
+  async (data) => {
     let result = {};
     result = await ApiMedication.getFrequentlySearchedMedication();
     if (result.status) {
-      return result.data;
+      const searchResults = Array.isArray(result.data) ? result.data : [];
+
+      // Inventory is a Chikitsalay-only feature
+      if (!data?.isChikitsalayAccessable) {
+        return searchResults;
+      }
+
+      const referenceIds = searchResults
+        .map((item) => item?.reference_id)
+        .filter((id) => id !== undefined && id !== null && String(id).trim() !== "")
+        .map((id) => String(id));
+
+      if (referenceIds.length === 0) {
+        return searchResults.map((item) => ({ ...item, quantity: 0 }));
+      }
+
+      try {
+        const inv = await ApiMedication.getEvitalsInventory(referenceIds);
+        const invRows = Array.isArray(inv)
+          ? inv
+          : inv?.status && Array.isArray(inv.data)
+            ? inv.data
+            : Array.isArray(inv?.data)
+              ? inv.data
+              : [];
+        const qtyByRef = new Map(
+          invRows.map((row) => [String(row.referenceId), Number(row.quantity ?? 0)])
+        );
+        return searchResults.map((item) => {
+          const rid = String(item?.reference_id ?? "");
+          return { ...item, quantity: qtyByRef.get(rid) ?? 0 };
+        });
+      } catch (e) {
+        return searchResults.map((item) => ({ ...item, quantity: 0 }));
+      }
     } else {
       throw Error(result.error);
     }

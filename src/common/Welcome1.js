@@ -25,6 +25,7 @@ import { env } from '../EnvironmentConfig';
 
 import useTabletViewport from '../hooks/useTabletViewport';
 import PrimaryActionButton from '../components/PrimaryActionButton';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 const {
   tubeIcon: playIcons,
@@ -49,7 +50,7 @@ function Welcome1(props) {
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
-
+    const isChikitsalayAccessable = useChikitsalay();
 
     const navigate = useNavigate();
     const { profile, videoList, patientCertificateList, userId } = useSelector((state) => state.doctors);
@@ -481,7 +482,16 @@ function Welcome1(props) {
                                             Repeat {modifyFormat?.first}<sup>{modifyFormat?.second}</sup>&nbsp;{modifyFormat?.third} Rx   
                                         </Button>
                                     }
-                                    {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                                    {isChikitsalayAccessable ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary3 btn-text-white btn-41 px-4"
+                                            style={{ color: "#fff" }}
+                                            onClick={() => onConsultClick(patient_data)}
+                                        >
+                                            Consult
+                                        </button>
+                                    ) : (isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                                         <PrimaryActionButton
                                             isSmartRxAccessible={isSmartSyncAccessableFromGB}
                                             isSnapRxAccessible={isSnapRxAccessableFromGB}

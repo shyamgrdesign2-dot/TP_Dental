@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
-import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly } from "../utils/utils";
+import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, frequencyFormat, frequencyCombination, isNumeric, onlyDecimalFormat, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, hasNumber, isAlphabetExit, calculateDose, getClinicName, capitalizeFirstWordOnly, getHmTypeIndicator } from "../utils/utils";
 
 import { MenuOutlined } from '@ant-design/icons';
 
@@ -57,11 +57,45 @@ const { TextArea } = Input;
 
 function MedicationsBox() {
   const isChikitsalayAccessable = useChikitsalay();
-  const renderLowStockBadge = useCallback((qty) => {
+  const getRequiredQuantity = useCallback((med) => {
+    const morning = Number(med?.tcm_tmm_freq_morning || 0);
+    const afternoon = Number(med?.tcm_tmm_freq_afternoon || 0);
+    const evening = Number(med?.tcm_tmm_freq_evening || 0);
+    const night = Number(med?.tcm_tmm_freq_night || 0);
+    const perDay = morning + afternoon + evening + night;
+    if (!Number.isFinite(perDay) || perDay <= 0) return 0;
+
+    const days = Number(med?.tmm_days || 0);
+    const durationType = String(med?.tmm_duration_type || "").toLowerCase();
+    const multiplier =
+      durationType === "week(s)" ? 7
+        : durationType === "month(s)" ? 30
+          : durationType === "year(s)" ? 365
+            : 1;
+    const totalDays = days > 0 ? days * multiplier : 0;
+    if (!Number.isFinite(totalDays) || totalDays <= 0) return 0;
+
+    const dose = Number(med?.tmm_dosage || 1);
+    const doseMultiplier = Number.isFinite(dose) && dose > 0 ? dose : 1;
+    return perDay * totalDays * doseMultiplier;
+  }, []);
+
+  const renderLowStockBadge = useCallback((med) => {
     if (!isChikitsalayAccessable) return null;
-    const n = Number(qty);
-    if (!Number.isFinite(n) || n >= 100) return null;
-    const label = n === 0 ? "No stock" : `Qty ${n}`;
+    const available = Number(med?.quantity);
+    if (!Number.isFinite(available)) return null;
+
+    let label = null;
+    if (available === 0) {
+      label = "No stock";
+    } else {
+      const required = getRequiredQuantity(med);
+      if (required > 0 && required > available) {
+        label = "Limited stock";
+      }
+    }
+
+    if (!label) return null;
     return (
       <h6
         className="ms-2"
@@ -79,7 +113,33 @@ function MedicationsBox() {
         {label}
       </h6>
     );
-  }, [isChikitsalayAccessable]);
+  }, [getRequiredQuantity, isChikitsalayAccessable]);
+
+  const renderHmTypeBadge = useCallback(
+    (med) => {
+      const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
+      if (!ind) return null;
+      const wide = ind.length > 1;
+      return (
+        <span
+          className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+            wide ? "rounded-pill" : "rounded-circle"
+          }`}
+          style={{
+            minWidth: wide ? 26 : 18,
+            height: 18,
+            padding: wide ? "0 6px" : "0 4px",
+            background: "#c44ea2",
+            lineHeight: "16px",
+          }}
+        >
+          {ind}
+        </span>
+      );
+    },
+    [isChikitsalayAccessable]
+  );
+
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const {
     dosesList,
@@ -178,7 +238,7 @@ function MedicationsBox() {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication());
+      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
     }
   }, [doseCalculatorDrawer, searchMLQuery, searchParentQuery]);
 
@@ -190,9 +250,10 @@ function MedicationsBox() {
         value: e.tmm_medicine_name,
         label: (
           <div>
-            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>  {(e?.tmm_hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2' }}>Z</span>}
+            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>{" "}
+            {renderHmTypeBadge(e)}
             <FreeBadge show={e?.is_free} />
-            {renderLowStockBadge(e?.quantity)}
+            {renderLowStockBadge(e)}
           </div>
         ),
       });
@@ -251,7 +312,7 @@ function MedicationsBox() {
       }
     }
     setParentSearchOptions(data);
-  }, [doseCalculatorDrawer, parentOptionsList]);
+  }, [doseCalculatorDrawer, parentOptionsList, renderHmTypeBadge]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -312,7 +373,8 @@ function MedicationsBox() {
         }
       }
 
-      const action = await dispatch(getMedicineDetails(JSON.parse(item.key).tmm_id));
+      const keyParsed = JSON.parse(item.key);
+      const action = await dispatch(getMedicineDetails(keyParsed.tmm_id));
       if (action.meta.requestStatus === "fulfilled") {
         const updatedData = action.payload.map((e) => {
 
@@ -355,7 +417,10 @@ function MedicationsBox() {
 
           return {
             ...e,
-            objectID: JSON.parse(item.key).objectID,
+            objectID: keyParsed.objectID,
+            quantity: keyParsed.quantity,
+            tmm_hm_type: e.tmm_hm_type ?? keyParsed.tmm_hm_type,
+            um_id: e.um_id ?? keyParsed.um_id,
             // tmm_unit_name: unitObj && unitObj !== undefined ? unitObj.tmu_title : "",
             tmm_freq_type_name: tmm_freq_type_name,
             tmf_block_val: frequencyObj !== undefined ? frequencyObj.tmf_block_val : "",
@@ -1099,23 +1164,28 @@ function MedicationsBox() {
                           {...provided.draggableProps}
                           key={i}
                           gutter={[0]}
-                          className={`taper-dose align-items-center ${i === 0 && "border-top"} border-bottom`}
+                          className={`taper-dose align-items-stretch ${i === 0 && "border-top"} border-bottom`}
                         >
-                          <Col lg={1} md={1} sm={1} xs={1} className="text-center">
-                            <MenuOutlined
-                              {...provided.dragHandleProps}
-                              className="drag-handle"
-                              style={{ cursor: 'grab' }}
-                            >
-                            </MenuOutlined>
+                          <Col lg={1} md={1} sm={1} xs={1} className="text-center d-flex flex-column align-self-stretch">
+                            <div className="d-flex align-items-center justify-content-center flex-grow-1 w-100">
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                                style={{ cursor: 'grab' }}
+                              >
+                              </MenuOutlined>
+                            </div>
                           </Col>
                           <Col lg={5} md={5} sm={5} xs={5}>
                             <div className="fontroboto fw-medium p-2 pe-3">
-                              <label>{item.tmm_medicine_name}</label>
-                              {renderLowStockBadge(item?.quantity)}
+                              <div className="d-flex align-items-center flex-wrap gap-1">
+                                <label className="mb-0">{item.tmm_medicine_name}</label>
+                                {renderHmTypeBadge(item)}
+                              </div>
                               <Tooltip placement="bottom" title={item.tmm_generic}>
                                 <div className="text-truncate fw-normal me-1">{item.tmm_generic}</div>
                               </Tooltip>
+                              {renderLowStockBadge(item)}
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18}>
@@ -1138,8 +1208,8 @@ function MedicationsBox() {
                             }
                             {innerMedication(item.index).map(e1 => ({ ...e1, index: medicationData.findIndex(e => e.unique_id == e1.unique_id) })).map((item, ii) => {
                               return (
-                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'}`}>
-                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start">
+                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'} align-items-stretch h-100`}>
+                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start h-100">
                                     <AutoComplete
                                       defaultValue={item.tmm_dosage_unit_name}
                                       value={item.tmm_dosage_unit_name}
@@ -1164,7 +1234,7 @@ function MedicationsBox() {
                                       )
                                     )}
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end h-100">
                                     <Select
                                       showSearch
                                       className="autocomplete-custom w-100 h-100 inputborder"
@@ -1180,7 +1250,7 @@ function MedicationsBox() {
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end h-100">
                                     <Select
                                       className="autocomplete-custom w-100 h-100 inputborder"
                                       placeholder="e.g Before Food"
@@ -1197,7 +1267,7 @@ function MedicationsBox() {
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill h-100">
                                     <AutoComplete
                                       defaultValue={item.tmm_days_duration_type}
                                       value={hasNumber(item.tmm_days_duration_type) ? item.tmm_days_duration_type : capitalize(item.tmm_days_duration_type, true)}
@@ -1217,9 +1287,9 @@ function MedicationsBox() {
                                       <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><i className="icon-copyIcon fs-12-1" />Autofill to all meds</div>
                                     )}
                                   </Col>
-                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end">
+                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end h-100 d-flex align-items-center">
                                     <TextArea
-                                      className="notesinput border-0 h-100 align-self-center"
+                                      className="notesinput border-0 w-100 align-self-center"
                                       placeholder="Notes"
                                       defaultValue={item.tmm_remarks}
                                       value={item.tmm_remarks}
@@ -1257,7 +1327,7 @@ function MedicationsBox() {
         </DragDropContext>
       </>
     );
-  }, [medicationData, frequencyPopOver]);
+  }, [medicationData, frequencyPopOver, renderHmTypeBadge]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {
