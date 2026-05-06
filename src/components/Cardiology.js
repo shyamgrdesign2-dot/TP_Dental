@@ -38,6 +38,7 @@ import {
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
   GB_CVT_EXT_HOS,
+  CLINIC_TARGET_STATUS,
 } from "../utils/constants";
 import { EVENTS } from "../utils/events";
 
@@ -78,6 +79,8 @@ import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { printBlobInNewTab } from "../pages/opdBilling/utils/helper";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { ASSETS } from "../assets";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import { clinicTargetStatus } from "../pages/chikitsalay/service";
 const {
   symptoms: Symptomsicon,
   surgery: surgeryIcon,
@@ -576,6 +579,7 @@ function Cardiology(props) {
   const [mobilePreviewReady, setMobilePreviewReady] = useState(false);
 
   const isSmartSyncAccessableFromGB = useFeatureIsOn(GB_ISCRIBE);
+  const isChikitsalayAccessable = useChikitsalay();
   const isSmartSyncCVTAccessableFromGB = useFeatureIsOn(GB_SMARTSYNC_CVT);
   const isSnapRxAccessableFromGB = useFeatureIsOn(GB_SNAP_RX);
   const isSnapRxDigitizationAccessable = useFeatureIsOn(
@@ -3334,6 +3338,11 @@ function Cardiology(props) {
       doctor_id: profile?.doctor_unique_id,
       patient_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
     });
+    if (isChikitsalayAccessable) {
+      clinicTargetStatus(patient_data?.pam_id, {
+        targetStatus: CLINIC_TARGET_STATUS.SERVING,
+      });
+    }
     navigate("/prescription", {
       state: {
         patient_data: patient_data,
@@ -4447,7 +4456,16 @@ function Cardiology(props) {
                   No visit found for this patient yet
                 </p>
                 <div className="d-flex flex-column align-items-center justify-content-center g-4" style={{ width: "100%", maxWidth: "320px", margin: "0 auto" }}>
-                  {(isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
+                  {isChikitsalayAccessable ? (
+                    <button
+                        type="button"
+                        className="btn btn-primary3 btn-text-white btn-41 px-4"
+                        style={{ color: "#fff" }}
+                        onClick={() => handleStartConsult()}
+                    >
+                        Consult
+                    </button>
+                    ) : (isSmartSyncAccessableFromGB || isSnapRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) && (typeof window !== 'undefined' && window.innerWidth >= 768) ? (
                     <PrimaryActionButton
                       isSmartRxAccessible={isSmartSyncAccessableFromGB}
                       isSnapRxAccessible={isSnapRxAccessableFromGB}
