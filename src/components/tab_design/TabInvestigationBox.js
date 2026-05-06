@@ -684,29 +684,32 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                             const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
                             const isWideIndicator = indicator.length > 1;
                             return (
-                                <div>
-                                    <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>
+                                <div key={i} className="position-relative">
+                                    <Button type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>
                                         <span className="d-inline-flex align-items-center gap-1">
                                             <span>{`${item.investigation_name}`}</span>
                                             {indicator && (
                                                 <span
-                                                  className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
-                                                  style={{
-                                                    minWidth: isWideIndicator ? 26 : 18,
-                                                    height: 18,
-                                                    padding: isWideIndicator ? "0 6px" : "0 4px",
-                                                    background: "#c44ea2",
-                                                    color: "#fff",
-                                                    lineHeight: "16px",
-                                                  }}
+                                                    className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                                                    style={{
+                                                        minWidth: isWideIndicator ? 26 : 18,
+                                                        height: 18,
+                                                        padding: isWideIndicator ? "0 6px" : "0 4px",
+                                                        background: "#c44ea2",
+                                                        color: "#fff",
+                                                        lineHeight: "16px",
+                                                    }}
                                                 >
                                                     {indicator}
                                                 </span>
                                             )}
                                         </span>
                                     </Button>
+                                    {(item?.hm_type === 1 && item?.um_id === 0) && (
+                                        <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2', right: 6, top: -6 }}>Z</span>
+                                    )}
                                 </div>
-                            )
+                            );
                         })}
                 </div>
                 {DELETE_MODAL}

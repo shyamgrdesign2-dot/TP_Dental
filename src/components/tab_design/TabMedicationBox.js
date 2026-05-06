@@ -326,7 +326,7 @@ function TabMedicationBox() {
   useEffect(() => {
     dispatch(getMedicationTemplates());
     dispatch(getAllDoses())
-    dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
+    dispatch(getFrequentlySearchedMedication());
   }, []);
 
   //Parent AutoComplete
@@ -334,14 +334,14 @@ function TabMedicationBox() {
     if (searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchMLQuery, type: "parent", isChikitsalayAccessable })
+          searchMedication({ searchQuery: searchMLQuery, type: "parent" })
         );
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
+      dispatch(getFrequentlySearchedMedication());
     }
   }, [doseCalculatorDrawer, searchMLQuery]);
 
@@ -3019,6 +3019,8 @@ function TabMedicationBox() {
                         </div>
                       </div>
                     </Button>
+                    {(item?.tmm_hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2', right: 6, top: -6 }}>Z</span>}
+                    <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                   </div>
                 );
               })}
