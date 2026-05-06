@@ -3,6 +3,7 @@ import config from '../../config';
 
 const baseUrl = { customBaseUrl: config.casemanager_api_url }
 const consultationBaseUrl = { customBaseUrl: config.consultation_api_url }
+const orderManagementBaseUrl = { customBaseUrl: config.order_management_api_url || "https://pm-order-management-uat.tatvacare.in" }
 
 const ApiCaseManager = {};
 
@@ -72,6 +73,10 @@ ApiCaseManager.listConsultations = function (data) {
 
 ApiCaseManager.getRecentConsultations = function (patient_unique_id) {
     return api.get(`/api/v1/casemanager/getRecentConsultations?patient_unique_id=${encodeURIComponent(patient_unique_id)}`, consultationBaseUrl);
+};
+
+ApiCaseManager.orderMedicineAndInvestigation = function (data) {
+    return api.post(`/api/v1/genx/orderMedicineAndInvestigation`, data, orderManagementBaseUrl);
 };
 
 ApiCaseManager.draftToConsultation = function (data) {
