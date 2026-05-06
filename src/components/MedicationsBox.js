@@ -227,18 +227,14 @@ function MedicationsBox() {
     if (searchParentQuery || searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({
-            searchQuery: doseCalculatorDrawer ? searchMLQuery : searchParentQuery,
-            type: "parent",
-            isChikitsalayAccessable,
-          })
+          searchMedication({ searchQuery: doseCalculatorDrawer ? searchMLQuery : searchParentQuery, type: "parent" })
         );
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
+      dispatch(getFrequentlySearchedMedication());
     }
   }, [doseCalculatorDrawer, searchMLQuery, searchParentQuery]);
 
@@ -250,7 +246,7 @@ function MedicationsBox() {
         value: e.tmm_medicine_name,
         label: (
           <div>
-            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>{" "}
+            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>  {(e?.tmm_hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2' }}>Z</span>}
             {renderHmTypeBadge(e)}
             <FreeBadge show={e?.is_free} />
             {renderLowStockBadge(e)}

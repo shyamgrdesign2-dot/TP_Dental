@@ -164,26 +164,41 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   useEffect(() => {
     const data = [];
     parentOptionsList.map((e) => {
-      const indicator = getHmTypeIndicator(e, isChikitsalayAccessable);
-      const isWideIndicator = indicator.length > 1;
+      let supplementaryIndicator = "";
+      if (isChikitsalayAccessable) {
+        const raw = getHmTypeIndicator(e, true);
+        // Legacy label only shows Z when hm_type === 1 && um_id === 0; never add Z via helper (avoids widening Z to all hm_type===1).
+        if (raw && raw !== "Z") supplementaryIndicator = raw;
+      }
+      const isWideSupplementary = supplementaryIndicator.length > 1;
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.investigation_name,
         label: (
           <div>
             {e.investigation_name}{" "}
-            {indicator && (
+            {(e?.hm_type === 1 && e?.um_id === 0) && (
               <span
-                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white"
+                style={{ width: 18, height: 18, background: "#c44ea2" }}
+              >
+                Z
+              </span>
+            )}
+            {supplementaryIndicator && (
+              <span
+                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+                  isWideSupplementary ? "rounded-pill" : "rounded-circle"
+                }`}
                 style={{
-                  minWidth: isWideIndicator ? 26 : 18,
+                  minWidth: isWideSupplementary ? 26 : 18,
                   height: 18,
-                  padding: isWideIndicator ? "0 6px" : "0 4px",
+                  padding: isWideSupplementary ? "0 6px" : "0 4px",
                   background: "#c44ea2",
                   lineHeight: "16px",
                 }}
               >
-                {indicator}
+                {supplementaryIndicator}
               </span>
             )}
           </div>
@@ -568,11 +583,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
           {(provided) => (
             <div {...provided.droppableProps} ref={provided.innerRef}>
               {investigationData.length > 0 &&
-                investigationData.map((item, index) => (
-                  (() => {
-                    const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
-                    const isWideIndicator = indicator.length > 1;
-                    return (
+                investigationData.map((item, index) => {
+                  let supplementaryIndicator = "";
+                  if (isChikitsalayAccessable) {
+                    const raw = getHmTypeIndicator(item, true);
+                    if (raw && raw !== "Z") supplementaryIndicator = raw;
+                  }
+                  const isWideSupplementary = supplementaryIndicator.length > 1;
+                  return (
                   <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
                     {(provided) => (
                       <Row
@@ -592,20 +610,45 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                           </MenuOutlined>
                         </Col>
                         <Col lg={8} md={8} sm={8} xs={8}>
-                          <div className="fontroboto fw-medium d-flex align-items-center gap-1">
-                            <span className="text-truncate">{item.investigation_name}</span>
-                            {indicator && (
+                          <div className="fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100">
+                            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                              <AutoComplete
+                                defaultValue={item.investigation_name}
+                                value={item.investigation_name}
+                                placeholder="Investigation Name"
+                                bordered={false}
+                                disabled={true}
+                                defaultOpen={false}
+                                onSearch={(query) => onSearchChild(query, index)}
+                                onFocus={() => onFocusChid(index)}
+                                options={childSearchOptions}
+                                className="autocomplete-custom w-100 inputborder"
+                                defaultActiveFirstOption={true}
+                                onSelect={(data, e) => onSelectChild(data, e, index)}
+                              />
+                            </div>
+                            {(item?.hm_type === 1 && item?.um_id === 0) && (
                               <span
-                                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
+                                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0"
+                                style={{ width: 18, height: 18, background: "#c44ea2" }}
+                              >
+                                Z
+                              </span>
+                            )}
+                            {supplementaryIndicator && (
+                              <span
+                                className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
+                                  isWideSupplementary ? "rounded-pill" : "rounded-circle"
+                                }`}
                                 style={{
-                                  minWidth: isWideIndicator ? 26 : 18,
+                                  minWidth: isWideSupplementary ? 26 : 18,
                                   height: 18,
-                                  padding: isWideIndicator ? "0 6px" : "0 4px",
+                                  padding: isWideSupplementary ? "0 6px" : "0 4px",
                                   background: "#c44ea2",
                                   lineHeight: "16px",
                                 }}
                               >
-                                {indicator}
+                                {supplementaryIndicator}
                               </span>
                             )}
                           </div>
@@ -634,16 +677,15 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                       </Row>
                     )}
                   </Draggable>
-                    );
-                  })()
-                ))}
+                  );
+                })}
               {provided.placeholder}
             </div>
           )}
         </Droppable>
       </DragDropContext>
     );
-  }, [investigationData, childSearchOptions]);
+  }, [investigationData, childSearchOptions, isChikitsalayAccessable]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
