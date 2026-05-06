@@ -32,6 +32,10 @@ const uploadBaseUrl = {
   timeout: 300000,
 };
 
+const voiceLogsBaseUrl = {
+  customBaseUrl: digitizationBaseUrl,
+  timeout: 120000,
+};
 
 export const uploadVoiceAudio = async function (audioFile) {
   if (!audioFile || !(audioFile instanceof File)) {
@@ -51,6 +55,18 @@ export const uploadVoiceAudio = async function (audioFile) {
     console.error("[voice/upload] Request failed", e?.message);
     throw e;
   }
+};
+
+export const createVoiceLog = async function (payload, patientId) {
+  if (!patientId) return null;
+  const endpoint = `/api/v1/digitization/voice/logs?patientId=${encodeURIComponent(patientId)}`;
+  return api.post(endpoint, payload, voiceLogsBaseUrl);
+};
+
+export const updateVoiceLog = async function (payload, patientId) {
+  if (!patientId) return null;
+  const endpoint = `/api/v1/digitization/voice/logs?patientId=${encodeURIComponent(patientId)}`;
+  return api.put(endpoint, payload, voiceLogsBaseUrl);
 };
 
 export const generateRx = async function (payload, patientId, admissionId) {

@@ -29,6 +29,8 @@ import {
   getAmbientRx,
   setAddToRx,
   uploadVoiceAudio,
+  createVoiceLog,
+  updateVoiceLog,
   generateRx,
   updateGenRx,
   generateAmbientRx,
@@ -214,6 +216,14 @@ const ConsultationDrawer = ({
   const prescriptionUrlsForSessionRef = useRef(new Set());
   const editedModulesByUserRef = useRef(new Set());
   const voiceCallCountRef = useRef(0);
+  useEffect(() => {
+    window.__TATVA_VOICE_SESSION_ID = voiceSessionIdRef.current;
+    return () => {
+      if (window.__TATVA_VOICE_SESSION_ID === voiceSessionIdRef.current) {
+        delete window.__TATVA_VOICE_SESSION_ID;
+      }
+    };
+  }, []);
   const [isAmbientMode, setIsAmbientMode] = useState(() => {
     const activeService = window.TATVA_ACTIVE_VOICE_SERVICE;
     return activeService === S_AMBIENT_VOICE_RX;
@@ -1139,7 +1149,7 @@ const ConsultationDrawer = ({
       audioStreamRef.current?.getAudioTracks?.()?.[0]?.label ||
       micBeingUsedRef.current ||
       "Unknown";
-    trackEvent("TP_Voice_Submit_Click", {
+    const eventPayload = {
       doctorId: profile?.doctor_unique_id || "",
       doctorName: profile?.um_name || "",
       patientId: patient_data?.patient_unique_id || "",
@@ -1164,6 +1174,17 @@ const ConsultationDrawer = ({
       upload_error_message: uploadErrorMessage,
       voicecall,
       timestamp: new Date().toISOString(),
+    };
+    trackEvent("TP_Voice_Submit_Click", eventPayload);
+    const submitLogPayload = {
+      correlationId: sessionId || submitId || requestId || "",
+      status: uploadFailed ? "failed" : "pending",
+      needConversation: modeForEvent === "ambient",
+      prescriptionUrls: prescriptionUrl ? [prescriptionUrl] : [],
+      ...eventPayload,
+    };
+    createVoiceLog(submitLogPayload, eventPayload.patientId).catch((err) => {
+      console.error("[voice/logs/create] Failed", err?.message || err);
     });
   };
 
@@ -1181,6 +1202,7 @@ const ConsultationDrawer = ({
     errorMessage = "",
     retryAttempts = 1,
     prescriptionUrl = "",
+    sessionId = "",
     recordId = "",
     isEmptyPrescription = false,
     submitId = "",
@@ -1191,9 +1213,10 @@ const ConsultationDrawer = ({
     errorType = "",
     rxModulesFilledCount = 0,
     filledModules = [],
+    modeForEvent = "dictation",
     voicecall = 0,
   }) => {
-    trackEvent("TP_Voice_Api_Result", {
+    const eventPayload = {
       doctorId: profile?.doctor_unique_id || "",
       doctorName: profile?.um_name || "",
       patientId: patient_data?.patient_unique_id || "",
@@ -1201,6 +1224,7 @@ const ConsultationDrawer = ({
       hospitalId: clinic?.hm_id || "",
       hospitalName: clinic?.hm_name || "",
       prescriptionUrl,
+      sessionId,
       _id: recordId,
       voice_failed: voiceFailed,
       error_message: errorMessage,
@@ -1216,6 +1240,18 @@ const ConsultationDrawer = ({
       filled_modules: Array.isArray(filledModules) ? filledModules.join(",") : "",
       voicecall,
       timestamp: new Date().toISOString(),
+    };
+    trackEvent("TP_Voice_Api_Result", eventPayload);
+    const { _id, ...resultEventPayloadForApi } = eventPayload;
+    const resultLogPayload = {
+      correlationId: sessionId || submitId || requestId || "",
+      status: voiceFailed ? "failed" : "completed",
+      needConversation: modeForEvent === "ambient",
+      prescriptionUrls: prescriptionUrl ? [prescriptionUrl] : [],
+      ...resultEventPayloadForApi,
+    };
+    updateVoiceLog(resultLogPayload, eventPayload.patientId).catch((err) => {
+      console.error("[voice/logs/update] Failed", err?.message || err);
     });
   };
 
@@ -2566,6 +2602,7 @@ const ConsultationDrawer = ({
           errorMessage: "",
           retryAttempts: getVoiceRetryAttempts(),
           prescriptionUrl: prescriptionUrlForApiResult || window.__TATVA_VOICE_API_LAST_UPLOAD_URL || "",
+          sessionId: voiceSessionIdRef.current,
           recordId: voiceApiRecordId,
           isEmptyPrescription,
           submitId,
@@ -2576,6 +2613,7 @@ const ConsultationDrawer = ({
           errorType: "",
           rxModulesFilledCount,
           filledModules,
+          modeForEvent,
           voicecall,
         });
       }
@@ -2592,6 +2630,7 @@ const ConsultationDrawer = ({
           errorMessage: error?.message || "",
           retryAttempts: getVoiceRetryAttempts(),
           prescriptionUrl: prescriptionUrlForApiResult || window.__TATVA_VOICE_API_LAST_UPLOAD_URL || "",
+          sessionId: voiceSessionIdRef.current,
           recordId: voiceApiRecordId || genRxDetails?._id || "",
           isEmptyPrescription: true,
           submitId,
@@ -2602,6 +2641,7 @@ const ConsultationDrawer = ({
           errorType: classifyVoiceApiErrorType(error),
           rxModulesFilledCount: 0,
           filledModules: [],
+          modeForEvent,
           voicecall,
         });
       }

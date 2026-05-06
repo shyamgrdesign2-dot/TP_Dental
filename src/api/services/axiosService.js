@@ -27,6 +27,14 @@ const isVoiceDigitizeRequest = (requestConfig = {}) => {
     return isVoiceEndpointRequest(requestConfig) && !isVoiceUploadRequest(requestConfig);
 };
 
+const shouldAttachVoiceCorrelationId = (requestConfig = {}) => {
+    const requestUrl = requestConfig?.url || '';
+    const requestMethod = (requestConfig?.method || '').toLowerCase();
+    const isCreateOrUpdateRequest = requestMethod === 'post' || requestMethod === 'put';
+    const isDigitizationRequest = requestUrl.includes('/api/v1/digitization/');
+    return isCreateOrUpdateRequest && isDigitizationRequest;
+};
+
 const isRetryableTransientError = (error) => {
     if (axios.isCancel?.(error)) return false;
     if ((error?.message || '').includes('Internet connection not available')) return false;
@@ -85,6 +93,10 @@ instance.interceptors.request.use(
             config.headers['Authorization'] = `Bearer ${token}`;
         } else {
             console.log('Entry Route')
+        }
+        const voiceCorrelationId = window.__TATVA_VOICE_SESSION_ID;
+        if (voiceCorrelationId && shouldAttachVoiceCorrelationId(config)) {
+            config.headers['x-correlation-id'] = voiceCorrelationId;
         }
         return config;
     },
