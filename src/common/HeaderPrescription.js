@@ -153,39 +153,31 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             hasInvestigation,
         };
 
-        window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_before_call", eventPayload);
-
         dispatch(orderMedicineAndInvestigation({
             tcm_id: resolvedTcmId,
             patient_unique_id: patientUniqueId,
         }))
             .then((orderAction) => {
-                if (orderAction?.meta?.requestStatus === "fulfilled") {
+                const requestSucceeded =
+                    orderAction?.meta?.requestStatus === "fulfilled" &&
+                    orderAction?.payload?.status !== false;
+                if (requestSucceeded) {
                     window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
                         ...eventPayload,
                         status: "success",
                     });
                 } else {
                     const failureReason =
-                        orderAction?.error?.message ||
-                        orderAction?.payload?.error ||
                         orderAction?.payload?.message ||
+                        orderAction?.payload?.error ||
+                        orderAction?.error?.message ||
                         "request_rejected";
                     window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
                         ...eventPayload,
                         status: "failure",
                         reason: failureReason,
                     });
-                    console.error("orderMedicineAndInvestigation failed", orderAction?.error);
                 }
-            })
-            .catch((error) => {
-                window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
-                    ...eventPayload,
-                    status: "failure",
-                    reason: error?.message || "request_exception",
-                });
-                console.error("orderMedicineAndInvestigation exception", error);
             });
     }, [dispatch, patient_data?.patient_unique_id, medicationData, investigationData, profile?.hospital_data]);
 
