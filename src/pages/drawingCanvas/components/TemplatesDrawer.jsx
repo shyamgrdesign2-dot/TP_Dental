@@ -25,8 +25,22 @@ const TemplatesDrawer = ({ onClose, onSelectTemplate, open = false, refreshKey =
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState(null);
 
+  const resetLocalState = React.useCallback(() => {
+    setSearchQuery('');
+    setEditingId(null);
+    setRenameValue('');
+    setIsDeleteModalOpen(false);
+    setTemplateToDelete(null);
+  }, []);
+
   React.useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      resetLocalState();
+      return;
+    }
+
+    // Reset transient UI state when reopening or after template save (refreshKey change).
+    resetLocalState();
 
     const fetchTemplates = async () => {
       const res = await listTemplates();
@@ -51,7 +65,7 @@ const TemplatesDrawer = ({ onClose, onSelectTemplate, open = false, refreshKey =
       }
     };
     fetchTemplates();
-  }, [open, refreshKey]);
+  }, [open, refreshKey, resetLocalState]);
 
   const filteredTemplates = useMemo(() => {
     return templates.filter(temp => 

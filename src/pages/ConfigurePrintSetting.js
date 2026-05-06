@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { Col, Tabs, Row } from "antd";
 import { useSelector, useDispatch } from "react-redux";
@@ -83,6 +83,30 @@ function ConfigurePrintSetting() {
 
     const [drawingCanvases, setDrawingCanvases] = useState([]);
     const [isDrawingCanvasesLoading, setIsDrawingCanvasesLoading] = useState(false);
+    const normalizeCanvasIds = useCallback((value) => {
+        if (Array.isArray(value)) {
+            return value.map((id) => String(id).trim()).filter(Boolean);
+        }
+        if (typeof value === "string") {
+            return value
+                .split(",")
+                .map((id) => id.trim())
+                .filter(Boolean);
+        }
+        return [];
+    }, []);
+
+    const getCanvasMappingId = useCallback((record) => {
+        if (!record || typeof record !== "object") return null;
+        return (
+            record.mapping_id ??
+            record.canvas_id ??
+            record.canvasId ??
+            record.id ??
+            null
+        );
+    }, []);
+
 
     const {customModules} = useSelector((state) => state.customModules);
     const dispatch = useDispatch();
@@ -538,6 +562,7 @@ function ConfigurePrintSetting() {
                                     if (blob) {
                                         const url = URL.createObjectURL(blob);
                                         parsedCanvases.push({
+                                            id: getCanvasMappingId(record),
                                             name: record.canvas_name || "Untitled Canvas",
                                             imageUrl: url
                                         });
@@ -577,7 +602,29 @@ function ConfigurePrintSetting() {
             ...(obstetricData && { obsHistoryData: dataSourceForPreview.obsHistoryData || obstetricData }),
         }
         : dataSourceForPreview;
-    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, isCvtExtHosAccessableFromGB, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData, drawingCanvases, isDrawingCanvasesLoading };
+    const filteredDrawingCanvases = useMemo(() => {
+        const rawCanvasFilename = enrichedCaseManagerData?.canvas_filename;
+        const hasCanvasFilenameField =
+            Array.isArray(rawCanvasFilename) || typeof rawCanvasFilename === "string";
+        const selectedCanvasIds = normalizeCanvasIds(rawCanvasFilename);
+
+        // - empty canvas_filename => no canvases rendered
+        // - ids in canvas_filename => only those canvases rendered
+        // - missing/unknown canvas_filename => fallback to fetched canvases
+        if (hasCanvasFilenameField && selectedCanvasIds.length === 0) {
+            return [];
+        }
+        if (selectedCanvasIds.length > 0) {
+            const selectedSet = new Set(selectedCanvasIds.map(String));
+            return drawingCanvases.filter((canvas) => {
+                if (canvas?.id == null) return false;
+                return selectedSet.has(String(canvas.id));
+            });
+        }
+        return drawingCanvases;
+    }, [drawingCanvases, enrichedCaseManagerData?.canvas_filename, normalizeCanvasIds]);
+
+    const contextApi = { smartRxFile: isAfterDigitization ? undefined : smartRxFile, isDigitisedPrintConfig: isAfterDigitization, divWidth, caseManagerData: enrichedCaseManagerData, certificateData, printSettings, setPrintSettings, fileHeader, setFileHeader, fileFooter, setFileFooter, fileLogo, setFileLogo, fileWatermark, setFileWatermark, fileSignature, setFileSignature, medicalHistoryCheckboxOptions, labParamsData, zydusSelectedLabParams, customModules, carePlanAssignments, ophthalModuleData: opthalModuleData, dentalData, drawingCanvases: filteredDrawingCanvases, isDrawingCanvasesLoading, isCvtExtHosAccessableFromGB };
     const TabsPrintSetting = [
         {
             key: TAB_PRESCRIPTION,

@@ -110,6 +110,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
   const [selectedModuleForEdit, setSelectedModuleForEdit] = useState(null);
   const [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
+  const shouldHideCanvasInDrawer = isTabRx || page === "smart-rx-page";
 
   useEffect(() => {
     const syncLeftModules = async () => {
@@ -120,7 +121,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
             String(item?.tmdpm_name || "").toLowerCase() === "canvas"
         );
 
-        if (!hasCanvas) {
+        if (!hasCanvas && !shouldHideCanvasInDrawer) {
           const sendData = {
             data: {
               default: false,
@@ -139,6 +140,13 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           .filter(e => e.tmdpm_id === 7 && e.tmdpm_status === 0 ? isVaccinationEnabled : e.tmdpm_id === 16 && e.tmdpm_status === 0 ? isGrowthChartEnabled : e.tmdpm_id === 17 && e.tmdpm_status === 0 ? isGynaecHistoryAccessable : true).map((e, i) => {
             return { ...e };
           });
+        if (shouldHideCanvasInDrawer) {
+          updatedData = updatedData.filter(
+            (item) =>
+              item?.tmdpm_id !== CANVAS_LEFT_MODULE.tmdpm_id &&
+              String(item?.tmdpm_name || "").toLowerCase() !== "canvas"
+          );
+        }
         updatedData = updatedData.filter((item) => item?.tmdpm_id !== 20);
         const hasVaccination = updatedData.some((item) => item?.tmdpm_id === 7);
         if (!hasVaccination) {
@@ -158,7 +166,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
 
     syncLeftModules();
     dispatch(listVideo());
-  }, [handleDrawerCustomize]);
+  }, [handleDrawerCustomize, shouldHideCanvasInDrawer]);
 
   useEffect(() => {
     if (customizedPadRightList.length > 0) {

@@ -1606,29 +1606,15 @@ function Prescription() {
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
             <div className="d-flex align-items-center">
-              {/* Inline icon to avoid adding new shared assets */}
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
+              <img
+                src={e?.tmdpm_icon_url || "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/brush-square.svg"}
+                alt="Canvas"
+                width={22}
+                height={22}
                 className="me-3"
-              >
-                <rect x="4.5" y="3.5" width="15" height="15" rx="5" fill="#D9CBFF" />
-                <path
-                  d="M14.7 9.1C14.3 8.4 13.5 8 12.7 8C11.6 8 10.8 9 10.8 10C10.8 11.1 11.7 12 12.8 12C13.6 12 14.3 11.6 14.7 10.9L16.2 12.4L14.8 13.9H8.9V8H10.3L14.7 9.1Z"
-                  fill="#A061FF"
-                  opacity="0.9"
-                />
-                <path
-                  d="M9.1 15.2L15.9 8.4"
-                  stroke="#7A2BFF"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="title-common">Drawing Canvas</div>
+                style={{ flex: "0 0 auto" }}
+              />
+              <div className="title-common">Canvas</div>
             </div>
 
             <button

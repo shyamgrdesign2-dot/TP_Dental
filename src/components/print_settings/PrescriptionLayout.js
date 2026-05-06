@@ -1014,26 +1014,28 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                 <span style={{ wordBreak: "break-word" }}>{record?.id === 11 && caseManagerData?.smart_prescription_filename?.includes("tab_rx") ? "Tab Rx" : record?.id === INVESTIGATION_PRINT_ID ? INVESTIGATION_TITLE : record.title}</span>
               </div>
               <div className="d-flex align-items-center gap-2">
-                <Form.Item className="mb-0 form_addnewpatient ">
-                  <Radio.Group
-                    className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
-                      }`}
-                    onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
-                    value={record.format || "inline"}
-                  >
-                    <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
-                      {record?.id === 12 ? "Graph View" : "Inline"}
-                    </Radio.Button>
-                    {record?.id !== 12 && record?.id !== 25 &&
-                      <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
-                        List View
+                {record?.id !== 25 && (
+                  <Form.Item className="mb-0 form_addnewpatient ">
+                    <Radio.Group
+                      className={`d-flex gender-radio all-change-radio ${isMobile ? "segmented-radio-mobile" : ""
+                        }`}
+                      onChange={(e) => onCaseOptionChange(e, "radio", printSettings?.prescription?.case_option?.findIndex(x => x.id === record.id))}
+                      value={record.format || "inline"}
+                    >
+                      <Radio.Button className="w-100 text-center" value="inline" disabled={record?.id === 17}>
+                        {record?.id === 12 ? "Graph View" : "Inline"}
                       </Radio.Button>
-                    }
-                    <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17 || record?.id === 25}>
-                      Table
-                    </Radio.Button>
-                  </Radio.Group>
-                </Form.Item>
+                      {record?.id !== 12 && (
+                        <Radio.Button className="w-100 text-center" value="listview" disabled={record?.id === 17}>
+                          List View
+                        </Radio.Button>
+                      )}
+                      <Radio.Button className="w-100 text-center" value="table" disabled={record?.id === 17}>
+                        Table
+                      </Radio.Button>
+                    </Radio.Group>
+                  </Form.Item>
+                )}
               </div>
             </div>
           {record.id === 3 && (
@@ -1510,7 +1512,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                         </span>
                       )}
                     </div>
-                    {option.type !== "page_break" && (
+                    {option.type !== "page_break" && option?.id !== 25 && (
                       <div style={{ 
                         marginRight: '12px',
                         display: 'flex',
@@ -1531,7 +1533,6 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>Inline</Radio.Button>
-                          {option?.id !== 25 && (
                           <Radio.Button value="listview" style={{ 
                             fontSize: '9px', 
                             padding: '2px 8px',
@@ -1541,8 +1542,7 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}>List View</Radio.Button>
-                          )}
-                          <Radio.Button value="table" disabled={option?.id === 25} style={{ 
+                          <Radio.Button value="table" style={{ 
                             fontSize: '9px', 
                             padding: '2px 8px',
                             height: '24px',
