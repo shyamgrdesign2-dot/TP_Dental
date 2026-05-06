@@ -562,6 +562,16 @@ body {
             height: 36px !important;
             padding: 5px 10px !important;
 
+            &.chips-custom-auto {
+                height: auto !important;
+                padding-top: 8px !important;
+                padding-bottom: 8px !important;
+            }
+
+            .hm-type-indicator {
+                color: $white !important;
+            }
+
             &.btn-primary2 {
 
                 &:focus,
@@ -572,6 +582,10 @@ body {
 
                     span {
                         color: $theme !important;
+                    }
+
+                    .hm-type-indicator {
+                        color: $white !important;
                     }
                 }
             }

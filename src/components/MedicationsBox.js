@@ -89,9 +89,9 @@ function MedicationsBox() {
     if (available === 0) {
       label = "No stock";
     } else {
-      const required = getRequiredQuantity(med);
-      if (required > 0 && required > available) {
-        label = "Limited stock";
+      const required = 200;
+      if (available <= required) {
+        label = `Qty: ${available}`;
       }
     }
 

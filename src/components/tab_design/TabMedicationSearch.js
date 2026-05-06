@@ -29,9 +29,10 @@ import { InfoCircleOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
-import { errorMessage, onlyNumberFormat, onlyDecimalFormat, isNumeric, hasNumber, removeBeforeWhiteSpace, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, calculateDose } from "../../utils/utils";
+import { errorMessage, onlyNumberFormat, onlyDecimalFormat, isNumeric, hasNumber, removeBeforeWhiteSpace, capitalizeAfterSentence, replaceCommasAndSemicolons, capitalize, calculateDose, getHmTypeIndicator } from "../../utils/utils";
 
 import CashManagerContext from "../../context/CashManagerContext";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 import {
   getMedicineDetails,
   getFrequentlySearchedMedication,
@@ -60,6 +61,7 @@ const {
 } = ASSETS.images;
 
 function TabMedicationSearch({ passIndex, onClose }) {
+  const isChikitsalayAccessable = useChikitsalay();
 
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const { dosesList, parentOptionsList, childOptionsList, genericList, loading } = useSelector((state) => state.medication);
@@ -120,6 +122,111 @@ function TabMedicationSearch({ passIndex, onClose }) {
 
   const filteredTitles = frequencyList.filter((item) => item.tmf_block !== 0);
 
+  const getRequiredQuantity = useCallback((med) => {
+    const morning = Number(med?.tcm_tmm_freq_morning || 0);
+    const afternoon = Number(med?.tcm_tmm_freq_afternoon || 0);
+    const evening = Number(med?.tcm_tmm_freq_evening || 0);
+    const night = Number(med?.tcm_tmm_freq_night || 0);
+    const perDay = morning + afternoon + evening + night;
+    if (!Number.isFinite(perDay) || perDay <= 0) return 0;
+
+    const days = Number(med?.tmm_days || 0);
+    const durationType = String(med?.tmm_duration_type || "").toLowerCase();
+    const multiplier =
+      durationType === "week(s)" ? 7
+        : durationType === "month(s)" ? 30
+          : durationType === "year(s)" ? 365
+            : 1;
+    const totalDays = days > 0 ? days * multiplier : 0;
+    if (!Number.isFinite(totalDays) || totalDays <= 0) return 0;
+
+    const dose = Number(med?.tmm_dosage || 1);
+    const doseMultiplier = Number.isFinite(dose) && dose > 0 ? dose : 1;
+    return perDay * totalDays * doseMultiplier;
+  }, []);
+
+  const renderLowStockBadge = useCallback((med) => {
+    if (!isChikitsalayAccessable) return null;
+    const available = Number(med?.quantity);
+    if (!Number.isFinite(available)) return null;
+
+    let label = null;
+    if (available <= 0) {
+      label = "No stock";
+    } else {
+      const required = 200;
+      if (available <= required) {
+        label = `Qty: ${available}`;
+      }
+    }
+
+    if (!label) return null;
+    return (
+      <h6
+        className="ms-1 mb-0"
+        style={{
+          padding: "2px 8px",
+          borderRadius: 6,
+          background: "#ED8A00",
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 600,
+          display: "inline-block",
+          lineHeight: "16px",
+        }}
+      >
+        {label}
+      </h6>
+    );
+  }, [getRequiredQuantity, isChikitsalayAccessable]);
+
+  const renderHmTypeBadge = useCallback((med) => {
+    const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
+    if (!ind) return null;
+    const wide = ind.length > 1;
+    return (
+      <span
+        className={`hm-type-indicator position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+          wide ? "rounded-pill" : "rounded-circle"
+        }`}
+        style={{
+          minWidth: wide ? 26 : 18,
+          height: 18,
+          padding: wide ? "0 6px" : "0 4px",
+          background: "#c44ea2",
+          color: "#fff",
+          right: 6,
+          top: -6,
+        }}
+      >
+        {ind}
+      </span>
+    );
+  }, [isChikitsalayAccessable]);
+
+  const renderHmTypeBadgeInline = useCallback((med) => {
+    const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
+    if (!ind) return null;
+    const wide = ind.length > 1;
+    return (
+      <span
+        className={`hm-type-indicator align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+          wide ? "rounded-pill" : "rounded-circle"
+        }`}
+        style={{
+          minWidth: wide ? 26 : 18,
+          height: 18,
+          padding: wide ? "0 6px" : "0 4px",
+          background: "#c44ea2",
+          color: "#fff",
+          lineHeight: "16px",
+        }}
+      >
+        {ind}
+      </span>
+    );
+  }, [isChikitsalayAccessable]);
+
   useEffect(() => {
     if (passIndex != null) {
       const setArray = medicationData.reduce((acc, curr) => acc?.at(-1)?.tmm_id == curr.tmm_id ? acc : [...acc, curr], [])
@@ -148,14 +255,14 @@ function TabMedicationSearch({ passIndex, onClose }) {
     if (searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchMLQuery, type: "parent" })
+          searchMedication({ searchQuery: searchMLQuery, type: "parent", isChikitsalayAccessable })
         );
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication());
+      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
     }
   }, [doseCalculatorDrawer, searchMLQuery]);
 
@@ -203,7 +310,7 @@ function TabMedicationSearch({ passIndex, onClose }) {
     if (searchChildQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchChildQuery, type: "child" })
+          searchMedication({ searchQuery: searchChildQuery, type: "child", isChikitsalayAccessable })
         );
       }, 500);
       return () => {
@@ -2161,28 +2268,38 @@ function TabMedicationSearch({ passIndex, onClose }) {
                     {searchChildQuery.length > 0 ? (
                       childSearchOptions.length > 0 &&
                       childSearchOptions.filter((e) => ![...medicationData.map((e1) => e1.tmm_medicine_name)].includes(e.value)).map((item, i) => {
+                        const med = JSON.parse(item.key);
                         return (
                           <div className="position-relative">
-                            {JSON.parse(item.key).tmm_id === 0 ? (
+                            {med.tmm_id === 0 ? (
                               <Button
                                 key={i}
                                 type="text"
                                 className="btn btn-primary2 chips-custom mb-14 me-14 d-flex align-items-center chips-addCustom"
-                                onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
-                                {JSON.parse(item.key).tmm_medicine_name} <i className="icon-Add mx-1 fs-6"></i> <a className="text-decoration-underline"> Add Custom</a>
+                                onClick={() => onSelectParent({ ...med })}>
+                                {med.tmm_medicine_name} <i className="icon-Add mx-1 fs-6"></i> <a className="text-decoration-underline"> Add Custom</a>
                               </Button>
                             ) : (
                               <Button
                                 key={i}
                                 type="text"
-                                style={{ width: item.value.length > 26 && "250px" }}
-                                className={`${item.value.length > 26 && "chips-custom-break"} btn btn-primary2 chips-custom mb-14 me-14`}
-                                onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
-                                {item.value}
+                                className={`${item.value.length > 26 && "chips-custom-break"} btn btn-primary2 chips-custom chips-custom-auto mb-14 me-14`}
+                                style={{
+                                  paddingTop: 8,
+                                  paddingBottom: 8,
+                                  width: item.value.length > 26 && "250px",
+                                }}
+                                onClick={() => onSelectParent({ ...med })}>
+                                <div className="d-flex flex-column align-items-start text-start">
+                                  <div className="d-flex align-items-center gap-1 flex-wrap">
+                                    <span>{item.value}</span>
+                                    {renderHmTypeBadgeInline(med)}
+                                    {renderLowStockBadge(med)}
+                                    <FreeBadge show={med?.is_free} />
+                                  </div>
+                                </div>
                               </Button>
                             )}
-                            {(JSON.parse(item.key)?.tmm_hm_type === 1 && JSON.parse(item.key)?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
-                            <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                           </div>
                         )
                       })
@@ -2194,13 +2311,22 @@ function TabMedicationSearch({ passIndex, onClose }) {
                             <Button
                               key={i}
                               type="text"
-                              style={{ width: item.tmm_medicine_name.length > 26 && "250px" }}
-                              className={`${item.tmm_medicine_name.length > 26 && "chips-custom-break"} btn btn-primary2 chips-custom mb-14 me-14`}
+                              className={`${item.tmm_medicine_name.length > 26 && "chips-custom-break"} btn btn-primary2 chips-custom chips-custom-auto mb-14 me-14`}
+                              style={{
+                                paddingTop: 8,
+                                paddingBottom: 8,
+                                width: item.tmm_medicine_name.length > 26 && "250px",
+                              }}
                               onClick={() => onSelectParent(item)}>
-                              {item.tmm_medicine_name}
+                              <div className="d-flex flex-column align-items-start text-start">
+                                <div className="d-flex align-items-center gap-1 flex-wrap">
+                                  <span>{item.tmm_medicine_name}</span>
+                                  {renderHmTypeBadgeInline(item)}
+                                  {renderLowStockBadge(item)}
+                                  <FreeBadge show={item?.is_free} />
+                                </div>
+                              </div>
                             </Button>
-                            {(item?.tmm_hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small lh-1 fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
-                            <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                           </div>
                         )
                       })

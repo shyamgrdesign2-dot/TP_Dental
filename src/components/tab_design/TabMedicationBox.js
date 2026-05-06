@@ -48,11 +48,13 @@ import {
   capitalizeAfterSentence,
   capitalize,
   replaceCommasAndSemicolons,
-  calculateDose
+  calculateDose,
+  getHmTypeIndicator
 } from "../../utils/utils";
 
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 
 import {
   searchMedication,
@@ -93,6 +95,7 @@ const {
 } = ASSETS.images;
 
 function TabMedicationBox() {
+  const isChikitsalayAccessable = useChikitsalay();
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const {
     dosesList,
@@ -178,6 +181,110 @@ function TabMedicationBox() {
 
   const filteredTitles = frequencyList.filter((item) => item.tmf_block !== 0);
 
+  const getRequiredQuantity = useCallback((med) => {
+    const morning = Number(med?.tcm_tmm_freq_morning || 0);
+    const afternoon = Number(med?.tcm_tmm_freq_afternoon || 0);
+    const evening = Number(med?.tcm_tmm_freq_evening || 0);
+    const night = Number(med?.tcm_tmm_freq_night || 0);
+    const perDay = morning + afternoon + evening + night;
+    if (!Number.isFinite(perDay) || perDay <= 0) return 0;
+
+    const days = Number(med?.tmm_days || 0);
+    const durationType = String(med?.tmm_duration_type || "").toLowerCase();
+    const multiplier =
+      durationType === "week(s)" ? 7
+        : durationType === "month(s)" ? 30
+          : durationType === "year(s)" ? 365
+            : 1;
+    const totalDays = days > 0 ? days * multiplier : 0;
+    if (!Number.isFinite(totalDays) || totalDays <= 0) return 0;
+
+    const dose = Number(med?.tmm_dosage || 1);
+    const doseMultiplier = Number.isFinite(dose) && dose > 0 ? dose : 1;
+    return perDay * totalDays * doseMultiplier;
+  }, []);
+
+  const renderLowStockBadge = useCallback((med) => {
+    if (!isChikitsalayAccessable) return null;
+    const available = Number(med?.quantity);
+    if (!Number.isFinite(available)) return null;
+
+    let label = null;
+    if (available <= 0) {
+      label = "No stock";
+    } else {
+      const required = 200;
+      if (available <= required) {
+        label = `Qty: ${available}`;
+      }
+    }
+
+    if (!label) return null;
+    return (
+      <h6
+        className="ms-1 mb-0"
+        style={{
+          padding: "2px 8px",
+          borderRadius: 6,
+          background: "#ED8A00",
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 600,
+          display: "inline-block",
+          lineHeight: "16px",
+        }}
+      >
+        {label}
+      </h6>
+    );
+  }, [getRequiredQuantity, isChikitsalayAccessable]);
+
+  const renderHmTypeBadge = useCallback((med) => {
+    const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
+    if (!ind) return null;
+    const wide = ind.length > 1;
+    return (
+      <span
+        className={`position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+          wide ? "rounded-pill" : "rounded-circle"
+        }`}
+        style={{
+          minWidth: wide ? 26 : 18,
+          height: 18,
+          padding: wide ? "0 6px" : "0 4px",
+          background: "#c44ea2",
+          right: 6,
+          top: -6,
+        }}
+      >
+        {ind}
+      </span>
+    );
+  }, [isChikitsalayAccessable]);
+
+  const renderHmTypeBadgeInline = useCallback((med) => {
+    const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
+    if (!ind) return null;
+    const wide = ind.length > 1;
+    return (
+      <span
+        className={`hm-type-indicator align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${
+          wide ? "rounded-pill" : "rounded-circle"
+        }`}
+        style={{
+          minWidth: wide ? 26 : 18,
+          height: 18,
+          padding: wide ? "0 6px" : "0 4px",
+          background: "#c44ea2",
+          color: "#fff",
+          lineHeight: "16px",
+        }}
+      >
+        {ind}
+      </span>
+    );
+  }, [isChikitsalayAccessable]);
+
   // useEffect(() => {
   //   const onEditPreFillMedicationData = () => {
   //     const updatedData = medicationData.map((e) => {
@@ -219,7 +326,7 @@ function TabMedicationBox() {
   useEffect(() => {
     dispatch(getMedicationTemplates());
     dispatch(getAllDoses())
-    dispatch(getFrequentlySearchedMedication());
+    dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
   }, []);
 
   //Parent AutoComplete
@@ -227,14 +334,14 @@ function TabMedicationBox() {
     if (searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchMLQuery, type: "parent" })
+          searchMedication({ searchQuery: searchMLQuery, type: "parent", isChikitsalayAccessable })
         );
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication());
+      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
     }
   }, [doseCalculatorDrawer, searchMLQuery]);
 
@@ -2864,17 +2971,25 @@ function TabMedicationBox() {
                   ].includes(e.tmm_medicine_name)
               ).map((item, i) => {
                 return (
-                  <div className="position-relative">
+                  <div key={i} className="d-inline-flex me-14 mb-14 position-relative">
                     <Button
-                      key={i}
                       type="text"
-                      className="btn btn-primary2 chips-custom mb-14 me-14"
+                      className="btn btn-primary2 chips-custom chips-custom-auto mb-0 me-0"
+                      style={{
+                        paddingTop: 8,
+                        paddingBottom: 8,
+                      }}
                       onClick={() => onSelectParent(item)}
                     >
-                      {`${item.tmm_medicine_name}`}
+                      <div className="d-flex flex-column align-items-start text-start">
+                        <div className="d-flex align-items-center gap-1 flex-wrap">
+                          <span>{item.tmm_medicine_name}</span>
+                          {renderHmTypeBadgeInline(item)}
+                          {renderLowStockBadge(item)}
+                          <FreeBadge show={item?.is_free} />
+                        </div>
+                      </div>
                     </Button>
-                    {(item?.tmm_hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2', right: 6, top: -6 }}>Z</span>}
-                    <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                   </div>
                 );
               })}
