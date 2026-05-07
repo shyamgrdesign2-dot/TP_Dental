@@ -3037,6 +3037,25 @@ body {
 // Taper Dose Styles
 .taper-dose {
   position: relative;
+  // Force the right-side column (containing inner taper rows) to be a flex column,
+  // and stretch its inner rows so vertical borders reach the bottom horizontal line
+  // in all 3 cases: single med, multi-row taper, and mixed list.
+  > .ant-col-1 + .ant-col-5 + .ant-col-18,
+  > .ant-col-lg-18,
+  > .ant-col-md-18,
+  > .ant-col-sm-18,
+  > .ant-col-xs-18 {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+  }
+  .taper-inner-row {
+    flex: 1 1 auto;
+    align-items: stretch;
+    width: 100%;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
   &:hover {
     .badge-tapper {
       display: flex;
