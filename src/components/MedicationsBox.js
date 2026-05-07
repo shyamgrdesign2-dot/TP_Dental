@@ -1142,21 +1142,19 @@ function MedicationsBox() {
                           {...provided.draggableProps}
                           key={i}
                           gutter={[0]}
-                          className="taper-dose align-items-stretch"
-                          style={{
-                            borderTop: i === 0 ? "1px solid #E2E2EA" : "none",
-                            borderBottom: "1px solid #E2E2EA",
-                          }}
+                          className={`taper-dose align-items-stretch ${i === 0 && "border-top"} border-bottom`}
                         >
-                          <Col lg={1} md={1} sm={1} xs={1} className="text-center d-flex align-items-center justify-content-center">
-                            <MenuOutlined
-                              {...provided.dragHandleProps}
-                              className="drag-handle"
-                              style={{ cursor: 'grab' }}
-                            >
-                            </MenuOutlined>
+                          <Col lg={1} md={1} sm={1} xs={1} className="text-center d-flex flex-column align-self-stretch">
+                            <div className="d-flex align-items-center justify-content-center flex-grow-1 w-100">
+                              <MenuOutlined
+                                {...provided.dragHandleProps}
+                                className="drag-handle"
+                                style={{ cursor: 'grab' }}
+                              >
+                              </MenuOutlined>
+                            </div>
                           </Col>
-                          <Col lg={5} md={5} sm={5} xs={5} className="border-end">
+                          <Col lg={5} md={5} sm={5} xs={5}>
                             <div className="fontroboto fw-medium p-2 pe-3">
                               <div className="d-flex align-items-center flex-wrap gap-1">
                                 <label className="mb-0">{item.tmm_medicine_name}</label>
@@ -1188,8 +1186,8 @@ function MedicationsBox() {
                             }
                             {innerMedication(item.index).map(e1 => ({ ...e1, index: medicationData.findIndex(e => e.unique_id == e1.unique_id) })).map((item, ii) => {
                               return (
-                                <Row key={ii} className={`taper-inner-row ${ii != 0 && 'position-relative border-top'}`}>
-                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end">
+                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'} align-items-stretch h-100`}>
+                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start h-100">
                                     <AutoComplete
                                       defaultValue={item.tmm_dosage_unit_name}
                                       value={item.tmm_dosage_unit_name}
@@ -1214,7 +1212,7 @@ function MedicationsBox() {
                                       )
                                     )}
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end h-100">
                                     <Select
                                       showSearch
                                       className="autocomplete-custom w-100 h-100 inputborder"
@@ -1230,7 +1228,7 @@ function MedicationsBox() {
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end h-100">
                                     <Select
                                       className="autocomplete-custom w-100 h-100 inputborder"
                                       placeholder="e.g Before Food"
@@ -1247,7 +1245,7 @@ function MedicationsBox() {
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill h-100">
                                     <AutoComplete
                                       defaultValue={item.tmm_days_duration_type}
                                       value={hasNumber(item.tmm_days_duration_type) ? item.tmm_days_duration_type : capitalize(item.tmm_days_duration_type, true)}
@@ -1267,9 +1265,9 @@ function MedicationsBox() {
                                       <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><i className="icon-copyIcon fs-12-1" />Autofill to all meds</div>
                                     )}
                                   </Col>
-                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end">
+                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end h-100 d-flex align-items-center">
                                     <TextArea
-                                      className="notesinput border-0 h-100 align-self-center"
+                                      className="notesinput border-0 w-100 align-self-center"
                                       placeholder="Notes"
                                       defaultValue={item.tmm_remarks}
                                       value={item.tmm_remarks}
