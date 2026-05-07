@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import CommonModal from '../../common/CommonModal';
 
 import CashManagerContext from '../../context/CashManagerContext';
-import { errorMessage, getHmTypeIndicator, removeBeforeWhiteSpace } from "../../utils/utils";
+import { errorMessage, removeBeforeWhiteSpace } from "../../utils/utils";
 
 import {
     addTemplate,
@@ -345,50 +345,42 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
     // }, [investigationData]);
 
     const SortableItem = SortableElement(({ item }) => {
-        const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
-        const isWideIndicator = indicator.length > 1;
+        const showVC = item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
         return (
-        <div
-            style={{
-                width: item.investigation_name.length > 12 && item.investigation_name.length < 24
-                    ? `${item.investigation_name.length * 10.5}px`
-                    : item.investigation_name.length >= 24
-                        ? '256px'
-                        : '150px'
-            }}
-            className={"position-relative d-flex align-items-center justify-content-between text-truncate closable-chips closable-chips-active"}
-        >
-            <div className="text-truncate p-2" onClick={() => handleDrawerChild(item)}>
-                <div className="text-truncate d-flex align-items-center gap-1">
-                    <span className="chip-text text-truncate">{item.investigation_name}</span>
-                    {indicator && (
-                        <span
-                            className={`chip-vc-badge align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
-                            style={{
-                                minWidth: isWideIndicator ? 26 : 18,
-                                height: 18,
-                                padding: isWideIndicator ? "0 6px" : "0 4px",
-                                background: "#c44ea2",
-                                color: "#fff",
-                                lineHeight: "16px",
-                            }}
-                        >
-                            {indicator}
-                        </span>
-                    )}
+            <div
+                style={{
+                    width: item.investigation_name.length > 12 && item.investigation_name.length < 24
+                        ? `${item.investigation_name.length * 10.5}px`
+                        : item.investigation_name.length >= 24
+                            ? '256px'
+                            : '150px'
+                }}
+                className={"position-relative d-flex align-items-center justify-content-between closable-chips closable-chips-active"}
+            >
+                <div className="text-truncate p-2" onClick={() => handleDrawerChild(item)}>
+                    <div>
+                        <div className="d-flex align-items-center gap-1">
+                            <span className="chip-text text-truncate">{item.investigation_name}</span>
+                        </div>
+                        {item.note ? (
+                            <div className="text-truncate small">{item.note}</div>
+                        ) : (
+                            <div className="text-truncate small">Add Details</div>
+                        )}
+                    </div>
                 </div>
-                <div className="text-truncate">
-                    {item.note ? (
-                        <div className="chip-subtext text-truncate small">{item.note}</div>
-                    ) : (
-                        <div className="chip-subtext text-truncate small">Add Details</div>
-                    )}
-                </div>
+                {showVC && (
+                    <span
+                        className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white chip-vc-badge"
+                        style={{ minWidth: 24, height: 18, padding: "0 5px", lineHeight: "16px", background: "#c44ea2", right: 36, top: -6 }}
+                    >
+                        VC
+                    </span>
+                )}
+                <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
+                    <i className="icon-Cross"></i>
+                </Button>
             </div>
-            <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
-                <i className="icon-Cross"></i>
-            </Button>
-        </div>
         );
     });
 
@@ -681,35 +673,13 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
                 <div className="d-flex flex-wrap p-14-pb0 overflow-hidden" style={{ maxHeight: '114px' }}>
                     {parentOptionsList.length > 0 &&
                         parentOptionsList.filter(e => ![...investigationData.map(e1 => e1.investigation_name)].includes(e.investigation_name)).map((item, i) => {
-                            const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
-                            const isWideIndicator = indicator.length > 1;
                             return (
-                                <div key={i} className="position-relative">
-                                    <Button type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>
-                                        <span className="d-inline-flex align-items-center gap-1">
-                                            <span>{`${item.investigation_name}`}</span>
-                                            {indicator && (
-                                                <span
-                                                    className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
-                                                    style={{
-                                                        minWidth: isWideIndicator ? 26 : 18,
-                                                        height: 18,
-                                                        padding: isWideIndicator ? "0 6px" : "0 4px",
-                                                        background: "#c44ea2",
-                                                        color: "#fff",
-                                                        lineHeight: "16px",
-                                                    }}
-                                                >
-                                                    {indicator}
-                                                </span>
-                                            )}
-                                        </span>
-                                    </Button>
-                                    {(item?.hm_type === 1 && item?.um_id === 0) && (
-                                        <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2', right: 6, top: -6 }}>Z</span>
-                                    )}
+                                <div className="position-relative">
+                                    <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{`${item.investigation_name}`}</Button>
+                                    {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                    {(item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                 </div>
-                            );
+                            )
                         })}
                 </div>
                 {DELETE_MODAL}

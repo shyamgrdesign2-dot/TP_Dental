@@ -73,13 +73,14 @@ function MedicationsBox() {
     }
 
     if (!label) return null;
+    const isQtyLabel = label.startsWith("Qty:");
     return (
       <h6
         className="ms-2"
         style={{
           padding: "2px 8px",
           borderRadius: 6,
-          background: "#ED8A00",
+          background: isQtyLabel ? "#FC5A5A" : "#ED8A00",
           color: "#fff",
           fontSize: 12,
           fontWeight: 600,
@@ -227,7 +228,7 @@ function MedicationsBox() {
         value: e.tmm_medicine_name,
         label: (
           <div>
-            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>  {(e?.tmm_hm_type === 1 && e?.um_id === 0) && <span className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2' }}>Z</span>}
+            <span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>
             {renderHmTypeBadge(e)}
             <FreeBadge show={e?.is_free} />
             {renderLowStockBadge(e)}

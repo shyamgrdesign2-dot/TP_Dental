@@ -15,12 +15,12 @@ import TabSearchHeader from "./TabSearchHeader";
 import LoopingVideo from "../common/LoopingVideo";
 
 import { SortableContainer, SortableElement } from 'react-sortable-hoc';
-import { getClinicName, getHmTypeIndicator } from "../../utils/utils";
+import { getClinicName } from "../../utils/utils";
 import { useLocation } from "react-router-dom";
 import { getDecodedToken } from "../../utils/localStorage";
 import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER } from "../../utils/constants";
-import { env } from "../../EnvironmentConfig";
 import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
+import { env } from "../../EnvironmentConfig";
 import { ASSETS } from "../../assets";
 const {
   dragChips_2: dragChipsWebm,
@@ -194,53 +194,42 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
 
     // Drag & Drop
     const SortableItem = SortableElement(({ item }) => {
-        const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
-        const isWideIndicator = indicator.length > 1;
+        const showVC = item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
         return (
-        <div
-            style={{
-                width: item.investigation_name.length > 12 && item.investigation_name.length < 24
-                    ? `${item.investigation_name.length * 10.5}px`
-                    : item.investigation_name.length >= 24
-                        ? '256px'
-                        : '150px',
-                zIndex: 9999,
-            }}
-            className={`${selectedIndex == item.index && "closable-chips-active"} position-relative d-flex align-items-center justify-content-between text-truncate closable-chips`}
-        >
-            <div className="text-truncate p-2" onClick={() => {
-                setSelectedIndex(item.index)
-            }}>
-                <div className="text-truncate d-flex align-items-center gap-1">
-                    <span className="chip-text text-truncate">{item.investigation_name}</span>
-                    {indicator && (
-                        <span
-                            className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
-                            style={{
-                                minWidth: isWideIndicator ? 26 : 18,
-                                height: 18,
-                                padding: isWideIndicator ? "0 6px" : "0 4px",
-                                background: "#c44ea2",
-                                color: "#fff",
-                                lineHeight: "16px",
-                            }}
-                        >
-                            {indicator}
-                        </span>
-                    )}
+            <div
+                style={{
+                    width: item.investigation_name.length > 12 && item.investigation_name.length < 24
+                        ? `${item.investigation_name.length * 10.5}px`
+                        : item.investigation_name.length >= 24
+                            ? '256px'
+                            : '150px',
+                    zIndex: 9999,
+                }}
+                className={`${selectedIndex == item.index && "closable-chips-active"} position-relative d-flex align-items-center justify-content-between closable-chips`}
+            >
+                <div className="text-truncate p-2" onClick={() => {
+                    setSelectedIndex(item.index)
+                }}>
+                    <div className="text-truncate"><span className="chip-text">{item.investigation_name}</span>
+                        {item.note ? (
+                            <div className="text-truncate small">{item.note}</div>
+                        ) : (
+                            <div className="text-truncate small">Add Details</div>
+                        )}
+                    </div>
                 </div>
-                <div className="text-truncate">
-                    {item.note ? (
-                        <div className="chip-subtext text-truncate small">{item.note}</div>
-                    ) : (
-                        <div className="chip-subtext text-truncate small">Add Details</div>
-                    )}
-                </div>
+                {showVC && (
+                    <span
+                        className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white chip-vc-badge"
+                        style={{ minWidth: 24, height: 18, padding: "0 5px", lineHeight: "16px", background: "#c44ea2", right: 36, top: -6 }}
+                    >
+                        VC
+                    </span>
+                )}
+                <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
+                    <i className="icon-Cross"></i>
+                </Button>
             </div>
-            <Button type="text" className="rounded-0 btn-close-chips" onClick={() => onRemoveRow(item.index)}>
-                <i className="icon-Cross"></i>
-            </Button>
-        </div>
         );
     });
 
@@ -410,28 +399,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                             </Button>
                                                         )}
                                                         {(JSON.parse(item.key)?.hm_type === 1 && JSON.parse(item.key)?.um_id === 1) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
-                                                        {isChikitsalayAccessable && (() => {
-                                                            const parsed = JSON.parse(item.key);
-                                                            const sup = getHmTypeIndicator(parsed, true);
-                                                            if (!sup || sup === "Z") return null;
-                                                            const wide = sup.length > 1;
-                                                            return (
-                                                                <span
-                                                                    className={`position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${wide ? "rounded-pill" : "rounded-circle"}`}
-                                                                    style={{
-                                                                        minWidth: wide ? 26 : 18,
-                                                                        height: 18,
-                                                                        padding: wide ? "0 6px" : "0 4px",
-                                                                        background: "#c44ea2",
-                                                                        lineHeight: "16px",
-                                                                        right: 6,
-                                                                        top: -6,
-                                                                    }}
-                                                                >
-                                                                    {sup}
-                                                                </span>
-                                                            );
-                                                        })()}
+                                                        {(JSON.parse(item.key)?.hm_type == 15 && Number(JSON.parse(item.key)?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                                     </div>
                                                 )
                                             })
@@ -442,27 +410,7 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                     <div className="position-relative">
                                                         <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{item.investigation_name}</Button>
                                                         {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
-                                                        {isChikitsalayAccessable && (() => {
-                                                            const sup = getHmTypeIndicator(item, true);
-                                                            if (!sup || sup === "Z") return null;
-                                                            const wide = sup.length > 1;
-                                                            return (
-                                                                <span
-                                                                    className={`position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${wide ? "rounded-pill" : "rounded-circle"}`}
-                                                                    style={{
-                                                                        minWidth: wide ? 26 : 18,
-                                                                        height: 18,
-                                                                        padding: wide ? "0 6px" : "0 4px",
-                                                                        background: "#c44ea2",
-                                                                        lineHeight: "16px",
-                                                                        right: 6,
-                                                                        top: -6,
-                                                                    }}
-                                                                >
-                                                                    {sup}
-                                                                </span>
-                                                            );
-                                                        })()}
+                                                        {(item?.hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-pill text-white" style={{minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6}}>VC</span>}
                                                     </div>
                                                 )
                                             })
