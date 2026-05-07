@@ -1267,7 +1267,7 @@ function MedicationsBox() {
                                   </Col>
                                   <Col lg={6} md={6} sm={6} xs={6} className="border-end">
                                     <TextArea
-                                      className="notesinput border-0 w-100 align-self-center"
+                                      className="notesinput border-0 h-100 align-self-center"
                                       placeholder="Notes"
                                       defaultValue={item.tmm_remarks}
                                       value={item.tmm_remarks}
