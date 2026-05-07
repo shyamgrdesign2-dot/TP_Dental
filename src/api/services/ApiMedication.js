@@ -5,6 +5,7 @@ const baseUrl = { customBaseUrl: config.medication_api_url }
 const doseBaseUrl = { customBaseUrl: config.lab_params_api_url };
 const fuzzySearchBaseUrl = { customBaseUrl: config.searchengine_url };
 const quantityBaseUrl = { customBaseUrl: config.symptoms_collector_api_url };
+const eVitalsInventoryBaseUrl = { customBaseUrl: config.searchengine_url };
 
 const ApiMedication = {};
 
@@ -54,6 +55,14 @@ ApiMedication.getFuzzySearch = function (query, max_results = 1) {
   return api.get(
     `/api/v1/medicines/fuzzySearch?search=${query}&max_results=${max_results}`,
     fuzzySearchBaseUrl
+  );
+};
+
+ApiMedication.getEvitalsInventory = function (referenceIds) {
+  return api.post(
+    `/api/v1/medicines/get-evitals-inventory`,
+    { referenceIds },
+    eVitalsInventoryBaseUrl
   );
 };
 

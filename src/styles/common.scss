@@ -198,6 +198,9 @@ body {
         font-family: 'Poppins' !important;
         color: $maincolor !important;
     }
+    .closable-chips .chip-vc-badge {
+        color: #fff !important;
+    }
     .ff-poppins, .ff-poppins *, 
     .ff-poppins *::before, 
     .ff-poppins *::after {

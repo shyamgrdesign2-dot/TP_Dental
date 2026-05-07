@@ -9,7 +9,7 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE ,GB_CVT_EXT_HOS } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE ,GB_CVT_EXT_HOS, CLINIC_TARGET_STATUS } from '../utils/constants';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId, getDraftMoengageDoctorAttributes } from '../utils/utils';
 import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -25,7 +25,9 @@ import { env } from '../EnvironmentConfig';
 
 import useTabletViewport from '../hooks/useTabletViewport';
 import PrimaryActionButton from '../components/PrimaryActionButton';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
+import { clinicTargetStatus } from '../pages/chikitsalay/service';
 const {
   tubeIcon: playIcons,
   tutorialIcon: tutorial,
@@ -49,7 +51,7 @@ function Welcome1(props) {
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
-
+    const isChikitsalayAccessable = useChikitsalay();
 
     const navigate = useNavigate();
     const { profile, videoList, patientCertificateList, userId } = useSelector((state) => state.doctors);
@@ -160,6 +162,11 @@ function Welcome1(props) {
 
     const onConsultClick = async (patient) => {
         navigate("/prescription", { state: { patient_data: patient, send_path: "patient_details" } });
+        if (isChikitsalayAccessable) {
+            clinicTargetStatus(patient?.pam_id, {
+                targetStatus: CLINIC_TARGET_STATUS.SERVING,
+            });
+        }
     };
     const onTabRxClick = async (patient) => {
         navigate("/tab-rx", { state: { patient_data: patient } });
@@ -481,7 +488,16 @@ function Welcome1(props) {
                                             Repeat {modifyFormat?.first}<sup>{modifyFormat?.second}</sup>&nbsp;{modifyFormat?.third} Rx   
                                         </Button>
                                     }
-                                    {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                                    {isChikitsalayAccessable ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary3 btn-text-white btn-41 px-4"
+                                            style={{ color: "#fff" }}
+                                            onClick={() => onConsultClick(patient_data)}
+                                        >
+                                            Consult
+                                        </button>
+                                    ) : (isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                                         <PrimaryActionButton
                                             isSmartRxAccessible={isSmartSyncAccessableFromGB}
                                             isSnapRxAccessible={isSnapRxAccessableFromGB}

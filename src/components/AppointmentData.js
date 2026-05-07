@@ -87,6 +87,9 @@ import {
   PATIENT_DETAILS_SIDEBAR_KEYS,
   GB_TAB_RX_CVT,
   GB_VOICE_RX_FREE,
+  TAB_CLINIC_QUEUE,
+  TAB_CLINIC_APPOINTMENT,
+  CLINIC_TARGET_STATUS,
   GB_CVT_EXT_HOS,
 } from "../utils/constants";
 import api from "../api/services/axiosService";
@@ -175,6 +178,8 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
 import { ASSETS } from "../assets";
 const {
   endVisit: visitEnd,
@@ -214,12 +219,22 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const { isLoading } = useSelector((state) => state.uploadDoc);
   const { advancedSettings } = useSelector((state) => state.billing);
   const { isOpdBillingAccessable } = useOpdBilling();
+  const isChikitsalayAccessable = useChikitsalay();
   const [searchParams, setSearchParams] = useSearchParams();
   const from = searchParams.get("from");
   const [modalOpen, setModalOpen] = useState(false);
 
+  useEffect(() => {
+    if (!isChikitsalayAccessable) return;
+    const existingClinicToken =
+      localStorage.getItem("visitClinicToken");
+    if (existingClinicToken) return;
+    generateClinicToken();
+  }, [isChikitsalayAccessable]);
+
   const {
     queueCount,
+    clinicQueueCount,
     finishedCount,
     cancelledCount,
     zydusEncounterCount,
@@ -321,7 +336,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [agentsData, setAgentsData] = useState(null);
   const [isAgentsLoading, setIsAgentsLoading] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(TAB_QUEUE);
+  const [selectedTab, setSelectedTab] = useState(isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE);
   const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
   const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
 
@@ -624,12 +639,22 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   // UseEffect to update items when pendingDigitisation changes
   useEffect(() => {
     const updatedItems = [
-      {
-        key: TAB_QUEUE,
+      ...(isChikitsalayAccessable ? [{
+        key: TAB_CLINIC_APPOINTMENT,
         label: (
           <div className="d-flex align-items-center">
             <i className="icon-Queue"></i>
-            Queue ({isDigitisationTab ? 0 : queueCount})
+            Appointment ({isDigitisationTab ? 0 : queueCount})
+            {/* ({appointmentCount}) */}
+          </div>
+        ),
+      }] : []),
+      {
+        key: isChikitsalayAccessable ? TAB_CLINIC_QUEUE : TAB_QUEUE,
+        label: (
+          <div className="d-flex align-items-center">
+            <i className="icon-Queue"></i>
+            Queue ({isChikitsalayAccessable ? clinicQueueCount : isDigitisationTab ? 0 : queueCount})
           </div>
         ),
       },
@@ -1515,6 +1540,11 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       patient_id: record?.patient_unique_id,
     });
     goToPatientDetails(record, "/prescription");
+    if (isChikitsalayAccessable) {
+      clinicTargetStatus(record?.pam_id, {
+        targetStatus: CLINIC_TARGET_STATUS.SERVING,
+      });
+    }
   };
 
   const onPatientDetailsClick = async (record) => {
@@ -2497,7 +2527,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         );
       },
     },
-    {
+    ...(!(isChikitsalayAccessable && selectedTab === TAB_CLINIC_APPOINTMENT) ? [{
       title: selectedTab != TAB_ZYDUS_APPOINTMENT ? "Action" : "",
       key: "action",
       width: 200,
@@ -2507,7 +2537,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             size="middle"
             style={{ display: "flex", justifyContent: "space-between" }}
           >
-            {selectedTab === TAB_DRAFT_RX ? (
+            {(selectedTab === TAB_CLINIC_QUEUE && isChikitsalayAccessable) ? 
+              <button
+              className="btn btn-outline-primary btn-resume-draft-rx"
+              onClick={() => onConsultClick(record)}
+              >
+                Consult
+              </button>
+             : selectedTab === TAB_DRAFT_RX ? (
               <button
                 className="btn btn-outline-primary btn-resume-draft-rx"
                 onClick={() => handleResumeDraftRx(record)}
@@ -2741,7 +2778,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
               )}
           </div>
         ) : null,
-    },
+    }] : []),
   ];
 
   const handleChange = (pagination, filters, sorter, extra) => {
