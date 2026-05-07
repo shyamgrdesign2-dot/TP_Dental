@@ -388,18 +388,15 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                         {searchChildQuery.length > 0 ? (
                                             childSearchOptions.length > 0 &&
                                             childSearchOptions.filter(e => ![...investigationData.map(e1 => e1.investigation_name)].includes(e.value)).map((item, i) => {
-                                                const parsedItem = JSON.parse(item.key);
-                                                const indicator = getHmTypeIndicator(parsedItem, isChikitsalayAccessable);
-                                                const isWideIndicator = indicator.length > 1;
                                                 return (
-                                                    <div>
+                                                    <div className="position-relative">
                                                         {/* i === childSearchOptions.length - 1 ? ( */}
-                                                        {parsedItem.change === 1 ? (
+                                                        {JSON.parse(item.key).change === 1 ? (
                                                             <Button
                                                                 key={i}
                                                                 type="text"
                                                                 className="btn btn-primary2 chips-custom mb-14 chips-addCustom chips-height"
-                                                                onClick={() => onSelectParent({ ...parsedItem })}>
+                                                                onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
                                                                 "{item.value}" <i className="icon-Add mx-2 fs-6"></i> <a className="fw-medium text-decoration-underline text-primary"> Add Custom</a>
                                                             </Button>
                                                         ) : (
@@ -408,57 +405,64 @@ function TabInvestigationSearch({ passIndex, onClose, ddxOptionsList }) {
                                                                 type="text"
                                                                 style={{ width: item.value.length > 26 && '250px' }}
                                                                 className={`${item.value.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`}
-                                                                onClick={() => onSelectParent({ ...parsedItem })}>
-                                                                <span className="d-inline-flex align-items-center gap-1">
-                                                                    <span>{item.value}</span>
-                                                                    {indicator && (
-                                                                      <span
-                                                                          className={`chip-vc-badge align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
-                                                                          style={{
-                                                                            minWidth: isWideIndicator ? 26 : 18,
-                                                                            height: 18,
-                                                                            padding: isWideIndicator ? "0 6px" : "0 4px",
-                                                                            background: "#c44ea2",
-                                                                            color: "#fff",
-                                                                            lineHeight: "16px",
-                                                                          }}
-                                                                        >
-                                                                            {indicator}
-                                                                        </span>
-                                                                    )}
-                                                                </span>
+                                                                onClick={() => onSelectParent({ ...JSON.parse(item.key) })}>
+                                                                {item.value}
                                                             </Button>
                                                         )}
+                                                        {(JSON.parse(item.key)?.hm_type === 1 && JSON.parse(item.key)?.um_id === 1) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                                        {isChikitsalayAccessable && (() => {
+                                                            const parsed = JSON.parse(item.key);
+                                                            const sup = getHmTypeIndicator(parsed, true);
+                                                            if (!sup || sup === "Z") return null;
+                                                            const wide = sup.length > 1;
+                                                            return (
+                                                                <span
+                                                                    className={`position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${wide ? "rounded-pill" : "rounded-circle"}`}
+                                                                    style={{
+                                                                        minWidth: wide ? 26 : 18,
+                                                                        height: 18,
+                                                                        padding: wide ? "0 6px" : "0 4px",
+                                                                        background: "#c44ea2",
+                                                                        lineHeight: "16px",
+                                                                        right: 6,
+                                                                        top: -6,
+                                                                    }}
+                                                                >
+                                                                    {sup}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )
                                             })
                                         ) : (
                                             parentOptionsList.length > 0 &&
                                             parentOptionsList.filter(e => ![...investigationData.map(e1 => e1.investigation_name)].includes(e.investigation_name)).map((item, i) => {
-                                                const indicator = getHmTypeIndicator(item, isChikitsalayAccessable);
-                                                const isWideIndicator = indicator.length > 1;
                                                 return (
-                                                    <div>
-                                                        <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>
-                                                            <span className="d-inline-flex align-items-center gap-1">
-                                                                <span>{item.investigation_name}</span>
-                                                                {indicator && (
-                                                                  <span
-                                                                      className={`chip-vc-badge ${isChikitsalayAccessable ? "chikitsalay-vc-badge" : ""} align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center text-white ${isWideIndicator ? "rounded-pill" : "rounded-circle"}`}
-                                                                      style={{
-                                                                        minWidth: isWideIndicator ? 26 : 18,
+                                                    <div className="position-relative">
+                                                        <Button key={i} type="text" style={{ width: item.investigation_name.length > 26 && '250px' }} className={`${item.investigation_name.length > 26 && 'chips-custom-break'} btn btn-primary2 chips-custom mb-14 me-14`} onClick={() => onSelectParent({ ...item, unique_id: uuidv4() })}>{item.investigation_name}</Button>
+                                                        {(item?.hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 lh-1 d-inline-flex justify-content-center rounded-circle text-white" style={{width: 18, height: 18, background: '#c44ea2', right: 6, top: -6}}>Z</span>}
+                                                        {isChikitsalayAccessable && (() => {
+                                                            const sup = getHmTypeIndicator(item, true);
+                                                            if (!sup || sup === "Z") return null;
+                                                            const wide = sup.length > 1;
+                                                            return (
+                                                                <span
+                                                                    className={`position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center text-white ${wide ? "rounded-pill" : "rounded-circle"}`}
+                                                                    style={{
+                                                                        minWidth: wide ? 26 : 18,
                                                                         height: 18,
-                                                                        padding: isWideIndicator ? "0 6px" : "0 4px",
+                                                                        padding: wide ? "0 6px" : "0 4px",
                                                                         background: "#c44ea2",
-                                                                        color: "#fff",
                                                                         lineHeight: "16px",
-                                                                      }}
-                                                                    >
-                                                                        {indicator}
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                        </Button>
+                                                                        right: 6,
+                                                                        top: -6,
+                                                                    }}
+                                                                >
+                                                                    {sup}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )
                                             })

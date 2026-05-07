@@ -181,29 +181,6 @@ function TabMedicationBox() {
 
   const filteredTitles = frequencyList.filter((item) => item.tmf_block !== 0);
 
-  const getRequiredQuantity = useCallback((med) => {
-    const morning = Number(med?.tcm_tmm_freq_morning || 0);
-    const afternoon = Number(med?.tcm_tmm_freq_afternoon || 0);
-    const evening = Number(med?.tcm_tmm_freq_evening || 0);
-    const night = Number(med?.tcm_tmm_freq_night || 0);
-    const perDay = morning + afternoon + evening + night;
-    if (!Number.isFinite(perDay) || perDay <= 0) return 0;
-
-    const days = Number(med?.tmm_days || 0);
-    const durationType = String(med?.tmm_duration_type || "").toLowerCase();
-    const multiplier =
-      durationType === "week(s)" ? 7
-        : durationType === "month(s)" ? 30
-          : durationType === "year(s)" ? 365
-            : 1;
-    const totalDays = days > 0 ? days * multiplier : 0;
-    if (!Number.isFinite(totalDays) || totalDays <= 0) return 0;
-
-    const dose = Number(med?.tmm_dosage || 1);
-    const doseMultiplier = Number.isFinite(dose) && dose > 0 ? dose : 1;
-    return perDay * totalDays * doseMultiplier;
-  }, []);
-
   const renderLowStockBadge = useCallback((med) => {
     if (!isChikitsalayAccessable) return null;
     const available = Number(med?.quantity);
@@ -237,7 +214,7 @@ function TabMedicationBox() {
         {label}
       </h6>
     );
-  }, [getRequiredQuantity, isChikitsalayAccessable]);
+  }, [isChikitsalayAccessable]);
 
   const renderHmTypeBadge = useCallback((med) => {
     const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
@@ -326,24 +303,28 @@ function TabMedicationBox() {
   useEffect(() => {
     dispatch(getMedicationTemplates());
     dispatch(getAllDoses())
-    dispatch(getFrequentlySearchedMedication());
-  }, []);
+    dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
+  }, [isChikitsalayAccessable]);
 
   //Parent AutoComplete
   useEffect(() => {
     if (searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchMLQuery, type: "parent" })
+          searchMedication({
+            searchQuery: searchMLQuery,
+            type: "parent",
+            isChikitsalayAccessable,
+          })
         );
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication());
+      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
     }
-  }, [doseCalculatorDrawer, searchMLQuery]);
+  }, [doseCalculatorDrawer, searchMLQuery, isChikitsalayAccessable]);
 
   useEffect(() => {
     const data = [];
