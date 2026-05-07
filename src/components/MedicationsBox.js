@@ -1166,7 +1166,7 @@ function MedicationsBox() {
                               {renderLowStockBadge(item)}
                             </div>
                           </Col>
-                          <Col lg={18} md={18} sm={18} xs={18}>
+                          <Col lg={18} md={18} sm={18} xs={18} style={{ alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
                             {!item.pms_default &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
@@ -1184,10 +1184,14 @@ function MedicationsBox() {
                                 }}
                               ></i>
                             }
-                            {innerMedication(item.index).map(e1 => ({ ...e1, index: medicationData.findIndex(e => e.unique_id == e1.unique_id) })).map((item, ii) => {
+                            {innerMedication(item.index).map(e1 => ({ ...e1, index: medicationData.findIndex(e => e.unique_id == e1.unique_id) })).map((item, ii, arr) => {
                               return (
-                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'}`}>
-                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start">
+                                <Row
+                                  key={ii}
+                                  className={`${ii != 0 && 'position-relative border-top'}`}
+                                  style={{ flex: '1 1 0', alignItems: 'stretch', minHeight: 38 }}
+                                >
+                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start" style={{ alignSelf: 'stretch' }}>
                                     <AutoComplete
                                       defaultValue={item.tmm_dosage_unit_name}
                                       value={item.tmm_dosage_unit_name}
@@ -1212,7 +1216,7 @@ function MedicationsBox() {
                                       )
                                     )}
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end" style={{ alignSelf: 'stretch' }}>
                                     <Select
                                       showSearch
                                       className="autocomplete-custom w-100 h-100 inputborder"
@@ -1228,7 +1232,7 @@ function MedicationsBox() {
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end" style={{ alignSelf: 'stretch' }}>
                                     <Select
                                       className="autocomplete-custom w-100 h-100 inputborder"
                                       placeholder="e.g Before Food"
@@ -1245,7 +1249,7 @@ function MedicationsBox() {
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill">
+                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill" style={{ alignSelf: 'stretch' }}>
                                     <AutoComplete
                                       defaultValue={item.tmm_days_duration_type}
                                       value={hasNumber(item.tmm_days_duration_type) ? item.tmm_days_duration_type : capitalize(item.tmm_days_duration_type, true)}
@@ -1265,7 +1269,7 @@ function MedicationsBox() {
                                       <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><i className="icon-copyIcon fs-12-1" />Autofill to all meds</div>
                                     )}
                                   </Col>
-                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end">
+                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end" style={{ alignSelf: 'stretch' }}>
                                     <TextArea
                                       className="notesinput border-0 w-100 align-self-center"
                                       placeholder="Notes"
