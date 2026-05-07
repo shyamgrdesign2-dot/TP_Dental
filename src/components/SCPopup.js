@@ -13,10 +13,6 @@ import { getClinicName, getTokenData, isVoiceRxFree, shouldMonetizationDisabled,
 import dayjs from "dayjs";
 import CashManagerContext from "../context/CashManagerContext";
 import { ASSETS } from "../assets";
-import {
-  normalizeVitalsAndBodyCompositionToRxRowFields,
-  rxVitalsPatchToCollectorDisplayKeys,
-} from "../utils/symptomCollectorVitalsMerge";
 const {
   scHeaderBg,
   scRx: autoFillRx,
@@ -38,38 +34,6 @@ const VALID_TYPES = {
   allergy: "Allergies",
   "family history": "Family History",
   lifestyle: "Lifestyle",
-};
-
-const VITAL_FIELD_LABELS = {
-  temperature: "Temperature",
-  pulse: "Pulse",
-  respiratoryRate: "Respiratory rate",
-  bloodPressure: "Blood pressure",
-  systolic: "Systolic",
-  diastolic: "Diastolic",
-  spo2: "SpO₂",
-  randomBloodSugar: "Random blood sugar",
-  height: "Height",
-  weight: "Weight",
-  headCircumference: "Head circumference",
-  waistCircumference: "Waist circumference",
-  bmi: "BMI",
-  bmr: "BMR",
-  bsa: "BSA",
-  fib4: "FIB-4",
-  generalRBS: "General RBS",
-};
-
-const VITAL_DISPLAY_ORDER = Object.keys(VITAL_FIELD_LABELS);
-
-const getNonEmptyVitalKeys = (vitals) => {
-  if (!vitals || typeof vitals !== "object") return [];
-  return Object.keys(vitals).filter(
-    (k) =>
-      vitals[k] !== undefined &&
-      vitals[k] !== null &&
-      String(vitals[k]).trim() !== ""
-  );
 };
 
 const segregateDataByType = (data) => {
@@ -256,9 +220,7 @@ const SCPopup = ({
 
   const symptomsCollectorData =
     selectedSymptomsCollector?.symptoms?.length > 0 ||
-    selectedSymptomsCollector?.medicalHistory?.length > 0 ||
-    getNonEmptyVitalKeys(selectedSymptomsCollector?.vitalsAndBodyComposition)
-      .length > 0
+    selectedSymptomsCollector?.medicalHistory?.length > 0
       ? selectedSymptomsCollector
       : symptomCollector;
 
@@ -291,15 +253,6 @@ const SCPopup = ({
     }
 
     return [];
-  });
-
-  const [selectedVitalKeys, setSelectedVitalKeys] = useState(() => {
-    const stored = symptomsCollectorData?.vitalsAndBodyComposition;
-    if (stored && typeof stored === "object" && Object.keys(stored).length > 0) {
-      const fromRx = rxVitalsPatchToCollectorDisplayKeys(stored);
-      if (fromRx.length > 0) return fromRx;
-    }
-    return getNonEmptyVitalKeys(symptomCollector?.vitalsAndBodyComposition);
   });
 
   const [selectedNotes, setSelectedNotes] = useState(true);
@@ -348,21 +301,6 @@ const SCPopup = ({
     formattedData.symptoms = selectedSymptomData;
     formattedData.notes = selectedNotes ? symptomCollector.notes : "";
 
-    const vitalsSource =
-      symptomsCollectorData?.vitalsAndBodyComposition ||
-      symptomCollector?.vitalsAndBodyComposition ||
-      {};
-    const vitalsAndBodyComposition = {};
-    selectedVitalKeys.forEach((key) => {
-      if (Object.prototype.hasOwnProperty.call(vitalsSource, key)) {
-        vitalsAndBodyComposition[key] = vitalsSource[key];
-      }
-    });
-    if (Object.keys(vitalsAndBodyComposition).length > 0) {
-      formattedData.vitalsAndBodyComposition =
-        normalizeVitalsAndBodyCompositionToRxRowFields(vitalsAndBodyComposition);
-    }
-
     const voicePayload = {
       symptoms: selectedSymptomData.map((symptom) => {
         const payload = {
@@ -380,11 +318,6 @@ const SCPopup = ({
       medicalHistory: medicalHistoryPayload,
       others: selectedNotes && symptomCollector.notes ? symptomCollector.notes : "",
     };
-
-    if (Object.keys(vitalsAndBodyComposition).length > 0) {
-      voicePayload.vitalsAndBodyComposition =
-        normalizeVitalsAndBodyCompositionToRxRowFields(vitalsAndBodyComposition);
-    }
 
     return { formattedData, voicePayload };
   };
@@ -456,20 +389,6 @@ const SCPopup = ({
       duration: 5,
     });
   };
-
-  const vitalsForUi = symptomCollector?.vitalsAndBodyComposition;
-  const filledVitalKeysForUi = getNonEmptyVitalKeys(vitalsForUi);
-  const orderedVitalKeysForUi =
-    filledVitalKeysForUi.length > 0
-      ? [
-          ...VITAL_DISPLAY_ORDER.filter((k) =>
-            filledVitalKeysForUi.includes(k)
-          ),
-          ...filledVitalKeysForUi.filter(
-            (k) => !VITAL_DISPLAY_ORDER.includes(k)
-          ),
-        ]
-      : [];
 
   return (
     <Modal
@@ -801,72 +720,6 @@ const SCPopup = ({
                 </div>
               </div>
             ))}
-          </div>
-        )}
-        {orderedVitalKeysForUi.length > 0 && (
-          <div
-            style={{
-              overflow: "auto",
-              background: "white",
-              padding: 18,
-              borderRadius: 10,
-              marginTop: 20,
-            }}
-          >
-            <div className="d-flex align-items-center justify-content-between mb-3">
-              <div className="d-flex gap-3 patient-details">
-                <img src={custom} alt="vitals" />
-                <span style={{ color: "#454551" }}>
-                  Vitals & body composition
-                </span>
-              </div>
-              <span
-                className="hyperling-text-style cursor-pointer"
-                onClick={() => {
-                  if (
-                    selectedVitalKeys.length === orderedVitalKeysForUi.length
-                  ) {
-                    setSelectedVitalKeys([]);
-                  } else {
-                    setSelectedVitalKeys([...orderedVitalKeysForUi]);
-                  }
-                }}
-              >
-                {selectedVitalKeys.length === orderedVitalKeysForUi.length
-                  ? "Unselect All"
-                  : "Select All"}
-              </span>
-            </div>
-            <Divider style={{ margin: "15px 0px" }} />
-            <div className="space-y-6">
-              {orderedVitalKeysForUi.map((key) => (
-                <div
-                  key={key}
-                  className="ml-3 mb-2 relative pl-4 d-flex gap-2 align-items-start"
-                >
-                  <Checkbox
-                    className="me-2"
-                    checked={selectedVitalKeys.includes(key)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedVitalKeys([...selectedVitalKeys, key]);
-                      } else {
-                        setSelectedVitalKeys(
-                          selectedVitalKeys.filter((k) => k !== key)
-                        );
-                      }
-                    }}
-                  />
-                  <span className="text-[14px] font-medium text-gray-900">
-                    <span className="font-medium">
-                      {VITAL_FIELD_LABELS[key] || key}
-                      {": "}
-                    </span>
-                    <span className="text-gray-600">{vitalsForUi[key]}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
           </div>
         )}
         {symptomCollector?.notes?.length > 0 && (
