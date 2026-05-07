@@ -174,7 +174,7 @@ function Cardiology(props) {
   );
 
   const currentOpthal = useMemo(() => {
-    const tcmId = tcmData?.tcm_id || viewCaseManagerData?.tcm_id;
+    const tcmId = viewCaseManagerData?.tcm_id;
     if (!tcmId || !Array.isArray(opthalPrescriptionHistory)) {
       return null;
     }
@@ -182,7 +182,7 @@ function Cardiology(props) {
       (item) => item?.tcm_id === tcmId
     );
     return match?.data || null;
-  }, [opthalPrescriptionHistory, tcmData?.tcm_id, viewCaseManagerData?.tcm_id]);
+  }, [opthalPrescriptionHistory, viewCaseManagerData?.tcm_id]);
 
   const hasOpthalData = useMemo(() => {
     if (!currentOpthal) return false;

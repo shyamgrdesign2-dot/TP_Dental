@@ -127,7 +127,6 @@ function PatientDetails() {
     const [opthalPrescriptionHistory, setOpthalPrescriptionHistory] = useState([]);
     const [showHealthCheckupReportDrawer, setShowHealthCheckupReportDrawer] = useState(false);
     const hasFetchedFromMrn = useRef(false);
-    const lastFetchedOpthalTcmId = useRef(null);
 
     useEffect(() => {
         const fetchPatientFromMrn = async () => {
@@ -257,18 +256,12 @@ function PatientDetails() {
     }, [currentConsultation?.tcm_id, patient_data?.patient_unique_id, dispatch]);
 
     useEffect(() => {
-        const tcmId = currentConsultation?.tcm_id || viewCaseManagerData?.tcm_id;
+        const tcmId = viewCaseManagerData?.tcm_id;
         const patientId = patient_data?.patient_unique_id;
         
         if (!tcmId || !patientId) {
             return;
         }
-        
-        if (lastFetchedOpthalTcmId.current === tcmId) {
-            return;
-        }
-        
-        lastFetchedOpthalTcmId.current = tcmId;
         
         let isMounted = true;
         const abortController = new AbortController();
@@ -312,12 +305,11 @@ function PatientDetails() {
             isMounted = false;
             abortController.abort();
         };
-    }, [currentConsultation?.tcm_id, viewCaseManagerData?.tcm_id, patient_data?.patient_unique_id]);
+    }, [viewCaseManagerData?.tcm_id, patient_data?.patient_unique_id]);
 
     useEffect(() => {
         return () => {
             setOpthalPrescriptionHistory([]);
-            lastFetchedOpthalTcmId.current = null;
             dispatch(resetConsultations());
             dispatch(resetViewCaseManagerData());
         };
