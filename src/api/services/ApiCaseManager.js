@@ -3,7 +3,7 @@ import config from '../../config';
 
 const baseUrl = { customBaseUrl: config.casemanager_api_url }
 const consultationBaseUrl = { customBaseUrl: config.consultation_api_url }
-const orderManagementBaseUrl = { customBaseUrl: config.order_management_api_url || "https://pm-order-management-uat.tatvacare.in" }
+const orderManagementBaseUrl = { customBaseUrl: config.order_management_api_url }
 
 const ApiCaseManager = {};
 
