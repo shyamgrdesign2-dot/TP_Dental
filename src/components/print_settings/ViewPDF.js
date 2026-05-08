@@ -277,7 +277,6 @@ const styles = StyleSheet.create({
     dynamicModuleCell: {
         padding: 6,
         borderRight: '1px solid #171725',
-        height: "100%"
     },
     headerRow: {
         flexDirection: 'row',
@@ -332,6 +331,10 @@ function parseAiFrequencyLeadingPattern(fullRaw) {
 
 const aiFrequencyNumericFromParsed = (p, dec) =>
     p && [p.morning, p.afternoon, p.evening, p.night].slice(0, p.slotCount).map((v) => (v ? medicine_freq_dosage_format(v, dec) : 0)).join(" - ");
+
+const normalizePdfText = (value) => (
+    value == null ? "" : String(value).replace(/\u00A0/g, " ")
+);
 
 function mapMedicationListForPrintPdf(medicines, idPrefix) {
     if (!Array.isArray(medicines) || medicines.length === 0) return [];
@@ -7095,7 +7098,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     {item.notes &&
                                                                         <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
                                                                             {`${item?.title ? '(' : ''}`}
-                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {normalizePdfText(item.notes)}
                                                                             {`${item?.title ? ')' : ''}`}
                                                                         </Text>
                                                                     }
@@ -7148,7 +7151,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     {item.notes &&
                                                                         <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
                                                                             {`${item?.title ? '(' : ''}`}
-                                                                            {item.notes?.replace(/ /g, '\u00A0')}
+                                                                            {normalizePdfText(item.notes)}
                                                                             {`${item?.title ? ')' : ''}`}
                                                                         </Text>
                                                                     }
@@ -7269,7 +7272,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 const colonIdx = notesStr && notesStr.includes(':') ? notesStr.indexOf(':') : -1;
                                                                 const isV1SingleCol = customModule?.content?.length === 1 && colonIdx > 0 && colonIdx < (notesStr?.length ?? 0) - 1;
                                                                 if (isV1SingleCol) {
-                                                                    const val = notesStr.slice(colonIdx + 1).trim().replace(/ /g, '\u00A0') || '-';
+                                                                    const val = normalizePdfText(notesStr.slice(colonIdx + 1).trim()) || '-';
                                                                     return (
                                                                         <View style={styles.row} key={i} wrap={false}>
                                                                             <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(val, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{val}&nbsp;</Text>
@@ -7277,7 +7280,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                     );
                                                                 }
                                                                 const col1 = (item?.title && String(item.title).trim()) ? item.title : (i + 1);
-                                                                const col2 = (item?.notes && String(item.notes).trim()) ? item.notes.replace(/ /g, '\u00A0') : '-';
+                                                                const col2 = (item?.notes && String(item.notes).trim()) ? normalizePdfText(item.notes) : '-';
                                                                 return (
                                                                     <View style={styles.row} key={i} wrap={false}>
                                                                         <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: getIndianLanguageFont(col1, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }]}>{col1}&nbsp;</Text>
