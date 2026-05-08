@@ -627,9 +627,37 @@ function TabPrescription() {
     }
   };
 
+  const canvasDrawerOpenTimeRef = useRef(null);
+  const canvasModuleViewedRef = useRef(false);
+  const getCanvasTrackingAttrs = useCallback(() => ({
+    specialty: profile?.dp_name,
+    specialty_id: profile?.dp_id,
+    user_id: tokenData?.user_id,
+    doctor_unique_id: profile?.doctor_unique_id,
+    doctor_name: profile?.um_name,
+    patient_id: patient_data?.patient_unique_id,
+    consultation_id: tcmId,
+    prescription_type: "tab_rx",
+  }), [profile, tokenData, patient_data, tcmId]);
+
   useEffect(() => {
     fetchPatientCanvases();
   }, [patient_data?.patient_unique_id, tcmId]);
+
+  // Track module viewed once when canvas module becomes available in the pad
+  useEffect(() => {
+    const isCanvasModuleVisible = customizedPadLeftList?.some(
+      (e) => (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0
+    );
+    if (isCanvasModuleVisible && !canvasModuleViewedRef.current) {
+      canvasModuleViewedRef.current = true;
+      trackEvent("drawing_canvas_module_viewed", {
+        ...getCanvasTrackingAttrs(),
+        has_existing_canvas: drawingCanvases.length > 0,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customizedPadLeftList, drawingCanvases.length]);
 
   const handleSaveDrawingCanvas = (updatedCanvases, meta) => {
     if (updatedCanvases && Array.isArray(updatedCanvases)) {
@@ -1243,8 +1271,26 @@ function TabPrescription() {
 
   // Drawer Drawing Canvas
   const handleDrawerDrawingCanvas = useCallback(() => {
-    setDrawingCanvasDrawer(!drawingCanvasDrawer);
-  }, [drawingCanvasDrawer]);
+    const opening = !drawingCanvasDrawer;
+    if (opening) {
+      canvasDrawerOpenTimeRef.current = Date.now();
+      trackEvent("drawing_canvas_drawer_opened", {
+        ...getCanvasTrackingAttrs(),
+        entry_point: "rx_pad",
+        existing_canvas_count: drawingCanvases.length,
+      });
+    } else {
+      const timeSpent = canvasDrawerOpenTimeRef.current
+        ? Math.round((Date.now() - canvasDrawerOpenTimeRef.current) / 1000)
+        : 0;
+      trackEvent("drawing_canvas_drawer_closed", {
+        ...getCanvasTrackingAttrs(),
+        time_spent_seconds: timeSpent,
+      });
+      canvasDrawerOpenTimeRef.current = null;
+    }
+    setDrawingCanvasDrawer(opening);
+  }, [drawingCanvasDrawer, drawingCanvases.length, getCanvasTrackingAttrs]);
 
   useEffect(() => {
     if (chartType === "vaccination") {
@@ -2052,7 +2098,14 @@ function TabPrescription() {
                         key={i}
                         type="button"
                         className="mb-3 text-center btn btn-action"
-                        onClick={handleDrawerDrawingCanvas}
+                        onClick={() => {
+                          trackEvent("drawing_canvas_cta_clicked", {
+                            ...getCanvasTrackingAttrs(),
+                            cta_type: drawingCanvases.length > 0 ? "view_all" : "add",
+                            existing_canvas_count: drawingCanvases.length,
+                          });
+                          handleDrawerDrawingCanvas();
+                        }}
                       >
                         <div
                           className={`prescription-tab-button rounded-10px`}
@@ -2783,6 +2836,7 @@ function TabPrescription() {
               onCreateCanvas={() => {}}
               onSave={handleSaveDrawingCanvas}
               onClose={handleDrawerDrawingCanvas}
+              trackingAttrs={getCanvasTrackingAttrs()}
             />
           </Drawer>
         )}

@@ -3,6 +3,7 @@ import axios from "axios";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { listPatientCanvasMapping } from "../pages/drawingCanvas/service";
 import { exportToBlob } from "@excalidraw/excalidraw";
+import { trackEvent } from "../utils/utils";
 
 export const usePrintPayloadPdf = ({
   printUrl,
@@ -95,8 +96,10 @@ export const usePrintPayloadPdf = ({
     const buildPdf = async () => {
       setIsGenerating(true);
       setError(null);
+      const pdfStartTime = Date.now();
       try {
         let drawingCanvases = [];
+        let corruptedCanvasSkipped = 0;
         
         // Use props if provided, otherwise fallback to parsing payload/url if needed
         const resolvedPatientId = patientId || payload?.caseManagerData?.patient_data?.patient_unique_id;
@@ -163,11 +166,25 @@ export const usePrintPayloadPdf = ({
                             }
                         } catch (err) {
                             console.error(`Failed to parse canvas mapping: ${record.canvas_name}`, err);
+                            corruptedCanvasSkipped++;
+                            trackEvent("drawing_canvas_corrupt_scene_detected", {
+                              patient_id: resolvedPatientId,
+                              consultation_id: resolvedTcmId,
+                              canvas_id: record?.mapping_id || record?.canvas_id || record?.id,
+                              render_context: "pdf_generation",
+                            });
                         }
                     }
                 }
             } catch (err) {
                 console.error("Failed to inject drawing canvases into payload:", err);
+                trackEvent("drawing_canvas_api_failed", {
+                  patient_id: resolvedPatientId,
+                  consultation_id: resolvedTcmId,
+                  api_name: "listPatientCanvasMapping",
+                  error_code: err?.code || "EXCEPTION",
+                  error_message: err?.message || "Failed to fetch canvases for PDF",
+                });
             }
         }
 
@@ -194,6 +211,21 @@ export const usePrintPayloadPdf = ({
         }
         if (!isCancelled) {
           setPrintBlob(blob);
+          if (drawingCanvases.length > 0) {
+            trackEvent("drawing_canvas_pdf_generated", {
+              patient_id: payload?.caseManagerData?.patient_data?.patient_unique_id,
+              consultation_id: payload?.caseManagerData?.tcm_id,
+              selected_canvas_count: drawingCanvases.length,
+              render_time_ms: Date.now() - pdfStartTime,
+              corrupted_canvas_skipped: corruptedCanvasSkipped,
+            });
+            trackEvent("drawing_canvas_pdf_render_time", {
+              patient_id: payload?.caseManagerData?.patient_data?.patient_unique_id,
+              consultation_id: payload?.caseManagerData?.tcm_id,
+              selected_canvas_count: drawingCanvases.length,
+              render_time_ms: Date.now() - pdfStartTime,
+            });
+          }
         }
       } catch (err) {
         console.log("Failed to generate PDF blob", err);

@@ -12,12 +12,13 @@ import {
 import CommonModal from '../../../common/CommonModal';
 import { ASSETS } from '../../../assets';
 import { listTemplates, renameCanvasTemplate, deleteCanvasTemplate } from '../service';
+import { trackEvent } from '../../../utils/utils';
 import './TemplatesDrawer.scss';
 
 const alertIcon = ASSETS.images.alerticon;
 
 
-const TemplatesDrawer = ({ onClose, onSelectTemplate, open = false, refreshKey = 0 }) => {
+const TemplatesDrawer = ({ onClose, onSelectTemplate, open = false, refreshKey = 0, trackingAttrs = {} }) => {
   const [templates, setTemplates] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -90,9 +91,16 @@ const TemplatesDrawer = ({ onClose, onSelectTemplate, open = false, refreshKey =
     const newName = renameValue.trim();
     if (!newName) return;
     
+    const templateBeingRenamed = templates.find(t => t.id === editingId);
     try {
       const res = await renameCanvasTemplate(editingId, newName);
       if (res.status) {
+        trackEvent("drawing_canvas_template_renamed", {
+          ...trackingAttrs,
+          template_id: editingId,
+          old_name: templateBeingRenamed?.name,
+          new_name: newName,
+        });
         setTemplates(prev => prev.map(t => 
           t.id === editingId ? { ...t, name: newName } : t
         ));
@@ -116,6 +124,11 @@ const TemplatesDrawer = ({ onClose, onSelectTemplate, open = false, refreshKey =
     try {
       const res = await deleteCanvasTemplate(templateToDelete?.id);
       if (res.status) {
+        trackEvent("drawing_canvas_template_deleted", {
+          ...trackingAttrs,
+          template_id: templateToDelete?.id,
+          template_source: templateToDelete?.is_custom ? "custom" : "default",
+        });
         setTemplates(prev => prev.filter(t => t.id !== templateToDelete?.id));
         setIsDeleteModalOpen(false);
         setTemplateToDelete(null);

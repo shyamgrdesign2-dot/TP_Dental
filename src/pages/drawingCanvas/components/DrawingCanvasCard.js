@@ -6,6 +6,7 @@ import CommonModal from "../../../common/CommonModal";
 import { ASSETS } from "../../../assets";
 import "./DrawingCanvasCard.scss";
 import { renameMapping, deleteMapping } from "../service";
+import { trackEvent } from "../../../utils/utils";
 
 const editIcon = ASSETS.images.documentEdit;
 const trashIcon = ASSETS.images.trash;
@@ -24,7 +25,8 @@ const DrawingCanvasCard = ({
   onDuplicate,
   onDelete,
   hideShowInRx = false,
-  hideMoreOptions = false
+  hideMoreOptions = false,
+  trackingAttrs = {},
 }) => {
   const [localTitle, setLocalTitle] = useState(canvas?.title || canvas?.name || "Untitled Canvas");
   const [isRenaming, setIsRenaming] = useState(false);
@@ -111,6 +113,12 @@ const DrawingCanvasCard = ({
           setIsRenaming(false);
           return;
         }
+        trackEvent("drawing_canvas_renamed", {
+          ...trackingAttrs,
+          canvas_id: canvas?.id,
+          old_name: localTitle,
+          new_name: newName,
+        });
         message.success("Canvas renamed successfully");
       }
       
@@ -129,6 +137,11 @@ const DrawingCanvasCard = ({
 
   const handleToggleRx = (checked, e) => {
     e.stopPropagation();
+    trackEvent("drawing_canvas_show_in_rx_toggled", {
+      ...trackingAttrs,
+      canvas_id: canvas?.id,
+      toggle_state: checked ? "enabled" : "disabled",
+    });
     onToggleRx(checked);
   };
 
@@ -144,6 +157,12 @@ const DrawingCanvasCard = ({
         setIsDeleteModalOpen(false);
         return;
       }
+      trackEvent("drawing_canvas_deleted", {
+        ...trackingAttrs,
+        canvas_id: canvas?.id,
+        delete_source: "card_menu",
+        had_rx_visibility: isShowInRx,
+      });
       message.success("Canvas deleted successfully");
     }
 
@@ -160,6 +179,11 @@ const DrawingCanvasCard = ({
         handleOpen();
         break;
       case "preview":
+        trackEvent("drawing_canvas_preview_opened", {
+          ...trackingAttrs,
+          canvas_id: canvas?.id,
+          preview_source: "card_menu",
+        });
         if (onPreview) {
           onPreview(canvas);
         }

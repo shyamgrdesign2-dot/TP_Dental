@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Excalidraw, MainMenu, exportToBlob } from '@excalidraw/excalidraw';
 import { Button, Switch, Tooltip, Input, message } from 'antd';
 import CommonModal from "../../../common/CommonModal";
@@ -15,6 +15,7 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import { printCanvasWithIframe } from '../utils/printCanvasWithIframe';
+import { trackEvent } from '../../../utils/utils';
 import './ExcalidrawEditor.scss';
 
 const alertIcon = ASSETS.images.alerticon;
@@ -31,7 +32,8 @@ export default function ExcalidrawEditor({
   excalidrawApiRef,
   initialShowInRx = true,
   templateData = null,
-  templateTrigger = 0
+  templateTrigger = 0,
+  trackingAttrs = {},
 }) {
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const [showInRx, setShowInRx] = useState(initialShowInRx !== false);
@@ -45,6 +47,10 @@ export default function ExcalidrawEditor({
   const [canvasHasContent, setCanvasHasContent] = useState(false);
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [pendingCanvasName, setPendingCanvasName] = useState("");
+  const prevElementCountRef = useRef(0);
+  const prevActiveTool = useRef(null);
+  const editorLoadStartRef = useRef(Date.now());
+  const hasTrackedLoadRef = useRef(false);
 
   useEffect(() => {
     setLocalTitle(canvasName || "Untitled Canvas");
@@ -100,6 +106,21 @@ export default function ExcalidrawEditor({
     const timer = setTimeout(() => setIsReady(true), 350);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+      if (!ctrlOrCmd) return;
+      if (e.key === "z" && !e.shiftKey) {
+        trackEvent("drawing_canvas_undo_used", { ...trackingAttrs, canvas_id: canvasId });
+      } else if (e.key === "y" || (e.key === "z" && e.shiftKey)) {
+        trackEvent("drawing_canvas_redo_used", { ...trackingAttrs, canvas_id: canvasId });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [trackingAttrs, canvasId]);
 
   const sanitizedData = React.useMemo(() => {
     if (!initialData) return { elements: [], appState: {}, files: {} };
@@ -164,11 +185,47 @@ export default function ExcalidrawEditor({
     }
   }, [excalidrawAPI, excalidrawApiRef]);
 
-  const handleExcalidrawChange = React.useCallback((elements) => {
-    setCanvasHasContent(
-      (elements || []).filter((el) => !el.isDeleted).length > 0
-    );
-  }, []);
+  useEffect(() => {
+    if (!isReady || !excalidrawAPI || hasTrackedLoadRef.current) return;
+    hasTrackedLoadRef.current = true;
+    const canvasCount = (excalidrawAPI.getSceneElements() || []).filter((el) => !el?.isDeleted).length;
+    trackEvent("drawing_canvas_load_time", {
+      ...trackingAttrs,
+      load_time_ms: Date.now() - editorLoadStartRef.current,
+      canvas_count: canvasCount,
+      device_type: /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop",
+    });
+  }, [isReady, excalidrawAPI, trackingAttrs]);
+
+  const handleExcalidrawChange = React.useCallback((elements, appState) => {
+    const activeCount = (elements || []).filter((el) => !el.isDeleted).length;
+    setCanvasHasContent(activeCount > 0);
+
+    // Track annotation added (element count increased)
+    if (activeCount > prevElementCountRef.current) {
+      const newElement = (elements || []).filter((el) => !el.isDeleted)[activeCount - 1];
+      trackEvent("drawing_canvas_annotation_added", {
+        ...trackingAttrs,
+        canvas_id: canvasId,
+        annotation_type: newElement?.type || "unknown",
+        tool_used: appState?.activeTool?.type || "unknown",
+      });
+    }
+    prevElementCountRef.current = activeCount;
+
+    // Track tool selection change
+    const currentTool = appState?.activeTool?.type;
+    if (currentTool && currentTool !== prevActiveTool.current) {
+      prevActiveTool.current = currentTool;
+      if (currentTool !== "selection" && currentTool !== "hand") {
+        trackEvent("drawing_canvas_tool_selected", {
+          ...trackingAttrs,
+          tool_name: currentTool,
+          canvas_id: canvasId,
+        });
+      }
+    }
+  }, [trackingAttrs, canvasId]);
 
   const handleSaveTemplateClick = () => {
     if (!onOpenSaveTemplate) return;
@@ -518,7 +575,14 @@ export default function ExcalidrawEditor({
             <span>Show in Rx</span>
             <Switch 
                 checked={showInRx} 
-                onChange={(checked) => setShowInRx(checked)}
+                onChange={(checked) => {
+                  trackEvent("drawing_canvas_show_in_rx_toggled", {
+                    ...trackingAttrs,
+                    canvas_id: canvasId,
+                    toggle_state: checked ? "enabled" : "disabled",
+                  });
+                  setShowInRx(checked);
+                }}
                 size="small"
                 style={{ backgroundColor: showInRx ? '#4b4ad5' : undefined }}
             />

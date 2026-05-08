@@ -21,7 +21,7 @@ import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 
-import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, trackEvent } from "../utils/utils";
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
@@ -1243,6 +1243,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const onSaveAsDraft = async () => {
         if (saveDraftLoading) return;
         trackSaveDraftEvent();
+        const selectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+          : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+        if (selectedCanvasCount > 0) {
+          trackEvent("drawing_canvas_saved_in_draft", {
+            specialty: profile?.dp_name,
+            specialty_id: profile?.dp_id,
+            doctor_unique_id: profile?.doctor_unique_id,
+            doctor_name: profile?.um_name,
+            patient_id: patient_data?.patient_unique_id,
+            consultation_id: tcmId,
+            selected_canvas_count: selectedCanvasCount,
+            prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+          });
+        }
         setSaveDraftLoading(true);
 
         try {
@@ -1565,6 +1579,20 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     tcm_id: tcmId,
                 })
 
+            const finalSelectedCanvasCount = Array.isArray(rxDrawingCanvasIds) ? rxDrawingCanvasIds.length
+              : typeof rxDrawingCanvasIds === "string" ? rxDrawingCanvasIds.split(",").filter(Boolean).length : 0;
+            if (finalSelectedCanvasCount > 0) {
+              trackEvent("drawing_canvas_saved_in_final_rx", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: patient_data?.patient_unique_id,
+                consultation_id: tcmId,
+                selected_canvas_count: finalSelectedCanvasCount,
+                prescription_type: isTabPrescription ? "tab_rx" : "normal_rx",
+              });
+            }
             const caseManagerPromise = isDraft 
                 ? dispatch(draftToConsultation(sendData))
                 : tcmId == 0

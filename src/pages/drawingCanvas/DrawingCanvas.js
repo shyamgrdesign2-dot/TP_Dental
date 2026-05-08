@@ -15,6 +15,7 @@ import {
   getShowCanvasPopup,
   setShowCanvasPopup
 } from "./service";
+import { trackEvent } from "../../utils/utils";
 
 import "./DrawingCanvas.scss";
 
@@ -28,6 +29,7 @@ const DrawingCanvas = ({
   onSave = () => {},
   onClose = null,
   onKnowMore = () => {},
+  trackingAttrs = {},
 }) => {
   const emptyScene = { elements: [], appState: {}, files: {} };
   const fromProps = Array.isArray(canvases) && canvases.length > 0;
@@ -77,13 +79,35 @@ const DrawingCanvas = ({
   
   useEffect(() => {
     const fetchMetadata = async () => {
-      const res = await getShowCanvasPopup();
-      if (res.status && typeof res.isCanvasPopup !== 'undefined') {
-        setIsFirstTimeUser(res.isCanvasPopup);
+      try {
+        const res = await getShowCanvasPopup();
+        if (res.status && typeof res.isCanvasPopup !== 'undefined') {
+          setIsFirstTimeUser(res.isCanvasPopup);
+          if (res.isCanvasPopup) {
+            trackEvent("drawing_canvas_ftue_viewed", {
+              ...trackingAttrs,
+              doctor_speciality: trackingAttrs?.specialty || trackingAttrs?.doctor_speciality,
+            });
+          }
+        } else if (!res?.status) {
+          trackEvent("drawing_canvas_api_failed", {
+            ...trackingAttrs,
+            api_name: "getShowCanvasPopup",
+            error_code: res?.code || "UNKNOWN",
+            error_message: res?.message || "Failed to fetch FTUE metadata",
+          });
+        }
+      } catch (error) {
+        trackEvent("drawing_canvas_api_failed", {
+          ...trackingAttrs,
+          api_name: "getShowCanvasPopup",
+          error_code: error?.code || "EXCEPTION",
+          error_message: error?.message || "Failed to fetch FTUE metadata",
+        });
       }
     };
     fetchMetadata();
-  }, []);
+  }, [trackingAttrs]);
 
   const openEditorForCanvas = useCallback(async (canvasId) => {
     // If scene is missing but we have a url, fetch it
@@ -91,10 +115,16 @@ const DrawingCanvas = ({
     if (canvas && !canvas.scene && canvas.url) {
       try {
         const res = await fetch(canvas.url);
-        const sceneData = await res.json();
+        const textData = await res.text();
+        const sceneData = JSON.parse(textData);
         setInternalCanvases(prev => prev.map(c => c.id === canvasId ? { ...c, scene: sceneData } : c));
       } catch (err) {
         console.error("Failed to load scene from url", err);
+        trackEvent("drawing_canvas_corrupt_scene_detected", {
+          ...trackingAttrs,
+          canvas_id: canvasId,
+          render_context: "editor_load",
+        });
       }
     }
     setEditorCanvasId(canvasId);
@@ -105,22 +135,38 @@ const DrawingCanvas = ({
     if (!canvas.scene && canvas.url) {
       try {
         const res = await fetch(canvas.url);
-        const sceneData = await res.json();
+        const textData = await res.text();
+        const sceneData = JSON.parse(textData);
         setInternalCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, scene: sceneData } : c));
       } catch (err) {
         console.error("Failed to load scene from url", err);
+        trackEvent("drawing_canvas_corrupt_scene_detected", {
+          ...trackingAttrs,
+          canvas_id: canvas?.id,
+          render_context: "preview_load",
+        });
       }
     }
+    trackEvent("drawing_canvas_preview_opened", {
+      ...trackingAttrs,
+      canvas_id: canvas?.id,
+      preview_source: "canvas_card",
+    });
     setPreviewCanvasId(canvas?.id);
     setShouldShowPreview(true);
-  }, []);
+  }, [trackingAttrs]);
 
   const handleDuplicate = useCallback((canvas) => {
     const newCanvas = { ...canvas, id: Date.now().toString(), name: `${canvas.name || canvas.title} (Copy)` };
     const updated = [...internalCanvases, newCanvas];
     setInternalCanvases(updated);
     if (typeof onSave === "function") onSave(updated);
-  }, [internalCanvases, onSave]);
+    trackEvent("drawing_canvas_duplicated", {
+      ...trackingAttrs,
+      original_canvas_id: canvas?.id,
+      duplicated_canvas_id: newCanvas.id,
+    });
+  }, [internalCanvases, onSave, trackingAttrs]);
 
   const handleDelete = useCallback((canvas) => {
     const updated = internalCanvases.filter(c => c.id !== canvas.id);
@@ -137,12 +183,21 @@ const DrawingCanvas = ({
   const openEditorForNewCanvas = useCallback(async () => {
     if (isFirstTimeUser) {
       await setShowCanvasPopup(false);
+      trackEvent("drawing_canvas_ftue_dismissed", {
+        ...trackingAttrs,
+        dismissal_type: "create_new_canvas",
+      });
       setIsFirstTimeUser(false);
     }
+    trackEvent("drawing_canvas_create_started", {
+      ...trackingAttrs,
+      entry_source: "drawer",
+      first_time_user: isFirstTimeUser,
+    });
     setEditorCanvasId("new");
     setEditorOpen(true);
     if (typeof onCreateCanvas === "function") onCreateCanvas();
-  }, [onCreateCanvas, isFirstTimeUser]);
+  }, [onCreateCanvas, isFirstTimeUser, trackingAttrs]);
 
   const handleCloseEditor = useCallback(() => {
     setEditorOpen(false);
@@ -161,6 +216,16 @@ const DrawingCanvas = ({
     setSaveTemplateDrawerOpen(false);
   }, []);
 
+  const handleKnowMoreClick = useCallback(() => {
+    if (isFirstTimeUser) {
+      trackEvent("drawing_canvas_ftue_dismissed", {
+        ...trackingAttrs,
+        dismissal_type: "know_more",
+      });
+    }
+    onKnowMore?.();
+  }, [isFirstTimeUser, trackingAttrs, onKnowMore]);
+
   const getExcalidrawApi = useCallback(() => excalidrawApiRef.current, []);
 
   const handleEditorSave = useCallback(
@@ -168,6 +233,7 @@ const DrawingCanvas = ({
       if (!editorCanvasId) return false;
 
       const showInRxValue = saveMeta?.showInRx !== false;
+      const annotationCount = (payload?.elements || []).filter((el) => !el.isDeleted).length;
 
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
@@ -181,6 +247,15 @@ const DrawingCanvas = ({
                 linkRes.mapping_id ??
                 linkRes.mappingId ??
                 linkRes?.data?.mapping_id;
+              trackEvent("drawing_canvas_created", {
+                ...trackingAttrs,
+                canvas_id: mappingId,
+                canvas_type: "freehand",
+                annotation_count: annotationCount,
+                has_template: !!(saveMeta?.hasTemplate),
+                show_in_rx_enabled: showInRxValue,
+                save_source: "save_button",
+              });
               if (typeof onSave === "function") {
                 if (mappingId != null && mappingId !== "") {
                   onSave(null, { mappingId, showInRx: showInRxValue });
@@ -197,6 +272,17 @@ const DrawingCanvas = ({
               handleCloseEditor();
               return true;
           }
+          trackEvent("drawing_canvas_create_failed", {
+            ...trackingAttrs,
+            error_message: linkRes.message || "Failed to save canvas",
+            canvas_type: "freehand",
+          });
+          trackEvent("drawing_canvas_api_failed", {
+            ...trackingAttrs,
+            api_name: "linkCanvasToPatient",
+            error_code: linkRes?.code || "FAILED",
+            error_message: linkRes?.message || "Failed to save canvas",
+          });
           message.open({
             type: "error",
             content: linkRes.message || "Failed to save canvas",
@@ -207,6 +293,11 @@ const DrawingCanvas = ({
       }
       const editRes = await editMapping(editorCanvasId, file);
       if (editRes.status === true) {
+          trackEvent("drawing_canvas_edited", {
+            ...trackingAttrs,
+            canvas_id: editorCanvasId,
+            edit_source: "save_button",
+          });
           if (typeof onSave === "function") {
             onSave(null, { mappingId: editorCanvasId, showInRx: showInRxValue });
           }
@@ -225,17 +316,39 @@ const DrawingCanvas = ({
         style: { zIndex: 5000 },
         duration: 4,
       });
+      trackEvent("drawing_canvas_api_failed", {
+        ...trackingAttrs,
+        api_name: "editMapping",
+        error_code: editRes?.code || "FAILED",
+        error_message: editRes?.message || "Failed to edit canvas",
+      });
       return false;
     },
-    [editorCanvasId, patientId, tcmId, onSave, handleCloseEditor]
+    [editorCanvasId, patientId, tcmId, onSave, handleCloseEditor, trackingAttrs]
   );
 
   const handleTemplatesToggle = useCallback(() => {
-    setTemplateDrawerOpen(prev => !prev);
-  }, []);
+    setTemplateDrawerOpen(prev => {
+      const nextOpen = !prev;
+      if (nextOpen) {
+        trackEvent("drawing_canvas_template_drawer_opened", {
+          ...trackingAttrs,
+          canvas_id: editorCanvasId,
+        });
+      }
+      return nextOpen;
+    });
+  }, [trackingAttrs, editorCanvasId]);
 
   const handleSelectTemplate = useCallback(async (template) => {
     if (!editorCanvasId) return;
+    trackEvent("drawing_canvas_template_selected", {
+      ...trackingAttrs,
+      template_id: template?.canvas_id || template?.id,
+      template_type: template?.is_custom ? "custom" : "default",
+      template_source: template?.is_custom ? "custom" : "default",
+      canvas_id: editorCanvasId,
+    });
 
     const templateUrl = template?.canvas_url || template?.url;
     const templateFileType = String(template?.file_type || "").toLowerCase();
@@ -278,6 +391,12 @@ const DrawingCanvas = ({
 
     const res = await createCustomCanvas(canvasTitle || "New Template", file);
     if (res.status === true) {
+      trackEvent("drawing_canvas_template_saved", {
+        ...trackingAttrs,
+        template_id: res.canvas_id || res.id || res?.data?.canvas_id,
+        template_name: canvasTitle,
+        source_canvas_id: editorCanvasId,
+      });
       setTemplatesRefreshKey((prev) => prev + 1);
       return true;
     }
@@ -289,7 +408,7 @@ const DrawingCanvas = ({
     });
     console.error("Template save failed", res.message);
     return false;
-  }, []);
+  }, [trackingAttrs, editorCanvasId]);
 
   const editorInitialData = useMemo(() => {
     if (!editorCanvasId) return emptyScene;
@@ -340,7 +459,7 @@ const DrawingCanvas = ({
           <DrawingCanvasEmptyState
             isFirstTimeUser={isFirstTimeUser}
             onCreateCanvas={openEditorForNewCanvas}
-            onKnowMore={onKnowMore}
+            onKnowMore={handleKnowMoreClick}
           />
         ) : (
           <div className="drawing-canvas__grid">
@@ -355,6 +474,7 @@ const DrawingCanvas = ({
                   onDuplicate={handleDuplicate}
                   onDelete={handleDelete}
                   onRename={handleRename}
+                  trackingAttrs={trackingAttrs}
                 />
               </div>
             ))}
@@ -387,6 +507,7 @@ const DrawingCanvas = ({
             initialShowInRx={editorInitialShowInRx}
             templateData={templateData}
             templateTrigger={templateTrigger}
+            trackingAttrs={trackingAttrs}
           />
         </Drawer>
       )}
@@ -408,6 +529,10 @@ const DrawingCanvas = ({
             canvasName={internalCanvases.find(c => c?.id === previewCanvasId)?.name || internalCanvases.find(c => c?.id === previewCanvasId)?.title || "Untitled Canvas"}
             scene={internalCanvases.find(c => c?.id === previewCanvasId)?.scene}
             handleEdit={() => {
+               trackEvent("drawing_canvas_preview_edit_clicked", {
+                 ...trackingAttrs,
+                 canvas_id: previewCanvasId,
+               });
                setShouldShowPreview(false);
                openEditorForCanvas(previewCanvasId);
             }}
@@ -435,7 +560,8 @@ const DrawingCanvas = ({
           open={templateDrawerOpen}
           refreshKey={templatesRefreshKey}
           onClose={handleTemplatesToggle} 
-          onSelectTemplate={handleSelectTemplate} 
+          onSelectTemplate={handleSelectTemplate}
+          trackingAttrs={trackingAttrs}
         />
       </Drawer>
 

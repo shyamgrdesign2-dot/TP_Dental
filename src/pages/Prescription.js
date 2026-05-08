@@ -617,9 +617,25 @@ function Prescription() {
     }
   };
 
+  const canvasModuleViewedRef = useRef(false);
   useEffect(() => {
     fetchPatientCanvases();
   }, [patient_data?.patient_unique_id, tcmId]);
+
+  // Track module viewed once when canvas module becomes available in the pad
+  useEffect(() => {
+    const isCanvasModuleVisible = customizedPadLeftListForUI?.some(
+      (e) => (e.tmdpm_id === 24 || String(e.tmdpm_name || "").toLowerCase() === "canvas") && e.tmdpm_status === 0
+    );
+    if (isCanvasModuleVisible && !canvasModuleViewedRef.current) {
+      canvasModuleViewedRef.current = true;
+      trackEvent("drawing_canvas_module_viewed", {
+        ...getCanvasTrackingAttrs(),
+        has_existing_canvas: drawingCanvases.length > 0,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customizedPadLeftListForUI, drawingCanvases.length]);
 
   const handleSaveDrawingCanvas = (updatedCanvases, meta) => {
     if (updatedCanvases && Array.isArray(updatedCanvases)) {
@@ -1151,9 +1167,39 @@ function Prescription() {
   };
 
   // Drawer Drawing Canvas
+  const canvasDrawerOpenTimeRef = useRef(null);
+  const getCanvasTrackingAttrs = useCallback(() => ({
+    specialty: profile?.dp_name,
+    specialty_id: profile?.dp_id,
+    user_id: tokenData?.user_id,
+    doctor_unique_id: profile?.doctor_unique_id,
+    doctor_name: profile?.um_name,
+    patient_id: patient_data?.patient_unique_id,
+    consultation_id: tcmId,
+    prescription_type: "normal_rx",
+  }), [profile, tokenData, patient_data, tcmId]);
+
   const handleDrawerDrawingCanvas = useCallback(() => {
-    setDrawingCanvasDrawer(!drawingCanvasDrawer);
-  }, [drawingCanvasDrawer]);
+    const opening = !drawingCanvasDrawer;
+    if (opening) {
+      canvasDrawerOpenTimeRef.current = Date.now();
+      trackEvent("drawing_canvas_drawer_opened", {
+        ...getCanvasTrackingAttrs(),
+        entry_point: "rx_pad",
+        existing_canvas_count: drawingCanvases.length,
+      });
+    } else {
+      const timeSpent = canvasDrawerOpenTimeRef.current
+        ? Math.round((Date.now() - canvasDrawerOpenTimeRef.current) / 1000)
+        : 0;
+      trackEvent("drawing_canvas_drawer_closed", {
+        ...getCanvasTrackingAttrs(),
+        time_spent_seconds: timeSpent,
+      });
+      canvasDrawerOpenTimeRef.current = null;
+    }
+    setDrawingCanvasDrawer(opening);
+  }, [drawingCanvasDrawer, drawingCanvases.length, getCanvasTrackingAttrs]);
 
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
@@ -1620,7 +1666,14 @@ function Prescription() {
             <button
               className="btn d-flex align-items-center btn-text"
               style={{ paddingRight: drawingCanvases.length > 0 ? 0 : 12 }}
-              onClick={handleDrawerDrawingCanvas}
+              onClick={() => {
+                trackEvent("drawing_canvas_cta_clicked", {
+                  ...getCanvasTrackingAttrs(),
+                  cta_type: drawingCanvases.length > 0 ? "view_all" : "add",
+                  existing_canvas_count: drawingCanvases.length,
+                });
+                handleDrawerDrawingCanvas();
+              }}
             >
               {drawingCanvases.length === 0 && (
                 <i className="icon-Add me-1 fs-5" />
@@ -2557,6 +2610,7 @@ function Prescription() {
               onCreateCanvas={() => {}}
               onSave={handleSaveDrawingCanvas}
               onClose={handleDrawerDrawingCanvas}
+              trackingAttrs={getCanvasTrackingAttrs()}
             />
           </Drawer>
         )}

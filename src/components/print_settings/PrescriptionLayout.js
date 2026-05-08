@@ -21,6 +21,7 @@ import { graphsToPrintData } from "../../pages/growthChart/growthChartHelper";
 import { getDecodedToken } from "../../utils/localStorage";
 import { env } from "../../EnvironmentConfig";
 import { INVESTIGATION_PRINT_ID, INVESTIGATION_TITLE } from "../../utils/constants";
+import { trackEvent } from "../../utils/utils";
 // const CustomRow = ({ children, ...props }) => {
 //     const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
 //         id: props['data-row-key'],
@@ -1150,6 +1151,15 @@ function PrescriptionLayout({ todayVaccines, growthChartDetails, obstetricDetail
         if (activeIndex === -1 || overIndex === -1) {
           console.warn('Invalid drag operation: activeIndex or overIndex not found');
           return prev;
+        }
+        // Track reorder if the Drawing Canvas section (id 25) is moved
+        if (active.id === 25 || over?.id === 25) {
+          trackEvent("drawing_canvas_print_section_reordered", {
+            patient_id: caseManagerData?.patient_data?.patient_unique_id,
+            consultation_id: caseManagerData?.tcm_id,
+            old_position: activeIndex,
+            new_position: overIndex,
+          });
         }
         return {
           ...prev,

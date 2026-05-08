@@ -28,7 +28,7 @@ import { getModules } from "../redux/customModuleSlice";
 import moment from "moment";
 import { fetchBillsByPatient, fetchPatientWalletBalance, listAdvancedDepositByPatient } from "./opdBilling/service";
 import { getCarePlanAssignments } from "./smartSync/services/carePlanService";
-import { updateFooterImageHeight } from "../utils/utils";
+import { updateFooterImageHeight, trackEvent } from "../utils/utils";
 import { getGenRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "./snapRx/services/snapRxService";
 import { env } from "../EnvironmentConfig";
@@ -571,12 +571,33 @@ function ConfigurePrintSetting() {
                             }
                         } catch (err) {
                             console.error(`Failed to parse canvas mapping: ${record.canvas_name}`, err);
+                            trackEvent("drawing_canvas_corrupt_scene_detected", {
+                                specialty: profile?.dp_name,
+                                specialty_id: profile?.dp_id,
+                                doctor_unique_id: profile?.doctor_unique_id,
+                                doctor_name: profile?.um_name,
+                                patient_id: patientId,
+                                consultation_id: tcmId,
+                                canvas_id: getCanvasMappingId(record),
+                                render_context: "print_preview",
+                            });
                         }
                     }
                     setDrawingCanvases(parsedCanvases);
                 }
             } catch (error) {
                 console.error("Error fetching canvas mappings", error);
+                trackEvent("drawing_canvas_api_failed", {
+                    specialty: profile?.dp_name,
+                    specialty_id: profile?.dp_id,
+                    doctor_unique_id: profile?.doctor_unique_id,
+                    doctor_name: profile?.um_name,
+                    patient_id: patientId,
+                    consultation_id: tcmId,
+                    api_name: "listPatientCanvasMapping",
+                    error_code: error?.code || "EXCEPTION",
+                    error_message: error?.message || "Error fetching canvas mappings",
+                });
             } finally {
                 setIsDrawingCanvasesLoading(false);
             }
@@ -664,6 +685,27 @@ function ConfigurePrintSetting() {
     );
 
     const hasDrawingCanvasData = Array.isArray(drawingCanvases) && drawingCanvases.length > 0;
+
+    // Track print preview opened when drawing canvas data is available
+    const printPreviewTrackedRef = React.useRef(false);
+    useEffect(() => {
+        if (hasDrawingCanvasData && !printPreviewTrackedRef.current) {
+            printPreviewTrackedRef.current = true;
+            const canvasOption = printSettings?.prescription?.case_option?.find((o) => o.id === 25);
+            const sectionPosition = printSettings?.prescription?.case_option?.findIndex((o) => o.id === 25);
+            trackEvent("drawing_canvas_print_preview_opened", {
+                specialty: profile?.dp_name,
+                specialty_id: profile?.dp_id,
+                doctor_unique_id: profile?.doctor_unique_id,
+                doctor_name: profile?.um_name,
+                patient_id: caseManagerData?.patient_data?.patient_unique_id,
+                consultation_id: caseManagerData?.tcm_id,
+                selected_canvas_count: filteredDrawingCanvases?.length || 0,
+                section_position: sectionPosition >= 0 ? sectionPosition : null,
+            });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasDrawingCanvasData]);
 
     // Fetch appointment agent link
     useEffect(() => {
