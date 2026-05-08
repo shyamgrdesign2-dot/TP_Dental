@@ -1808,6 +1808,8 @@ function SmartPrescription() {
 
   const CUSTOMIZED_PAD_LEFT_LIST = () => {
     return customizedPadLeftList?.map((e, i) => {
+      if (isCvtExtHosAccessableFromGB && e.tmdpm_id !== 1) return null;
+
       return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
@@ -3604,9 +3606,7 @@ function SmartPrescription() {
               {showSCBanner && (
                 <SCBanner handleBanner={() => setShowSCBanner(false)} />
               )}
-              { !isCvtExtHosAccessableFromGB &&
-                CUSTOMIZED_PAD_LEFT_LIST()
-              }
+              {CUSTOMIZED_PAD_LEFT_LIST()}
               {selectedSymptomsCollector?.notes && (
                 <div className="prescription-box-sm p-14">
                   <div style={{ padding: "6px" }}>

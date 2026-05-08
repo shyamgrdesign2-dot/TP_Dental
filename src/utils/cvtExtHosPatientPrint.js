@@ -69,27 +69,38 @@ const formatAppointmentDateTime = (dateValue, timeValue) => {
   return `${formattedDate} ${formattedTime}`;
 };
 
-const resolveConsultationDateDisplay = (patient) => {
-  const pc = patient?.patient_consultaion_date;
-  if (pc !== undefined && pc !== null && String(pc).trim() !== "") {
-    const m = moment(pc);
-    return m.isValid() ? m.format("DD/MM/YYYY HH:mm") : "-";
-  }
-  const visitDateRaw = firstDefinedString(patient, [
+const resolveConsultationDateDisplay = (patient, caseManagerData) => {
+  const visitDateRaw = caseManagerData?.pam_app_date || firstDefinedString(patient, [
     "apDate",
     "consultation_date",
     "date",
   ]);
-  const visitTimeRaw = firstDefinedString(patient, [
-    "apTime",
-    "consultation_time",
-    "time",
-  ]);
-  if (!visitDateRaw && !visitTimeRaw) return "-";
-  return formatAppointmentDateTime(
-    visitDateRaw || "-",
-    visitTimeRaw || "-",
-  );
+  
+  let visitTimeRaw = caseManagerData?.pam_app_time;
+  if (visitTimeRaw) {
+    visitTimeRaw = moment(visitTimeRaw, ["HH:mm:ss", "HH:mm"]).format("hh:mm A");
+  } else {
+    visitTimeRaw = firstDefinedString(patient, [
+      "apTime",
+      "consultation_time",
+      "time",
+    ]);
+  }
+
+  if (visitDateRaw || visitTimeRaw) {
+    return formatAppointmentDateTime(
+      visitDateRaw || "-",
+      visitTimeRaw || "-",
+    );
+  }
+
+  const pc = patient?.patient_consultaion_date;
+  if (pc !== undefined && pc !== null && String(pc).trim() !== "") {
+    const m = moment(pc);
+    return m.isValid() ? m.format("DD/MM/YYYY hh:mm A") : "-";
+  }
+  
+  return "-";
 };
 
 const resolvePatientName = (patient) =>
@@ -170,12 +181,11 @@ export function getCvtExtHosPatientDataShowValue(id, args) {
     const sal = resolveSalutation(patient);
     const name = resolvePatientName(patient) || "-";
     const pid = resolvePatientIdOrUhid(patient);
-    console.log(pid,"pid")
     const namePart = sal ? `${sal} ${name}` : name;
     return `${namePart}, ${pid}`;
   }
   if (id == 2) {
-    return resolveConsultationDateDisplay(patient);
+    return resolveConsultationDateDisplay(patient, caseManagerData);
   }
   if (id == 3) {
     return `${genderAge(patient, doctorProfile)}, ${resolveGender(patient)}`;

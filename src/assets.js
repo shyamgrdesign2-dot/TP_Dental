@@ -391,6 +391,8 @@ export const ASSETS = {
     locationPurple: `${BASE_URL}/images/location-purple.svg`,
     lockIcon: `${BASE_URL}/images/lock-icon.svg`,
     logo: `${BASE_URL}/images/logo.webp`,
+    missionHospitalLogo: `${BASE_URL}/images/mission-logo.jpeg`,
+    nabhLogos: typeof window !== 'undefined' ? `${window.location.origin}/images/nabh_logos.jpg` : "/images/nabh_logos.jpg",
     logoSm: `${BASE_URL}/images/logo-sm.svg`,
     logoTatvaEmr: `${BASE_URL}/images/logo-tatva-emr.svg`,
     loyality: `${BASE_URL}/images/loyality.svg`,
