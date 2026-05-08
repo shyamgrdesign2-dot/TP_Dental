@@ -40,20 +40,8 @@ export const SMART_SUMMARY_BY_CONTEXT = {
 
     dueAlerts: ["HbA1c recheck (quarterly)", "Lipid Profile (6-monthly)"],
     recordAlerts: ["Uploaded Rx from Dr. Sharma (Cardiology) not reviewed"],
-    concernTrend: { label: "SpO₂", values: [97, 96, 94, 93], labels: ["20 Jan", "22 Jan", "24 Jan", "27 Jan"], unit: "%", tone: "red" },
-    symptomCollectorData: {
-      reportedAt: "Today, 10:15 AM",
-      symptoms: [
-      { name: "Fever", duration: "3 days", severity: "High" },
-      { name: "Dry Cough", duration: "2 days", severity: "Moderate" }],
-
-      medicalHistory: ["Diabetes (2yr)", "Hypertension (6mo)"],
-      allergies: ["NSAID sensitivity"],
-      questionsToDoctor: [
-      "Is this fever serious?",
-      "Can I continue my diabetes meds while sick?"]
-
-    }
+    concernTrend: { label: "SpO₂", values: [97, 96, 94, 93], labels: ["20 Jan", "22 Jan", "24 Jan", "27 Jan"], unit: "%", tone: "red" }
+    // No symptomCollectorData — shows "Good morning" welcome screen on open
   },
 
   // ═══════════════ 2. NEHA GUPTA — MASTER PATIENT (ALL specialties, ALL card types) ═══════════════

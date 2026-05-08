@@ -141,6 +141,7 @@ import { DrAgentPanel } from "../components/dr-agent/rxpad/dr-agent/DrAgentPanel
 import { DrAgentFab } from "../components/dr-agent/rxpad/dr-agent/shell/DrAgentFab";
 import { RxPadSyncProvider } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
+import { SideNavbar } from "../components/sideNavbar";
 
 function PrescriptionNew() {
   const {
@@ -2051,86 +2052,13 @@ function PrescriptionNew() {
               selectedCarePlan={selectedCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
             />
-            <div className="w-100 bg-body wrapper2 prescription-wrapper" style={drAgentOpen ? { paddingRight: 408, transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" } : { transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" }}>
+            <div style={{ display: "flex", height: "calc(100vh - 60px)", minHeight: 0, overflow: "hidden" }}>
+              <SideNavbar patientId={patient_data?.patient_unique_id} doctorId={profile?.doctor_unique_id} />
+              <div className="w-100 bg-body wrapper2 prescription-wrapper" style={drAgentOpen ? { flex: "1 1 auto", minWidth: 0, paddingRight: 408, transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" } : { flex: "1 1 auto", minWidth: 0, transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" }}>
           <img src={hey} alt="vitals" className="me-3 hey" />
           <div className="row">
-            <div className="col-lg-4 col-md-12 col-12">
-              {(isApexAIAccessable || tp_monetization_enable || isFreeVoiceRxUser) ? (
-                <Tabs
-                  className="obstetricTab"
-                  activeKey={activeTab}
-                  onChange={(key) => {
-                    setActiveTab(key);
-                    if (key === "apexAI") {
-                      window.Moengage.track_event("TP_Apex_AI_Ack", {
-                        clinic_name: getClinicName(profile?.hospital_data),
-                        doctor_id: profile?.doctor_unique_id,
-                        patient_number: patient_data?.pm_contact_no,
-                        patient_id: patient_data?.patient_unique_id,
-                      });
-                    }
-                  }}
-                  centered
-                >
-                  <TabPane tab="Basic Info" key="basicInfo">
-                    {CUSTOMIZED_PAD_LEFT_LIST()}
-                  </TabPane>
-                  <TabPane
-                    tab={
-                      <div style={{ position: "relative" }}>
-                        <img
-                          src={apexAIImg}
-                          alt="apex-AI"
-                          width={20}
-                          height={20}
-                          style={{ marginRight: 8 }}
-                        />
-                        TatvaAI
-                        {isDDxReadyToGenerate && generatedDDx?.results?.length > 0 && (
-                          <LoopingVideo
-                            webm={blinkingDotWebm}
-                            mp4={blinkingDotMp4}
-                            width={20}
-                            height={20}
-                            style={{ position: "absolute", top: -12, right: -15 }}
-                            ariaLabel="Updates available"
-                          />
-                        )}
-                      </div>
-                    }
-                    key="apexAI"
-                  >
-                    {isGroundingAccessableForZydus && <div className="prescription-box-sm">
-                      <GroundingBox handleGroundingKnowMore={handleGroundingKnowMore} />
-                    </div>}
-                    {(tp_monetization_enable || isFreeVoiceRxUser) && <div className="prescription-box-sm">
-                      <GenRxBox setIsGenRxDrawerVisible={setIsGenRxDrawerVisible} handleGenRxKnowMore={handleGenRxKnowMore} />
-                    </div>}
-                    {(isApexAIAccessable || tp_monetization_enable) && <div className="prescription-box-sm">
-                      <DDxList
-                        generatedDDx={generatedDDx?.results}
-                        handleDDxDrawer={handleDDxDrawer}
-                        isDDxLoading={isDDxLoading}
-                        handleDDxKnowMore={handleDDxKnowMore}
-                        getGenerateDDx={getGenerateDDx}
-                        handleDrawerVital={handleDrawerVital}
-                        isDDxGenerated={isDDxGenerated}
-                      />
-                    </div>}
-                  </TabPane>
-                </Tabs>
-              ) : (
-                CUSTOMIZED_PAD_LEFT_LIST()
-              )}
-              {/* <div>
-                <button className="btn btn-parameters mx-auto w-100">
-                  <div className="align-items-center d-flex justify-content-center">
-                    <i className="icon-Add me-2"></i> Add More Parameters
-                  </div>
-                </button>
-              </div> */}
-            </div>
-            <div className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3">
+            
+            <div className="col-lg-12 col-md-12 col-12 mt-lg-0 mt-3">
               <Content>
                 {/* {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup || shouldShowGroundingBanner) && 
                   <Carousel
@@ -2297,6 +2225,7 @@ function PrescriptionNew() {
               </Content>
             </div>
           </div>
+        </div>
         </div>
         {vitalDrawer && (
           <Drawer
