@@ -9142,7 +9142,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
                           <>
-                            {showConsultSectionsWhenRx &&
+                            {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                               (caseManagerData?.vitals?.length > 0 ||
                                 patientBirthWeight) &&
                               (option?.format === "inline" ? (
@@ -9167,7 +9167,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     Vitals & Body Composition:&nbsp;
                                   </Text>
 
-                                  {showConsultSectionsWhenRx &&
+                                  {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                     patientBirthWeight && (
                                       <>
                                         <Text
@@ -9407,7 +9407,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     }}
                                   >
                                     Vitals & Body Composition:&nbsp;
-                                    {showConsultSectionsWhenRx &&
+                                    {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                       patientBirthWeight && (
                                         <>
                                           <Text
@@ -9647,7 +9647,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     });
                                   const hasAnyData =
                                     hasVitalsData ||
-                                    (showConsultSectionsWhenRx &&
+                                    ((showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                       patientBirthWeight);
 
                                   if (!hasAnyData) {
@@ -9672,7 +9672,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }}
                                       >
                                         Vitals & Body Composition:&nbsp;
-                                        {showConsultSectionsWhenRx &&
+                                        {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                           patientBirthWeight && (
                                             <>
                                               <Text
