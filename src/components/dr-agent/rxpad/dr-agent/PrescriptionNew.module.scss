@@ -1,0 +1,17 @@
+/* Dr Agent panel — fixed right-side inline panel (starts below 62px portal header) */
+
+.drAgentOverlay {
+  position: fixed;
+  top: 62px;
+  right: 0;
+  width: 400px;
+  height: calc(100vh - 62px);
+  z-index: 999;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}

@@ -1,0 +1,162 @@
+.root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 12px;
+  position: relative;
+}
+
+.bgWhite {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+}
+
+.bgGif {
+  position: absolute;
+  inset: 0;
+  background-image: url(../../../assets/icons/chat-bg.gif);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+.sparkOuter {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 10px;
+}
+
+.sparkWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
+
+.sparkBase {
+  border-radius: 8px;
+}
+
+.sparkGif {
+  background-image: url(../../../assets/icons/chat-bg.gif);
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  opacity: 0.3;
+}
+
+.greeting {
+  position: relative;
+  z-index: 1;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--tp-slate-800, #1e293b);
+  text-align: center;
+  line-height: 24px;
+}
+
+.subtitle {
+  position: relative;
+  z-index: 1;
+  margin-top: 4px;
+  max-width: 100%;
+  padding: 0 4px;
+  font-size: 16px;
+  text-align: center;
+  line-height: 22px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  color: var(--tp-slate-400, #a2a2a8);
+}
+
+.subtitlePatientName {
+  font-weight: 600;
+  color: var(--tp-slate-500, #717179);
+}
+
+.actionsGrid {
+  position: relative;
+  z-index: 1;
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.actionCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  border-radius: 14px;
+  padding: 14px 12px 16px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(226, 226, 234, 0.5);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.actionCardGif {
+  position: absolute;
+  inset: 0;
+  background-image: url(../../../assets/icons/chat-bg.gif);
+  background-size: cover;
+  opacity: 0.06;
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.actionCardIcon {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+
+.actionCardTitle {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  width: 100%;
+  color: var(--tp-slate-700, #454551);
+}
+
+.actionCardSubtitle {
+  position: relative;
+  z-index: 1;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+  width: 100%;
+  color: var(--tp-slate-400, #a2a2a8);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

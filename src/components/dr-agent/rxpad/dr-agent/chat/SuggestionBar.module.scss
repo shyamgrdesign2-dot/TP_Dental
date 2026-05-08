@@ -1,0 +1,41 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 8px 6px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.chip {
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--tp-slate-200, #e2e8f0);
+  background: #fff;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tp-slate-600, #475569);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease, transform 150ms ease;
+
+  &:hover {
+    border-color: var(--tp-blue-400, #6c6bde);
+    background: var(--tp-blue-50, #eff6ff);
+    color: var(--tp-blue-600, #2563eb);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.chipDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,0 +1,449 @@
+// VoiceRxCanvas — CSS Module
+
+// ── Root ──────────────────────────────────────────────────────────────────────
+.root {
+  position: relative;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex-direction: column;
+  background: white;
+}
+
+// ── Top bar ───────────────────────────────────────────────────────────────────
+.topBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px 12px;
+}
+
+.modePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 12px;
+  padding: 7px 15px 7px 8px;
+  background:
+    linear-gradient(135deg, rgba(213, 101, 234, 0.14) 0%, rgba(103, 58, 172, 0.13) 100%) padding-box,
+    linear-gradient(135deg, rgba(213, 101, 234, 0.38) 0%, rgba(103, 58, 172, 0.42) 55%, rgba(26, 25, 148, 0.32) 100%) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 4px 14px rgba(103, 58, 172, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  transition: background 150ms, box-shadow 150ms;
+
+  &:hover {
+    background:
+      linear-gradient(135deg, rgba(213, 101, 234, 0.20) 0%, rgba(103, 58, 172, 0.18) 100%) padding-box,
+      linear-gradient(135deg, rgba(213, 101, 234, 0.46) 0%, rgba(103, 58, 172, 0.50) 55%, rgba(26, 25, 148, 0.38) 100%) border-box;
+  }
+}
+
+.backBtn {
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 150ms;
+
+  &:active { transform: scale(0.92); }
+}
+
+.backBtnNormal {
+  color: #673AAC;
+  &:hover {
+    color: #4a2385;
+  }
+}
+
+.backBtnLocked {
+  cursor: not-allowed;
+  color: var(--tp-slate-300);
+}
+
+.modePillLabel {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  color: #3f3a4a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modePillLabelText {
+  letter-spacing: 0.1px;
+  max-width: 220px;
+}
+
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.minimizeBtn {
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 150ms;
+
+  &:active { transform: scale(0.95); }
+}
+
+.minimizeBtnNormal {
+  color: var(--tp-slate-600);
+  &:hover { color: var(--tp-slate-900); }
+}
+
+.minimizeBtnLocked {
+  cursor: not-allowed;
+  color: var(--tp-slate-300);
+}
+
+// ── Tab strip ─────────────────────────────────────────────────────────────────
+.tabsStripWrap {
+  flex-shrink: 0;
+  padding: 6px 12px;
+}
+
+.tabsList {
+  display: flex;
+  height: 44px;
+  width: 100%;
+  align-items: stretch;
+  gap: 4px;
+  overflow-x: auto;
+  border-radius: 14px;
+  background: var(--tp-slate-100);
+  padding: 5px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.tabBtn {
+  flex-shrink: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.tabBtnActive {
+  background: white;
+  color: var(--tp-blue-600);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.tabBtnInactive {
+  background: transparent;
+  color: var(--tp-slate-600);
+}
+
+// ── Body ──────────────────────────────────────────────────────────────────────
+.body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 12px 12px;
+}
+
+.inlineRecorderWrap {
+  margin-bottom: 10px;
+}
+
+// ── Transcript tab ────────────────────────────────────────────────────────────
+.transcriptTabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transcriptEmpty {
+  border-radius: 12px;
+  background: rgba(241, 245, 249, 0.80);
+  padding: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.transcriptEmptyText {
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--tp-slate-400);
+}
+
+// ── EMR tab ───────────────────────────────────────────────────────────────────
+.emrTabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emrShell {
+  // Violet gradient border trick
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(white, white),
+    linear-gradient(
+      180deg,
+      rgba(75, 74, 213, 0.18) 0%,
+      rgba(75, 74, 213, 0.04) 25%,
+      rgba(23, 23, 37, 0.02) 50%,
+      rgba(75, 74, 213, 0.04) 75%,
+      rgba(75, 74, 213, 0.18) 100%
+    );
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.emrShellInner {
+  padding: 10px 12px;
+}
+
+// ── Footer (EMR tab only) ─────────────────────────────────────────────────────
+.footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--tp-slate-200);
+  background: white;
+  padding: 12px;
+}
+
+.footerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footerPrimary {
+  display: flex;
+  height: 42px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  border: none;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 150ms, background 150ms;
+
+  &:active { transform: scale(0.99); }
+  &:disabled { cursor: not-allowed; opacity: 0.5; }
+}
+
+.footerVoiceCta {
+  display: flex;
+  height: 42px;
+  width: 42px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 150ms;
+
+  &:active { transform: scale(0.99); }
+  &:disabled { cursor: not-allowed; opacity: 0.5; }
+}
+
+// ── Coachmark banner ──────────────────────────────────────────────────────────
+.coachmark {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: linear-gradient(
+    180deg,
+    rgba(245, 158, 11, 0.10) 0%,
+    rgba(245, 158, 11, 0.04) 100%
+  );
+  border: 1px solid rgba(245, 158, 11, 0.30);
+}
+
+.coachmarkIcon {
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: #d97706; // amber-600
+}
+
+.coachmarkText {
+  min-width: 0;
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--tp-slate-700);
+}
+
+.coachmarkHeadsUp {
+  font-weight: 600;
+  color: #92400e; // amber-700
+}
+
+.coachmarkClose {
+  margin-top: 2px;
+  display: inline-flex;
+  height: 20px;
+  width: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: rgba(217, 119, 6, 0.70);
+  transition: color 150ms, background 150ms;
+
+  &:hover {
+    background: rgba(251, 191, 36, 0.60);
+    color: #92400e;
+  }
+}
+
+// ── Overlay (bottom 40% — chat content stays visible above with mask fade) ──
+.overlayWrap {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: stretch;
+  height: 50%;
+}
+
+.overlayInner {
+  pointer-events: auto;
+  width: 100%;
+  height: 100%;
+}
+
+.overlayProcessing {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+// ── Transcript card ───────────────────────────────────────────────────────────
+.transcriptCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transcriptCardFrame {
+  border-radius: 12px;
+  background: rgba(241, 245, 249, 0.80);
+  padding: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.transcriptCardHeading {
+  font-family: sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--tp-slate-400);
+}
+
+.transcriptCardDivider {
+  margin: 10px 0;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(to right, rgba(208, 213, 221, 0.2), #d0d5dd, rgba(208, 213, 221, 0.2));
+}
+
+.transcriptCardMeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #059669; // emerald-600
+}
+
+.transcriptCardDuration {
+  font-variant-numeric: tabular-nums;
+}
+
+.transcriptCardActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.infoBtn {
+  display: inline-flex;
+  height: 14px;
+  width: 14px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--tp-slate-400);
+  &:hover { color: var(--tp-slate-600); }
+}
+
+.downloadBtn {
+  display: flex;
+  height: 24px;
+  width: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--tp-slate-400);
+  transition: color 150ms, background 150ms;
+
+  &:hover {
+    background: var(--tp-slate-50);
+    color: var(--tp-slate-600);
+  }
+}
+
+.timeLabel {
+  margin-left: auto;
+  font-family: sans-serif;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--tp-slate-400);
+}

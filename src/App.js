@@ -39,6 +39,9 @@ const AppointmentList = React.lazy(() =>
 const Prescription = React.lazy(() =>
   lazyRetry(() => import("./pages/Prescription"))
 );
+const PrescriptionNew = React.lazy(() =>
+  lazyRetry(() => import("./pages/PrescriptionNew"))
+);
 const SmartPrescription = React.lazy(() =>
   lazyRetry(() => import("./pages/SmartPrescription"))
 );
@@ -650,9 +653,13 @@ function App() {
               )
             } 
           />
-          <Route
+          {/* <Route
             path="prescription"
             element={isMobile ? <TabPrescription /> : <Prescription />}
+          /> */}
+          <Route
+            path="prescription"
+            element={<PrescriptionNew />}
           />
           <Route
             path="prescription_print_view"
