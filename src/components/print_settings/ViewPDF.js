@@ -17,6 +17,7 @@ import ThenConnector from './ThenConnector';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
+const widthOfA4PageInPts = 595;
 
 // Roboto
 Font.register({
@@ -1085,29 +1086,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       loadImage();
     }, [fileFooter?.showFile]);
     
-     const renderFooterImage = () => {
-       try {
-         if (fileFooter?.showFile && fileFooter?.imageShow) {
-           return (
-            <View>
-             <Image
-               src={fileFooter.showFile}
-               style={{
-                 width: "100%",
-                 height: fileFooter?.renderedFooterImageHeight,
-                 objectFit: "cover",
-               }}
-             />
-             </View>
-           );
-         }
-         return null;
-       } catch (error) {
-         console.error("Error rendering footer image:", error);
-         return null;
-       }
-     };
-
      const userBottomMargin = getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "bottom", 1);
      const userTopMargin = getMarginByFormat(printSettings?.letterhead_format, printSettings?.header_footer, "top", 1);
      const standardMargin = 0.5 * 25; // 0.5 inches in points
@@ -1115,7 +1093,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
      const isOwnLetterheadFirstPageOnly = printSettings?.letterhead_format === 2 && showMode === 'first';
      
      const calculatePadding = () => {
-        const widthOfA4PageInPts = 595;
         const { letterhead_format, header_footer, whatsapp_letterhead_format } = printSettings || {};
         const renderedFooterImageHeight = Number.isFinite(fileFooter?.renderedFooterImageHeight)
             ? fileFooter?.renderedFooterImageHeight
@@ -1172,6 +1149,46 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     };
 
     const paddingStyles = calculatePadding();
+
+     const getFooterImageRenderHeight = () => {
+       const footerWidth = Number(fileFooter?.footerWidth);
+       const footerHeight = Number(fileFooter?.footerHeight);
+       const availableWidth = Math.max(
+         0,
+         widthOfA4PageInPts - ((paddingStyles?.paddingLeft || 0) + (paddingStyles?.paddingRight || 0))
+       );
+
+       if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
+         return (footerHeight / footerWidth) * availableWidth;
+       }
+
+       return Number.isFinite(fileFooter?.renderedFooterImageHeight)
+         ? fileFooter.renderedFooterImageHeight
+         : 0;
+     };
+
+     const renderFooterImage = () => {
+       try {
+         if (fileFooter?.showFile && fileFooter?.imageShow) {
+           return (
+            <View>
+             <Image
+               src={fileFooter.showFile}
+               style={{
+                 width: "100%",
+                 height: getFooterImageRenderHeight(),
+                 objectFit: "contain",
+               }}
+             />
+             </View>
+           );
+         }
+         return null;
+       } catch (error) {
+         console.error("Error rendering footer image:", error);
+         return null;
+       }
+     };
 
     if (caseManagerData?.moduleContents?.length && printSettings?.prescription?.case_option) {
         const existingModuleIds = new Set(
