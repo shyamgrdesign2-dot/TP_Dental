@@ -1800,6 +1800,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const { letterhead_format, header_footer, whatsapp_letterhead_format } =
       printSettings || {};
     const footer = header_footer?.footer;
+    const hasFooterDimensions =
+      Number.isFinite(fileFooter?.footerHeight) &&
+      Number.isFinite(fileFooter?.footerWidth) &&
+      fileFooter?.footerWidth > 0;
 
     if (mode !== NORMAL) {
       return {
@@ -1847,9 +1851,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             5
         : letterhead_format === 1
           ? fileFooter?.imageShow
-            ? (fileFooter?.footerHeight / fileFooter?.footerWidth) *
-                (widthOfA4PageInPts - (paddingLeft + paddingRight)) +
-              paddingTop
+            ? hasFooterDimensions
+              ? (fileFooter?.footerHeight / fileFooter?.footerWidth) *
+                  (widthOfA4PageInPts - (paddingLeft + paddingRight)) +
+                paddingTop
+              : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) +
+                5
             : getMarginByFormat(
                 letterhead_format,
                 header_footer,
@@ -1868,6 +1875,23 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
 
   const paddingStyles = calculatePadding();
+  const getFooterImageRenderHeight = () => {
+    const footerWidth = Number(fileFooter?.footerWidth);
+    const footerHeight = Number(fileFooter?.footerHeight);
+    const availableWidth = Math.max(
+      0,
+      widthOfA4PageInPts -
+        ((paddingStyles?.paddingLeft || 0) + (paddingStyles?.paddingRight || 0)),
+    );
+
+    if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
+      return (footerHeight / footerWidth) * availableWidth;
+    }
+
+    return Number.isFinite(fileFooter?.renderedFooterImageHeight)
+      ? fileFooter.renderedFooterImageHeight
+      : 0;
+  };
 
   if (
     caseManagerData?.moduleContents?.length &&
@@ -16796,7 +16820,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           {
             <View
               style={{
-                width: "100%",
                 position: "absolute",
                 bottom: getMarginByFormat(
                   printSettings?.letterhead_format,
@@ -16866,11 +16889,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             <Image
                               style={{
                                 width: "100%",
-                                height: fileFooter?.renderedFooterImageHeight,
-                                objectFit: "cover",
+                                height: getFooterImageRenderHeight(),
+                                objectFit: "contain",
                               }}
                               src={fileFooter?.showFile}
-                              width={"100px"}
                             />
                           )
                         )
@@ -16909,12 +16931,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                             <Image
                               style={{
                                 width: "100%",
-                                height: fileFooter?.renderedFooterImageHeight,
-                                objectFit: "cover",
+                                height: getFooterImageRenderHeight(),
+                                objectFit: "contain",
                               }}
                               src={fileFooter?.showFile}
-                              height={fileFooter?.footerHeight}
-                              width={"100px"}
                             />
                           )
                         )
