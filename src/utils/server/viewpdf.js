@@ -565,7 +565,6 @@ const styles = StyleSheet.create({
   dynamicModuleCell: {
     padding: 6,
     borderRight: "1px solid #171725",
-    height: "100%",
   },
   headerRow: {
     flexDirection: "row",
@@ -1556,6 +1555,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
           : 0,
       )
       .join(" - ");
+
+  const normalizePdfText = (value) =>
+    value == null ? "" : String(value).replace(/\u00A0/g, " ");
 
   /** AI / digitized medication only — respects print option numeric vs text frequency. */
   const getAiMedicationFrequencyDisplay = (item, medOption) => {
@@ -15341,10 +15343,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                               }}
                                             >
                                               {`${item?.title ? "(" : ""}`}
-                                              {item.notes?.replace(
-                                                / /g,
-                                                "\u00A0",
-                                              )}
+                                              {normalizePdfText(item.notes)}
                                               {`${item?.title ? ")" : ""}`}
                                             </Text>
                                           )}
@@ -15558,10 +15557,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                               }}
                                             >
                                               {`${item?.title ? "(" : ""}`}
-                                              {item.notes?.replace(
-                                                / /g,
-                                                "\u00A0",
-                                              )}
+                                              {normalizePdfText(item.notes)}
                                               {`${item?.title ? ")" : ""}`}
                                             </Text>
                                           )}
@@ -15741,10 +15737,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   },
                                                 ]}
                                               >
-                                                {item.notes?.replace(
-                                                  / /g,
-                                                  "\u00A0",
-                                                ) || "-"}
+                                                {normalizePdfText(item.notes) || "-"}
                                                 &nbsp;
                                               </Text>
                                             )}
