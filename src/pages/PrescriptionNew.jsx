@@ -43,7 +43,7 @@ import { getGynecDetails } from "../api/services/ApiGynec";
 import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
-import { addObstetricDetails } from "../redux/obstetricSlice";
+import { addObstetricDetails, resetObstetricState } from "../redux/obstetricSlice";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
@@ -576,9 +576,11 @@ function PrescriptionNew() {
 
   const [vitalDrawer, setVitalDrawer] = useState(false);
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
+  const [medicalHistoryInitialActiveKey, setMedicalHistoryInitialActiveKey] = useState("gynec");
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
+  const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0);
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
@@ -589,6 +591,8 @@ function PrescriptionNew() {
   const [filesData, setFilesData] = useState([]);
   const [isEditDocument, setIsEditDocument] = useState(false);
   const fileInputRef = useRef(null);
+  const gynecFetchPatientRef = useRef(null);
+  const obstetricFetchPatientRef = useRef(null);
   const [shouldShowApexPopup, setShowApexPopup] = useState(true);
   const [shouldShowGenRxPopup, setShowGenRxPopup] = useState(true);
   const [shouldShowTatvaAiPopup, setShowTatvaAiPopup] = useState(true);
@@ -627,10 +631,13 @@ function PrescriptionNew() {
   const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
   const baseUrl = env.lab_params_api_url;
 
-  const getAllObstetricDetails = async () => {
+  const getAllObstetricDetails = async (patientUniqueId = patient_data?.patient_unique_id) => {
+    if (!patientUniqueId) return;
+    obstetricFetchPatientRef.current = patientUniqueId;
     const obstetricResponse = await fetchObstetricDetails(
-      patient_data.patient_unique_id
+      patientUniqueId
     );
+    if (obstetricFetchPatientRef.current !== patientUniqueId) return;
     if (obstetricResponse) {
       dispatch(addObstetricDetails(obstetricResponse));
     }
@@ -849,9 +856,10 @@ function PrescriptionNew() {
 
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
-      getAllObstetricDetails();
+      dispatch(resetObstetricState());
+      getAllObstetricDetails(patient_data?.patient_unique_id);
     }
-  }, [isGynaecHistoryAccessable]);
+  }, [dispatch, isGynaecHistoryAccessable, patient_data?.patient_unique_id]);
 
   useEffect(() => {
     if (uploadDocCategories.length === 0) {
@@ -1038,9 +1046,14 @@ function PrescriptionNew() {
   }, [vitalDrawer]);
 
   // Drawer Medical History
-  const handleDrawerMedicalHistory = useCallback(() => {
-    setMedicalHistoryDrawer(!medicalHistoryDrawer);
-  }, [medicalHistoryDrawer]);
+  const handleDrawerMedicalHistory = useCallback((activeKey) => {
+    if (typeof activeKey === "string") {
+      setMedicalHistoryInitialActiveKey(activeKey);
+      setMedicalHistoryDrawer(true);
+      return;
+    }
+    setMedicalHistoryDrawer((prev) => !prev);
+  }, []);
 
   // Drawer Private Notes
   const handleDrawerPrivateNotes = useCallback(
@@ -1052,8 +1065,17 @@ function PrescriptionNew() {
   );
 
   // Drawer Vaccination
-  const handleDrawerVaccination = (chartType) => {
-    setVaccinationDrawer(!vaccinationDrawer);
+  const refreshSideNavbarVaccines = useCallback(() => {
+    setVaccineRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const handleDrawerVaccination = useCallback((chartType) => {
+    setVaccinationDrawer((prev) => {
+      if (prev) {
+        refreshSideNavbarVaccines();
+      }
+      return !prev;
+    });
     if (!vaccinationDrawer) {
       trackEvent("TP_Vac_Module", {
         patientName: patient_data?.pm_fullname || "",
@@ -1065,7 +1087,7 @@ function PrescriptionNew() {
         source: chartType ? "Patient Details" : "Consult",
       });
     }
-  };
+  }, [patient_data, profile, refreshSideNavbarVaccines, vaccinationDrawer]);
 
   // Drawer Growth Chart
   const handleDrawerGrowth = () => {
@@ -1217,9 +1239,10 @@ function PrescriptionNew() {
 
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
-      fetchGynecHistory();
+      setUpdatedGynecHistory(null);
+      fetchGynecHistory(patient_data?.patient_unique_id);
     }
-  }, [isGynaecHistoryAccessable]);
+  }, [isGynaecHistoryAccessable, patient_data?.patient_unique_id, userId]);
 
   useEffect(() => {
     getLabParams();
@@ -1283,12 +1306,18 @@ function PrescriptionNew() {
     }
   };
 
-  const fetchGynecHistory = async () => {
+  const fetchGynecHistory = async (patientUniqueId = patient_data?.patient_unique_id) => {
     try {
+      if (!patientUniqueId) {
+        setUpdatedGynecHistory(null);
+        return;
+      }
+      gynecFetchPatientRef.current = patientUniqueId;
       const data = await getGynecDetails(
-        patient_data.patient_unique_id,
+        patientUniqueId,
         userId
       );
+      if (gynecFetchPatientRef.current !== patientUniqueId) return;
       // Destructure to remove createdAt and createdBy
       const { createdAt, createdBy, ...updatedData } = data || {};
 
@@ -2020,9 +2049,68 @@ function PrescriptionNew() {
     caseManagerData?.smart_prescription_filename
   );
 
+  const handleSideNavbarSectionAction = useCallback((sectionId) => {
+    switch (sectionId) {
+      case "vitals":
+        handleDrawerVital();
+        break;
+      case "history":
+        handleDrawerMedicalHistory("medical");
+        break;
+      case "labResults":
+        if (labParamsData?.length > 0) {
+          handleViewLabParamsDrawer();
+        } else {
+          handleAddLabParamsDrawer();
+        }
+        break;
+      case "medicalRecords":
+        if (allUploadedDocs.length > 0) {
+          handleDrawerMedicalReport();
+        } else {
+          handleAddClick();
+        }
+        break;
+      case "gynec":
+        handleDrawerMedicalHistory("gynec");
+        break;
+      case "obstetric":
+        handleDrawerObstetric();
+        break;
+      case "vaccine":
+        handleDrawerVaccination();
+        break;
+      case "growth":
+        handleDrawerGrowth();
+        break;
+      default:
+        break;
+    }
+  }, [
+    allUploadedDocs.length,
+    handleAddClick,
+    handleAddLabParamsDrawer,
+    handleDrawerGrowth,
+    handleDrawerMedicalHistory,
+    handleDrawerMedicalReport,
+    handleDrawerObstetric,
+    handleDrawerVaccination,
+    handleDrawerVital,
+    handleViewLabParamsDrawer,
+    labParamsData?.length,
+  ]);
+
   return (
     <CashManagerContext.Provider value={contextApi}>
       <>
+        <input
+          type="file"
+          multiple
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
+          style={{ display: "none" }}
+        />
         {showOnlyDrawer && (
           <ConsultationDrawer
             visible={isGenRxDrawerVisible}
@@ -2053,7 +2141,14 @@ function PrescriptionNew() {
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
             />
             <div style={{ display: "flex", height: "calc(100vh - 60px)", minHeight: 0, overflow: "hidden" }}>
-              <SideNavbar patientId={patient_data?.patient_unique_id} doctorId={profile?.doctor_unique_id} />
+              <SideNavbar
+                patientId={patient_data?.patient_unique_id}
+                doctorId={profile?.doctor_unique_id}
+                labParamsData={labParamsData}
+                gynecHistory={updatedGynecHistory}
+                vaccineRefreshKey={vaccineRefreshKey}
+                onSectionAction={handleSideNavbarSectionAction}
+              />
               <div className="w-100 bg-body wrapper2 prescription-wrapper" style={drAgentOpen ? { flex: "1 1 auto", minWidth: 0, paddingRight: 408, transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" } : { flex: "1 1 auto", minWidth: 0, transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" }}>
           <img src={hey} alt="vitals" className="me-3 hey" />
           <div className="row">
@@ -2252,9 +2347,11 @@ function PrescriptionNew() {
           width="75%"
         >
           <MedicalHistoryBox
+            key={`medical-history-${medicalHistoryInitialActiveKey}`}
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
+            initialActiveKey={medicalHistoryInitialActiveKey}
           />
         </Drawer>
         <Drawer
@@ -2279,7 +2376,7 @@ function PrescriptionNew() {
             open={vaccinationDrawer}
             width="100%"
           >
-            <Vaccination handleDrawerVaccination={handleDrawerVaccination} source={chartType ? "Patient Details" : "Consult"} />
+            <Vaccination handleDrawerVaccination={handleDrawerVaccination} source={chartType ? "Patient Details" : "Consult"} onVaccinationUpdated={refreshSideNavbarVaccines} />
           </Drawer>
         )}
         {growthDrawer && (

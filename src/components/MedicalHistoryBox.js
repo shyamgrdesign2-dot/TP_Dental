@@ -286,12 +286,16 @@ function MedicalHistoryBox(props) {
     const [popOver, setPopOver] = useState(false);
     const RELATIONSHIP_LIST = ['Father', 'Mother', 'Maternity Grandfather', 'Maternity Grandmother', 'Paternity Grandfather', 'Paternity Grandmother', 'Uncle', 'Aunty', 'Sibling', 'Relatives'];
     const [selectedRelationship, setSelectedRelationship] = useState([]);
-    const [activeTab, setActiveTab] = useState('gynec');
+    const [activeTab, setActiveTab] = useState(initialActiveKey || 'gynec');
     const [tokenData, setTokenData] = useState(null);
 
     const onTabChange = (key) => {
         setActiveTab(key);
     };
+
+    useEffect(() => {
+        setActiveTab(initialActiveKey || 'gynec');
+    }, [initialActiveKey]);
 
     useEffect(() => {
         dispatch(listSectionwithTag());
@@ -901,7 +905,11 @@ function MedicalHistoryBox(props) {
             "patient_number": patient_data?.pm_contact_no,
             "patient_id": patient_data?.patient_unique_id
         });
-        handleSave();
+        if (!hideMenstrualHistoryTab && activeTab === "gynec") {
+            await handleSave();
+            return;
+        }
+        await handleSave();
         if (selectData && selectData.tmmhs_id === 5) {
             const sectionIndex = selectData.section_index;
             const tagIndex = selectData.tag_index;
@@ -1076,7 +1084,7 @@ function MedicalHistoryBox(props) {
         setGynecHistory(prevState => ({ ...prevState, [key]: value }));
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (gynecOnly) {
             const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
                 if (
@@ -1094,7 +1102,24 @@ function MedicalHistoryBox(props) {
                 if (parsed.isValid()) filteredGynecHistory.lastMenstrualPeriod = parsed.format(showDateFormat);
             }
             if (onSave) onSave(filteredGynecHistory);
-            if (patient_data?.patient_unique_id) handleSaveClick();
+            if (patient_data?.patient_unique_id) await handleSaveClick();
+            handleDrawerMedicalHistory();
+            return;
+        }
+        if (!hideMenstrualHistoryTab && activeTab === "gynec") {
+            const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
+                if (
+                    key !== 'createdAt' && key !== 'createdBy' &&
+                    gynecHistory[key] !== '' && gynecHistory[key] !== null &&
+                    gynecHistory[key] !== 'custom' && gynecHistory[key] !== 'number'
+                ) {
+                    acc[key] = gynecHistory[key];
+                }
+                return acc;
+            }, {});
+            if (onSave) onSave(filteredGynecHistory);
+            await handleSaveClick();
+            handleDrawerMedicalHistory();
             return;
         }
         if (hideMenstrualHistoryTab) {
@@ -1102,20 +1127,7 @@ function MedicalHistoryBox(props) {
             if (onSave) {
                 onSave(cloneMedicalHistoryData);
             }
-        } else {
-        const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
-            if (
-                key !== 'createdAt' && key !== 'createdBy' &&
-                gynecHistory[key] !== '' && gynecHistory[key] !== null &&
-                gynecHistory[key] !== 'custom' && gynecHistory[key] !== 'number'
-            ) {
-                acc[key] = gynecHistory[key];
-            }
-            return acc;
-        }, {});
-        onSave(filteredGynecHistory);
         }
-        handleSaveClick()
     };
 
     const onExpandCollapseGynecClick = useCallback((key) => {
@@ -1179,7 +1191,7 @@ function MedicalHistoryBox(props) {
 
         if (!hasData) {
             setGynecLoading(false);
-            return;
+            return false;
         }
 
         // Filter out keys with empty string values
@@ -1191,7 +1203,6 @@ function MedicalHistoryBox(props) {
         }, {});
 
         setGynecHistory(filteredGynecHistory)
-        handleCollapsed(2)
 
         if (gynecEditState === "CREATE") {
             const payload = {
@@ -1209,9 +1220,11 @@ function MedicalHistoryBox(props) {
                 if (response?.data) {
                     trackUpdateEvent();
                 }
+                return true;
             } catch (error) {
                 console.error('Error:', error);
                 errorMessage("Unable to create gynec history for you. please try again.")
+                return false;
             } finally {
                 setGynecLoading(false);
             }
@@ -1226,9 +1239,11 @@ function MedicalHistoryBox(props) {
                 if (response?.data) {
                     trackUpdateEvent();
                 }
+                return true;
             } catch (error) {
                 console.error('Error:', error);
                 errorMessage("Unable able to update gynecdetail for you. please try again.")
+                return false;
             } finally {
                 setGynecLoading(false);
             }
@@ -1319,8 +1334,7 @@ function MedicalHistoryBox(props) {
                     <div className='align-items-center d-flex h-100'>
                         <div className='border-end h-100 text-center me-3'>
                             <div
-                                onClick={onSaveClicked}
-                                // onClick={handleDrawerMedicalHistory} 
+                                onClick={handleDrawerMedicalHistory}
                                 className='btn-headerback align-items-center d-flex h-100 justify-content-around cursor-pointer'>
                                 <i className='icon-right'></i>
                             </div>

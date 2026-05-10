@@ -27,6 +27,12 @@
   font-family: var(--font-sans) !important;
 }
 
+/* Restore icomoon icon font overridden by the wildcard above */
+[data-side-navbar="true"] [class^="icon-"],
+[data-side-navbar="true"] [class*=" icon-"] {
+  font-family: 'icomoon' !important;
+}
+
 .snv-root {
   display: flex;
   align-items: flex-start;
@@ -286,7 +292,7 @@
   border-radius: 10px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 20px;
   white-space: nowrap;
   transition: background-color 160ms ease, border-color 160ms ease, transform 120ms ease;
@@ -347,7 +353,7 @@
   min-width: 0;
   color: #ffffff !important;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 24px;
   letter-spacing: 0.1px;
   white-space: nowrap;
@@ -422,7 +428,7 @@
 .snv-voice-debug-title {
   color: var(--tp-slate-700) !important;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 16px;
 }
 
@@ -590,7 +596,7 @@
   gap: 6px;
   color: #ffffff !important;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 /* status pill row */
@@ -676,7 +682,7 @@
   color: var(--tp-slate-700) !important;
   overflow: hidden;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .snv-processing-glow {
@@ -691,20 +697,20 @@
 .snv-processing-caption {
   color: var(--tp-slate-500) !important;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 17px;
 }
 
 .snv-voice-error-title {
   color: #dc2626 !important;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .snv-voice-error-message {
   color: var(--tp-slate-600) !important;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 18px;
 }
 
@@ -714,7 +720,7 @@
   color: #ffffff !important;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .snv-section-anim {
@@ -752,6 +758,37 @@
   display: none;
 }
 
+.snv-virtual-list {
+  position: relative;
+  width: 100%;
+}
+
+.snv-virtual-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-bottom: 12px;
+}
+
+.snv-load-more-btn {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  border: 1px solid var(--tp-blue-500);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--tp-blue-500) !important;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.snv-load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .snv-date-card,
 .snv-info-card,
 .snv-record-card {
@@ -775,7 +812,7 @@
   background: var(--tp-slate-100);
   color: var(--tp-slate-700) !important;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 18px;
   text-align: left;
   cursor: pointer;
@@ -803,7 +840,7 @@
   background: transparent;
   color: var(--tp-slate-700) !important;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -827,7 +864,7 @@
   background: #f5f5f8;
   color: var(--tp-slate-500) !important;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 18px;
 }
 
@@ -845,6 +882,14 @@
   color: var(--tp-slate-400) !important;
   font-size: 13px;
   line-height: 1;
+}
+
+.snv-rx-section-icon-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex: 0 0 16px;
 }
 
 .snv-copy-btn {
@@ -882,7 +927,7 @@
 
 .snv-bullet-label {
   color: var(--tp-slate-700) !important;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .snv-bullet-detail {
@@ -932,7 +977,7 @@
 .snv-kv-value {
   color: var(--tp-slate-800) !important;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 18px;
 }
 
@@ -948,8 +993,8 @@
 
 .snv-fresh-row {
   border-radius: 6px;
-  background: linear-gradient(90deg, rgba(75, 74, 213, 0.12), rgba(75, 74, 213, 0.03));
-  animation: snv-fresh-flash 900ms ease-out;
+  /* background: linear-gradient(90deg, rgba(75, 74, 213, 0.12), rgba(75, 74, 213, 0.03)); */
+  /* animation: snv-fresh-flash 900ms ease-out; */
 }
 
 .snv-info-card {
@@ -967,7 +1012,7 @@
 .snv-record-title {
   color: var(--tp-slate-800) !important;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 20px;
 }
 
@@ -982,6 +1027,133 @@
 .snv-written-list {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding: 14px 0 0;
+}
+
+.snv-written-preview-card {
+  overflow: hidden;
+  border: 1px solid var(--tp-border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.snv-written-preview-frame {
+  display: block;
+  width: 100%;
+  height: 160px;
+  border: 0;
+  background: #ffffff;
+}
+
+.snv-written-preview-footer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0px;
+  border-top: 1px solid var(--tp-border-light);
+  background: #ffffff;
+}
+
+.snv-written-preview-meta {
+  min-width: 0;
+}
+
+.snv-written-preview-doctor {
+  color: var(--tp-slate-800) !important;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.snv-written-preview-speciality {
+  color: var(--tp-slate-500) !important;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.snv-written-actions {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.snv-written-more-btn {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tp-slate-500) !important;
+  transform: rotate(90deg);
+}
+
+.snv-written-more-btn:hover {
+  background: var(--tp-surface);
+  color: var(--tp-slate-800) !important;
+}
+
+.snv-written-menu {
+  position: absolute;
+  right: 0;
+  bottom: 34px;
+  z-index: 5;
+  min-width: 104px;
+  overflow: hidden;
+  border: 1px solid var(--tp-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(20, 24, 40, 0.12);
+}
+
+.snv-written-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  padding: 9px 10px;
+  background: #ffffff;
+  color: var(--tp-slate-700) !important;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  text-align: left;
+}
+
+.snv-written-menu-item:hover {
+  background: var(--tp-surface);
+}
+
+.snv-transcript-list {
+  display: grid;
+  gap: 10px;
+}
+
+.snv-transcript-block {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--tp-surface);
+  color: var(--tp-slate-600) !important;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.snv-transcript-line,
+.snv-transcript-text {
+  white-space: pre-wrap;
+}
+
+.snv-transcript-speaker {
+  color: var(--tp-slate-700) !important;
+  font-weight: 500;
 }
 
 .snv-empty-state {
@@ -990,6 +1162,15 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 20px;
+}
+
+.snv-loading-state {
+  padding: 12px 4px;
+  color: var(--tp-slate-500) !important;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  text-align: center;
 }
 
 .snv-empty-line {
@@ -1099,7 +1280,7 @@
 .snv-kv-value {
   color: var(--tp-slate-800) !important;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 18px;
 }
 
@@ -1151,7 +1332,7 @@
   border-color: var(--tp-blue-500) !important;
   background: rgba(75, 74, 213, 0.08);
   color: var(--tp-blue-500) !important;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .snv-record-thumb-card {
@@ -1209,7 +1390,7 @@
 .snv-record-thumb-label {
   color: var(--tp-slate-800) !important;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 20px;
 }
 
@@ -1235,7 +1416,7 @@
   background: rgba(113, 113, 121, 0.09);
   color: var(--tp-slate-500) !important;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
   margin-bottom: 6px;
   width: 100%;
@@ -1274,7 +1455,7 @@
 }
 
 .snv-vaccine-name {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--tp-slate-700) !important;
 }
 
@@ -1289,23 +1470,23 @@
 }
 
 .snv-vaccine-date-overdue {
-  font-weight: 600;
+  font-weight: 500;
   color: #dc2626 !important;
 }
 
 .snv-vaccine-date-upcoming {
-  font-weight: 600;
+  font-weight: 500;
   color: #d97706 !important;
 }
 
 .snv-vaccine-date-given {
-  font-weight: 600;
+  font-weight: 500;
   color: #16a34a !important;
 }
 
 /* ── Ophthal sub-sections ────────────────────────────────────── */
 .snv-optal-subsection {
-  margin-bottom: 10px;
+  margin-bottom: 16px;
 }
 
 .snv-optal-subsection:last-child {
@@ -1313,15 +1494,37 @@
 }
 
 .snv-optal-subsection-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--tp-slate-500) !important;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  margin-bottom: 5px;
-  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  border-radius: 6px;
   background: var(--tp-slate-100);
-  border-radius: 4px;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--tp-slate-500) !important;
+}
+
+.snv-optal-subsection-title .snv-copy-btn {
+  margin-left: auto;
+}
+
+.snv-optal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border-radius: 50%;
+  background: #a7a9b2;
+  color: #ffffff !important;
+  font-size: 9px;
+  line-height: 12px;
+  font-weight: 500;
 }
 
 .snv-optal-eye-table {
@@ -1347,7 +1550,7 @@
 .snv-optal-eye-header span {
   color: var(--tp-slate-500) !important;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
@@ -1362,7 +1565,7 @@
 .snv-optal-eye-val {
   color: var(--tp-slate-800) !important;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 18px;
   text-align: center;
 }
@@ -1384,7 +1587,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 5px 0;
+  padding: 5px 12px;
   border-bottom: 0.5px solid var(--tp-slate-100);
 }
 
@@ -1394,6 +1597,7 @@
 
 /* ── WHO growth chart cards ───────────────────────────────────── */
 .snv-gwc-card {
+  position: relative;
   margin: 0 12px 10px;
   border: 0.8px solid var(--tp-slate-200);
   border-radius: 10px;
@@ -1407,7 +1611,7 @@
 
 .snv-gwc-title {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--tp-slate-700) !important;
 }
 
@@ -1434,6 +1638,65 @@
   color: var(--tp-slate-700) !important;
 }
 
+.snv-gwc-percentile-menu {
+  position: absolute;
+  top: 66px;
+  left: 10px;
+  z-index: 5;
+  width: 220px;
+  padding: 12px;
+  border: 1px solid var(--tp-slate-200);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(17, 24, 39, 0.12);
+}
+
+.snv-gwc-percentile-title {
+  margin-bottom: 8px;
+  color: var(--tp-slate-600) !important;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.snv-gwc-percentile-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  padding: 8px;
+  border: 1px solid var(--tp-slate-100);
+  border-radius: 6px;
+}
+
+.snv-gwc-percentile-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.snv-gwc-percentile-option input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+.snv-gwc-percentile-done {
+  width: 100%;
+  height: 30px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--tp-blue-500);
+  color: #ffffff !important;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .snv-gwc-unit-toggle {
   display: inline-flex;
   border: 0.8px solid var(--tp-slate-200);
@@ -1456,7 +1719,7 @@
 .snv-gwc-unit-active {
   background: var(--tp-slate-100) !important;
   color: var(--tp-slate-700) !important;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .snv-gwc-chart {
@@ -1470,4 +1733,209 @@
     max-width: 350px;
     flex-basis: clamp(250px, 26vw, 350px);
   }
+}
+
+/* ── Medical Records: RecordCard stacked layout ──────────────── */
+.snv-records-list .image-wrapper {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* ── Section card plain-text lines (gynec, obstetric) ─────────── */
+.snv-card-lines {
+  padding: 6px 8px 2px;
+}
+
+.snv-card-line {
+  margin: 0 0 4px;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--tp-slate-600) !important;
+}
+
+.snv-card-line:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Obstetric History reference layout ─────────────────────── */
+.snv-ob-content {
+  padding: 12px 12px 18px;
+  background: #ffffff;
+}
+
+.snv-ob-card {
+  width: 100%;
+  border: 0.8px solid var(--tp-slate-200);
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.snv-ob-card-title {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f1f1f5;
+  color: #545460 !important;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.snv-ob-patient-body {
+  padding: 0 10px;
+}
+
+.snv-ob-patient-row {
+  padding: 12px 0;
+  color: #717179 !important;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.snv-ob-patient-row + .snv-ob-patient-row {
+  border-top: 1px solid #f1f1f5;
+}
+
+.snv-ob-field strong,
+.snv-ob-gplae-part strong,
+.snv-ob-note strong,
+.snv-ob-bullet-list strong {
+  color: #454551 !important;
+  font-weight: 500;
+}
+
+.snv-ob-separator {
+  display: inline-block;
+  margin: 0 8px;
+  color: #d0d5dd !important;
+  font-weight: 400;
+}
+
+.snv-ob-gplae-title {
+  align-items: center;
+}
+
+.snv-ob-badge {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #f7eafa;
+  color: var(--tp-violet-700);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.snv-ob-gplae-body {
+  padding: 12px 10px;
+  color: #717179 !important;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.snv-ob-note {
+  padding: 0 10px 12px;
+  color: #717179 !important;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.snv-ob-bullet-list {
+  margin: 0;
+  padding: 12px 10px 14px 26px;
+  color: #717179 !important;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.snv-ob-bullet-list li {
+  margin: 0 0 10px;
+  padding-left: 0;
+}
+
+.snv-ob-bullet-list li:last-child {
+  margin-bottom: 0;
+}
+
+.snv-private-notes-content {
+  padding-top: 10px;
+}
+
+.snv-private-note-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.snv-private-note-input {
+  width: 100%;
+  min-height: 360px;
+  padding: 14px 14px 44px;
+  border: 1px solid var(--tp-slate-100);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--tp-slate-700) !important;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  resize: vertical;
+  outline: none;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
+}
+
+.snv-private-note-input::placeholder {
+  color: var(--tp-slate-300) !important;
+}
+
+.snv-private-note-input:focus {
+  border-color: var(--tp-blue-300);
+  box-shadow: 0 0 0 2px rgba(80, 74, 211, 0.08);
+}
+
+.snv-private-note-voice {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.snv-private-note-hint {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--tp-slate-100);
+  color: var(--tp-slate-500) !important;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.snv-private-note-hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #d1d5db;
+  color: #ffffff !important;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
 }
