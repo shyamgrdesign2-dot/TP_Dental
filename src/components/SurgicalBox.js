@@ -45,6 +45,13 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
 import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
 import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   surgery: surgeryIcon,
@@ -67,6 +74,19 @@ function SurgicalBox() {
   const { patient_data } = state;
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
+  const applyVoiceSurgeries = useCallback((nextSurgeries) => {
+    setSurgeriesData((prev) => [...prev, ...nextSurgeries]);
+  }, [setSurgeriesData]);
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Surgeries/Procedures",
+    onApply: applyVoiceSurgeries,
+    successMessage: "Surgeries/Procedures filled from voice dictation",
+  });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
@@ -840,13 +860,17 @@ function SurgicalBox() {
 
   return (
     <>
-      <div className="">
+      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={surgeryIcon} alt="surgery-icon" />
             <div className="title-common">Surgeries/Procedures</div>
           </div>
           <div className="d-flex align-items-center">
+            <VoiceRxModuleButton
+              active={voiceCaptureOpen}
+              label="Start Surgeries Procedures voice input"
+              onClick={() => setVoiceCaptureOpen(true)} />
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -899,21 +923,29 @@ function SurgicalBox() {
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
 
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-          >
-            <Input
-              placeholder="Search Surgeries/Procedures"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
+        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Surgeries/Procedures"
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <AutoComplete
+              // defaultValue={searchParentQuery}
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+            >
+              <Input
+                placeholder="Search Surgeries/Procedures"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          )}
         </div>
       </div>
     </>

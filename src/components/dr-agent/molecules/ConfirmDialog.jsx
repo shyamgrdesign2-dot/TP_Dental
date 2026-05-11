@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 
 export function ConfirmDialog({
   open,
@@ -25,16 +26,19 @@ export function ConfirmDialog({
   const body = warning ?? description;
   const destructive = secondaryTone === "destructive";
 
-  return (
+  const dialog = (
     <div
       role="alertdialog"
+      aria-modal="true"
+      data-dr-agent="true"
       style={{
-        position: "absolute",
+        position: "fixed",
         inset: 0,
-        zIndex: 9999,
+        zIndex: 2147483000,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        pointerEvents: "auto",
         background: "rgba(15,23,42,0.32)",
         backdropFilter: "blur(2px)",
         WebkitBackdropFilter: "blur(2px)",
@@ -141,4 +145,10 @@ export function ConfirmDialog({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined" || !document.body) {
+    return dialog;
+  }
+
+  return createPortal(dialog, document.body);
 }

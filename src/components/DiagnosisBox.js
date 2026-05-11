@@ -42,6 +42,13 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
@@ -113,6 +120,19 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+  const applyVoiceDiagnosis = useCallback((nextDiagnosis) => {
+    setDiagnosisData((prev) => [...prev, ...nextDiagnosis]);
+  }, [setDiagnosisData]);
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Diagnosis",
+    onApply: applyVoiceDiagnosis,
+    successMessage: "Diagnosis filled from voice dictation",
+  });
 
   useEffect(() => {
     if (selectedDiagnosisList.length > 0) {
@@ -920,13 +940,17 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   return (
     <>
-      <div className="">
+      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Diagnosisicon} alt="Diagnosis" />
             <div className="title-common">Diagnosis</div>
           </div>
           <div className="d-flex align-items-center">
+            <VoiceRxModuleButton
+              active={voiceCaptureOpen}
+              label="Start Diagnosis voice input"
+              onClick={() => setVoiceCaptureOpen(true)} />
             <button
               className="btn d-flex align-items-center btn-text"
               onClick={loadPreviousClick}
@@ -993,22 +1017,30 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             />
           </div>
         )}
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Diagnosis"
-              prefix={<i className="icon-search" />}
-            />
-          </AutoComplete>
+        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Diagnosis"
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.diagnosis}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <AutoComplete
+              // defaultValue={searchParentQuery}
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={!searchParentQuery && "boxpopup"}
+            >
+              <Input
+                placeholder="Search Diagnosis"
+                prefix={<i className="icon-search" />}
+              />
+            </AutoComplete>
+          )}
         </div>
       </div>
     </>

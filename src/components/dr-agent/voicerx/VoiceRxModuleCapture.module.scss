@@ -1,0 +1,180 @@
+.voiceButton {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #673aac;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: background 150ms, color 150ms, transform 150ms;
+
+  // &:hover {
+  //   background: rgba(103, 58, 172, 0.06);
+  // }
+
+  // &:active {
+  //   transform: scale(0.95);
+  // }
+}
+
+.voiceButtonActive {
+  // background: rgba(103, 58, 172, 0.08);
+}
+
+.captureRoot {
+  width: 100%;
+  min-width: 0;
+}
+
+.confirmLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+}
+
+.recorderShell {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.processingShell {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.processingCard {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 168px;
+  overflow: hidden;
+  clip-path: inset(0 round 16px);
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.68);
+  isolation: isolate;
+}
+
+.processingTranscript {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 188px;
+  min-height: 168px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 22px;
+  contain: paint;
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none;
+  }
+
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none;
+  }
+
+  :global(.vrx-chat-turn) {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+.processingPlaceholder {
+  display: flex;
+  min-height: 132px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: #6a6877;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.progressTrack {
+  display: block;
+  width: 210px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(103, 58, 172, 0.12);
+}
+
+.progressBar {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d565ea 0%, #673aac 70%, #1a1994 100%);
+  animation: moduleVoiceProgress 1.1s ease-in-out infinite;
+}
+
+.moduleRoot,
+.symptomsRoot {
+  position: relative;
+  border-radius: 20px;
+}
+
+.moduleUpdated,
+.symptomsUpdated {
+  outline: 1.5px solid rgba(103, 58, 172, 0.92);
+  box-shadow:
+    0 0 0 7px rgba(103, 58, 172, 0.08),
+    0 0 22px rgba(213, 101, 234, 0.28);
+  animation: moduleVoiceUpdated 2.4s ease-out both;
+}
+
+.moduleSlot {
+  padding: 14px;
+}
+
+@keyframes moduleVoiceProgress {
+  0% { transform: translateX(-110%); }
+  55% { transform: translateX(110%); }
+  100% { transform: translateX(260%); }
+}
+
+@keyframes moduleVoiceUpdated {
+  0% {
+    outline-color: rgba(213, 101, 234, 0.95);
+    box-shadow:
+      0 0 0 10px rgba(213, 101, 234, 0.14),
+      0 0 30px rgba(103, 58, 172, 0.34);
+  }
+  70% {
+    outline-color: rgba(103, 58, 172, 0.85);
+    box-shadow:
+      0 0 0 5px rgba(103, 58, 172, 0.08),
+      0 0 18px rgba(213, 101, 234, 0.22);
+  }
+  100% {
+    outline-color: transparent;
+    box-shadow: none;
+  }
+}

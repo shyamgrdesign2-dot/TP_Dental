@@ -307,6 +307,7 @@ export function VoiceRecorderCore({
 
   // Common
   onCancel,
+  onCancelRequest,
   onSubmit,
   sectionLabel,
   showSectionInStatus = true,
@@ -654,7 +655,13 @@ export function VoiceRecorderCore({
 
   const handleDeviceSelect = useCallback((id) => { setSelectedDeviceId(id); setDevicePopoverOpen(false); }, []);
   const handleCancelConfirm = useCallback(() => { setConfirmOpen(false); onCancel?.(); }, [onCancel]);
-  const handleRequestCancel = useCallback(() => setConfirmOpen(true), []);
+  const handleRequestCancel = useCallback(() => {
+    if (onCancelRequest) {
+      onCancelRequest();
+      return;
+    }
+    setConfirmOpen(true);
+  }, [onCancelRequest]);
 
   // ── Shared CTA elements (used in both layouts) ───────────────────────────────
 

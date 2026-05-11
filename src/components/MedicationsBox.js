@@ -39,6 +39,13 @@ import DoseCalculator from "./dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import FreeBadge from "../common/FreeBadge";
 import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   medication: Medicationicon,
@@ -131,6 +138,19 @@ function MedicationsBox() {
   const dispatch = useDispatch();
 
   const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
+  const applyVoiceMedication = useCallback((nextMedicines) => {
+    setMedicationData((prev) => [...prev, ...nextMedicines]);
+  }, [setMedicationData]);
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Medication (Rx)",
+    onApply: applyVoiceMedication,
+    successMessage: "Medication (Rx) filled from voice dictation",
+  });
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -2095,7 +2115,7 @@ function MedicationsBox() {
 
   return (
     <>
-      <div>
+      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
@@ -2123,6 +2143,10 @@ function MedicationsBox() {
             }
           </div>
           <div className="d-flex align-items-center">
+            <VoiceRxModuleButton
+              active={voiceCaptureOpen}
+              label="Start Medication Rx voice input"
+              onClick={() => setVoiceCaptureOpen(true)} />
             {(profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
               <button
                 className="btn d-flex align-items-center btn-text"
@@ -2214,24 +2238,32 @@ function MedicationsBox() {
           </Drawer>
         }
 
-        <div className="p-14">
-          <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={handleParentSearch}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={`medicine-parent-autocomplete-dropdown ${
-              !searchParentQuery ? "boxpopup" : ""
-            }`}
-          >
-            <Input
-              placeholder="Search Medicines by Name"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
+        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Medication (Rx)"
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.medicine}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <AutoComplete
+              // defaultValue={searchParentQuery}
+              value={searchParentQuery}
+              onSearch={handleParentSearch}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={`medicine-parent-autocomplete-dropdown ${
+                !searchParentQuery ? "boxpopup" : ""
+              }`}
+            >
+              <Input
+                placeholder="Search Medicines by Name"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          )}
         </div>
       </div>
     </>

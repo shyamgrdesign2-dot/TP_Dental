@@ -36,6 +36,13 @@ import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { setIsDDxReadyToGenerate } from "../redux/ddxSlice";
 import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   symptoms: Symptomsicon,
@@ -117,6 +124,19 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const [showShimmer, setShowShimmer] = useState(false);
+  const applyVoiceSymptoms = useCallback((nextSymptoms) => {
+    setSymptomsData((prev) => [...prev, ...nextSymptoms]);
+  }, [setSymptomsData]);
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Symptoms",
+    onApply: applyVoiceSymptoms,
+    successMessage: "Symptoms filled from voice dictation",
+  });
 
   useEffect(() => {
     if (isAutofillSelected) {
@@ -991,13 +1011,17 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
 
   return (
     <>
-      <div>
+      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Symptomsicon} alt="Symptoms" />
             <div className="title-common">Symptoms</div>
           </div>
           <div className="d-flex align-items-center">
+            <VoiceRxModuleButton
+              active={voiceCaptureOpen}
+              label="Start Symptoms voice input"
+              onClick={() => setVoiceCaptureOpen(true)} />
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -1049,22 +1073,30 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx }) {
             />
           </div>
         )} */}
-        <div className="p-14">
-         <AutoComplete
-            // defaultValue={searchParentQuery}
-            value={searchParentQuery}
-            onSearch={onSearchParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            onSelect={onSelectParent}
-            defaultActiveFirstOption={true}
-            popupClassName={!searchParentQuery && "boxpopup"}
-          >
-            <Input
-              placeholder="Search Symptoms"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>     
+        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Symptoms"
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.symptoms}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <AutoComplete
+              // defaultValue={searchParentQuery}
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={!searchParentQuery && "boxpopup"}
+            >
+              <Input
+                placeholder="Search Symptoms"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          )}
         </div>
         </>
         )}

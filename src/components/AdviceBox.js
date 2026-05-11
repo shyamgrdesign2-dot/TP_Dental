@@ -36,6 +36,13 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { classNames } from "@react-pdf-viewer/core";
 import { ASSETS } from "../assets";
+import {
+  VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   advice: Adviceicon,
@@ -55,6 +62,19 @@ function AdviceBox() {
   const { adviceData, setAdviceData } = useContext(CashManagerContext);
   // const [adviceData, setAdviceData] = useState([]);
   const [adviceDataCheck, setAdviceDataCheck] = useState([]);
+  const applyVoiceAdvice = useCallback((nextAdvice) => {
+    setAdviceData((prev) => [...prev, ...nextAdvice]);
+  }, [setAdviceData]);
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+  } = useVoiceRxModuleCapture({
+    moduleName: "Advices",
+    onApply: applyVoiceAdvice,
+    successMessage: "Advices filled from voice dictation",
+  });
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -707,13 +727,17 @@ function AdviceBox() {
 
   return (
     <>
-      <div className="">
+      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Adviceicon} alt="Advice" />
             <div className="title-common">Advices</div>
           </div>
           <div className="d-flex align-items-center">
+            <VoiceRxModuleButton
+              active={voiceCaptureOpen}
+              label="Start Advices voice input"
+              onClick={() => setVoiceCaptureOpen(true)} />
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -756,25 +780,33 @@ function AdviceBox() {
           {CHILD_DRAWER_DATA}
         </Drawer>
 
-        <div className="p-14">
-          <AutoComplete
-            ref={inputRef}
-            // defaultValue={searchParentQuery}
-            value={searchQuery}
-            onSearch={onSearchParent}
-            onFocus={onFocusParent}
-            onBlur={onBlurParent}
-            options={parentSearchOptions}
-            className="autocomplete-custom w-100"
-            open={autoCompleteFlag}
-            onSelect={onSelectParent}
-            popupClassName="boxpopup"
-          >
-            <Input
-              placeholder="Search Advices"
-              prefix={<i className="icon-search"></i>}
-            />
-          </AutoComplete>
+        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {voiceCaptureOpen ? (
+            <VoiceRxModuleCapture
+              moduleName="Advices"
+              dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.advice}
+              onCancel={() => setVoiceCaptureOpen(false)}
+              onComplete={handleVoiceCaptureComplete} />
+          ) : (
+            <AutoComplete
+              ref={inputRef}
+              // defaultValue={searchParentQuery}
+              value={searchQuery}
+              onSearch={onSearchParent}
+              onFocus={onFocusParent}
+              onBlur={onBlurParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              open={autoCompleteFlag}
+              onSelect={onSelectParent}
+              popupClassName="boxpopup"
+            >
+              <Input
+                placeholder="Search Advices"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
+          )}
         </div>
       </div>
     </>
