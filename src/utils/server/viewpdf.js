@@ -31,6 +31,8 @@ import {
   WEIGHT_HEIGHT_TITLE,
   INVESTIGATION_TITLE,
   TP_ASSETS_BASE,
+  EXTERNAL_HOSPITAL_BUSINESS_IDS,
+  MISSION_HOSPITAL_ADDRESS,
 } from "../constants";
 import moment from "moment";
 import {
@@ -47,6 +49,8 @@ import OphthalmologyInlineView from "../../components/print_settings/ophthalmolo
 import OphthalmologyListView from "../../components/print_settings/ophthalmology/list";
 import OphthalmologyTableView from "../../components/print_settings/ophthalmology/table";
 import ThenConnector from "../../components/print_settings/ThenConnector";
+import { getDecodedToken } from "../localStorage";
+import { ASSETS } from "../../assets";
 
 const PX_TO_PT = 0.75;
 
@@ -933,6 +937,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     isCvtExtHosAccessableFromGB ?? caseManagerData?.isCvtExtHosAccessableFromGB,
     isRxDigitizePrintLike,
   );
+  const tokenData = getDecodedToken()?.result;
+  const hospitalBusinessId =
+    props?.hospitalBusinessId ??
+    tokenData?.hospital_business_id ??
+    caseManagerData?.hospital_business_id;
+
+  const showMissionHospitalLogo =
+    !!isCvtExtHosAccessableFromGB &&
+    Object.values(EXTERNAL_HOSPITAL_BUSINESS_IDS).includes(String(hospitalBusinessId));
 
   const patientDataShow = (id) => {
     if (cvtExtHosPatientMapEnabled) {
@@ -2172,7 +2185,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             </View>
           </Page>
         ))}
-      {hasAnyData(caseManagerData, rx) && (!isCvtExtHosAccessableFromGB || isRxDigitizeBool) && (
+      {hasAnyData(caseManagerData, rx) && (!isCvtExtHosAccessableFromGB || isRxDigitizeBool || caseManagerData?.vitals?.length > 0 || caseManagerData?.patient_birth_weight) && (
         <Page
           size="A4"
           style={[
@@ -2271,16 +2284,27 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           </Text>
                         }
                       </View>
-                      {printSettings?.logo_enable === "Y" && !cvtExtHosPatientMapEnabled && (
+                      {printSettings?.logo_enable === "Y" &&
                         <View
                           style={{
-                            width: 82,
-                            height: 82,
+                            width: isCvtExtHosAccessableFromGB ? 130 : 82,
+                            height: isCvtExtHosAccessableFromGB ? 90 : 82,
                             overflow: "hidden",
                             marginHorizontal: 16,
                           }}
                         >
-                          {fileLogo && fileLogo?.imageShow && (
+                          {showMissionHospitalLogo ? (
+                            <Image
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "contain",
+                              }}
+                              src={ASSETS.images.missionHospitalLogo}
+                            />
+                          ) : (
+                            fileLogo &&
+                            fileLogo?.imageShow && (
                             <Image
                               style={{
                                 width: "100%",
@@ -2289,30 +2313,42 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               }}
                               src={fileLogo?.showFile}
                             />
+                            )
                           )}
                         </View>
-                      )}
+                      }
                       <View style={{ flex: 1, textAlign: "right" }}>
-                        <Text style={styles.mainTitle}>
-                          {printSettings?.header_footer?.header?.doctor_info
-                            ?.place === "R"
-                            ? printSettings?.header_footer?.header?.doctor_info
-                                ?.header
-                            : printSettings?.header_footer?.header?.clinic_info
-                                ?.header}
-                        </Text>
-                        {/* {!cvtExtHosPatientMapEnabled &&  */}
-                          <Text
-                            style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
-                          >
-                            {printSettings?.header_footer?.header?.doctor_info
-                              ?.place === "R"
-                              ? printSettings?.header_footer?.header?.doctor_info
-                                  ?.subheader
-                              : printSettings?.header_footer?.header?.clinic_info
-                                  ?.subheader}
-                          </Text>
-                        {/* } */}
+                        {showMissionHospitalLogo ? (
+                          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <Image
+                              style={{ width: 140, height: 60, objectFit: "contain" }}
+                              src={ASSETS.images.nabhLogos}
+                            />
+                          </View>
+                        ) : (
+                          <View>
+                            <Text style={styles.mainTitle}>
+                              {printSettings?.header_footer?.header?.doctor_info
+                                ?.place === "R"
+                                ? printSettings?.header_footer?.header?.doctor_info
+                                    ?.header
+                                : printSettings?.header_footer?.header?.clinic_info
+                                    ?.header}
+                            </Text>
+                            {/* {!cvtExtHosPatientMapEnabled &&  */}
+                              <Text
+                                style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
+                              >
+                                {printSettings?.header_footer?.header?.doctor_info
+                                  ?.place === "R"
+                                  ? printSettings?.header_footer?.header?.doctor_info
+                                      ?.subheader
+                                  : printSettings?.header_footer?.header?.clinic_info
+                                      ?.subheader}
+                              </Text>
+                            {/* } */}
+                          </View>
+                        )}
                       </View>
                     </View>
                   ) : (
@@ -3808,6 +3844,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                 )}
                 {printSettings?.prescription?.case_option?.map(
                   (option, index) => {
+                    if (isCvtExtHosAccessableFromGB && !isRxDigitizeBool && option?.id !== 7) return null;
                     const hasOption11Enabled =
                       printSettings?.prescription?.case_option?.some(
                         (o) =>
@@ -9134,7 +9171,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
                           <>
-                            {showConsultSectionsWhenRx &&
+                            {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                               (caseManagerData?.vitals?.length > 0 ||
                                 patientBirthWeight) &&
                               (option?.format === "inline" ? (
@@ -9159,7 +9196,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     Vitals & Body Composition:&nbsp;
                                   </Text>
 
-                                  {showConsultSectionsWhenRx &&
+                                  {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                     patientBirthWeight && (
                                       <>
                                         <Text
@@ -9399,7 +9436,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     }}
                                   >
                                     Vitals & Body Composition:&nbsp;
-                                    {showConsultSectionsWhenRx &&
+                                    {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                       patientBirthWeight && (
                                         <>
                                           <Text
@@ -9639,7 +9676,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     });
                                   const hasAnyData =
                                     hasVitalsData ||
-                                    (showConsultSectionsWhenRx &&
+                                    ((showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                       patientBirthWeight);
 
                                   if (!hasAnyData) {
@@ -9664,7 +9701,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }}
                                       >
                                         Vitals & Body Composition:&nbsp;
-                                        {showConsultSectionsWhenRx &&
+                                        {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
                                           patientBirthWeight && (
                                             <>
                                               <Text
@@ -16908,7 +16945,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       {mode == NORMAL ? (
                         printSettings?.letterhead_format === 0 ? (
                           <View style={{ width: "100%" }}>
-                            {printSettings?.header_footer?.footer?.title && (
+                            {(showMissionHospitalLogo || printSettings?.header_footer?.footer?.title) && (
                               <View
                                 style={{
                                   backgroundColor: "#171725",
@@ -16924,13 +16961,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 fontFamily: "Roboto",
                                 fontSize:
                                   PX_TO_PT *
-                                  printSettings?.header_footer?.footer
-                                    ?.font_size,
+                                  (printSettings?.header_footer?.footer
+                                    ?.font_size || 12),
                                 fontWeight: 400,
                                 maxLines: 1,
                               }}
                             >
-                              {printSettings?.header_footer?.footer?.title}
+                              {showMissionHospitalLogo 
+                                ? MISSION_HOSPITAL_ADDRESS
+                                : printSettings?.header_footer?.footer?.title}
                             </Text>
                           </View>
                         ) : (
@@ -16950,7 +16989,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       ) : mode !== NORMAL ? (
                         printSettings?.whatsapp_letterhead_format === 0 ? (
                           <View>
-                            {printSettings?.header_footer?.footer?.title && (
+                            {(showMissionHospitalLogo || printSettings?.header_footer?.footer?.title) && (
                               <View
                                 style={{
                                   backgroundColor: "#171725",
@@ -16966,13 +17005,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 fontFamily: "Roboto",
                                 fontSize:
                                   PX_TO_PT *
-                                  printSettings?.header_footer?.footer
-                                    ?.font_size,
+                                  (printSettings?.header_footer?.footer
+                                    ?.font_size || 12),
                                 fontWeight: 400,
                                 maxLines: 1,
                               }}
                             >
-                              {printSettings?.header_footer?.footer?.title}
+                              {showMissionHospitalLogo 
+                                ? MISSION_HOSPITAL_ADDRESS
+                                : printSettings?.header_footer?.footer?.title}
                             </Text>
                           </View>
                         ) : (

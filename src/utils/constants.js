@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { env } from "../EnvironmentConfig";
 
 /** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
 export const TP_ASSETS_BASE =
@@ -132,6 +133,11 @@ export const GB_TELE_CONSULT = "tele-consult";
 export const GB_TAB_RX = "tab-rx";
 export const GB_TAB_RX_CVT = "tab-rx-cvt";
 export const GB_CVT_EXT_HOS = "cvt-external-hospitals";
+export const EXTERNAL_HOSPITAL_BUSINESS_IDS = {
+  MISSION_HOSPITAL: String(env.mission_hospital_business_id),
+};
+
+export const MISSION_HOSPITAL_ADDRESS = "THE MISSION HOSPITAL Plot No. 219(P), IMMON KALYAN SARANI, SECTOR-2C, Bidhannagar, Durgapur -713212, West Bengal - Ph No: 8687500500";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";
