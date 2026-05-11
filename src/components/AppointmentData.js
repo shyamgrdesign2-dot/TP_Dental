@@ -636,6 +636,19 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     },
   ]);
 
+  // Compute the actual number of visible zydus appointment rows (mirrors Table dataSource filter)
+  const zydusAppointmentVisibleCount = useMemo(() => {
+    return matchedAppointment.filter((item) => {
+      if (statusFilters && statusFilters.length > 0) {
+        return statusFilters.includes(item.appointmentStatus);
+      }
+      return !(
+        item.appointmentStatus &&
+        item.appointmentStatus.toLowerCase().includes("cancel")
+      );
+    }).length;
+  }, [matchedAppointment, statusFilters]);
+
   // UseEffect to update items when pendingDigitisation changes
   useEffect(() => {
     const updatedItems = [
@@ -720,7 +733,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             <div className="d-flex align-items-center">
               <i className="icon-Queue"></i>
               Appointment{" "}
-              {zydusAappointmentCount ? `(${zydusAappointmentCount})` : ""}
+              {zydusAppointmentVisibleCount ? `(${zydusAppointmentVisibleCount})` : ""}
             </div>
           ),
         },
@@ -751,6 +764,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isSaveAsDraftRxAccessableFromGB,
     draftRxCount,
     selectedTab,
+    zydusAppointmentVisibleCount,
   ]);
 
   const [isDigitisationTab, setIsDigitisationTab] = useState(false);
@@ -822,6 +836,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       setFirstSymptomIndex(firstIndex);
     }
   }, [appointmentsData, matchedAppointment, selectedTab]);
+
 
   const decodedToken = getDecodedToken();
   const isAdmin = decodedToken?.result?.admin;
