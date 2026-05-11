@@ -392,7 +392,7 @@ export const ASSETS = {
     lockIcon: `${BASE_URL}/images/lock-icon.svg`,
     logo: `${BASE_URL}/images/logo.webp`,
     missionHospitalLogo: `${BASE_URL}/images/mission-logo.jpeg`,
-    nabhLogos: "https://pmdoctorportal.blob.core.windows.net/tp-assets/assets/images/nabh_logos.jpg",
+    nabhLogos: `${BASE_URL}/images/nabh_logos.jpg`,
     logoSm: `${BASE_URL}/images/logo-sm.svg`,
     logoTatvaEmr: `${BASE_URL}/images/logo-tatva-emr.svg`,
     loyality: `${BASE_URL}/images/loyality.svg`,
