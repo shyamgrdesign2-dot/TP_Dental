@@ -342,7 +342,7 @@ function VoiceEditProcessing({ phase, transcript }) {
   const isCreatingTranscript = phase === "creating_transcript";
   const isStructuring = phase === "structuring_notes";
   const statusText = isCreatingTranscript
-    ? "Creating transcript..."
+    ? "Capturing your consultation…"
     : isStructuring
       ? "Preparing entries for review..."
       : "Transcript created";
@@ -357,7 +357,7 @@ function VoiceEditProcessing({ phase, transcript }) {
               animate={phase === "transcript_ready"} />
           ) : (
             <p className={styles.overlayTranscriptPlaceholder}>
-              Creating transcript...
+              Capturing your consultation…
             </p>
           )}
         </div>

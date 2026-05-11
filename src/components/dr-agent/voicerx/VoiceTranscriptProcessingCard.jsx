@@ -243,7 +243,7 @@ export function VoiceTranscriptProcessingCard({
             ref={transcriptScrollRef}
             className={styles.shinerBody}>
             {transcriptPending ? (
-              <div className={styles.creatingTranscript}>Creating Transcript...</div>
+              <div className={styles.creatingTranscript}>Capturing your consultation…</div>
             ) : isAmbient && /\b(?:Doctor|Patient)\s*:/i.test(transcript || "") ? (
               <ConversationTranscript raw={transcript} />
             ) : (
