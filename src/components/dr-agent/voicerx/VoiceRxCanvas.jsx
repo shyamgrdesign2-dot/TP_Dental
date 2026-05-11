@@ -361,7 +361,7 @@ function VoiceEditProcessing({ phase, transcript }) {
             )}
           </div>
         </div>
-        <CaptionCarousel />
+        {hasTranscript ? <CaptionCarousel /> : null}
         <span className={styles.overlayProgressTrack} aria-hidden>
           <span className={styles.overlayProgressBar} />
         </span>

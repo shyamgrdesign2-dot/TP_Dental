@@ -159,7 +159,7 @@ export function FooterBar({
         </div>
       )}
 
-      {!voiceFirstTimeMode && (!voiceRxMode || !voiceRxRecording) && (
+      {!voiceFirstTimeMode && !voiceRxMode && !voiceRxRecording && (
         <ChatInput
           value={inputValue}
           onChange={onInputChange}
@@ -168,16 +168,10 @@ export function FooterBar({
           onVoiceTranscription={onVoiceTranscription}
           disabled={isDisabled}
           isPrefilled={isPrefilled}
-          placeholder={
-            voiceRxMode
-              ? "Type Rx here, or use the voice Rx below to speak"
-              : `Ask about ${patientLabel}...`
-          }
-          patientName={voiceRxMode ? undefined : patientLabel || undefined}
+          placeholder={`Ask about ${patientLabel}...`}
+          patientName={patientLabel || undefined}
           patientMeta={
-            voiceRxMode
-              ? undefined
-              : patientGender && patientAge
+            patientGender && patientAge
               ? `${patientGender}|${patientAge}y`
               : undefined
           }
@@ -187,9 +181,6 @@ export function FooterBar({
           }'s prescription page — chat is focused on this patient`}
           onLockedChipClick={onLockedChipClick}
           isClinicContext={false}
-          voiceRxCta={voiceRxMode}
-          onVoiceRxCtaClick={onStartVoice}
-          voiceRxFooterLayout={voiceRxMode}
         />
       )}
     </div>

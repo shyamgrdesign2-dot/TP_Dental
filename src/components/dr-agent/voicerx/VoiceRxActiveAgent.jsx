@@ -10,19 +10,12 @@ import {
   MicOff,
   WifiOff
 } from "../atoms/icons/lucide";
-import { Clock, Setting2 } from "iconsax-reactjs";
 import {
   CaptionCarousel,
   VoiceTranscriptProcessingCard,
   hasTranscriptContent,
   transcriptToText
 } from "./VoiceTranscriptProcessingCard";
-import {
-  DropdownMenu as TPDropdownMenu,
-  DropdownMenuContent as TPDropdownMenuContent,
-  DropdownMenuItem as TPDropdownMenuItem,
-  DropdownMenuTrigger as TPDropdownMenuTrigger
-} from "../molecules/DropdownMenu";
 import { toast } from "./toast";
 import { useRxPadSync } from "../rxpad/dr-agent/RxPadSyncContext";
 import { VoiceRxSiriWaveform } from "./VoiceRxSiriWaveform";
