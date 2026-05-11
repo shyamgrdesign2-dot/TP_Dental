@@ -17,6 +17,18 @@ const RxPadSyncContext = createContext({
   setVoiceActive: () => {},
   activeVoiceModule: null,
   setActiveVoiceModule: () => {},
+  collapsedVoiceSession: {
+    active: false,
+    paused: false,
+    statusLabel: "",
+    elapsedLabel: "",
+    audioLevel: 0
+  },
+  setCollapsedVoiceSession: () => {},
+  voicePauseToggleRequest: 0,
+  requestVoicePauseToggle: () => {},
+  voiceSubmitRequest: 0,
+  requestVoiceSubmit: () => {},
   micUnavailable: false,
   micUnavailableReason: null,
   setMicUnavailable: () => {},
@@ -52,6 +64,24 @@ export function RxPadSyncProvider({ children }) {
   const [copyOverlayActive, setCopyOverlayActive] = useState(false);
   const copyOverlayTimerRef = useRef(null);
   const [activeVoiceModule, setActiveVoiceModule] = useState(null);
+  const [collapsedVoiceSession, setCollapsedVoiceSessionRaw] = useState({
+    active: false,
+    paused: false,
+    statusLabel: "",
+    elapsedLabel: "",
+    audioLevel: 0
+  });
+  const [voicePauseToggleRequest, setVoicePauseToggleRequest] = useState(0);
+  const [voiceSubmitRequest, setVoiceSubmitRequest] = useState(0);
+  const setCollapsedVoiceSession = useCallback((next) => {
+    setCollapsedVoiceSessionRaw((prev) => ({ ...prev, ...next }));
+  }, []);
+  const requestVoicePauseToggle = useCallback(() => {
+    setVoicePauseToggleRequest((prev) => prev + 1);
+  }, []);
+  const requestVoiceSubmit = useCallback(() => {
+    setVoiceSubmitRequest((prev) => prev + 1);
+  }, []);
   const [micUnavailable, setMicUnavailableRaw] = useState(false);
   const [micUnavailableReason, setMicUnavailableReason] = useState(null);
   const setMicUnavailable = useCallback((unavailable, reason) => {
@@ -205,6 +235,12 @@ export function RxPadSyncProvider({ children }) {
       runCopyWithAura,
       activeVoiceModule,
       setActiveVoiceModule,
+      collapsedVoiceSession,
+      setCollapsedVoiceSession,
+      voicePauseToggleRequest,
+      requestVoicePauseToggle,
+      voiceSubmitRequest,
+      requestVoiceSubmit,
       micUnavailable,
       micUnavailableReason,
       setMicUnavailable,
@@ -226,6 +262,8 @@ export function RxPadSyncProvider({ children }) {
       lastCopyRequest, lastSignal, requestCopyToRxPad, publishSignal,
       patientAllergies, aiFillInProgress, voiceActive, copyAllAuraActive,
       flashCopyAllAura, copyOverlayActive, runCopyWithAura, activeVoiceModule,
+      collapsedVoiceSession, setCollapsedVoiceSession, voicePauseToggleRequest,
+      requestVoicePauseToggle, voiceSubmitRequest, requestVoiceSubmit,
       micUnavailable, micUnavailableReason, historicalUpdates,
       isHistoricalSectionUnseen, pushHistoricalUpdates, acknowledgeHistoricalSection,
       dismissHistoricalHighlights, removeHistoricalChunk, lastUndoRequest,

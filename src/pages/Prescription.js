@@ -136,8 +136,7 @@ import { GB_OPTHAL_MODULE } from "../utils/constants";
 import { ASSETS } from "../assets";
 
 import "../components/dr-agent/dr-agent-globals.css";
-import { DrAgentPanel } from "../components/dr-agent/rxpad/dr-agent/DrAgentPanel";
-import { DrAgentFab } from "../components/dr-agent/rxpad/dr-agent/shell/DrAgentFab";
+import { DrAgentRuntime } from "../components/dr-agent/rxpad/dr-agent/shell/DrAgentRuntime";
 import { RxPadSyncProvider } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 
@@ -2546,20 +2545,14 @@ function Prescription() {
           </>
         )}
         <RxPadSyncProvider>
-          {drAgentOpen ? (
-            <div className={drAgentStyles.drAgentOverlay} data-dr-agent="true">
-              <DrAgentPanel
-                isPanelVisible={drAgentOpen}
-                voiceRxMode
-                patientId={patient_data?.patient_unique_id}
-                doctorId={profile?.doctor_unique_id}
-                onClose={() => setDrAgentOpen(false)}
-                onOpen={() => setDrAgentOpen(true)}
-              />
-            </div>
-          ) : (
-            <DrAgentFab onClick={() => setDrAgentOpen(true)} />
-          )}
+          <DrAgentRuntime
+            isOpen={drAgentOpen}
+            overlayClassName={drAgentStyles.drAgentOverlay}
+            patientId={patient_data?.patient_unique_id}
+            doctorId={profile?.doctor_unique_id}
+            onClose={() => setDrAgentOpen(false)}
+            onOpen={() => setDrAgentOpen(true)}
+          />
         </RxPadSyncProvider>
       </>
     </CashManagerContext.Provider>

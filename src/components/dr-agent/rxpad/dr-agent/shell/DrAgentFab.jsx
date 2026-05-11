@@ -57,14 +57,184 @@ function RecordingMicIcon({ size = 36 }) {
   );
 }
 
-export function DrAgentFab({ onClick, hasNudge, isPanelOpen, isModuleRecording }) {
+function ActiveMicIcon({ size = 21 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" strokeWidth="2.2" />
+      <path d="M5.5 10.5v1.2a6.5 6.5 0 0 0 13 0v-1.2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M12 18.2V21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ActiveCheckIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function DrAgentFab({
+  onClick,
+  hasNudge,
+  isPanelOpen,
+  isModuleRecording,
+  activeVoiceSession,
+  activeVoicePaused,
+  activeVoiceStatusLabel,
+  activeVoiceElapsedLabel,
+  activeVoiceAudioLevel = 0,
+  onPauseToggle,
+  onActiveSubmit
+}) {
+  const uid = useId();
+
+  if (activeVoiceSession) {
+    const shadowId = `${uid.replace(/[:]/g, "")}-active-shadow`;
+    const shellId = `${uid.replace(/[:]/g, "")}-active-shell`;
+    const title = activeVoicePaused ? "Paused" : "I'm listening";
+    const meta = activeVoiceElapsedLabel || activeVoiceStatusLabel || "00:00";
+    const normalizedAudioLevel = Math.max(0, Math.min(1, activeVoiceAudioLevel || 0));
+    const audioActive = !activeVoicePaused && normalizedAudioLevel > 0.04;
+
+    return (
+      <div
+        data-dr-agent="true"
+        className={cn(
+          styles.activeVoiceFab,
+          activeVoicePaused && styles.activeVoiceFabPaused,
+          audioActive && styles.activeVoiceFabAudioActive
+        )}
+        style={{ "--active-voice-level": normalizedAudioLevel.toFixed(3) }}
+        role="button"
+        tabIndex={0}
+        aria-label="Open active VoiceRx recording"
+        onClick={onClick}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") onClick?.();
+        }}
+      >
+        <div className={styles.activeVoiceInner}>
+          <svg
+            aria-hidden="true"
+            className={styles.activeVoiceSvg}
+            viewBox="0 0 430 115"
+            xmlns="http://www.w3.org/2000/svg"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            <defs>
+              <filter
+                id={shadowId}
+                x="0"
+                y="0"
+                width="430"
+                height="114.769"
+                filterUnits="userSpaceOnUse"
+                colorInterpolationFilters="sRGB"
+              >
+                <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                <feColorMatrix
+                  in="SourceAlpha"
+                  type="matrix"
+                  values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                  result="hardAlpha"
+                />
+                <feOffset dy="4" />
+                <feGaussianBlur stdDeviation="12" />
+                <feComposite in2="hardAlpha" operator="out" />
+                <feColorMatrix
+                  type="matrix"
+                  values="0 0 0 0 0.175838 0 0 0 0 0.173404 0 0 0 0 0.173404 0 0 0 0.42 0"
+                />
+                <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
+                <feBlend in="SourceGraphic" in2="effect1_dropShadow" mode="normal" result="shape" />
+              </filter>
+              <linearGradient
+                id={shellId}
+                x1="28.43"
+                x2="401.32"
+                y1="53"
+                y2="53"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0" stopColor="#D565EA" />
+                <stop offset="0.5" stopColor="#673AAC" />
+                <stop offset="1" stopColor="#1A1994" />
+              </linearGradient>
+            </defs>
+            <g filter={`url(#${shadowId})`}>
+              <path d={FAB_PATH} fill={`url(#${shellId})`} />
+            </g>
+          </svg>
+
+          <div className={styles.activeVoiceContentWrapper}>
+            <div className={styles.activeVoiceContent}>
+              <button
+                type="button"
+                className={[styles.activeSurface, styles.activeMicButton].join(" ")}
+                aria-label={activeVoicePaused ? "Resume VoiceRx recording" : "Pause VoiceRx recording"}
+                data-muted={activeVoicePaused ? "true" : "false"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPauseToggle?.();
+                }}
+              >
+                <span className={styles.activeIconUnrotate}>
+                  <ActiveMicIcon />
+                </span>
+              </button>
+
+              <div className={styles.activeCenterStack}>
+                <div className={styles.activeWaveRow}>
+                  <span className={styles.activeWaveBars} aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  <span className={styles.activeElapsedLabel}>{meta}</span>
+                </div>
+
+                <div className={styles.activeLabelRow}>
+                  <span className={styles.activeStatusLabel}>{title}</span>
+                  {!activeVoicePaused && (
+                    <span className={styles.activeDotsRow} aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className={[styles.activeSurface, styles.activeSubmitButton].join(" ")}
+                aria-label="Open active VoiceRx recording"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onActiveSubmit?.();
+                }}
+              >
+                <span className={styles.activeIconUnrotate}>
+                  <ActiveCheckIcon />
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const SHELL_W = 230;
   const SHELL_H = 66;
   const VB_H_SCALED = SHELL_W * (115 / 430);
   const MEET_OFFSET_Y = (SHELL_H - VB_H_SCALED) / 2;
   const SCALE = SHELL_W / 430;
 
-  const uid = useId();
   const shadowId = `${uid.replace(/[:]/g, "")}-fab-shadow`;
   const shellId = `${uid.replace(/[:]/g, "")}-fab-shell`;
   const sheenId = `${uid.replace(/[:]/g, "")}-fab-sheen`;

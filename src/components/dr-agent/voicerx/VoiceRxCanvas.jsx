@@ -13,8 +13,9 @@ import {
 import { ShineBorder } from "./ShineBorder";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
-import { VoiceRxModuleRecorder } from "./VoiceRxModuleRecorder";
+import { VoiceRecorderCore } from "./VoiceRecorderCore";
 import { toast } from "./toast";
+import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import styles from "./VoiceRxCanvas.module.scss";
 
 const VRX_CANVAS_COACHMARK_KEY = "tp-vrx-canvas-coachmark-v1";
@@ -65,14 +66,15 @@ export function VoiceRxCanvas({
   void modeLabel;
 
   const [activeTab, setActiveTab] = useState("emr");
-  const navLocked = false;
   const transcriptCount = Array.isArray(transcriptSegments) ? transcriptSegments.length : 0;
 
   const [feedback, setFeedback] = useState({ emr: null });
   const [voiceEditOpen, setVoiceEditOpen] = useState(false);
   const [voiceEditProcessing, setVoiceEditProcessing] = useState(false);
+  const navLocked = voiceEditProcessing;
   const [voiceEditPhase, setVoiceEditPhase] = useState("idle");
   const [voiceEditTranscript, setVoiceEditTranscript] = useState("");
+  const [voiceEditBackConfirmOpen, setVoiceEditBackConfirmOpen] = useState(false);
   const handleFeedback = (tab, val) => {
     setFeedback((prev) => ({ ...prev, [tab]: prev[tab] === val ? null : val }));
   };
@@ -112,12 +114,12 @@ export function VoiceRxCanvas({
     onAddDetailsByVoice?.();
   };
 
-  const handleVoiceEditSubmit = async (voiceMeta) => {
+  const handleVoiceEditSubmit = async ({ audioBlob, transcript, durationMs } = {}) => {
     setVoiceEditProcessing(true);
     setVoiceEditPhase("creating_transcript");
     setVoiceEditTranscript("");
     try {
-      await onQuickEditSubmit?.(voiceMeta, {
+      await onQuickEditSubmit?.({ audioBlob, transcript, durationMs }, {
         onPhase: (phase, payload = {}) => {
           setVoiceEditPhase(phase);
           if (Object.prototype.hasOwnProperty.call(payload, "transcript")) {
@@ -135,10 +137,25 @@ export function VoiceRxCanvas({
   };
 
   const handleVoiceEditCancel = () => {
+    setVoiceEditBackConfirmOpen(false);
     setVoiceEditOpen(false);
     setVoiceEditProcessing(false);
     setVoiceEditPhase("idle");
     setVoiceEditTranscript("");
+  };
+
+  const handleBackClick = () => {
+    if (navLocked) return;
+    if (voiceEditOpen) {
+      setVoiceEditBackConfirmOpen(true);
+      return;
+    }
+    onBack?.();
+  };
+
+  const handleDiscardVoiceEditAndBack = () => {
+    handleVoiceEditCancel();
+    onBack?.();
   };
 
   return (
@@ -148,7 +165,7 @@ export function VoiceRxCanvas({
         <span className={["vrx-cn-mode-pill", styles.modePill].join(" ")}>
           <button
             type="button"
-            onClick={navLocked ? undefined : onBack}
+            onClick={navLocked ? undefined : handleBackClick}
             disabled={navLocked}
             aria-label="Back to chat"
             className={[
@@ -309,24 +326,34 @@ export function VoiceRxCanvas({
       {voiceEditOpen ? (
         <div className={styles.overlayWrap}>
           <div className={styles.overlayInner}>
-            {voiceEditProcessing ? (
-              <VoiceEditProcessing
-                phase={voiceEditPhase}
-                transcript={voiceEditTranscript} />
-            ) : (
-              <VoiceRxModuleRecorder
-                sectionLabel="Clinical Notes"
-                showSectionInStatus={false}
-                onCancel={handleVoiceEditCancel}
-                onSubmit={handleVoiceEditSubmit}
-                radiusClassName="rounded-t-[18px]"
-                variant="stack"
-                fillHeight
-              />
-            )}
+            <VoiceRecorderCore
+              layout="overlay"
+              sectionLabel="Clinical Notes"
+              showSectionInStatus={false}
+              isAwaitingResponse={voiceEditProcessing}
+              processingTranscript={voiceEditTranscript}
+              processingLabel={voiceEditPhase === "creating_transcript" ? "Capturing your consultation…" : "Updating clinical notes…"}
+              onCancel={handleVoiceEditCancel}
+              onSubmit={handleVoiceEditSubmit}
+              radiusClassName="rounded-t-[18px]"
+              variant="stack"
+              fillHeight
+              enableCollapsedVoiceSession
+            />
           </div>
         </div>
       ) : null}
+      <TPConfirmDialog
+        open={voiceEditBackConfirmOpen}
+        onOpenChange={setVoiceEditBackConfirmOpen}
+        title="Close this voice consultation?"
+        warning="Are you sure you want to close this voice Rx? If you close it, no data will be stored."
+        primaryLabel="Keep recording"
+        onPrimary={() => setVoiceEditBackConfirmOpen(false)}
+        secondaryLabel="Discard & Go Back"
+        secondaryTone="destructive"
+        onSecondary={handleDiscardVoiceEditAndBack}
+      />
     </div>
   );
 }

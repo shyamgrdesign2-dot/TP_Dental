@@ -89,6 +89,13 @@
 
   &:hover { color: var(--tp-slate-900); }
   &:active { transform: scale(0.92); }
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--tp-slate-300);
+    opacity: 0.55;
+  }
+  &:disabled:hover { color: var(--tp-slate-300); }
+  &:disabled:active { transform: none; }
 }
 
 .modeHeadingLabel {
@@ -119,6 +126,19 @@
 
   &:hover { color: var(--tp-slate-900); }
   &:active { transform: scale(0.95); }
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--tp-slate-300);
+    opacity: 0.55;
+  }
+  &:disabled:hover { color: var(--tp-slate-300); }
+  &:disabled:active { transform: none; }
+}
+
+.navBtnDisabled {
+  cursor: not-allowed;
+  color: var(--tp-slate-300);
+  opacity: 0.55;
 }
 
 // ── Main body ─────────────────────────────────────────────────────────────────

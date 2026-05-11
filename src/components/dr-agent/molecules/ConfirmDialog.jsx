@@ -54,7 +54,7 @@ export function ConfirmDialog({
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
           {title && (
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a", lineHeight: 1.35 }}>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a", lineHeight: 1.35 }}>
               {title}
             </h3>
           )}
@@ -113,7 +113,7 @@ export function ConfirmDialog({
               background: "transparent",
               color: destructive ? "#DC2626" : "#0f172a",
               cursor: "pointer",
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: 600,
               textDecoration: "underline",
               textUnderlineOffset: 3,
@@ -131,7 +131,7 @@ export function ConfirmDialog({
               background: "#4B4AD5",
               color: "#fff",
               cursor: "pointer",
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: 600,
             }}
           >

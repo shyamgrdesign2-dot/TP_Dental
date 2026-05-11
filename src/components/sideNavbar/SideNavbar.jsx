@@ -29,6 +29,7 @@ import {
   SidebarLeft,
 } from "iconsax-reactjs";
 import { VoiceRxIcon } from "../dr-agent/voicerx/voice-consult-icons";
+import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
 import CashManagerContext from "../../context/CashManagerContext";
 import { useAccess } from "../../pages/vaccination/useAccess";
@@ -2803,137 +2804,15 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
   );
 }
 
-function formatRecElapsed(ms) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(total / 60).toString().padStart(2, "0");
-  const s = (total % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}
 
-function VoiceOverlay({ activeId, voiceState, onSubmit, onCancel, onClose }) {
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const startRef = useRef(Date.now());
-
-  useEffect(() => {
-    if (voiceState?.status !== "recording") { setElapsedMs(0); return undefined; }
-    startRef.current = Date.now();
-    const id = window.setInterval(() => setElapsedMs(Date.now() - startRef.current), 500);
-    return () => window.clearInterval(id);
-  }, [voiceState?.status]);
-
-  if (!voiceState || voiceState.status === "idle" || voiceState.status === "done") return null;
-
-  const title = sectionVoiceLabel(activeId);
-  const isRecording = voiceState.status === "recording";
-  const isProcessing = voiceState.status === "transcribing" || voiceState.status === "digitizing";
-  const isError = voiceState.status === "error";
-
-  return (
-    <div className="snv-vrx-overlay" data-voice-allow="true">
-      {isRecording ? (
-        <>
-          {/* transcript placeholder */}
-          <div className="snv-vrx-transcript-area">
-            <p className="snv-vrx-transcript-placeholder">
-              Speak naturally to add {title.toLowerCase()} details.
-            </p>
-          </div>
-
-          {/* CTA row — cancel | mic+chevron | submit */}
-          <div className="snv-vrx-cta-row">
-            <button
-              type="button"
-              onClick={onCancel}
-              aria-label="Cancel dictation"
-              className="vrx-lg-btn vrx-close-btn snv-vrx-cta-sq">
-              <span className="vrx-lg-surface" aria-hidden="true" />
-              <span className="vrx-lg-sheen" aria-hidden="true" />
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="snv-vrx-x-icon" aria-hidden="true">
-                <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-
-            <span className="snv-vrx-divider" aria-hidden="true" />
-
-            <div className="vrx-lg-btn snv-vrx-mic-group">
-              <span className="vrx-lg-surface" aria-hidden="true" />
-              <span className="vrx-lg-sheen" aria-hidden="true" />
-              <span className="snv-vrx-mic-icon-wrap" aria-hidden="true">
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path opacity="0.4" d="M19.12 9.12c-.39 0-.7.31-.7.7v1.58c0 3.54-2.88 6.42-6.42 6.42s-6.42-2.88-6.42-6.42V9.81c0-.39-.31-.7-.7-.7-.39 0-.7.31-.7.7v1.58c0 4.07 3.13 7.42 7.12 7.78v2.13c0 .39.31.7.7.7.39 0 .7-.31.7-.7v-2.13c3.98-.35 7.12-3.71 7.12-7.78V9.81a.707.707 0 0 0-.7-.69Z" />
-                  <path d="M12 2c-2.44 0-4.42 1.98-4.42 4.42v5.12c0 2.44 1.98 4.42 4.42 4.42s4.42-1.98 4.42-4.42V6.42C16.42 3.98 14.44 2 12 2Z" />
-                </svg>
-              </span>
-              <div className="vrx-lg-divider" aria-hidden="true" />
-              <span className="snv-vrx-chevron" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-            </div>
-
-            <span className="snv-vrx-divider" aria-hidden="true" />
-
-            <button
-              type="button"
-              onClick={onSubmit}
-              aria-label="Submit dictation"
-              className="vrx-submit-hero vrx-submit-enabled snv-vrx-submit-btn">
-              <span className="vrx-submit-gradient" style={{ position: "absolute", inset: 0, borderRadius: "inherit" }} aria-hidden="true" />
-              <span className="vrx-submit-sheen" aria-hidden="true" />
-              <span className="snv-vrx-submit-inner">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M20.46 6.18L8.82 17.82L3.53 12.53" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>Submit</span>
-              </span>
-            </button>
-          </div>
-
-          {/* Status pill */}
-          <div className="snv-vrx-status-row">
-            <div className="vrx-status-card" role="status" aria-live="polite">
-              <span className="snv-vrx-rec-dot">
-                <span className="snv-vrx-rec-ring" aria-hidden="true" />
-              </span>
-              <span className="snv-vrx-status-text">
-                Listening
-                <span className="snv-vrx-status-section">{" · "}{title}</span>
-                {elapsedMs > 0 ? <span className="snv-vrx-status-elapsed">{" ("}{formatRecElapsed(elapsedMs)}{")"}</span> : null}
-              </span>
-            </div>
-          </div>
-        </>
-      ) : null}
-
-      {isProcessing ? (
-        <div className="snv-voice-processing">
-          <div className="snv-processing-card">
-            <span className="snv-processing-glow" />
-            <span>{voiceState.status === "transcribing" ? "Structuring your transcript" : "Filling this section"}</span>
-          </div>
-          <div className="snv-processing-caption">
-            {voiceState.status === "transcribing" ? "Sending audio to transcription API..." : "Calling digitise-data and mapping the response..."}
-          </div>
-        </div>
-      ) : null}
-
-      {isError ? (
-        <div className="snv-voice-error-panel">
-          <div className="snv-voice-error-title">Voice processing failed</div>
-          <div className="snv-voice-error-message">{voiceState.error || "Please try again."}</div>
-          <button type="button" className="snv-voice-error-close" onClick={onClose}>Close</button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
-  const overlayActive = voiceState && !["idle", "done"].includes(voiceState.status);
+  const voiceStatus = voiceState?.status;
+  const overlayActive = voiceState && !["idle", "done"].includes(voiceStatus);
+  const voiceRecorderVisible = overlayActive;
+  const isAwaitingResponse = voiceStatus === "transcribing" || voiceStatus === "digitizing";
+  const processingLabel = voiceStatus === "transcribing" ? "Capturing your consultation…" : voiceStatus === "digitizing" ? "Filling section…" : undefined;
 
   useEdgeSwipeNavigation({
     containerRef,
@@ -2974,13 +2853,23 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onPrivateNotesChange={onPrivateNotesChange}
         />
       </div>
-      <VoiceOverlay
-        activeId={activeId}
-        voiceState={voiceState}
-        onSubmit={onVoiceSubmit}
-        onCancel={onVoiceCancel}
-        onClose={onVoiceOverlayClose}
-      />
+      {voiceRecorderVisible && (
+        <div className="snv-vrx-overlay" data-dr-agent="true" data-voice-allow="true">
+          <VoiceRecorderCore
+            layout="overlay"
+            variant="stack"
+            fillHeight
+            sectionLabel={sectionVoiceLabel(activeId)}
+            showSectionInStatus
+            isAwaitingResponse={isAwaitingResponse}
+            processingLabel={processingLabel}
+            error={voiceStatus === "error" ? (voiceState?.error || "Voice processing failed.") : null}
+            onClose={onVoiceOverlayClose}
+            onCancel={onVoiceCancel}
+            onSubmit={onVoiceRecorderSubmit}
+          />
+        </div>
+      )}
     </section>
   );
 }
@@ -2990,13 +2879,6 @@ function createSessionId() {
   return `snv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function pickMimeType() {
-  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
-  if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) return "audio/webm;codecs=opus";
-  if (MediaRecorder.isTypeSupported("audio/webm")) return "audio/webm";
-  if (MediaRecorder.isTypeSupported("audio/mp4")) return "audio/mp4";
-  return "";
-}
 
 export function SideNavbar({
   onSectionSelect,
@@ -3038,11 +2920,6 @@ export function SideNavbar({
     privateNotesData,
     setPrivateNotesData,
   } = useContext(CashManagerContext) || {};
-  const recorderRef = useRef(null);
-  const streamRef = useRef(null);
-  const chunksRef = useRef([]);
-  const activeVoiceSectionRef = useRef(null);
-  const cancelVoiceRef = useRef(false);
   useEffect(() => {
     activePatientRef.current = patientId;
   }, [patientId]);
@@ -3361,24 +3238,14 @@ export function SideNavbar({
     setActiveSection(next, dir);
   }, [activeId, setActiveSection]);
 
-  const stopStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  };
-
-  const updateVoiceState = (sectionId, patch) => {
+  const updateVoiceState = useCallback((sectionId, patch) => {
     setVoiceBySection((prev) => ({
       ...prev,
-      [sectionId]: {
-        ...(prev[sectionId] || {}),
-        ...patch,
-      },
+      [sectionId]: { ...(prev[sectionId] || {}), ...patch },
     }));
-  };
+  }, []);
 
-  const transcribeSectionAudio = async (sectionId, audioBlob) => {
+  const transcribeSectionAudio = useCallback(async (sectionId, audioBlob) => {
     updateVoiceState(sectionId, { status: "transcribing", error: "", transcript: "", digitizedSummary: "" });
     let transcript = "";
     try {
@@ -3413,105 +3280,29 @@ export function SideNavbar({
     } catch (error) {
       console.error("[sideNavbar] voice processing failed", { sectionId, error });
       updateVoiceState(sectionId, { status: "error", error: error?.message || "Voice processing failed.", transcript, digitizedSummary: "" });
-    } finally {
-      stopStream();
-      recorderRef.current = null;
-      activeVoiceSectionRef.current = null;
-      chunksRef.current = [];
-      cancelVoiceRef.current = false;
     }
-  };
+  }, [patientId, doctorId, updateVoiceState]);
 
-  const handleVoiceClick = async () => {
+  const handleVoiceClick = useCallback(() => {
     if (!activeId) return;
-
     const existing = voiceBySection[activeId]?.status;
-    if (existing === "recording" || existing === "transcribing" || existing === "digitizing") {
-      return;
-    }
+    if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
+    updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
+  }, [activeId, voiceBySection, updateVoiceState]);
 
-    if (recorderRef.current && recorderRef.current.state === "recording") {
-      recorderRef.current.stop();
-    }
+  const handleVoiceRecorderSubmit = useCallback(({ audioBlob } = {}) => {
+    if (activeId) transcribeSectionAudio(activeId, audioBlob);
+  }, [activeId, transcribeSectionAudio]);
 
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      updateVoiceState(activeId, { status: "error", error: "Audio recording is not supported in this browser.", transcript: "" });
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      chunksRef.current = [];
-      activeVoiceSectionRef.current = activeId;
-      cancelVoiceRef.current = false;
-
-      const mimeType = pickMimeType();
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      recorderRef.current = recorder;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data?.size) chunksRef.current.push(event.data);
-      };
-
-      recorder.onstop = () => {
-        const sectionId = activeVoiceSectionRef.current || activeId;
-        if (cancelVoiceRef.current) {
-          updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
-          stopStream();
-          recorderRef.current = null;
-          activeVoiceSectionRef.current = null;
-          chunksRef.current = [];
-          cancelVoiceRef.current = false;
-          return;
-        }
-        const type = chunksRef.current[0]?.type || mimeType || "audio/webm";
-        const blob = new Blob(chunksRef.current, { type });
-        transcribeSectionAudio(sectionId, blob);
-      };
-
-      recorder.onerror = (event) => {
-        const sectionId = activeVoiceSectionRef.current || activeId;
-        updateVoiceState(sectionId, { status: "error", error: event.error?.message || "Recording failed.", transcript: "" });
-        stopStream();
-      };
-
-      recorder.start();
-      updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-    } catch (error) {
-      updateVoiceState(activeId, { status: "error", error: error?.message || "Microphone permission was denied.", transcript: "" });
-      stopStream();
-    }
-  };
-
-  const handleVoiceSubmit = () => {
-    if (recorderRef.current?.state === "recording") {
-      cancelVoiceRef.current = false;
-      recorderRef.current.stop();
-    }
-  };
-
-  const handleVoiceCancel = () => {
-    const sectionId = activeVoiceSectionRef.current || activeId;
-    cancelVoiceRef.current = true;
-    if (recorderRef.current?.state === "recording") {
-      recorderRef.current.stop();
-      return;
-    }
-    updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
-    stopStream();
-  };
-
-  const handleVoiceOverlayClose = () => {
+  const handleVoiceCancel = useCallback(() => {
     if (!activeId) return;
     updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
-  };
+  }, [activeId, updateVoiceState]);
 
-  useEffect(() => () => {
-    cancelVoiceRef.current = true;
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
-    stopStream();
-  }, []);
+  const handleVoiceOverlayClose = useCallback(() => {
+    if (!activeId) return;
+    updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
+  }, [activeId, updateVoiceState]);
 
   return (
     <aside className="snv-root" data-side-navbar="true">
@@ -3524,7 +3315,7 @@ export function SideNavbar({
           transitionDir={transitionDir}
           voiceState={voiceBySection[activeId]}
           onVoiceClick={handleVoiceClick}
-          onVoiceSubmit={handleVoiceSubmit}
+          onVoiceRecorderSubmit={handleVoiceRecorderSubmit}
           onVoiceCancel={handleVoiceCancel}
           onVoiceOverlayClose={handleVoiceOverlayClose}
           viewData={viewData}
