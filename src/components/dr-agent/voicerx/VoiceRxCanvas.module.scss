@@ -394,9 +394,11 @@
   min-height: 0;
   flex-shrink: 0;
   overflow: hidden;
+  clip-path: inset(0 round 18px);
   border-radius: 18px;
   background: rgba(248, 250, 252, 0.74);
   box-shadow: none;
+  isolation: isolate;
 }
 
 .overlayTranscriptScroll {
@@ -409,14 +411,33 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 18px 22px;
+  padding: 18px 22px 22px;
+  contain: paint;
   scrollbar-width: none;
+  scrollbar-color: transparent transparent;
   -ms-overflow-style: none;
 
   &::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
     display: none;
-    width: 0;
-    height: 0;
+  }
+
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none;
+  }
+
+  :global(.vrx-chat-turn) {
+    opacity: 1;
+    transform: none;
+    animation: none;
   }
 }
 

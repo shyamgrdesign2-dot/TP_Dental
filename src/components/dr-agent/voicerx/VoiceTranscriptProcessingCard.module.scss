@@ -43,6 +43,8 @@
 .shinerCard {
   box-shadow: none;
   background: rgba(248, 250, 252, 0.60);
+  clip-path: inset(0 round 16px);
+  isolation: isolate;
 }
 
 .shinerBody {
@@ -55,13 +57,32 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 14px;
+  contain: paint;
   scrollbar-width: none;
+  scrollbar-color: transparent transparent;
   -ms-overflow-style: none;
 
   &::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
     display: none;
-    width: 0;
-    height: 0;
+  }
+
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none;
+  }
+
+  :global(.vrx-chat-turn) {
+    opacity: 1;
+    transform: none;
+    animation: none;
   }
 }
 
