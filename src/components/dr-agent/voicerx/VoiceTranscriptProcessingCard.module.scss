@@ -41,7 +41,7 @@
 
 // ── Shiner card shell ─────────────────────────────────────────────────────────
 .shinerCard {
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
   background: rgba(248, 250, 252, 0.60);
 }
 
@@ -51,8 +51,18 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 14px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 }
 
 .creatingTranscript {
@@ -61,8 +71,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--tp-slate-500);
   font-style: italic;
@@ -237,10 +246,17 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .turnRow {
   display: flex;
+  min-width: 0;
   width: 100%;
 }
 
@@ -253,12 +269,16 @@
 }
 
 .turnBubble {
+  box-sizing: border-box;
+  min-width: 0;
   max-width: 85%;
   border-radius: 12px;
   padding: 8px 12px;
   font-size: 14px;
   line-height: 1.55;
   color: var(--tp-slate-700);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .turnBubbleDoctor {

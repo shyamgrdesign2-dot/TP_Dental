@@ -460,7 +460,7 @@ export const SNAP_RX_KNOW_MORE_DATA = {
 
 export const HIDE_ROUTES = {
   BANNER: ["/snap-rx"],
-  TALKATIVE: ["/snap-rx"],
+  TALKATIVE: ["/snap-rx", "/prescription"],
 };
 
 

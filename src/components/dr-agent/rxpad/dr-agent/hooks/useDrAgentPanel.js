@@ -26,7 +26,12 @@ import { parseVoiceToStructuredRx } from "../engines/voice-rx-engine";
 import { VOICE_RX_DICTATION_CHUNKS, VOICE_RX_AMBIENT_CHUNKS } from "../../../voicerx/utils";
 import { emrSectionsToHtml } from "../../../voicerx/emrUtils";
 import { createVoiceRxSessionContext } from "../../../voicerx/api/run-voice-rx-pipeline";
-import { transcribeAudio, digitiseClinicalData } from "../../../voicerx/api/clinical-processing";
+import {
+  transcribeAudio,
+  digitiseClinicalData,
+  transcriptToText as clinicalTranscriptToText,
+  hasTranscriptContent as clinicalHasTranscriptContent
+} from "../../../voicerx/api/clinical-processing";
 import { digitizationToSections, digitizationToHtml } from "../../../voicerx/utils/result-formatters";
 
 import { useLiveTranscript } from "../../../voicerx/use-live-transcript";
@@ -348,14 +353,15 @@ export function useDrAgentPanel({
     }));
 
     try {
-      progress?.onPhase?.("creating_transcript", { transcript: meta?.transcript || "" });
+      progress?.onPhase?.("creating_transcript", { transcript: "" });
       console.log("[voice-rx] quick-edit phase:", "transcribing");
       const apiTranscript = await transcribeAudio({
         audioBlob,
         context,
         signal: abortController.signal
       });
-      const finalTranscript = (apiTranscript && apiTranscript.trim()) || meta?.transcript || "";
+      const finalTranscript = clinicalHasTranscriptContent(apiTranscript) ? apiTranscript : meta?.transcript || "";
+      const finalTranscriptText = clinicalTranscriptToText(finalTranscript);
       progress?.onPhase?.("transcript_ready", { transcript: finalTranscript });
 
       console.log("[voice-rx] quick-edit phase:", "digitising");
@@ -384,7 +390,7 @@ export function useDrAgentPanel({
 
       setMessagesByPatient((prev) => {
         const list = prev[selectedPatientId] || [];
-        const updated = list.map((m) => m.id === userMsg.id ? { ...m, text: finalTranscript, voiceTranscript: finalTranscript } : m);
+        const updated = list.map((m) => m.id === userMsg.id ? { ...m, text: finalTranscriptText, voiceTranscript: finalTranscriptText } : m);
         return { ...prev, [selectedPatientId]: updated };
       });
 
@@ -423,7 +429,7 @@ export function useDrAgentPanel({
             }, newSegment];
         return {
           ...prev,
-          transcript: transcriptSegments.map((s) => s.body).join("\n\n"),
+          transcript: transcriptSegments.map((s) => clinicalTranscriptToText(s.body)).join("\n\n"),
           transcriptSegments,
           sections: resultSections,
           clinicalNotesHtml,
@@ -541,7 +547,8 @@ export function useDrAgentPanel({
           signal: abortController.signal
         });
 
-        const finalTranscript = (apiTranscript && apiTranscript.trim()) || liveText || "";
+        const finalTranscript = clinicalHasTranscriptContent(apiTranscript) ? apiTranscript : liveText || "";
+        const finalTranscriptText = clinicalTranscriptToText(finalTranscript);
         setVoiceRxProcessingTranscript(finalTranscript);
 
         await waitForButtonLoaderWindow();
@@ -563,7 +570,7 @@ export function useDrAgentPanel({
         // Update the user echo bubble with the real transcript.
         setMessagesByPatient((prev) => {
           const list = prev[selectedPatientId] || [];
-          const updated = list.map((m) => m.id === userMsg.id ? { ...m, text: finalTranscript, voiceTranscript: finalTranscript } : m);
+          const updated = list.map((m) => m.id === userMsg.id ? { ...m, text: finalTranscriptText, voiceTranscript: finalTranscriptText } : m);
           return { ...prev, [selectedPatientId]: updated };
         });
 
@@ -599,11 +606,11 @@ export function useDrAgentPanel({
         const transcriptSegments = prior?.transcriptSegments
           ? [...prior.transcriptSegments, newSegment]
           : [newSegment];
-        const mergedTranscript = transcriptSegments.map((s) => s.body).join("\n\n");
+        const mergedTranscriptText = transcriptSegments.map((s) => clinicalTranscriptToText(s.body)).join("\n\n");
         priorVoiceResultRef.current = null;
 
         setVoiceRxResult({
-          transcript: mergedTranscript,
+          transcript: mergedTranscriptText,
           transcriptSegments,
           sections: resultSections,
           clinicalNotesHtml,

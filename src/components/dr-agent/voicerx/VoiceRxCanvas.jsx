@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download as DownloadIcon, X } from "../atoms/icons/lucide";
 import { Copy as CopyGlyph, DocumentText, InfoCircle, Microphone2 } from "iconsax-reactjs";
 import { HoverTooltip } from "../atoms/Tooltip";
-import { DictationTranscript } from "./VoiceTranscriptProcessingCard";
+import {
+  CaptionCarousel,
+  ConversationTranscript,
+  DictationTranscript,
+  hasDiarizedTranscript,
+  hasTranscriptContent,
+  transcriptToText
+} from "./VoiceTranscriptProcessingCard";
+import { ShineBorder } from "./ShineBorder";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
 import { VoiceRxModuleRecorder } from "./VoiceRxModuleRecorder";
@@ -21,13 +29,14 @@ function formatDuration(ms) {
 }
 
 function downloadTranscript({ heading, body, durationMs }) {
-  if (typeof document === "undefined" || typeof URL === "undefined" || !body) return;
+  const transcriptBody = transcriptToText(body);
+  if (typeof document === "undefined" || typeof URL === "undefined" || !transcriptBody) return;
   const safeHeading = (heading || "transcript").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "transcript";
   const content = [
     heading || "Transcript",
     durationMs > 0 ? `Duration: ${formatDuration(durationMs)}` : null,
     "",
-    body
+    transcriptBody
   ].filter((line) => line !== null).join("\n");
   const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -64,7 +73,6 @@ export function VoiceRxCanvas({
   const [voiceEditProcessing, setVoiceEditProcessing] = useState(false);
   const [voiceEditPhase, setVoiceEditPhase] = useState("idle");
   const [voiceEditTranscript, setVoiceEditTranscript] = useState("");
-  const voiceEditProcessingTimerRef = useRef(null);
   const handleFeedback = (tab, val) => {
     setFeedback((prev) => ({ ...prev, [tab]: prev[tab] === val ? null : val }));
   };
@@ -92,12 +100,6 @@ export function VoiceRxCanvas({
     onCopyToRx?.();
   };
 
-  useEffect(() => () => {
-    if (voiceEditProcessingTimerRef.current) {
-      window.clearTimeout(voiceEditProcessingTimerRef.current);
-    }
-  }, []);
-
   const handleVoiceEditOpen = () => {
     if (coachmarkVisible) dismissCoachmark();
     if (onQuickEditSubmit) {
@@ -113,11 +115,7 @@ export function VoiceRxCanvas({
   const handleVoiceEditSubmit = async (voiceMeta) => {
     setVoiceEditProcessing(true);
     setVoiceEditPhase("creating_transcript");
-    setVoiceEditTranscript(voiceMeta?.transcript || "");
-    if (voiceEditProcessingTimerRef.current) {
-      window.clearTimeout(voiceEditProcessingTimerRef.current);
-      voiceEditProcessingTimerRef.current = null;
-    }
+    setVoiceEditTranscript("");
     try {
       await onQuickEditSubmit?.(voiceMeta, {
         onPhase: (phase, payload = {}) => {
@@ -137,10 +135,6 @@ export function VoiceRxCanvas({
   };
 
   const handleVoiceEditCancel = () => {
-    if (voiceEditProcessingTimerRef.current) {
-      window.clearTimeout(voiceEditProcessingTimerRef.current);
-      voiceEditProcessingTimerRef.current = null;
-    }
     setVoiceEditOpen(false);
     setVoiceEditProcessing(false);
     setVoiceEditPhase("idle");
@@ -338,30 +332,36 @@ export function VoiceRxCanvas({
 }
 
 function VoiceEditProcessing({ phase, transcript }) {
-  const hasTranscript = Boolean((transcript || "").trim());
-  const isCreatingTranscript = phase === "creating_transcript";
-  const isStructuring = phase === "structuring_notes";
-  const statusText = isCreatingTranscript
-    ? "Capturing your consultation…"
-    : isStructuring
-      ? "Preparing entries for review..."
-      : "Transcript created";
+  const hasTranscript = hasTranscriptContent(transcript);
+  const isDiarized = hasDiarizedTranscript(transcript);
 
   return (
     <div className={styles.overlayProcessing}>
       <div className={styles.overlayProcessingCard}>
-        <div className={styles.overlayTranscriptFrame}>
-          {hasTranscript ? (
-            <DictationTranscript
-              raw={transcript}
-              animate={phase === "transcript_ready"} />
-          ) : (
-            <p className={styles.overlayTranscriptPlaceholder}>
-              Capturing your consultation…
-            </p>
-          )}
+        <div className={[styles.overlayTranscriptFrame, "relative"].join(" ")}>
+          <ShineBorder
+            variant="rotate"
+            borderWidth={1.5}
+            duration={2.2}
+            shineColor={["#D565EA", "#673AAC", "#1A1994"]}
+            baseColor="rgba(226,226,234,0.95)" />
+          <div className={styles.overlayTranscriptScroll}>
+            {hasTranscript ? (
+              isDiarized ? (
+                <ConversationTranscript raw={transcript} />
+              ) : (
+                <DictationTranscript
+                  raw={transcript}
+                  animate={phase === "transcript_ready"} />
+              )
+            ) : (
+              <p className={styles.overlayTranscriptPlaceholder}>
+                Capturing your consultation…
+              </p>
+            )}
+          </div>
         </div>
-        <span className={styles.overlayProcessingText}>{statusText}</span>
+        <CaptionCarousel />
         <span className={styles.overlayProgressTrack} aria-hidden>
           <span className={styles.overlayProgressBar} />
         </span>
@@ -371,11 +371,16 @@ function VoiceEditProcessing({ phase, transcript }) {
 }
 
 function TranscriptCard({ heading, body, durationMs, timeLabel }) {
+  const isDiarized = hasDiarizedTranscript(body);
   return (
     <div className={styles.transcriptCard}>
       <div className={["vrx-transcript-frame", styles.transcriptCardFrame].join(" ")}>
         <p className={styles.transcriptCardHeading}>{heading}</p>
-        <DictationTranscript raw={body} animate={false} />
+        {isDiarized ? (
+          <ConversationTranscript raw={body} />
+        ) : (
+          <DictationTranscript raw={body} animate={false} />
+        )}
         <div className={styles.transcriptCardDivider} />
         <div className={styles.transcriptCardMeta}>
           <span>

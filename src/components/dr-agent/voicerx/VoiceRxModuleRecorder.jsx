@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../atoms/Popover";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import { useRxPadSync } from "../rxpad/dr-agent/RxPadSyncContext";
 import { playVoiceRxErrorSound, playVoiceRxStartSound } from "./audio";
+import { toast } from "./toast";
 import styles from "./VoiceRxModuleRecorder.module.scss";
 
 function AnimatedTranscriptPreview({ text, className }) {
@@ -44,6 +45,8 @@ function formatElapsed(ms) {
   return `${m}:${s}`;
 }
 
+const SUBMIT_PROCESSING_MS = 5000;
+
 export function VoiceRxModuleRecorder({
   sectionLabel,
   showSectionInStatus = true,
@@ -66,6 +69,7 @@ export function VoiceRxModuleRecorder({
   const [liveTranscript, setLiveTranscript] = useState("");
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [micRetryKey, setMicRetryKey] = useState(0);
+  const [submitProcessing, setSubmitProcessing] = useState(false);
   const startRef = useRef(Date.now());
   const containerRef = useRef(null);
   const levelRef = useRef(0);
@@ -181,7 +185,7 @@ export function VoiceRxModuleRecorder({
   const networkPaused = !net.online || net.slowConnection;
   const hasMicError = Boolean(micError);
   const criticalBlock = hasMicError || networkPaused;
-  const isPaused = manualMute || criticalBlock;
+  const isPaused = submitProcessing || manualMute || criticalBlock;
   const isListening = !isPaused;
 
   useEffect(() => {
@@ -204,6 +208,29 @@ export function VoiceRxModuleRecorder({
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const mimeTypeRef = useRef("audio/webm");
+  const activeDevice = useMemo(() => {
+    const track = stream?.getAudioTracks?.()[0];
+    const activeDeviceId = (track?.getSettings?.().deviceId) || selectedDeviceId;
+    if (activeDeviceId) {
+      const matchingDevice = devices.find((d) => d.deviceId === activeDeviceId);
+      if (matchingDevice) return matchingDevice;
+    }
+    return devices[0];
+  }, [devices, selectedDeviceId, stream]);
+  const lastNotifiedDeviceIdRef = useRef(undefined);
+
+  useEffect(() => {
+    const id = activeDevice?.deviceId;
+    if (!id || !activeDevice?.label) return;
+    if (lastNotifiedDeviceIdRef.current === undefined) {
+      lastNotifiedDeviceIdRef.current = id;
+      return;
+    }
+    if (lastNotifiedDeviceIdRef.current !== id) {
+      lastNotifiedDeviceIdRef.current = id;
+      toast.success(`Microphone switched to ${activeDevice.label}`);
+    }
+  }, [activeDevice]);
 
   useEffect(() => {
     if (!stream || typeof window === "undefined" || typeof window.MediaRecorder === "undefined") return;
@@ -512,32 +539,44 @@ export function VoiceRxModuleRecorder({
       <button
         type="button"
         onClick={async () => {
-          const audioBlob = await getRecordedBlob();
-          onSubmit({ transcript: displayTranscript, durationMs: elapsedMs, audioBlob });
+          if (submitProcessing) return;
+          setSubmitProcessing(true);
+          try {
+            const audioBlob = await getRecordedBlob();
+            await new Promise((resolve) => window.setTimeout(resolve, SUBMIT_PROCESSING_MS));
+            await onSubmit({ transcript: displayTranscript, durationMs: elapsedMs, audioBlob });
+          } catch (error) {
+            setSubmitProcessing(false);
+            throw error;
+          }
         }}
-        disabled={criticalBlock || !hasTranscript}
+        disabled={submitProcessing || criticalBlock || !hasTranscript}
         aria-label="Submit dictation"
         className={[
           "vrx-submit-hero group relative flex items-center overflow-hidden rounded-[12px] text-white transition-transform",
           isUltraCompact ? styles.submitBtnUltra : compactControls ? styles.submitBtnCompact : styles.submitBtnNormal,
-          !criticalBlock && hasTranscript ? styles.submitEnabled : criticalBlock ? "vrx-submit-dim cursor-not-allowed opacity-40" : "vrx-submit-dim cursor-not-allowed"
+          submitProcessing || (!criticalBlock && hasTranscript) ? styles.submitEnabled : criticalBlock ? "vrx-submit-dim cursor-not-allowed opacity-40" : "vrx-submit-dim cursor-not-allowed"
         ].filter(Boolean).join(" ")}>
         <span className="vrx-submit-gradient absolute inset-0 rounded-[inherit]" aria-hidden />
         <span className={[styles.submitTopSheen, "pointer-events-none absolute inset-x-0 top-0 h-[55%] rounded-[inherit]"].join(" ")} aria-hidden />
-        {!criticalBlock && hasTranscript && (
+        {!submitProcessing && !criticalBlock && hasTranscript && (
           <span aria-hidden className="vrx-submit-sheen pointer-events-none absolute inset-y-0 left-0 z-0 w-[40%]" />
         )}
         <span className={[isUltraCompact ? styles.submitIconRowUltra : styles.submitIconRow].join(" ")}>
-          <svg
-            width={isUltraCompact ? 18 : compactControls ? 20 : 24}
-            height={isUltraCompact ? 18 : compactControls ? 20 : 24}
-            viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M20.46 6.17969L8.82003 17.8197L3.53003 12.5297" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          {submitProcessing ? (
+            <span className={styles.submitSpinner} aria-hidden />
+          ) : (
+            <svg
+              width={isUltraCompact ? 18 : compactControls ? 20 : 24}
+              height={isUltraCompact ? 18 : compactControls ? 20 : 24}
+              viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M20.46 6.17969L8.82003 17.8197L3.53003 12.5297" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
           <span className={[
             "font-semibold tracking-[0.2px]",
             isUltraCompact ? styles.submitLabelUltra : compactControls ? styles.submitLabelCompact : styles.submitLabelNormal
-          ].join(" ")}>Submit</span>
+          ].join(" ")}>{submitProcessing ? "Processing" : "Submit"}</span>
         </span>
       </button>
     </div>

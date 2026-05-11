@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { message } from "antd";
 import { cn } from "../../utils";
 import styles from "./DrAgentPanel.module.scss";
 
 import { useRxPadSync } from "./RxPadSyncContext";
 import { VoiceRxBottomSheet } from "../../voicerx/VoiceRxBottomSheet";
+import { toast } from "../../voicerx/toast";
 import { AgentHeader } from "./shell/AgentHeader";
 import { SessionHistoryDrawer } from "./shell/SessionHistoryDrawer";
 import { ChatThread } from "./chat/ChatThread";
@@ -113,6 +115,14 @@ export function DrAgentPanel({
 
   const { activeVoiceModule } = useRxPadSync();
   const voiceLocked = !!activeVoiceModule;
+
+  useEffect(() => {
+    toast.setHandler(({ type, msg }) => {
+      const notify = message[type] || message.info;
+      notify({ content: msg, duration: 2.5 });
+    });
+    return () => toast.setHandler(null);
+  }, []);
 
   return (
     <div

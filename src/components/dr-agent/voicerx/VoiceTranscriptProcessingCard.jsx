@@ -44,38 +44,67 @@ const CAPTION_PHRASES = [
 
 // ─── Transcript renderer ─────────────────────────────────────────────────────
 
-function parseConversation(raw) {
-  const source = raw || "";
-  const explicit = source.split(/(?=\b(?:Doctor|Patient)\s*:)/g).map((s) => s.trim()).filter(Boolean);
-  const turns = [];
-  if (explicit.length > 1) {
-    for (const seg of explicit) {
-      const m = seg.match(/^(Doctor|Patient)\s*:\s*([\s\S]*)/i);
-      if (m) turns.push({ speaker: m[1].toLowerCase(), text: m[2].trim() });
-    }
-    if (turns.length) return turns;
+export function transcriptToText(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) && Array.isArray(raw.transcript)
+    ? raw.transcript
+    : raw;
+  if (Array.isArray(source)) {
+    return source
+      .map((turn) => {
+        if (typeof turn === "string") return turn.trim();
+        const speaker = turn?.speaker ? `${turn.speaker}: ` : "";
+        return `${speaker}${turn?.text ?? ""}`.trim();
+      })
+      .filter(Boolean)
+      .join("\n");
   }
-  const sentences = source.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
-  return sentences.map((s, i) => ({ speaker: i % 2 === 0 ? "doctor" : "patient", text: s }));
+  return typeof source === "string" ? source : "";
+}
+
+export function getDiarizedTurns(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) && Array.isArray(raw.transcript)
+    ? raw.transcript
+    : raw;
+  if (!Array.isArray(source)) return [];
+  return source
+    .map((turn) => {
+      if (!turn || typeof turn !== "object") return null;
+      const text = typeof turn.text === "string" ? turn.text.trim() : "";
+      if (!text) return null;
+      return {
+        speaker: typeof turn.speaker === "string" && turn.speaker.trim() ? turn.speaker.trim() : "Speaker",
+        text
+      };
+    })
+    .filter(Boolean);
+}
+
+export function hasDiarizedTranscript(raw) {
+  return getDiarizedTurns(raw).length > 0;
+}
+
+export function hasTranscriptContent(raw) {
+  return transcriptToText(raw).trim().length > 0;
 }
 
 export function ConversationTranscript({ raw }) {
-  const turns = useMemo(() => parseConversation(raw), [raw]);
+  const turns = useMemo(() => getDiarizedTurns(raw), [raw]);
   const [rootRef, inView] = useInView(0.15);
   return (
     <ul ref={rootRef} className={styles.conversationList}>
       {turns.map((t, i) => {
+        const normalizedSpeaker = t.speaker.toLowerCase();
         const label = t.speaker.charAt(0).toUpperCase() + t.speaker.slice(1);
         return (
           <li
             key={i}
-            className={[styles.turnRow, t.speaker === "doctor" ? styles.turnDoctor : styles.turnPatient].join(" ")}>
+            className={[styles.turnRow, normalizedSpeaker === "doctor" ? styles.turnDoctor : styles.turnPatient].join(" ")}>
             <div
               className={[
                 "vrx-chat-turn",
                 styles.turnBubble,
-                t.speaker === "doctor" ? "vrx-chat-turn--doctor" : "vrx-chat-turn--patient",
-                t.speaker === "doctor" ? styles.turnBubbleDoctor : styles.turnBubblePatient,
+                normalizedSpeaker === "doctor" ? "vrx-chat-turn--doctor" : "vrx-chat-turn--patient",
+                normalizedSpeaker === "doctor" ? styles.turnBubbleDoctor : styles.turnBubblePatient,
                 inView && "vrx-chat-turn--in"
               ].filter(Boolean).join(" ")}
               style={{ animationDelay: `${i * 180}ms` }}>
@@ -90,7 +119,7 @@ export function ConversationTranscript({ raw }) {
 }
 
 export function DictationTranscript({ raw, animate = true }) {
-  const cleaned = (raw || "").replace(/\b(Doctor|Patient)\s*:\s*/gi, "").replace(/\n+/g, " ").trim();
+  const cleaned = transcriptToText(raw).replace(/\n+/g, " ").trim();
   const words = cleaned.split(/\s+/).filter(Boolean);
   return (
     <p
@@ -187,6 +216,7 @@ export function VoiceTranscriptProcessingCard({
   }, [structuringMs, totalMs, onComplete]);
 
   const isAmbient = mode === "ambient_consultation";
+  const isDiarized = hasDiarizedTranscript(transcript);
 
   const transcriptScrollRef = useRef(null);
   useEffect(() => {
@@ -244,7 +274,7 @@ export function VoiceTranscriptProcessingCard({
             className={styles.shinerBody}>
             {transcriptPending ? (
               <div className={styles.creatingTranscript}>Capturing your consultation…</div>
-            ) : isAmbient && /\b(?:Doctor|Patient)\s*:/i.test(transcript || "") ? (
+            ) : isDiarized ? (
               <ConversationTranscript raw={transcript} />
             ) : (
               <DictationTranscript raw={transcript} />
@@ -268,7 +298,11 @@ export function VoiceTranscriptProcessingCard({
                     {isAmbient ? "Conversational Transcript" : "Dictated Transcript"}
                   </h3>
                   <div className={styles.tabTranscriptInner}>
-                    <DictationTranscript raw={transcript} animate={false} />
+                    {isDiarized ? (
+                      <ConversationTranscript raw={transcript} />
+                    ) : (
+                      <DictationTranscript raw={transcript} animate={false} />
+                    )}
                   </div>
                   <div className={styles.transcriptFooter}>
                     <div className={styles.transcriptFooterLeft}>

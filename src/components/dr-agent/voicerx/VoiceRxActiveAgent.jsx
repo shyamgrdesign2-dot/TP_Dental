@@ -11,7 +11,12 @@ import {
   WifiOff
 } from "../atoms/icons/lucide";
 import { Clock, Setting2 } from "iconsax-reactjs";
-import { CaptionCarousel, VoiceTranscriptProcessingCard } from "./VoiceTranscriptProcessingCard";
+import {
+  CaptionCarousel,
+  VoiceTranscriptProcessingCard,
+  hasTranscriptContent,
+  transcriptToText
+} from "./VoiceTranscriptProcessingCard";
 import {
   DropdownMenu as TPDropdownMenu,
   DropdownMenuContent as TPDropdownMenuContent,
@@ -370,9 +375,10 @@ export function VoiceRxActiveAgent({
     }
   }, [criticalBlock]);
 
-  const liveHasText = !!transcript && transcript.trim().length > 0;
-  const submittedHasText = !!submittedTranscript && submittedTranscript.trim().length > 0;
-  const rawEffectiveTranscript = processingTranscript?.trim() ||
+  const liveHasText = hasTranscriptContent(transcript);
+  const submittedHasText = hasTranscriptContent(submittedTranscript);
+  const processingHasText = hasTranscriptContent(processingTranscript);
+  const rawEffectiveTranscript = processingHasText ? processingTranscript :
     (isAwaitingResponse && submittedHasText ? submittedTranscript : liveHasText ? transcript : "");
 
   const frozenTranscriptRef = useRef(null);
@@ -382,7 +388,8 @@ export function VoiceRxActiveAgent({
     frozenTranscriptRef.current = null;
   }
   const effectiveTranscript = frozenTranscriptRef.current ?? rawEffectiveTranscript;
-  const hasTranscript = !!effectiveTranscript && effectiveTranscript.trim().length > 0;
+  const effectiveTranscriptText = transcriptToText(effectiveTranscript);
+  const hasTranscript = hasTranscriptContent(effectiveTranscript);
 
   useEffect(() => {
     const root = typeof document !== "undefined" ? document.documentElement : null;
@@ -485,7 +492,7 @@ export function VoiceRxActiveAgent({
               <VoiceTranscriptProcessingCard
                 mode={mode === "ambient_consultation" ? "ambient_consultation" : "dictation"}
                 transcript={processingTranscript}
-                transcriptPending={!processingTranscript?.trim()} />
+                transcriptPending={!hasTranscriptContent(processingTranscript)} />
 
               <div className={["vrx-shiner-loader", styles.shinerLoader, isHandoffExiting && "vrx-bottom-loader--exit"].filter(Boolean).join(" ")}>
                 <CaptionCarousel />
@@ -516,8 +523,8 @@ export function VoiceRxActiveAgent({
                     isCompactLayout ? styles.transcriptScrollCompact : styles.transcriptScroll
                   ].filter(Boolean).join(" ")}>
                   {hasTranscript ? (
-                    <AnimatedTranscript
-                      text={effectiveTranscript}
+                      <AnimatedTranscript
+                      text={effectiveTranscriptText}
                       paused={paused}
                       className={[
                         styles.transcriptText,

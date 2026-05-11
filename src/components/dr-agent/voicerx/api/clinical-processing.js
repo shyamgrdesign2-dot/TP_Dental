@@ -201,17 +201,34 @@ function extractTranscript(responseJson) {
 		responseJson;
 
 	if (Array.isArray(transcript)) {
+		return transcript.filter((turn) => {
+			if (typeof turn === 'string') return turn.trim();
+			return turn?.text || turn?.speaker;
+		});
+	}
+
+	return typeof transcript === 'string' ? transcript : '';
+}
+
+export function transcriptToText(transcript) {
+	if (Array.isArray(transcript)) {
 		return transcript
 			.map((turn) => {
-				if (typeof turn === 'string') return turn;
+				if (typeof turn === 'string') return turn.trim();
 				const speaker = turn?.speaker ? `${turn.speaker}: ` : '';
 				return `${speaker}${turn?.text ?? ''}`.trim();
 			})
 			.filter(Boolean)
 			.join('\n');
 	}
-
+	if (transcript && typeof transcript === 'object' && Array.isArray(transcript.transcript)) {
+		return transcriptToText(transcript.transcript);
+	}
 	return typeof transcript === 'string' ? transcript : '';
+}
+
+export function hasTranscriptContent(transcript) {
+	return Boolean(transcriptToText(transcript).trim());
 }
 
 async function fetchExistingTranscript({ context, signal }) {
@@ -221,7 +238,7 @@ async function fetchExistingTranscript({ context, signal }) {
 		signal
 	});
 	const text = extractTranscript(responseJson);
-	if (!text?.trim()) {
+	if (!hasTranscriptContent(text)) {
 		throw new Error('Existing medical transcript API returned an empty transcript.');
 	}
 	return text;
@@ -269,7 +286,7 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 			throw error;
 		}
 		const text = extractTranscript(responseJson);
-		if (!text?.trim()) {
+		if (!hasTranscriptContent(text)) {
 			throw new Error('Transcription API returned an empty transcript.');
 		}
 		return text;

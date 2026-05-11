@@ -2,10 +2,10 @@
 
 .drAgentOverlay {
   position: fixed;
-  top: 62px;
+  top: 60px;
   right: 0;
   width: 400px;
-  height: calc(100vh - 62px);
+  height: calc(100vh - 60px);
   z-index: 999;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
   border-left: 1px solid rgba(0, 0, 0, 0.08);
