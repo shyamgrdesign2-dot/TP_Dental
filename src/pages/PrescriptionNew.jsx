@@ -73,7 +73,6 @@ import ViewLabParam from "../components/ViewLabParams";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DDxKnowMore from "../components/DDxKnowMore";
 import TabPane from "antd/es/tabs/TabPane";
-import LoopingVideo from "../components/common/LoopingVideo";
 import DifferentialDiagnosisDrawer from "../components/DifferentialDiagnosisDrawer";
 import {
   setIsDDxReadyToGenerate,
@@ -166,8 +165,6 @@ function PrescriptionNew() {
     apexai: apexAIImg,
     blinkingdot_3: blinkingDotWebm,
     blinkingdot_2: blinkingDotMp4,
-    genRxBg_2: genRxBgWebm,
-    genRxBg: genRxBgMp4,
     carePlanActive: carePlanIcon,
   } = ASSETS.images;
 
@@ -1591,30 +1588,10 @@ function PrescriptionNew() {
         </div>
       ) : e.tmdpm_id === 3 && e.tmdpm_status === 0 ? (
         <div
-          className={showShimmer ? "genrx-shimmer" : ""}
-          style={
-            showShimmer
-              ? {
-                  padding: "2px",
-                  borderRadius: "20px",
-                  marginBottom: "15px",
-                }
-              : {}
-          }
+          key={i}
+          className="prescription-box-sm p-14"
+          style={{ marginBottom: "15px" }}
         >
-          {showShimmer && (
-            <LoopingVideo
-              webm={genRxBgWebm}
-              mp4={genRxBgMp4}
-              className="genrx-shimmer-video"
-              ariaLabel="Background"
-            />
-          )}
-          <div
-            key={i}
-            className={`prescription-box-sm p-14 ${showShimmer ? "genrx-shimmer-content" : ""}`}
-            style={showShimmer ? {} : { marginBottom: "15px" }}
-          >
             <div style={{ background: "white", borderRadius: "17px" }}>
               <div className="d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center">
@@ -1666,7 +1643,6 @@ function PrescriptionNew() {
                 )
               )}
             </div>
-          </div>
         </div>
       ) : e.tmdpm_id === 7 &&
         e.tmdpm_status === 0 &&
@@ -2223,32 +2199,11 @@ function PrescriptionNew() {
                     }
                   }
                   return e.tmdpm_id === 5 && e.tmdpm_status === 0 ? (
-                    <div
-                      key={i}
-                      className={`prescription-box-sm ${showShimmer ? "genrx-shimmer" : ""}`}
-                      style={showShimmer ? { padding: "2px" } : {}}
-                    >
-                      {showShimmer && (
-                        <LoopingVideo
-                          webm={genRxBgWebm}
-                          mp4={genRxBgMp4}
-                          className="genrx-shimmer-video"
-                          ariaLabel="Background"
-                        />
-                      )}
-                      <div
-                        className={showShimmer ? "genrx-shimmer-content" : ""}
-                        style={
-                          showShimmer
-                            ? { background: "white", borderRadius: "17px" }
-                            : {}
-                        }
-                      >
-                        <SymptomsBox
-                          handleDDxDrawer={handleDDxDrawer}
-                          generatedDDx={generatedDDx?.results}
-                        />
-                      </div>
+                    <div key={i} className="prescription-box-sm">
+                      <SymptomsBox
+                        handleDDxDrawer={handleDDxDrawer}
+                        generatedDDx={generatedDDx?.results}
+                      />
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">

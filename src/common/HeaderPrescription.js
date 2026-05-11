@@ -2029,7 +2029,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     loading={isVideoConsultLoading}
                                 />
                             )}
-                            {
+                            {/* TODO: INTEL - HANDLE BEHIND FLAG */}
+                            {/* {
                                 (isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && !hideVoiceRxIcon ? (
                                     isTablet ?
                                         <>
@@ -2039,7 +2040,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         : 
                                         <GenRxButton onClick={handleGenRx} />
                                 ) : null
-                            }
+                            } */}
 
                             {isTablet && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
 

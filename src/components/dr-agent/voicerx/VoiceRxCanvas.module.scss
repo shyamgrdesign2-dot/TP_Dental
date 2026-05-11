@@ -23,21 +23,13 @@
 .modePill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   border-radius: 12px;
-  padding: 7px 15px 7px 8px;
-  background:
-    linear-gradient(135deg, rgba(213, 101, 234, 0.14) 0%, rgba(103, 58, 172, 0.13) 100%) padding-box,
-    linear-gradient(135deg, rgba(213, 101, 234, 0.38) 0%, rgba(103, 58, 172, 0.42) 55%, rgba(26, 25, 148, 0.32) 100%) border-box;
-  border: 1px solid transparent;
-  box-shadow: 0 4px 14px rgba(103, 58, 172, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+  padding: 5px 12px 5px 8px;
+  backdrop-filter: blur(12px);
+    background: linear-gradient(#ffffff7a 0%, #fff3 100%), linear-gradient(135deg, #d565ea29 0%, #673aac1f 55%, #4b4ad51f 100%);
+    box-shadow: inset 0 1px #ffffffd9, inset 0 0 0 1px #673aac24, 0 4px 12px -4px #673aac1f;
   transition: background 150ms, box-shadow 150ms;
-
-  &:hover {
-    background:
-      linear-gradient(135deg, rgba(213, 101, 234, 0.20) 0%, rgba(103, 58, 172, 0.18) 100%) padding-box,
-      linear-gradient(135deg, rgba(213, 101, 234, 0.46) 0%, rgba(103, 58, 172, 0.50) 55%, rgba(26, 25, 148, 0.38) 100%) border-box;
-  }
+  cursor: pointer;
 }
 
 .backBtn {
@@ -294,6 +286,10 @@
   margin-top: 2px;
   flex-shrink: 0;
   color: #d97706; // amber-600
+  height: 20px;
+  width: 20px;
+  position: relative;
+  display: flex;
 }
 
 .coachmarkText {
@@ -310,10 +306,9 @@
 }
 
 .coachmarkClose {
-  margin-top: 2px;
   display: inline-flex;
-  height: 20px;
-  width: 20px;
+  height: 24px;
+  width: 24px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
@@ -328,6 +323,10 @@
     background: rgba(251, 191, 36, 0.60);
     color: #92400e;
   }
+  svg {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 // ── Overlay (bottom 40% — chat content stays visible above with mask fade) ──
@@ -340,22 +339,109 @@
   z-index: 20;
   display: flex;
   align-items: stretch;
-  height: 50%;
+  height: min(50%, 390px);
+  min-height: 300px;
+  padding-top: 34px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.70) 20%,
+    rgba(255, 255, 255, 0.94) 58%,
+    rgba(255, 255, 255, 0.98) 100%
+  );
 }
 
 .overlayInner {
   pointer-events: auto;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .overlayProcessing {
   display: flex;
   height: 100%;
   width: 100%;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 16px;
+  padding: 0 30px 18px;
+}
+
+.overlayProcessingCard {
+  width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.overlayProcessingText {
+  color: #343246;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+.overlayTranscriptFrame {
+  width: 100%;
+  height: 154px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-radius: 18px;
+  border: 1.5px solid rgba(103, 58, 172, 0.26);
+  background: rgba(248, 250, 252, 0.74);
+  padding: 18px 22px;
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(103, 58, 172, 0.18);
+  }
+}
+
+.overlayTranscriptPlaceholder {
+  margin: 0;
+  color: #6a6877;
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.75;
+  text-align: center;
+}
+
+.overlayProgressTrack {
+  width: 210px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(103, 58, 172, 0.12);
+}
+
+.overlayProgressBar {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d565ea 0%, #673aac 70%, #1a1994 100%);
+  animation: vrxCanvasOverlayProgress 1.1s ease-in-out infinite;
+}
+
+@keyframes vrxCanvasOverlayProgress {
+  0% { transform: translateX(-110%); }
+  55% { transform: translateX(95%); }
+  100% { transform: translateX(260%); }
 }
 
 // ── Transcript card ───────────────────────────────────────────────────────────

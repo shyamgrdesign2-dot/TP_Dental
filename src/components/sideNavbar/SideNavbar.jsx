@@ -1827,22 +1827,58 @@ const RECORD_FILTER_TYPES = ["All", "Pathology", "Prescription", "Radiology"];
 
 const NOOP = () => {};
 
-function RecordsContent({ records, rawDocs, uploadDocCategories }) {
+function RecordsContent({ records = [], rawDocs = [], uploadDocCategories = [] }) {
+  const scrollRef = useRef(null);
   const [activeFilter, setActiveFilter] = useState("All");
+  const hasRawDocs = rawDocs.length > 0;
 
-  if (rawDocs && rawDocs.length > 0) {
-    const availableFilters = ["All", ...Array.from(new Set(
+  const availableFilters = useMemo(() => {
+    if (hasRawDocs) {
+      return ["All", ...Array.from(new Set(
       rawDocs.map((doc) => CATEGORY_TO_FILTER[resolveCategoryName(doc.category_id, uploadDocCategories)] || "Other")
-    ))];
-    const filteredDocs = activeFilter === "All"
+      ))];
+    }
+    return RECORD_FILTER_TYPES;
+  }, [hasRawDocs, rawDocs, uploadDocCategories]);
+
+  const filteredDocs = useMemo(() => {
+    if (!hasRawDocs) return [];
+    return activeFilter === "All"
       ? rawDocs
       : rawDocs.filter((doc) => {
           const catName = resolveCategoryName(doc.category_id, uploadDocCategories);
           return (CATEGORY_TO_FILTER[catName] || "Other") === activeFilter;
         });
+  }, [activeFilter, hasRawDocs, rawDocs, uploadDocCategories]);
 
-    return (
-      <div className="snv-content-scroll snv-records-list" data-snv-scroll-root="true">
+  const filteredRecords = useMemo(
+    () => activeFilter === "All" ? records : records.filter((record) => record.filterType === activeFilter),
+    [activeFilter, records]
+  );
+
+  const visibleItems = hasRawDocs ? filteredDocs : filteredRecords;
+  const hasRecords = hasRawDocs ? rawDocs.length > 0 : records.length > 0;
+  const rowVirtualizer = useVirtualizer({
+    count: visibleItems.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: hasRawDocs ? () => 240 : () => 76,
+    overscan: 5,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [activeFilter]);
+
+  return (
+    <div
+      ref={scrollRef}
+      className={`snv-content-scroll ${hasRawDocs ? "snv-records-list" : ""}`}
+      data-snv-scroll-root="true"
+    >
+      {!hasRecords ? (
+        <div className="snv-empty-state">No data recorded.</div>
+      ) : (
         <div className="snv-filter-strip">
           {availableFilters.map((f) => (
             <button
@@ -1855,58 +1891,55 @@ function RecordsContent({ records, rawDocs, uploadDocCategories }) {
             </button>
           ))}
         </div>
-        {filteredDocs.map((doc, index) => (
-          <RecordCard
-            key={doc.id || index}
-            cardData={doc}
-            handleDrawerUploadDoc={NOOP}
-            setFilesData={NOOP}
-            setIsEditDocument={NOOP}
-            setUploadDocDrawer={NOOP}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  const filtered = activeFilter === "All" ? records : records.filter((r) => r.filterType === activeFilter);
-  return (
-    <div className="snv-content-scroll" data-snv-scroll-root="true">
-      {records.length === 0 ? (
-        <div className="snv-empty-state">No data recorded.</div>
-      ) : (
-        <div className="snv-filter-strip">
-          {RECORD_FILTER_TYPES.map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`snv-filter-chip ${activeFilter === f ? "snv-filter-chip-active" : ""}`}
-              onClick={() => setActiveFilter(f)}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
       )}
-      {records.length > 0 && filtered.map((record) => (
-        <div key={record.id} className="snv-record-thumb-card">
-          <div
-            className={`snv-record-thumb ${record.thumbnailUrl ? "" : `snv-thumb-${record.imgType}`}`}
-            style={record.thumbnailUrl ? {
-              backgroundImage: `url('${record.thumbnailUrl}')`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-            } : undefined}
-            aria-hidden="true"
-          />
-          <div className="snv-record-thumb-info">
-            <div className="snv-record-thumb-label">{record.label}</div>
-            <div className="snv-record-thumb-date">{record.date}</div>
-            {record.categoryName ? <div className="snv-record-thumb-date">{record.categoryName}</div> : null}
-          </div>
+      {hasRecords && visibleItems.length === 0 ? (
+        <div className="snv-empty-state">No records in this category.</div>
+      ) : null}
+      {visibleItems.length > 0 ? (
+        <div className="snv-virtual-list" style={{ height: rowVirtualizer.getTotalSize() }}>
+          {virtualRows.map((virtualRow) => {
+            const item = visibleItems[virtualRow.index];
+            const key = hasRawDocs ? item.id || item.document_id || item.file_name || virtualRow.index : item.id;
+            return (
+              <div
+                key={key}
+                ref={rowVirtualizer.measureElement}
+                data-index={virtualRow.index}
+                className="snv-virtual-row"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                {hasRawDocs ? (
+                  <RecordCard
+                    cardData={item}
+                    handleDrawerUploadDoc={NOOP}
+                    setFilesData={NOOP}
+                    setIsEditDocument={NOOP}
+                    setUploadDocDrawer={NOOP}
+                  />
+                ) : (
+                  <div className="snv-record-thumb-card">
+                    <div
+                      className={`snv-record-thumb ${item.thumbnailUrl ? "" : `snv-thumb-${item.imgType}`}`}
+                      style={item.thumbnailUrl ? {
+                        backgroundImage: `url('${item.thumbnailUrl}')`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                      } : undefined}
+                      aria-hidden="true"
+                    />
+                    <div className="snv-record-thumb-info">
+                      <div className="snv-record-thumb-label">{item.label}</div>
+                      <div className="snv-record-thumb-date">{item.date}</div>
+                      {item.categoryName ? <div className="snv-record-thumb-date">{item.categoryName}</div> : null}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }

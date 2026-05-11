@@ -201,6 +201,67 @@ export function VoiceRxModuleRecorder({
   const hasTranscript = displayTranscript.trim().length > 0;
   const transcriptScrollRef = useRef(null);
   const compactControls = variant === "stack" || isCompactLayout;
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const mimeTypeRef = useRef("audio/webm");
+
+  useEffect(() => {
+    if (!stream || typeof window === "undefined" || typeof window.MediaRecorder === "undefined") return;
+    const supports = (type) => {
+      try { return window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(type); } catch { return false; }
+    };
+    const mimeType = supports("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" :
+      supports("audio/webm") ? "audio/webm" :
+        supports("audio/mp4") ? "audio/mp4" : "";
+    let recorder;
+    try {
+      recorder = mimeType ? new window.MediaRecorder(stream, { mimeType }) : new window.MediaRecorder(stream);
+    } catch (error) {
+      console.error("MediaRecorder init failed", error);
+      return;
+    }
+    chunksRef.current = [];
+    mimeTypeRef.current = recorder.mimeType || mimeType || "audio/webm";
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size) chunksRef.current.push(event.data);
+    };
+    try {
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+    } catch (error) {
+      console.error("MediaRecorder start failed", error);
+    }
+    return () => {
+      try {
+        if (recorder.state !== "inactive") recorder.stop();
+      } catch { /* ignore */ }
+      mediaRecorderRef.current = null;
+    };
+  }, [stream]);
+
+  useEffect(() => {
+    const recorder = mediaRecorderRef.current;
+    if (!recorder) return;
+    try {
+      if (isPaused && recorder.state === "recording") recorder.pause();
+      if (!isPaused && recorder.state === "paused") recorder.resume();
+    } catch { /* ignore */ }
+  }, [isPaused]);
+
+  const getRecordedBlob = () => new Promise((resolve) => {
+    const recorder = mediaRecorderRef.current;
+    const buildBlob = () => {
+      if (!chunksRef.current.length) return null;
+      return new Blob(chunksRef.current, { type: mimeTypeRef.current || "audio/webm" });
+    };
+    if (!recorder || recorder.state === "inactive") {
+      resolve(buildBlob());
+      return;
+    }
+    const finalize = () => resolve(buildBlob());
+    recorder.addEventListener("stop", finalize, { once: true });
+    try { recorder.stop(); } catch { finalize(); }
+  });
 
   useEffect(() => {
     const node = transcriptScrollRef.current;
@@ -450,7 +511,10 @@ export function VoiceRxModuleRecorder({
       {/* Submit */}
       <button
         type="button"
-        onClick={() => onSubmit(displayTranscript)}
+        onClick={async () => {
+          const audioBlob = await getRecordedBlob();
+          onSubmit({ transcript: displayTranscript, durationMs: elapsedMs, audioBlob });
+        }}
         disabled={criticalBlock || !hasTranscript}
         aria-label="Submit dictation"
         className={[

@@ -22,9 +22,8 @@ import { inferPhase } from "../engines/phase-engine";
 import { classifyIntent, PILL_INTENT_MAP } from "../engines/intent-engine";
 import { buildReply, buildDocumentReply } from "../engines/reply-engine";
 import { parseVoiceToStructuredRx } from "../engines/voice-rx-engine";
-import { buildPatientVoiceStructuredRx } from "../engines/voice-rx-patient-mock";
 
-import { VOICE_RX_LOADER_MS, VOICE_RX_DICTATION_CHUNKS, VOICE_RX_AMBIENT_CHUNKS } from "../../../voicerx/utils";
+import { VOICE_RX_DICTATION_CHUNKS, VOICE_RX_AMBIENT_CHUNKS } from "../../../voicerx/utils";
 import { emrSectionsToHtml } from "../../../voicerx/emrUtils";
 import { createVoiceRxSessionContext } from "../../../voicerx/api/run-voice-rx-pipeline";
 import { transcribeAudio, digitiseClinicalData } from "../../../voicerx/api/clinical-processing";
@@ -308,65 +307,87 @@ export function useDrAgentPanel({
   beginVoiceAddOnRef.current = beginVoiceAddOn;
 
   // Inline quick-edit submit (called by the canvas's bottom-overlay
-  // recorder). Unlike beginVoiceAddOn, this does NOT flip back to a
-  // full recording cycle — it just appends a new transcript segment
-  // to the existing voiceRxResult, echoes a user message into chat,
-  // and pushes a fresh structured-rx card so the prior chat card
-  // gets marked stale. The canvas keeps the bottom-dock loader on
-  // screen during the regen window.
-  const submitQuickEdit = useCallback(() => {
+  // recorder). Keeps the result canvas visible, but runs the same real
+  // transcribe + digitise pipeline as the full VoiceRx recorder.
+  const submitQuickEdit = useCallback(async (meta = {}, progress = {}) => {
     if (!voiceRxResult) return;
-    const demoBody =
-      voiceRxDialogChoice === "ambient_consultation"
-        ? VOICE_RX_AMBIENT_CHUNKS.join("").trim()
-        : VOICE_RX_DICTATION_CHUNKS.join("").trim();
-    const segment = {
+    const audioBlob = meta?.audioBlob || null;
+    if (!audioBlob) {
+      message.error("No audio recording was captured.");
+      throw new Error("No audio recording was captured.");
+    }
+
+    const context = voiceRxSessionRef.current || createVoiceRxSessionContext({
+      patientId: patientId || "1111",
+      doctorId: doctorId || "3333"
+    });
+    voiceRxSessionRef.current = context;
+
+    if (voiceRxAbortRef.current) {
+      try { voiceRxAbortRef.current.abort(); } catch { /* ignore */ }
+    }
+    const abortController = new AbortController();
+    voiceRxAbortRef.current = abortController;
+
+    const createdAt = new Date().toISOString();
+    const optimisticTranscript = meta?.transcript || "Processing your voice edit...";
+    const userMsg = {
       id: uid(),
-      body: demoBody,
-      mode: voiceRxDialogChoice ?? "ambient_consultation",
-      durationMs: 0,
-      createdAt: new Date().toISOString()
+      role: "user",
+      text: optimisticTranscript,
+      voiceTranscript: optimisticTranscript,
+      voiceMode: voiceRxDialogChoice ?? undefined,
+      voiceDurationMs: meta?.durationMs,
+      createdAt,
+      feedbackGiven: null,
+      voiceEntryAnimation: true
     };
-    // 1) Append user voice message in chat so the chat history
-    //    carries each take.
     setMessagesByPatient((prev) => ({
       ...prev,
-      [selectedPatientId]: [
-        ...(prev[selectedPatientId] || []),
-        {
-          id: uid(),
-          role: "user",
-          text: demoBody,
-          voiceTranscript: demoBody,
-          voiceMode: segment.mode,
-          voiceDurationMs: 0,
-          createdAt: segment.createdAt,
-          feedbackGiven: null,
-          voiceEntryAnimation: true
-        }
-      ]
+      [selectedPatientId]: [...(prev[selectedPatientId] || []), userMsg]
     }));
-    // 2) Append the segment to voiceRxResult so the Transcript tab
-    //    immediately reflects the new take.
-    setVoiceRxResult((prev) => {
-      if (!prev) return prev;
-      const segments = [...(prev.transcriptSegments ?? [{
-        id: uid(),
-        body: prev.transcript,
-        mode: "ambient_consultation",
-        durationMs: prev.durationMs ?? 0,
-        createdAt: new Date().toISOString()
-      }]), segment];
-      return {
-        ...prev,
-        transcript: segments.map((s) => s.body).join("\n\n"),
-        transcriptSegments: segments
+
+    try {
+      progress?.onPhase?.("creating_transcript", { transcript: meta?.transcript || "" });
+      console.log("[voice-rx] quick-edit phase:", "transcribing");
+      const apiTranscript = await transcribeAudio({
+        audioBlob,
+        context,
+        signal: abortController.signal
+      });
+      const finalTranscript = (apiTranscript && apiTranscript.trim()) || meta?.transcript || "";
+      progress?.onPhase?.("transcript_ready", { transcript: finalTranscript });
+
+      console.log("[voice-rx] quick-edit phase:", "digitising");
+      progress?.onPhase?.("structuring_notes", { transcript: finalTranscript });
+      const digitizeResult = await digitiseClinicalData({
+        context,
+        signal: abortController.signal
+      });
+      if (digitizeResult?.status === "rejected") {
+        const error = new Error(digitizeResult.error || "Digitisation failed.");
+        error.phase = "digitising";
+        throw error;
+      }
+
+      const digitization = digitizeResult?.data ?? null;
+      const resultSections = digitizationToSections(digitization);
+      const clinicalNotesHtml = digitizationToHtml(digitization) || emrSectionsToHtml(resultSections);
+      const structuredStub = {
+        sections: resultSections.map((s) => ({
+          sectionId: s.id,
+          title: s.title,
+          items: s.items.map((it) => ({ name: it }))
+        })),
+        copyAllPayload: { digitization }
       };
-    });
-    // 3) After the canvas's loader window, also push a new structured
-    //    card to chat so the older one is auto-marked stale.
-    window.setTimeout(() => {
-      const structured = buildPatientVoiceStructuredRx(selectedPatientId, demoBody);
+
+      setMessagesByPatient((prev) => {
+        const list = prev[selectedPatientId] || [];
+        const updated = list.map((m) => m.id === userMsg.id ? { ...m, text: finalTranscript, voiceTranscript: finalTranscript } : m);
+        return { ...prev, [selectedPatientId]: updated };
+      });
+
       setMessagesByPatient((prev) => ({
         ...prev,
         [selectedPatientId]: [
@@ -376,13 +397,55 @@ export function useDrAgentPanel({
             role: "assistant",
             text: "Your clinical notes are updated — view to fine-tune and copy to RxPad.",
             createdAt: new Date().toISOString(),
-            rxOutput: { kind: "voice_structured_rx", data: structured },
+            rxOutput: { kind: "voice_structured_rx", data: structuredStub },
             feedbackGiven: null
           }
         ]
       }));
-    }, VOICE_RX_LOADER_MS);
-  }, [voiceRxResult, voiceRxDialogChoice, selectedPatientId, setMessagesByPatient]);
+
+      setVoiceRxResult((prev) => {
+        if (!prev) return prev;
+        const newSegment = {
+          id: uid(),
+          body: finalTranscript,
+          mode: voiceRxDialogChoice ?? "ambient_consultation",
+          durationMs: meta?.durationMs ?? 0,
+          createdAt: new Date().toISOString()
+        };
+        const transcriptSegments = prev.transcriptSegments
+          ? [...prev.transcriptSegments, newSegment]
+          : [{
+              id: uid(),
+              body: prev.transcript,
+              mode: "ambient_consultation",
+              durationMs: prev.durationMs ?? 0,
+              createdAt: new Date().toISOString()
+            }, newSegment];
+        return {
+          ...prev,
+          transcript: transcriptSegments.map((s) => s.body).join("\n\n"),
+          transcriptSegments,
+          sections: resultSections,
+          clinicalNotesHtml,
+          digitization,
+          durationMs: (prev.durationMs ?? 0) + (meta?.durationMs ?? 0),
+          structured: structuredStub,
+          pendingSidebarBatch: undefined
+        };
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      console.error("[voice-rx] quick-edit pipeline failed", error);
+      message.error(error?.message || "Voice edit failed.");
+      setMessagesByPatient((prev) => {
+        const list = prev[selectedPatientId] || [];
+        return { ...prev, [selectedPatientId]: list.filter((m) => m.id !== userMsg.id) };
+      });
+      throw error;
+    } finally {
+      if (voiceRxAbortRef.current === abortController) voiceRxAbortRef.current = null;
+    }
+  }, [voiceRxResult, voiceRxDialogChoice, selectedPatientId, setMessagesByPatient, patientId, doctorId]);
 
   const cancelVoiceRxRecording = useCallback(() => {
     if (voiceRxTimeoutRef.current) {

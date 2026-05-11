@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download as DownloadIcon, X } from "../atoms/icons/lucide";
 import { Copy as CopyGlyph, DocumentText, InfoCircle, Microphone2 } from "iconsax-reactjs";
 import { HoverTooltip } from "../atoms/Tooltip";
 import { DictationTranscript } from "./VoiceTranscriptProcessingCard";
 import { FeedbackRow } from "./VoiceRxResultTabs";
 import { VoiceRxIcon } from "./voice-consult-icons";
+import { VoiceRxModuleRecorder } from "./VoiceRxModuleRecorder";
 import { toast } from "./toast";
 import styles from "./VoiceRxCanvas.module.scss";
 
@@ -48,7 +49,8 @@ export function VoiceRxCanvas({
   onCopyToRx,
   onBack,
   onMinimize,
-  onAddDetailsByVoice
+  onAddDetailsByVoice,
+  onQuickEditSubmit
 }) {
   const canvasTitle = "Back";
   void modeLabel;
@@ -58,6 +60,11 @@ export function VoiceRxCanvas({
   const transcriptCount = Array.isArray(transcriptSegments) ? transcriptSegments.length : 0;
 
   const [feedback, setFeedback] = useState({ emr: null });
+  const [voiceEditOpen, setVoiceEditOpen] = useState(false);
+  const [voiceEditProcessing, setVoiceEditProcessing] = useState(false);
+  const [voiceEditPhase, setVoiceEditPhase] = useState("idle");
+  const [voiceEditTranscript, setVoiceEditTranscript] = useState("");
+  const voiceEditProcessingTimerRef = useRef(null);
   const handleFeedback = (tab, val) => {
     setFeedback((prev) => ({ ...prev, [tab]: prev[tab] === val ? null : val }));
   };
@@ -83,6 +90,61 @@ export function VoiceRxCanvas({
   const handleCopyToRx = () => {
     if (coachmarkVisible) dismissCoachmark();
     onCopyToRx?.();
+  };
+
+  useEffect(() => () => {
+    if (voiceEditProcessingTimerRef.current) {
+      window.clearTimeout(voiceEditProcessingTimerRef.current);
+    }
+  }, []);
+
+  const handleVoiceEditOpen = () => {
+    if (coachmarkVisible) dismissCoachmark();
+    if (onQuickEditSubmit) {
+      setVoiceEditOpen(true);
+      setVoiceEditProcessing(false);
+      setVoiceEditPhase("idle");
+      setVoiceEditTranscript("");
+      return;
+    }
+    onAddDetailsByVoice?.();
+  };
+
+  const handleVoiceEditSubmit = async (voiceMeta) => {
+    setVoiceEditProcessing(true);
+    setVoiceEditPhase("creating_transcript");
+    setVoiceEditTranscript(voiceMeta?.transcript || "");
+    if (voiceEditProcessingTimerRef.current) {
+      window.clearTimeout(voiceEditProcessingTimerRef.current);
+      voiceEditProcessingTimerRef.current = null;
+    }
+    try {
+      await onQuickEditSubmit?.(voiceMeta, {
+        onPhase: (phase, payload = {}) => {
+          setVoiceEditPhase(phase);
+          if (Object.prototype.hasOwnProperty.call(payload, "transcript")) {
+            setVoiceEditTranscript(payload.transcript || "");
+          }
+        }
+      });
+      setVoiceEditOpen(false);
+      setVoiceEditProcessing(false);
+      setVoiceEditPhase("idle");
+      setVoiceEditTranscript("");
+    } catch {
+      setVoiceEditProcessing(false);
+    }
+  };
+
+  const handleVoiceEditCancel = () => {
+    if (voiceEditProcessingTimerRef.current) {
+      window.clearTimeout(voiceEditProcessingTimerRef.current);
+      voiceEditProcessingTimerRef.current = null;
+    }
+    setVoiceEditOpen(false);
+    setVoiceEditProcessing(false);
+    setVoiceEditPhase("idle");
+    setVoiceEditTranscript("");
   };
 
   return (
@@ -220,7 +282,7 @@ export function VoiceRxCanvas({
                 onClick={dismissCoachmark}
                 aria-label="Dismiss tip"
                 className={styles.coachmarkClose}>
-                <X size={12} strokeWidth={2} />
+                <X strokeWidth={2} />
               </button>
             </div>
           )}
@@ -235,17 +297,14 @@ export function VoiceRxCanvas({
             </button>
 
             <HoverTooltip
-              content="Edit/VoiceRx"
+              content="Edit clinical notes with voice"
               side="top"
               align="end">
               <button
                 type="button"
-                onClick={() => {
-                  if (coachmarkVisible) dismissCoachmark();
-                  onAddDetailsByVoice?.();
-                }}
-                disabled={!onAddDetailsByVoice}
-                aria-label="Edit/VoiceRx"
+                onClick={handleVoiceEditOpen}
+                disabled={!onQuickEditSubmit && !onAddDetailsByVoice}
+                aria-label="Edit clinical notes with voice"
                 className={["vrx-rt-voice-cta-outline", styles.footerVoiceCta].join(" ")}>
                 <VoiceRxIcon size={20} color="#673AAC" />
               </button>
@@ -253,6 +312,60 @@ export function VoiceRxCanvas({
           </div>
         </div>
       )}
+      {voiceEditOpen ? (
+        <div className={styles.overlayWrap}>
+          <div className={styles.overlayInner}>
+            {voiceEditProcessing ? (
+              <VoiceEditProcessing
+                phase={voiceEditPhase}
+                transcript={voiceEditTranscript} />
+            ) : (
+              <VoiceRxModuleRecorder
+                sectionLabel="Clinical Notes"
+                showSectionInStatus={false}
+                onCancel={handleVoiceEditCancel}
+                onSubmit={handleVoiceEditSubmit}
+                radiusClassName="rounded-t-[18px]"
+                variant="stack"
+                fillHeight
+              />
+            )}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function VoiceEditProcessing({ phase, transcript }) {
+  const hasTranscript = Boolean((transcript || "").trim());
+  const isCreatingTranscript = phase === "creating_transcript";
+  const isStructuring = phase === "structuring_notes";
+  const statusText = isCreatingTranscript
+    ? "Creating transcript..."
+    : isStructuring
+      ? "Preparing entries for review..."
+      : "Transcript created";
+
+  return (
+    <div className={styles.overlayProcessing}>
+      <div className={styles.overlayProcessingCard}>
+        <div className={styles.overlayTranscriptFrame}>
+          {hasTranscript ? (
+            <DictationTranscript
+              raw={transcript}
+              animate={phase === "transcript_ready"} />
+          ) : (
+            <p className={styles.overlayTranscriptPlaceholder}>
+              Creating transcript...
+            </p>
+          )}
+        </div>
+        <span className={styles.overlayProcessingText}>{statusText}</span>
+        <span className={styles.overlayProgressTrack} aria-hidden>
+          <span className={styles.overlayProgressBar} />
+        </span>
+      </div>
     </div>
   );
 }
