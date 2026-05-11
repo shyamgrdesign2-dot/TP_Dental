@@ -637,6 +637,12 @@ const module_id =
     : "68624471353771e0a587fed6";
 const um_id = process.env?.NODE_ENV !== "prod" ? "493" : "12028";
 
+const formatCustomModuleColumnTitle = (value = "") => {
+  return String(value || "")
+    .trim()
+    .toUpperCase();
+};
+
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const {
     rx,
@@ -15147,7 +15153,53 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               if (!item || typeof item !== "object") return [];
                               // Exclude 'id' and any other non-field keys
                               return Object.keys(item).filter(
-                                (key) => key !== "id",
+                                (key) => key !== "id" && key !== "order",
+                              );
+                            };
+
+                            const customModuleDefinitions = Array.isArray(customModules)
+                              ? customModules
+                              : Array.isArray(customModules?.modules)
+                                ? customModules.modules
+                                : Array.isArray(customModules?.data)
+                                  ? customModules.data
+                                  : [];
+                            const moduleDefinition = customModuleDefinitions.find(
+                              (m) =>
+                                [m?.module_id, m?.origin_id, m?.id].some((id) =>
+                                  id != null &&
+                                  [
+                                    customModule?.module_id,
+                                    customModule?.origin_id,
+                                    customModule?.id,
+                                  ].some(
+                                    (moduleId) => String(moduleId) === String(id),
+                                  ),
+                                ),
+                            );
+                            const namedFields =
+                              moduleDefinition?.namedFields ||
+                              moduleDefinition?.fields ||
+                              customModule?.namedFields ||
+                              option?.namedFields ||
+                              [];
+                            const getFieldLabel = (fieldKey) => {
+                              const field = namedFields.find(
+                                (namedField) =>
+                                  [
+                                    namedField?.fieldName,
+                                    namedField?.name,
+                                    namedField?.key,
+                                  ].some(
+                                    (name) =>
+                                      String(name || "") === String(fieldKey || ""),
+                                  ),
+                              );
+                              return formatCustomModuleColumnTitle(
+                                field?.fieldLabel ||
+                                  field?.label ||
+                                  field?.title ||
+                                  fieldKey,
                               );
                             };
 
@@ -15202,7 +15254,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
                                       const fieldEntries = fieldKeys
                                         .map((fieldKey) => ({
-                                          label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                          label: getFieldLabel(fieldKey),
                                           value: item[fieldKey],
                                         }))
                                         .filter(
@@ -15335,7 +15387,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 color: "#171725",
                                                 fontFamily:
                                                   getIndianLanguageFont(
-                                                    item?.title,
+                                                    formatCustomModuleColumnTitle(item?.title),
                                                     printSettings?.page_format
                                                       ?.font_family,
                                                   ),
@@ -15346,7 +15398,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 fontWeight: 500,
                                               }}
                                             >
-                                              {item.title}&nbsp;
+                                              {formatCustomModuleColumnTitle(item.title)}&nbsp;
                                             </Text>
                                           )}
                                           {item.notes && (
@@ -15422,7 +15474,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                       // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
                                       const fieldEntries = fieldKeys
                                         .map((fieldKey) => ({
-                                          label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                          label: getFieldLabel(fieldKey),
                                           value: item[fieldKey],
                                         }))
                                         .filter(
@@ -15549,7 +15601,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 color: "#171725",
                                                 fontFamily:
                                                   getIndianLanguageFont(
-                                                    item?.title,
+                                                    formatCustomModuleColumnTitle(item?.title),
                                                     printSettings?.page_format
                                                       ?.font_family,
                                                   ),
@@ -15560,7 +15612,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                 fontWeight: 500,
                                               }}
                                             >
-                                              {item.title}&nbsp;
+                                              {formatCustomModuleColumnTitle(item.title)}&nbsp;
                                             </Text>
                                           )}
                                           {item.notes && (
@@ -15638,7 +15690,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   color: "#171725",
                                                   fontFamily:
                                                     getIndianLanguageFont(
-                                                      fieldKey,
+                                                      getFieldLabel(fieldKey),
                                                       printSettings?.page_format
                                                         ?.font_family,
                                                     ),
@@ -15647,11 +15699,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                     printSettings?.page_format
                                                       ?.font_size,
                                                   fontWeight: 700,
-                                                  textTransform: "uppercase",
                                                 },
                                               ]}
                                             >
-                                              {fieldKey.toUpperCase()}&nbsp;
+                                              {getFieldLabel(fieldKey)}&nbsp;
                                             </Text>
                                           );
                                         })}

@@ -399,6 +399,12 @@ function enrichCaseManagerAiMedicationForPrint(medicine) {
     });
 }
 
+const formatCustomModuleColumnTitle = (value = "") => {
+    return String(value || "")
+        .trim()
+        .toUpperCase();
+};
+
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
     let { smartRxData, caseManagerData, columns, initialRows, frequencyList, timingList, printSettings, fileHeader, fileFooter, fileLogo, fileWatermark, fileSignature, todayVaccines, growthChartDetails, isGynaecHistoryAccessable, obsHistoryData, customModules, patientBills, advanceReceipts, patientWalletBalance, selectedLang, carePlanAssignments, ophthalModuleData , abhaDetails , isDigitisedPrintConfig, dentalData, isCvtExtHosAccessableFromGB: isCvtExtHosFromProps } = props
@@ -7051,6 +7057,26 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                             if (!item || typeof item !== 'object') return [];
                                             return Object.keys(item).filter(key => key !== 'id' && key !== 'order');
                                         };
+
+                                        const normalizedCustomModules = Array.isArray(customModules)
+                                            ? customModules
+                                            : Array.isArray(customModules?.modules)
+                                                ? customModules.modules
+                                                : Array.isArray(customModules?.data)
+                                                    ? customModules.data
+                                                    : [];
+                                        const moduleDefinition = normalizedCustomModules.find(m =>
+                                            [m?.module_id, m?.origin_id, m?.id].some((id) =>
+                                                id != null && [customModule?.module_id, customModule?.origin_id, customModule?.id].some((moduleId) => String(moduleId) === String(id))
+                                            )
+                                        );
+                                        const namedFields = moduleDefinition?.namedFields || moduleDefinition?.fields || customModule?.namedFields || option?.namedFields || [];
+                                        const getFieldLabel = (fieldKey) => {
+                                            const field = namedFields.find((namedField) =>
+                                                [namedField?.fieldName, namedField?.name, namedField?.key].some((name) => String(name || "") === String(fieldKey || ""))
+                                            );
+                                            return formatCustomModuleColumnTitle(field?.fieldLabel || field?.label || field?.title || fieldKey);
+                                        };
                                         
                                         // Get field keys from first content item (for v2)
                                         const fieldKeys = isV2 && customModule?.content?.length > 0 
@@ -7082,7 +7108,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             // V2: Render all fields with their keys as labels in format: (<Field1>: <Value>, <Field2>: <Value>, ...)
                                                             const fieldEntries = fieldKeys
                                                                 .map(fieldKey => ({
-                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    label: getFieldLabel(fieldKey),
                                                                     value: item[fieldKey]
                                                                 }))
                                                                 .filter(entry => entry.value?.trim?.().length > 0);
@@ -7111,7 +7137,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             // V1: Original rendering
                                                             return (
                                                                 <Text key={i}>
-                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(formatCustomModuleColumnTitle(item?.title), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{formatCustomModuleColumnTitle(item.title)}&nbsp;</Text>}
                                                                     {item.notes &&
                                                                         <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
                                                                             {`${item?.title ? '(' : ''}`}
@@ -7136,7 +7162,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             // V2: Render all fields with their keys as labels in format: 1.<Field1>: <Value>, <Field2>: <Value>, ...
                                                             const fieldEntries = fieldKeys
                                                                 .map(fieldKey => ({
-                                                                    label: fieldKey, // Use field key as label (can be formatted later if needed)
+                                                                    label: getFieldLabel(fieldKey),
                                                                     value: item[fieldKey]
                                                                 }))
                                                                 .filter(entry => entry.value?.trim?.().length > 0);
@@ -7164,7 +7190,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             return (
                                                                 <Text key={i} style={{ marginTop: PX_TO_PT * (i == 0 ? 4 : 2), lineHeight: 1.4 }}>
                                                                     <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>&nbsp;{i + 1}.&nbsp;</Text>
-                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.title, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{item.title}&nbsp;</Text>}
+                                                                    {item.title && <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(formatCustomModuleColumnTitle(item?.title), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>{formatCustomModuleColumnTitle(item.title)}&nbsp;</Text>}
                                                                     {item.notes &&
                                                                         <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(item?.notes, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>
                                                                             {`${item?.title ? '(' : ''}`}
@@ -7190,8 +7216,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                             // V2: When order === 0, single column (header = field key; rows = values). Else multi-column.
                                                             isV2SingleColumn ? (
                                                                 <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                    <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(fieldKeys[0], printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>
-                                                                        {fieldKeys[0].toUpperCase()}&nbsp;
+                                                                    <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(getFieldLabel(fieldKeys[0]), printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>
+                                                                        {getFieldLabel(fieldKeys[0])}&nbsp;
                                                                     </Text>
                                                                 </View>
                                                             ) : (
@@ -7206,14 +7232,13 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                     { 
                                                                                         flex: flexPerColumn, 
                                                                                         color: '#171725', 
-                                                                                        fontFamily: getIndianLanguageFont(fieldKey, printSettings?.page_format?.font_family), 
+                                                                                        fontFamily: getIndianLanguageFont(getFieldLabel(fieldKey), printSettings?.page_format?.font_family), 
                                                                                         fontSize: PX_TO_PT * printSettings?.page_format?.font_size, 
                                                                                         fontWeight: 700,
-                                                                                        textTransform: 'uppercase'
                                                                                     }
                                                                                 ]}
                                                                             >
-                                                                                {fieldKey.toUpperCase()}&nbsp;
+                                                                                {getFieldLabel(fieldKey)}&nbsp;
                                                                             </Text>
                                                                         );
                                                                     })}
@@ -7226,21 +7251,21 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                 const notesStr = first?.notes && String(first.notes).trim();
                                                                 const colonIdx = notesStr && notesStr.includes(':') ? notesStr.indexOf(':') : -1;
                                                                 const isV1SingleColumn = customModule?.content?.length === 1 && colonIdx > 0 && colonIdx < notesStr.length - 1;
-                                                                const v1Label = isV1SingleColumn ? notesStr.slice(0, colonIdx).trim() : null;
+                                                                const v1Label = isV1SingleColumn ? formatCustomModuleColumnTitle(notesStr.slice(0, colonIdx).trim()) : null;
                                                                 const v1Value = isV1SingleColumn ? notesStr.slice(colonIdx + 1).trim() : null;
                                                                 if (isV1SingleColumn && v1Label != null && v1Value != null) {
                                                                     return (
                                                                         <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                            <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(v1Label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>
-                                                                                {v1Label.toUpperCase()}&nbsp;
+                                                                            <Text style={[styles.dynamicModuleCell, { flex: 1, color: '#171725', fontFamily: getIndianLanguageFont(v1Label, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>
+                                                                                {v1Label}&nbsp;
                                                                             </Text>
                                                                         </View>
                                                                     );
                                                                 }
                                                                 return (
                                                                     <View style={[styles.row, { backgroundColor: '#f5f5f5' }]} wrap={false}>
-                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>NAME&nbsp;</Text>
-                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700, textTransform: 'uppercase' }]}>VALUE&nbsp;</Text>
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.3, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>NAME&nbsp;</Text>
+                                                                        <Text style={[styles.dynamicModuleCell, { flex: 0.7, color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 700 }]}>VALUE&nbsp;</Text>
                                                                     </View>
                                                                 );
                                                             })()
