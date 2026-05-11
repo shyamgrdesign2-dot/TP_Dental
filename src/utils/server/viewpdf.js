@@ -936,10 +936,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const hospitalBusinessId =
     props?.hospitalBusinessId ??
     tokenData?.hospital_business_id ??
-    caseManagerData?.patient_data?.hm_business_id ??
-    caseManagerData?.patient_data?.hospital_business_id ??
-    caseManagerData?.hospital_business_id ??
-    caseManagerData?.hos_business_id;
+    caseManagerData?.hospital_business_id;
 
   const showMissionHospitalLogo =
     !!isCvtExtHosAccessableFromGB &&
