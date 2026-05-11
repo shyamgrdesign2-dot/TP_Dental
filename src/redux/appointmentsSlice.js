@@ -672,7 +672,13 @@ const appointmentsSlice = createSlice({
         if (action.meta.arg.apStatue === TAB_ZYDUS_ENCOUNTER) {
           state.zydusEncounterCount = modifiedData?.length;
         } else {
-          state.zydusAappointmentCount = modifiedData?.length;
+          state.zydusAappointmentCount = updatedData?.filter(
+            (item) =>
+              !(
+                item.appointmentStatus &&
+                item.appointmentStatus.toLowerCase().includes("cancel")
+              )
+          ).length;
         }
         if (action.meta.arg.page == 0) {
           state.appointmentsData = updatedData;
@@ -689,6 +695,13 @@ const appointmentsSlice = createSlice({
       })
       .addCase(zydusAppointment.fulfilled, (state, action) => {
         state.zydusAappointmentData = action.payload;
+        state.zydusAappointmentCount = (action.payload || []).filter(
+          (item) =>
+            !(
+              item.appointmentStatus &&
+              item.appointmentStatus.toLowerCase().includes("cancel")
+            )
+        ).length;
       })
       .addCase(copyGetAllAppointment1.pending, (state) => {
         state.setOnLoad = true;
