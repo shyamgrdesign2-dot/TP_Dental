@@ -140,6 +140,7 @@ import { DrAgentRuntime } from "../components/dr-agent/rxpad/dr-agent/shell/DrAg
 import { RxPadSyncProvider } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
+import { useTabletViewport } from "../hooks/useTabletViewport";
 
 function PrescriptionNew() {
   const {
@@ -595,6 +596,17 @@ function PrescriptionNew() {
   const [ddxKnowMoreDrawer, setDDxKnowMoreDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState("basicInfo");
   const [drAgentOpen, setDrAgentOpen] = useState(false);
+  const isTablet = useTabletViewport();
+  const prescriptionWrapperStyle = {
+    flex: "1 1 auto",
+    minWidth: 0,
+    transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)",
+    ...(!isTablet && drAgentOpen ? { paddingRight: 408 } : {}),
+  };
+  const drAgentOverlayClassName = [
+    drAgentStyles.drAgentOverlay,
+    isTablet ? drAgentStyles.drAgentOverlayTablet : "",
+  ].filter(Boolean).join(" ");
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
   const [isDDxLoading, setIsDDxLoading] = useState(false);
   const [ddxDrawer, setDDxDrawer] = useState(false);
@@ -2124,7 +2136,7 @@ function PrescriptionNew() {
                 vaccineRefreshKey={vaccineRefreshKey}
                 onSectionAction={handleSideNavbarSectionAction}
               />
-              <div className="w-100 bg-body wrapper2 prescription-wrapper" style={drAgentOpen ? { flex: "1 1 auto", minWidth: 0, paddingRight: 408, transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" } : { flex: "1 1 auto", minWidth: 0, transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)" }}>
+              <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
           <img src={hey} alt="vitals" className="me-3 hey" />
           <div className="row">
             
@@ -2573,7 +2585,7 @@ function PrescriptionNew() {
         <RxPadSyncProvider>
           <DrAgentRuntime
             isOpen={drAgentOpen}
-            overlayClassName={drAgentStyles.drAgentOverlay}
+            overlayClassName={drAgentOverlayClassName}
             patientId={patient_data?.patient_unique_id}
             doctorId={profile?.doctor_unique_id}
             onClose={() => setDrAgentOpen(false)}
