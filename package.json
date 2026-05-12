@@ -110,7 +110,7 @@
       "import"
     ],
     "rules": {
-      "import/no-unresolved": "off"
+      "import/no-unresolved": "error"
     },
     "settings": {
       "import/resolver": {
