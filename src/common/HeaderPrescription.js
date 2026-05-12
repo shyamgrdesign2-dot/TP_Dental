@@ -522,6 +522,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             });
     }, [dispatch, patient_data?.patient_unique_id, medicationData, investigationData, profile?.hospital_data]);
 
+    const hasRxDrawingCanvasIds =
+        (Array.isArray(rxDrawingCanvasIds) && rxDrawingCanvasIds.length > 0) ||
+        (typeof rxDrawingCanvasIds === "string" && rxDrawingCanvasIds.split(",").filter(Boolean).length > 0);
+
     const trackSaveDraftEvent = useCallback(() => {
         window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
             ...getDraftMoengageDoctorAttributes(profile),
@@ -2742,14 +2746,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isTablet ? 'Draft' : 'Save as Draft'} />}
 
                             {(() => {
-                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes).
+                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes/drawing canvas).
                               const hasPrescriptionModuleData = (
                                 symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
                                 diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
                                 medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
                                 givenVaccines.length > 0 || updatedDueVaccines?.length > 0 ||
                                 customModuleContents?.some((e) => e?.content?.length && e?.content?.some(c => c.title || c.notes)) ||
-                                hasOpthalValues() || hasCustomModuleContent()
+                                hasOpthalValues() || hasCustomModuleContent() || hasRxDrawingCanvasIds
                               );
                               // Sidebar-only signals (vitals/medical history/measurements/gynec/obstetric/lab params/zydus labs).
                               const hasSidebarOnlyData = (

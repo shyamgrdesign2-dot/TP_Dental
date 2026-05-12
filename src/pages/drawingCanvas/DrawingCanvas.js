@@ -18,6 +18,7 @@ import {
 import { trackEvent } from "../../utils/utils";
 
 import "./DrawingCanvas.scss";
+import { formatCanvasDefaultNameDateSuffix } from "./utils/canvasDateFormat";
 
 const DrawingCanvas = ({
   patientId = null,
@@ -112,9 +113,10 @@ const DrawingCanvas = ({
   const openEditorForCanvas = useCallback(async (canvasId) => {
     // If scene is missing but we have a url, fetch it
     const canvas = internalCanvases.find(c => c.id === canvasId);
-    if (canvas && !canvas.scene && canvas.url) {
+    const sceneUrl = canvas?.url || canvas?.canvas_url;
+    if (canvas && !canvas.scene && sceneUrl) {
       try {
-        const res = await fetch(canvas.url);
+        const res = await fetch(sceneUrl.replace(/^http:\/\//i, "https://"));
         const textData = await res.text();
         const sceneData = JSON.parse(textData);
         setInternalCanvases(prev => prev.map(c => c.id === canvasId ? { ...c, scene: sceneData } : c));
@@ -132,9 +134,10 @@ const DrawingCanvas = ({
   }, [internalCanvases]);
 
   const previewCanvas = useCallback(async (canvas) => {
-    if (!canvas.scene && canvas.url) {
+    const sceneUrl = canvas?.url || canvas?.canvas_url;
+    if (!canvas.scene && sceneUrl) {
       try {
-        const res = await fetch(canvas.url);
+        const res = await fetch(sceneUrl.replace(/^http:\/\//i, "https://"));
         const textData = await res.text();
         const sceneData = JSON.parse(textData);
         setInternalCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, scene: sceneData } : c));
@@ -156,8 +159,52 @@ const DrawingCanvas = ({
     setShouldShowPreview(true);
   }, [trackingAttrs]);
 
-  const handleDuplicate = useCallback((canvas) => {
-    const newCanvas = { ...canvas, id: `new_${Date.now()}`, name: `${canvas.name || canvas.title} (Copy)`, url: null, scene: canvas.scene ? { ...canvas.scene } : null };
+  const handleDuplicate = useCallback(async (canvas) => {
+    let sceneCopy = null;
+    try {
+      if (canvas?.scene && typeof canvas.scene === "object") {
+        sceneCopy = JSON.parse(JSON.stringify(canvas.scene));
+      } else {
+        const rawUrl = canvas?.url || canvas?.canvas_url;
+        if (!rawUrl) {
+          message.open({
+            type: "error",
+            content: "Could not duplicate: drawing data is not available yet. Open the canvas once, then try again.",
+            style: { zIndex: 5000 },
+            duration: 4,
+          });
+          return;
+        }
+        const res = await fetch(rawUrl.replace(/^http:\/\//i, "https://"));
+        const textData = await res.text();
+        sceneCopy = JSON.parse(textData);
+      }
+    } catch (err) {
+      console.error("Duplicate canvas: failed to load scene", err);
+      trackEvent("drawing_canvas_corrupt_scene_detected", {
+        ...trackingAttrs,
+        canvas_id: canvas?.id,
+        render_context: "duplicate",
+      });
+      message.open({
+        type: "error",
+        content: "Could not duplicate this canvas. Try opening it first, then duplicate again.",
+        style: { zIndex: 5000 },
+        duration: 4,
+      });
+      return;
+    }
+
+    const copyName = `${canvas.name || canvas.title || "Untitled Canvas"} (Copy)`;
+    const newCanvas = {
+      ...canvas,
+      id: `new_${Date.now()}`,
+      name: copyName,
+      title: copyName,
+      url: null,
+      canvas_url: null,
+      scene: sceneCopy,
+    };
     const updated = [...internalCanvases, newCanvas];
     setInternalCanvases(updated);
     if (typeof onSave === "function") onSave(updated);
@@ -181,19 +228,16 @@ const DrawingCanvas = ({
   }, [internalCanvases, onSave]);
 
   const generateDefaultCanvasName = useCallback(() => {
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2, '0');
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const yy = String(now.getFullYear()).slice(-2);
-    const dateSuffix = `${dd}-${mm}-${yy}`;
-    
-    // Count existing canvases that match today's date pattern to determine the next number
-    const todayCanvasesCount = internalCanvases.filter(c => {
-      const name = (c.name || c.title || "").toLowerCase();
-      return name.includes(dateSuffix);
+    const dateSuffix = formatCanvasDefaultNameDateSuffix(new Date());
+    if (!dateSuffix) {
+      return "canvas01";
+    }
+    const suffixLower = `_${dateSuffix}`.toLowerCase();
+    const todayCanvasesCount = internalCanvases.filter((c) => {
+      const name = (c.name || c.title || "").trim().toLowerCase();
+      return name.endsWith(suffixLower);
     }).length;
-    
-    const paddedNum = String(todayCanvasesCount + 1).padStart(2, '0');
+    const paddedNum = String(todayCanvasesCount + 1).padStart(2, "0");
     return `canvas${paddedNum}_${dateSuffix}`;
   }, [internalCanvases]);
 

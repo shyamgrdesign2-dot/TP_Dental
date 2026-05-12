@@ -257,6 +257,10 @@ $divider-color: #d0d5dd;
     .excalidraw .sidebar-trigger[title="Library"],
     .excalidraw [title="Library"],
     .excalidraw [aria-label="Library"],
+    /* Hand (pan) tool — hidden when canvas zoom/pan is disabled */
+    .excalidraw label:has([data-testid="toolbar-hand"]),
+    /* Excalidraw "More tools" dropdown */
+    .excalidraw [data-testid="dropdown-menu-button"],
     .excalidraw .zoom-actions,
     .excalidraw .layer-ui__wrapper__footer-right,
     .excalidraw .HelpDialog__header {

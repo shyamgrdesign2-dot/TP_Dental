@@ -658,6 +658,7 @@ function TabPrescription() {
           id: r.mapping_id,
           name: r.canvas_name,
           url: r.canvas_url,
+          created_at: r.created_at || r.createdAt || r.canvas_created_at,
           scene: null,
         }));
         setDrawingCanvases(mapped);

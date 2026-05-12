@@ -6,6 +6,7 @@ import CommonModal from "../../../common/CommonModal";
 import { ASSETS } from "../../../assets";
 import "./DrawingCanvasCard.scss";
 import { renameMapping, deleteMapping } from "../service";
+import { formatCanvasCreatedSubtitle } from "../utils/canvasDateFormat";
 import { trackEvent } from "../../../utils/utils";
 
 const editIcon = ASSETS.images.documentEdit;
@@ -40,6 +41,10 @@ const DrawingCanvasCard = ({
   );
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+
+  const createdAtSubtitle = formatCanvasCreatedSubtitle(
+    canvas?.created_at ?? canvas?.createdAt ?? canvas?.canvas_created_at
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -327,8 +332,9 @@ const DrawingCanvasCard = ({
                 <div className="drawing-canvas-card__title" title={localTitle}>
                   {localTitle}
                 </div>
-                {/* Dummy date for placeholder visualization */}
-                <div className="drawing-canvas-card__subtitle">12 Aug&apos;26</div>
+                {createdAtSubtitle ? (
+                  <div className="drawing-canvas-card__subtitle">{createdAtSubtitle}</div>
+                ) : null}
               </div>
              {!hideMoreOptions ? <div onClick={(e) => e.stopPropagation()}>
                 <Dropdown

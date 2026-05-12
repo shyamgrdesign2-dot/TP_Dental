@@ -564,7 +564,8 @@ function ConfigurePrintSetting() {
                                         parsedCanvases.push({
                                             id: getCanvasMappingId(record),
                                             name: record.canvas_name || "Untitled Canvas",
-                                            imageUrl: url
+                                            imageUrl: url,
+                                            created_at: record.created_at || record.createdAt || record.canvas_created_at,
                                         });
                                     }
                                 }
