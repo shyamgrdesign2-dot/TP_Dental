@@ -101,36 +101,6 @@ function getPatientInfo(consultations, patient_data) {
   };
 }
 
-/** Maps API dp_name to one of CONSULTATIONS_DEPARTMENT_ROW_NAMES. */
-function getDepartmentRowName(consultation) {
-  const doc = consultation?.doctor_data || consultation?.doctorData || {};
-  const dp = (doc.dp_name ?? doc.department_name ?? doc.specialty ?? "").trim();
-  if (!dp) return null;
-  const lower = dp.toLowerCase();
-  if (lower.includes("ophthalm")) return "Ophthalmologist";
-  if (lower.includes("dental") || lower.includes("dentist")) return "Dentist";
-  if (/\bent\b/.test(lower) || lower.includes("ear nose throat")) return "ENT Surgeon";
-  if (lower.includes("orthopaed") || lower.includes("orthoped"))
-    return "Orthopaedic Surgeon";
-  if (
-    lower.includes("gynaec") ||
-    lower.includes("gynec") ||
-    lower.includes("obstet")
-  )
-    return "Gynaecology";
-  if (lower.includes("dermat")) return "Dermatology";
-  if (lower.includes("cardio")) return "Cardiologist";
-  if (
-    lower.includes("paediatr") ||
-    lower.includes("pediatr") ||
-    lower.includes("paediatric")
-  )
-    return "Paediatric";
-  if (lower.includes("physician") || lower.includes("general"))
-    return "Physician";
-  return null;
-}
-
 /**
  * Format one consultation as plain text (Symptoms, Examinations, Medical History, Diagnosis, Medicines, Advice).
  */
@@ -440,9 +410,22 @@ export function buildReportContentFromGroupedData(
 </table>
 `;
 
-  // Chief Complaints
+  // Chief Complaints — show only symptoms entered by the Health Checkup doctor
+  const healthCheckupTcmIds = new Set(
+    consultations
+      .filter((c) => {
+        const doc = c.doctor_data || {};
+        const dp = (doc.dp_name ?? "").trim().toLowerCase();
+        return dp === "health check up";
+      })
+      .map((c) => c.tcm_id)
+      .filter(Boolean)
+  );
+  const healthCheckupSymptoms = healthCheckupTcmIds.size > 0
+    ? symptoms.filter((s) => healthCheckupTcmIds.has(s.tcm_id))
+    : [];
   const chiefHtml =
-    symptoms.length > 0 ? symptomsToHtmlList(symptoms) : "&#8203;";
+    healthCheckupSymptoms.length > 0 ? symptomsToHtmlList(healthCheckupSymptoms) : "&#8203;";
   const chiefSection = `
 <div class="print-section-group">
 <h2 class="report-section-title">Chief Complaints:</h2>
@@ -570,9 +553,11 @@ ${radiologyRows}
 
   const consultationsByDept = {};
   consultations.forEach((c) => {
-    const docData = c.doctor_data || c.doctorData || {};
-    let dpName = (docData.dp_name ?? docData.department_name ?? docData.specialty ?? "").trim();
+    const docData = c.doctor_data || {};
+    let dpName = (docData.dp_name ?? "").trim();
     if (!dpName) dpName = "Consultation";
+    // Skip "Health Check Up" specialty from the Consultation table
+    if (dpName.toLowerCase() === "health check up") return;
     if (!consultationsByDept[dpName]) {
       consultationsByDept[dpName] = [];
     }
