@@ -24,3 +24,7 @@ yarn-error.log*
 # Sentry Config File
 .sentryclirc
 .env
+.env.dev
+AGENTS.md
+DR_AGENT_PORT_SESSION_CONTEXT.md
+DR_AGENT_VOICERX_SESSION_LEARNINGS_2026-05-12.md
