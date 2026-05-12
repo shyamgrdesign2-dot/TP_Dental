@@ -55,6 +55,13 @@ import { MESSAGE_KEY } from "../utils/constants";
 import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
 import { ASSETS } from "../assets";
+import {
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  buildCustomModuleDummyDigitisedData,
+  useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   alerticon: alertIcon,
   customModule: ModuleIcon,
@@ -223,6 +230,38 @@ function CustomModule({ module }) {
           ];
     });
   };
+
+  const customVoiceDummyData = useMemo(() => (
+    buildCustomModuleDummyDigitisedData({
+      moduleName: module?.name,
+      createId: uuidv4,
+    })
+  ), [module?.name]);
+
+  const applyVoiceCustomModule = useCallback((nextRows) => {
+    const existingRows = moduleData?.filter((row) => row.title || row.notes) || [];
+    const normalizedRows = nextRows
+      .map((row) => ({
+        title: row.title || "",
+        notes: row.notes || "",
+        unique_id: row.unique_id || uuidv4(),
+        change: row.change ?? 1,
+      }))
+      .filter((row) => row.title || row.notes);
+
+    updateCustomModuleContents([...existingRows, ...normalizedRows]);
+  }, [moduleData, updateCustomModuleContents]);
+
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+  } = useVoiceRxModuleCapture({
+    moduleName: module?.name || "Custom Module",
+    onApply: applyVoiceCustomModule,
+    successMessage: `${module?.name || "Custom Module"} filled from voice dictation`,
+  });
 
   const onFocusChid = (i) => {
     setSearchChildQuery({
@@ -1260,7 +1299,7 @@ function CustomModule({ module }) {
   };
 
   return (
-    <div className="prescription-box-sm">
+    <div className={["prescription-box-sm", voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
           <div className="d-flex w-100">
@@ -1302,6 +1341,10 @@ function CustomModule({ module }) {
             </div>
 
             <div className="d-flex align-items-center">
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                label={`Start ${module?.name || "Custom Module"} voice input`}
+                onClick={() => setVoiceCaptureOpen(true)} />
               <button
                 className="btn d-flex align-items-center btn-text"
                 onClick={loadPreviousClick}
@@ -1388,15 +1431,23 @@ function CustomModule({ module }) {
       {TABLE_CUSTOM_MODULE}
       {DELETE_MODULE_MODAL}
 
-      <div className="p-14">
-        <Button
-          type="link"
-          icon={<PlusOutlined />}
-          className="add-custom-module-link"
-          onClick={handleAddRow}
-        >
-          Add New Line
-        </Button>
+      <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        {voiceCaptureOpen ? (
+          <VoiceRxModuleCapture
+            moduleName={module?.name || "Custom Module"}
+            dummyDigitisedData={customVoiceDummyData}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        ) : (
+          <Button
+            type="link"
+            icon={<PlusOutlined />}
+            className="add-custom-module-link"
+            onClick={handleAddRow}
+          >
+            Add New Line
+          </Button>
+        )}
       </div>
     </div>
   );

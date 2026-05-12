@@ -45,6 +45,13 @@ import CustomModuleFieldAutoComplete from "./CustomModuleFieldAutoComplete";
 import CustomModuleFieldTextAreaAutoComplete from "./CustomModuleFieldTextAreaAutoComplete";
 import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
 import { ASSETS } from "../../assets";
+import {
+  VoiceRxModuleButton,
+  VoiceRxModuleCapture,
+  buildCustomModuleDummyDigitisedData,
+  useVoiceRxModuleCapture,
+} from "../dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   customModule: ModuleIcon,
   editIconBlue: editIcon,
@@ -236,6 +243,51 @@ const CustomModuleV2 = ({ module }) => {
     },
     [module, setCustomModuleContents]
   );
+
+  const customVoiceDummyData = useMemo(() => (
+    buildCustomModuleDummyDigitisedData({
+      moduleName: module?.name,
+      namedFields: module?.namedFields,
+      createId: uuidv4,
+    })
+  ), [module?.name, module?.namedFields]);
+
+  const isCustomRowFilled = useCallback((row) => (
+    module.namedFields?.some(
+      (field) => row[field.fieldName]?.trim?.().length > 0
+    )
+  ), [module.namedFields]);
+
+  const applyVoiceCustomModule = useCallback((nextRows) => {
+    const normalizedRows = nextRows
+      .map((row) => {
+        const normalizedRow = { id: row.id || uuidv4() };
+        module.namedFields?.forEach((field) => {
+          normalizedRow[field.fieldName] = row[field.fieldName] || "";
+        });
+        return normalizedRow;
+      })
+      .filter(isCustomRowFilled);
+
+    if (normalizedRows.length === 0) return;
+
+    const existingRows = moduleData?.filter(isCustomRowFilled) || [];
+    const updatedData = [...existingRows, ...normalizedRows];
+    setModuleData(updatedData);
+    updateCustomModuleContents(updatedData);
+    setHasChanges(true);
+  }, [isCustomRowFilled, module.namedFields, moduleData, updateCustomModuleContents]);
+
+  const {
+    voiceCaptureOpen,
+    setVoiceCaptureOpen,
+    voiceUpdated,
+    handleVoiceCaptureComplete,
+  } = useVoiceRxModuleCapture({
+    moduleName: module?.name || "Custom Module",
+    onApply: applyVoiceCustomModule,
+    successMessage: `${module?.name || "Custom Module"} filled from voice dictation`,
+  });
 
   // Handle field value change
   const handleFieldChange = (rowId, fieldName, value) => {
@@ -1413,7 +1465,10 @@ const CustomModuleV2 = ({ module }) => {
   }, [module?.module_id]);
 
   return (
-    <div className="prescription-box-sm" data-module-id={module?.module_id}>
+    <div
+      className={["prescription-box-sm", voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+      data-module-id={module?.module_id}
+    >
       {/* Header */}
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
@@ -1456,6 +1511,10 @@ const CustomModuleV2 = ({ module }) => {
             </div>
 
             <div className="d-flex align-items-center">
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                label={`Start ${module?.name || "Custom Module"} voice input`}
+                onClick={() => setVoiceCaptureOpen(true)} />
               <button
                 className="btn d-flex align-items-center btn-text"
                 onClick={loadPreviousClick}
@@ -1649,15 +1708,23 @@ const CustomModuleV2 = ({ module }) => {
       </table>
 
       {/* Add New Line Button */}
-      <div className="p-14">
-        <Button
-          type="link"
-          icon={<PlusOutlined />}
-          className="add-custom-module-link"
-          onClick={handleAddRow}
-        >
-          Add New Line
-        </Button>
+      <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        {voiceCaptureOpen ? (
+          <VoiceRxModuleCapture
+            moduleName={module?.name || "Custom Module"}
+            dummyDigitisedData={customVoiceDummyData}
+            onCancel={() => setVoiceCaptureOpen(false)}
+            onComplete={handleVoiceCaptureComplete} />
+        ) : (
+          <Button
+            type="link"
+            icon={<PlusOutlined />}
+            className="add-custom-module-link"
+            onClick={handleAddRow}
+          >
+            Add New Line
+          </Button>
+        )}
       </div>
 
       {/* Template Drawer for Tablet/Mobile */}

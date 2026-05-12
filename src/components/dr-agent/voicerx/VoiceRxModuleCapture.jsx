@@ -305,6 +305,46 @@ export const VOICE_MODULE_DUMMY_DIGITISED_DATA = {
   ],
 };
 
+export function buildCustomModuleDummyDigitisedData({
+  moduleName = "Custom Module",
+  namedFields,
+  createId,
+} = {}) {
+  const safeCreateId = typeof createId === "function"
+    ? createId
+    : () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  if (Array.isArray(namedFields) && namedFields.length > 0) {
+    return [0, 1].map((rowIndex) => {
+      const row = { id: safeCreateId() };
+      namedFields.forEach((field) => {
+        const fieldName = field?.fieldName;
+        if (!fieldName) return;
+        const fieldLabel = field?.fieldLabel || fieldName;
+        row[fieldName] = rowIndex === 0
+          ? `${fieldLabel} from voice input`
+          : `Additional ${String(fieldLabel).toLowerCase()} detail`;
+      });
+      return row;
+    });
+  }
+
+  return [
+    {
+      title: `${moduleName} voice entry`,
+      notes: "Captured from module voice input.",
+      unique_id: safeCreateId(),
+      change: 1,
+    },
+    {
+      title: `${moduleName} follow-up detail`,
+      notes: "Added through module VoiceRx.",
+      unique_id: safeCreateId(),
+      change: 1,
+    },
+  ];
+}
+
 async function requestTranscribeAndDigitise({ audioBlob, transcript, moduleName, durationMs }) {
   const formData = new FormData();
   if (audioBlob) {
