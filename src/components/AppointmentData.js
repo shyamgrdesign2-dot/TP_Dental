@@ -638,16 +638,13 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   // Compute the actual number of visible zydus appointment rows (mirrors Table dataSource filter)
   const zydusAppointmentVisibleCount = useMemo(() => {
-    return matchedAppointment.filter((item) => {
-      if (statusFilters && statusFilters.length > 0) {
-        return statusFilters.includes(item.appointmentStatus);
-      }
-      return !(
-        item.appointmentStatus &&
-        item.appointmentStatus.toLowerCase().includes("cancel")
-      );
-    }).length;
-  }, [matchedAppointment, statusFilters]);
+    if (statusFilters.length > 0 && selectedTab === TAB_ZYDUS_APPOINTMENT) {
+      return matchedAppointment.filter((item) =>
+        statusFilters.includes(item.appointmentStatus)
+      ).length;
+    }
+    return zydusAappointmentCount;
+  }, [matchedAppointment, statusFilters, selectedTab, zydusAappointmentCount]);
 
   // UseEffect to update items when pendingDigitisation changes
   useEffect(() => {
