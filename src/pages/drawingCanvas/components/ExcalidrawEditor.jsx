@@ -38,22 +38,20 @@ export default function ExcalidrawEditor({
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const [showInRx, setShowInRx] = useState(initialShowInRx !== false);
   const [isReady, setIsReady] = useState(false);
-  const [localTitle, setLocalTitle] = useState(canvasName || "Untitled Canvas");
+  const [localTitle, setLocalTitle] = useState(canvasName || "");
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [isBackModalOpen, setIsBackModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [canvasHasContent, setCanvasHasContent] = useState(false);
-  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
-  const [pendingCanvasName, setPendingCanvasName] = useState("");
   const prevElementCountRef = useRef(0);
   const prevActiveTool = useRef(null);
   const editorLoadStartRef = useRef(Date.now());
   const hasTrackedLoadRef = useRef(false);
 
   useEffect(() => {
-    setLocalTitle(canvasName || "Untitled Canvas");
+    setLocalTitle(canvasName || "");
   }, [canvasName]);
 
   // New canvas: default Show in Rx on when opening editor only (do not re-sync from parent — it stays always "true" in parent useMemo and would reset the toggle).
@@ -129,8 +127,11 @@ export default function ExcalidrawEditor({
     if (appState.collaborators) {
       delete appState.collaborators;
     }
-    // We NO LONGER strip scrollX, scrollY, and zoom here.
-    // This allows drawings to open at their saved coordinates if available.
+    
+    // Force fixed viewport for all drawings to prevent "stretched" UI issues
+    appState.scrollX = 0;
+    appState.scrollY = 0;
+    // appState.zoom = { value: 1 };
 
     return {
       elements: initialData.elements || [],
@@ -225,7 +226,19 @@ export default function ExcalidrawEditor({
         });
       }
     }
-  }, [trackingAttrs, canvasId]);
+
+    // Force fixed viewport: Restrict scrolling and zoom to prevent "stretched" canvases
+    if (appState.scrollX !== 0 || appState.scrollY !== 0 || appState.zoom.value !== 1) {
+      excalidrawAPI?.updateScene({
+        appState: {
+          ...appState,
+          scrollX: 0,
+          scrollY: 0,
+          zoom: { value: 1 }
+        }
+      });
+    }
+  }, [excalidrawAPI, trackingAttrs, canvasId]);
 
   const handleSaveTemplateClick = () => {
     if (!onOpenSaveTemplate) return;
@@ -266,21 +279,20 @@ export default function ExcalidrawEditor({
   };
 
   const handleSave = async () => {
-    const isUntitled = !localTitle || localTitle.trim().toLowerCase() === "untitled canvas";
-    if (isUntitled) {
-      setPendingCanvasName("");
-      setIsNameModalOpen(true);
-      return;
-    }
-    await performSave(localTitle.trim());
-  };
+    let finalTitle = localTitle ? localTitle.trim() : "";
+    const isUntitled = !finalTitle || finalTitle.toLowerCase() === "untitled canvas";
 
-  const handleConfirmNameAndSave = async () => {
-    const nextName = pendingCanvasName.trim();
-    if (!nextName) return;
-    setLocalTitle(nextName);
-    setIsNameModalOpen(false);
-    await performSave(nextName);
+    if (isUntitled) {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const yy = String(now.getFullYear()).slice(-2);
+      const dateSuffix = `${dd}-${mm}-${yy}`;
+      finalTitle = `canvas01_${dateSuffix}`;
+      setLocalTitle(finalTitle);
+    }
+
+    await performSave(finalTitle);
   };
 
   const handlePrint = async () => {
@@ -629,58 +641,6 @@ export default function ExcalidrawEditor({
           </Excalidraw>
         )}
       </div>
-
-      <CommonModal
-        isModalOpen={isNameModalOpen}
-        onCancel={() => setIsNameModalOpen(false)}
-        modalWidth={540}
-        title={"Give this canvas a name"}
-        modalBody={
-          <>
-            <div className="mb-3">
-              <Input
-                autoFocus
-                placeholder="Enter canvas name"
-                value={pendingCanvasName}
-                maxLength={40}
-                onChange={(e) => setPendingCanvasName(e.target.value)}
-                onPressEnter={handleConfirmNameAndSave}
-              />
-            </div>
-            <div className="mb-2 text-muted" style={{ fontSize: 13 }}>
-              Suggestions
-            </div>
-            <div className="d-flex flex-wrap gap-2 mb-4">
-              {suggestedCanvasNames.map((name) => (
-                <Button
-                  key={name}
-                  size="small"
-                  onClick={() => setPendingCanvasName(name)}
-                >
-                  {name}
-                </Button>
-              ))}
-            </div>
-            <div className="d-flex align-items-center justify-content-end mt-2">
-              <Button
-                onClick={() => setIsNameModalOpen(false)}
-                className="me-2"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                className="btn btn-primary3 btn-41 px-4"
-                disabled={!pendingCanvasName.trim()}
-                loading={isSaving}
-                onClick={handleConfirmNameAndSave}
-              >
-                Save
-              </Button>
-            </div>
-          </>
-        }
-      />
 
       <CommonModal
         isModalOpen={isBackModalOpen}

@@ -19,14 +19,15 @@ const DrawingCanvasList = ({ drawingCanvases, setDrawingCanvases, handleDrawerDr
                   onToggleRx={() => {}}
                   onOpen={handleDrawerDrawingCanvas}
                   onPreview={handleDrawerDrawingCanvas}
-                  onRename={(renamedCanvas) => {
-                    setDrawingCanvases(prev => prev.map(c => c.id === renamedCanvas.id ? renamedCanvas : c));
+                  onRename={(canvas, newName) => {
+                    setDrawingCanvases(prev => prev.map(c => c.id === canvas.id ? { ...c, name: newName } : c));
                   }}
-                  onDuplicate={(duplicatedCanvas) => {
-                    setDrawingCanvases(prev => [duplicatedCanvas, ...prev]);
+                  onDuplicate={(canvas) => {
+                    const newCanvas = { ...canvas, id: `new_${Date.now()}`, name: `${canvas.name || canvas.title} (Copy)` };
+                    setDrawingCanvases(prev => [newCanvas, ...prev]);
                   }}
-                  onDelete={(deletedCanvas) => {
-                    setDrawingCanvases(prev => prev.filter(c => c.id !== deletedCanvas.id));
+                  onDelete={(canvas) => {
+                    setDrawingCanvases(prev => prev.filter(c => c.id !== canvas.id));
                   }}
                   hideShowInRx={true}
                   hideMoreOptions={true}

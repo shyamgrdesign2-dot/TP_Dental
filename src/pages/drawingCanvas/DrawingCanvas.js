@@ -69,7 +69,7 @@ const DrawingCanvas = ({
       if (!Array.isArray(canvases)) return prev;
       return canvases.map(newCanvas => {
         const existing = prev.find(p => p.id === newCanvas.id);
-        if (existing && existing.scene) {
+        if (existing && existing.scene && (existing.url === newCanvas.url || !newCanvas.url)) {
           return { ...newCanvas, scene: existing.scene };
         }
         return newCanvas;
@@ -157,7 +157,7 @@ const DrawingCanvas = ({
   }, [trackingAttrs]);
 
   const handleDuplicate = useCallback((canvas) => {
-    const newCanvas = { ...canvas, id: Date.now().toString(), name: `${canvas.name || canvas.title} (Copy)` };
+    const newCanvas = { ...canvas, id: `new_${Date.now()}`, name: `${canvas.name || canvas.title} (Copy)`, url: null, scene: canvas.scene ? { ...canvas.scene } : null };
     const updated = [...internalCanvases, newCanvas];
     setInternalCanvases(updated);
     if (typeof onSave === "function") onSave(updated);
@@ -179,6 +179,23 @@ const DrawingCanvas = ({
     setInternalCanvases(updated);
     if (typeof onSave === "function") onSave(updated);
   }, [internalCanvases, onSave]);
+
+  const generateDefaultCanvasName = useCallback(() => {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yy = String(now.getFullYear()).slice(-2);
+    const dateSuffix = `${dd}-${mm}-${yy}`;
+    
+    // Count existing canvases that match today's date pattern to determine the next number
+    const todayCanvasesCount = internalCanvases.filter(c => {
+      const name = (c.name || c.title || "").toLowerCase();
+      return name.includes(dateSuffix);
+    }).length;
+    
+    const paddedNum = String(todayCanvasesCount + 1).padStart(2, '0');
+    return `canvas${paddedNum}_${dateSuffix}`;
+  }, [internalCanvases]);
 
   const openEditorForNewCanvas = useCallback(async () => {
     if (isFirstTimeUser) {
@@ -240,7 +257,9 @@ const DrawingCanvas = ({
       });
       const file = new File([blob], `${canvasTitle || 'new_canvas'}.json`, { type: "application/json" });
 
-      if (editorCanvasId === "new") {
+      const isNew = editorCanvasId === "new" || (typeof editorCanvasId === "string" && editorCanvasId.startsWith("new_"));
+
+      if (isNew) {
           const linkRes = await linkCanvasToPatient(canvasTitle || "New Canvas", file, patientId, tcmId);
           if (linkRes.status === true) {
               const mappingId =
@@ -298,6 +317,7 @@ const DrawingCanvas = ({
             canvas_id: editorCanvasId,
             edit_source: "save_button",
           });
+          setInternalCanvases(prev => prev.map(c => c.id === editorCanvasId ? { ...c, scene: payload, name: canvasTitle } : c));
           if (typeof onSave === "function") {
             onSave(null, { mappingId: editorCanvasId, showInRx: showInRxValue });
           }
@@ -497,7 +517,11 @@ const DrawingCanvas = ({
         >
           <ExcalidrawEditor
             canvasId={editorCanvasId}
-            canvasName={internalCanvases.find(c => c?.id === editorCanvasId)?.name || internalCanvases.find(c => c?.id === editorCanvasId)?.title || "Untitled Canvas"}
+            canvasName={
+              editorCanvasId === "new" || (typeof editorCanvasId === "string" && editorCanvasId.startsWith("new_"))
+                ? generateDefaultCanvasName()
+                : (internalCanvases.find(c => c?.id === editorCanvasId)?.name || internalCanvases.find(c => c?.id === editorCanvasId)?.title || "Untitled Canvas")
+            }
             initialData={editorInitialData}
             onSave={handleEditorSave}
             onBack={handleCloseEditor}

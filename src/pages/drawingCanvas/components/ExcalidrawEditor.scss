@@ -187,7 +187,8 @@ $divider-color: #d0d5dd;
         line-height: normal;
         transition: all 0.2s;
 
-        &, span {
+        &,
+        span {
           font-weight: 600 !important;
         }
 
@@ -196,7 +197,8 @@ $divider-color: #d0d5dd;
           color: $primary-purple !important;
           background-color: #fff !important;
 
-          &, span {
+          &,
+          span {
             color: $primary-purple !important;
           }
 
@@ -210,7 +212,8 @@ $divider-color: #d0d5dd;
           color: white !important;
           border: none !important;
 
-          &, span {
+          &,
+          span {
             color: white !important;
           }
 
@@ -220,16 +223,18 @@ $divider-color: #d0d5dd;
         }
       }
 
-      .help-btn, .settings-btn {
+      .help-btn,
+      .settings-btn {
         background-color: transparent !important;
-        
+
         span {
-           color: #92929d !important;
-           font-size: 18px;
+          color: #92929d !important;
+          font-size: 18px;
         }
 
         &:hover {
           background-color: #f1f1f5 !important;
+
           span {
             color: $primary-purple !important;
           }
@@ -252,8 +257,14 @@ $divider-color: #d0d5dd;
     .excalidraw .sidebar-trigger[title="Library"],
     .excalidraw [title="Library"],
     .excalidraw [aria-label="Library"],
+    .excalidraw .zoom-actions,
+    .excalidraw .layer-ui__wrapper__footer-right,
     .excalidraw .HelpDialog__header {
       display: none !important;
+    }
+
+    .excalidraw .App-menu_top__left {
+      visibility: hidden !important;
     }
   }
 

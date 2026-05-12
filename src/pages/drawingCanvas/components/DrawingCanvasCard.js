@@ -29,6 +29,10 @@ const DrawingCanvasCard = ({
   trackingAttrs = {},
 }) => {
   const [localTitle, setLocalTitle] = useState(canvas?.title || canvas?.name || "Untitled Canvas");
+
+  useEffect(() => {
+    setLocalTitle(canvas?.title || canvas?.name || "Untitled Canvas");
+  }, [canvas?.title, canvas?.name]);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const isShowInRx = (rxDrawingCanvasIds || []).some(
@@ -88,7 +92,7 @@ const DrawingCanvasCard = ({
         URL.revokeObjectURL(previewUrl);
       }
     };
-  }, [canvas?.scene]);
+  }, [canvas?.scene, canvas?.url, canvas?.canvas_url, canvas?.id]);
 
   const handleOpen = () => {
     if (!isRenaming && typeof onOpen === "function") {
