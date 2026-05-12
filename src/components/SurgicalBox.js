@@ -43,7 +43,7 @@ import {
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
-import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
@@ -89,6 +89,7 @@ function SurgicalBox() {
   });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -860,17 +861,19 @@ function SurgicalBox() {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={surgeryIcon} alt="surgery-icon" />
             <div className="title-common">Surgeries/Procedures</div>
           </div>
           <div className="d-flex align-items-center">
-            <VoiceRxModuleButton
-              active={voiceCaptureOpen}
-              label="Start Surgeries Procedures voice input"
-              onClick={() => setVoiceCaptureOpen(true)} />
+            {isVoiceRxNewFromGB && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                label="Start Surgeries Procedures voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -923,8 +926,8 @@ function SurgicalBox() {
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
 
-        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {voiceCaptureOpen ? (
+        <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}

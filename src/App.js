@@ -9,13 +9,14 @@ import {
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
-import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
+import { GrowthBook, GrowthBookProvider, useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useDeviceType } from "./utils/deviceDetection";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
 import {
   FROM_NATIVE_APP,
+  GB_VOICE_RX_NEW_UI,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
   PERSISTANT_STORAGE_KEY_MEDECO_TOKEN,
@@ -198,6 +199,16 @@ const growthbook = new GrowthBook({
   clientKey: config?.GROWTHBOOK_CLIENTKEY,
   enableDevMode: process.env.REACT_APP_ENV !== "prod",
 });
+
+function PrescriptionRouteElement() {
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+
+  if (isVoiceRxNewFromGB) {
+    return <PrescriptionNew />;
+  }
+
+  return isMobile ? <TabPrescription /> : <Prescription />;
+}
 
 function App() {
   const SentryRoutes = useMemo(
@@ -653,13 +664,9 @@ function App() {
               )
             } 
           />
-          {/* <Route
-            path="prescription"
-            element={isMobile ? <TabPrescription /> : <Prescription />}
-          /> */}
           <Route
             path="prescription"
-            element={<PrescriptionNew />}
+            element={<PrescriptionRouteElement />}
           />
           <Route
             path="prescription_print_view"

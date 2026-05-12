@@ -23,7 +23,7 @@ import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes } from "../utils/utils";
 
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -132,6 +132,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
     const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
@@ -2030,8 +2031,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 />
                             )}
                             {/* TODO: INTEL - HANDLE BEHIND FLAG */}
-                            {/* {
-                                (isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && !hideVoiceRxIcon ? (
+                            {
+                                !isVoiceRxNewFromGB && (isFreeVoiceRxUser || tp_monetization_enable) && handleGenRx && !hideVoiceRxIcon ? (
                                     isTablet ?
                                         <>
                                             <div className="headerprescription-tablet-sep" aria-hidden="true" />
@@ -2040,7 +2041,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         : 
                                         <GenRxButton onClick={handleGenRx} />
                                 ) : null
-                            } */}
+                            }
 
                             {isTablet && <div className="headerprescription-tablet-sep" aria-hidden="true" />}
 

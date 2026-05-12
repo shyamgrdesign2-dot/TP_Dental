@@ -103,6 +103,7 @@ export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const GB_VOICE_RX_FREE = "free-voice-rx";
 export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
 export const GB_CHIKITSALAY = "chikitsalay";
+export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
 export const CLINIC_TARGET_STATUS = {
   SERVING: "SERVING",
   COMPLETED: "COMPLETED",

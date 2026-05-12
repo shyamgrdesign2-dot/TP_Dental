@@ -135,11 +135,6 @@ import {
 import { GB_OPTHAL_MODULE } from "../utils/constants";
 import { ASSETS } from "../assets";
 
-import "../components/dr-agent/dr-agent-globals.css";
-import { DrAgentRuntime } from "../components/dr-agent/rxpad/dr-agent/shell/DrAgentRuntime";
-import { RxPadSyncProvider } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
-import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
-
 function Prescription() {
   const {
     userId,
@@ -163,13 +158,14 @@ function Prescription() {
     apexai: apexAIImg,
     blinkingdot_3: blinkingDotWebm,
     blinkingdot_2: blinkingDotMp4,
+    genRxBg_2: genRxBgWebm,
+    genRxBg: genRxBgMp4,
     carePlanActive: carePlanIcon,
   } = ASSETS.images;
 
   console.log("vitals", hey);
   
   // Local state to manage customizedPadRightList with deleted modules for edit case
-  const [drAgentOpen, setDrAgentOpen] = useState(false);
   const [customizedPadRightList, setCustomizedPadRightList] = useState(originalCustomizedPadRightList);
   // Track modules that have been explicitly removed from Rx pad to prevent re-adding
   const [removedModuleIds, setRemovedModuleIds] = useState(new Set());
@@ -1557,10 +1553,30 @@ function Prescription() {
         </div>
       ) : e.tmdpm_id === 3 && e.tmdpm_status === 0 ? (
         <div
-          key={i}
-          className="prescription-box-sm p-14"
-          style={{ marginBottom: "15px" }}
+          className={showShimmer ? "genrx-shimmer" : ""}
+          style={
+            showShimmer
+              ? {
+                  padding: "2px",
+                  borderRadius: "20px",
+                  marginBottom: "15px",
+                }
+              : {}
+          }
         >
+          {showShimmer && (
+            <LoopingVideo
+              webm={genRxBgWebm}
+              mp4={genRxBgMp4}
+              className="genrx-shimmer-video"
+              ariaLabel="Background"
+            />
+          )}
+          <div
+            key={i}
+            className={`prescription-box-sm p-14 ${showShimmer ? "genrx-shimmer-content" : ""}`}
+            style={showShimmer ? {} : { marginBottom: "15px" }}
+          >
             <div style={{ background: "white", borderRadius: "17px" }}>
               <div className="d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center">
@@ -1612,6 +1628,7 @@ function Prescription() {
                 )
               )}
             </div>
+          </div>
         </div>
       ) : e.tmdpm_id === 7 &&
         e.tmdpm_status === 0 &&
@@ -2175,11 +2192,32 @@ function Prescription() {
                     }
                   }
                   return e.tmdpm_id === 5 && e.tmdpm_status === 0 ? (
-                    <div key={i} className="prescription-box-sm">
-                      <SymptomsBox
-                        handleDDxDrawer={handleDDxDrawer}
-                        generatedDDx={generatedDDx?.results}
-                      />
+                    <div
+                      key={i}
+                      className={`prescription-box-sm ${showShimmer ? "genrx-shimmer" : ""}`}
+                      style={showShimmer ? { padding: "2px" } : {}}
+                    >
+                      {showShimmer && (
+                        <LoopingVideo
+                          webm={genRxBgWebm}
+                          mp4={genRxBgMp4}
+                          className="genrx-shimmer-video"
+                          ariaLabel="Background"
+                        />
+                      )}
+                      <div
+                        className={showShimmer ? "genrx-shimmer-content" : ""}
+                        style={
+                          showShimmer
+                            ? { background: "white", borderRadius: "17px" }
+                            : {}
+                        }
+                      >
+                        <SymptomsBox
+                          handleDDxDrawer={handleDDxDrawer}
+                          generatedDDx={generatedDDx?.results}
+                        />
+                      </div>
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
@@ -2544,16 +2582,6 @@ function Prescription() {
         )}
           </>
         )}
-        <RxPadSyncProvider>
-          <DrAgentRuntime
-            isOpen={drAgentOpen}
-            overlayClassName={drAgentStyles.drAgentOverlay}
-            patientId={patient_data?.patient_unique_id}
-            doctorId={profile?.doctor_unique_id}
-            onClose={() => setDrAgentOpen(false)}
-            onOpen={() => setDrAgentOpen(true)}
-          />
-        </RxPadSyncProvider>
       </>
     </CashManagerContext.Provider>
   );

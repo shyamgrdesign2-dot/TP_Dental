@@ -30,6 +30,7 @@ import {
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CashManagerContext from "../../context/CashManagerContext";
 
 import DisabledModuleTooltip from "./DisabledModuleTooltip";
@@ -38,6 +39,7 @@ import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage, getClinic } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
+import { GB_VOICE_RX_NEW_UI } from "../../utils/constants";
 import "./CustomModuleV2.scss";
 import { isMobile } from "react-device-detect";
 import CustomModuleV2Drawer from "./CustomModuleV2Drawer";
@@ -71,6 +73,7 @@ const {
  * @param {Array} module.namedFields - Array of field configurations
  */
 const CustomModuleV2 = ({ module }) => {
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const dispatch = useDispatch();
   const {
     userId,
@@ -1466,7 +1469,7 @@ const CustomModuleV2 = ({ module }) => {
 
   return (
     <div
-      className={["prescription-box-sm", voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+      className={["prescription-box-sm", voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
       data-module-id={module?.module_id}
     >
       {/* Header */}
@@ -1511,10 +1514,12 @@ const CustomModuleV2 = ({ module }) => {
             </div>
 
             <div className="d-flex align-items-center">
-              <VoiceRxModuleButton
-                active={voiceCaptureOpen}
-                label={`Start ${module?.name || "Custom Module"} voice input`}
-                onClick={() => setVoiceCaptureOpen(true)} />
+              {isVoiceRxNewFromGB && (
+                <VoiceRxModuleButton
+                  active={voiceCaptureOpen}
+                  label={`Start ${module?.name || "Custom Module"} voice input`}
+                  onClick={() => setVoiceCaptureOpen(true)} />
+              )}
               <button
                 className="btn d-flex align-items-center btn-text"
                 onClick={loadPreviousClick}
@@ -1708,8 +1713,8 @@ const CustomModuleV2 = ({ module }) => {
       </table>
 
       {/* Add New Line Button */}
-      <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-        {voiceCaptureOpen ? (
+      <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        {isVoiceRxNewFromGB && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
             moduleName={module?.name || "Custom Module"}
             dummyDigitisedData={customVoiceDummyData}

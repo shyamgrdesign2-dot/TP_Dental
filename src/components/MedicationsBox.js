@@ -30,7 +30,7 @@ import {
   updateFrequentlyMedication,
   getAllDoses
 } from "../redux/medicationSlice";
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_VOICE_RX_NEW_UI, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 
@@ -200,6 +200,7 @@ function MedicationsBox() {
   const [isModalOpen2, setIsModalOpen2] = useState(false);
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
 
   const handleViewDoseCalcDrawer = (tab, value) => {
     setDoseCalculatorDrawer(!doseCalculatorDrawer)
@@ -2115,7 +2116,7 @@ function MedicationsBox() {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
@@ -2143,10 +2144,12 @@ function MedicationsBox() {
             }
           </div>
           <div className="d-flex align-items-center">
-            <VoiceRxModuleButton
-              active={voiceCaptureOpen}
-              label="Start Medication Rx voice input"
-              onClick={() => setVoiceCaptureOpen(true)} />
+            {isVoiceRxNewFromGB && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                label="Start Medication Rx voice input"
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             {(profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
               <button
                 className="btn d-flex align-items-center btn-text"
@@ -2238,8 +2241,8 @@ function MedicationsBox() {
           </Drawer>
         }
 
-        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {voiceCaptureOpen ? (
+        <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Medication (Rx)"
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.medicine}

@@ -34,7 +34,7 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
-import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
@@ -92,6 +92,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     );
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
 
@@ -918,17 +919,19 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
             <div className="title-common">{INVESTIGATION_TITLE}</div>
           </div>
           <div className="d-flex align-items-center">
-            <VoiceRxModuleButton
-              active={voiceCaptureOpen}
-              label={`Start ${INVESTIGATION_TITLE} voice input`}
-              onClick={() => setVoiceCaptureOpen(true)} />
+            {isVoiceRxNewFromGB && (
+              <VoiceRxModuleButton
+                active={voiceCaptureOpen}
+                label={`Start ${INVESTIGATION_TITLE} voice input`}
+                onClick={() => setVoiceCaptureOpen(true)} />
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -991,8 +994,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
           </div>
         )}
 
-        <div className={voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {voiceCaptureOpen ? (
+        <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
