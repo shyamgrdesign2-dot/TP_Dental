@@ -109,6 +109,13 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../../redux/ophthalmologyExamSlice";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../../utils/vitalsCalculations";
 
 function TabPrescription() {
   const {
@@ -247,6 +254,17 @@ function TabPrescription() {
     caseManagerData != null
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
+
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
+  );
+
+  const showVitalsFromScAutofill =
+    isAutofillSelected &&
+    hasVitalsAndBodyCompositionData(
+      selectedSymptomsCollector?.vitalsAndBodyComposition
+    );
 
   useEffect(() => {
     dispatch(resetVitalsState());
@@ -1294,17 +1312,37 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData != null) {
@@ -1983,7 +2021,8 @@ function TabPrescription() {
                         onClick={() =>
                           vitalsData.length === 0 &&
                             vitalsPastList.length === 0 &&
-                            !patientBirthWeight
+                            !patientBirthWeight &&
+                            !showVitalsFromScAutofill
                             ? handleDrawerVital()
                             : openCollapsed(1)
                         }

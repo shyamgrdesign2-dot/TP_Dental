@@ -31,11 +31,49 @@ const VITALS_META_KEYS = new Set([
   "_doc",
 ]);
 
+/**
+ * API / symptom-collector may send each vital as `{ value, unit }` or a plain scalar (legacy).
+ */
+export function unwrapVitalsFieldValue(v) {
+  if (v == null) return v;
+  if (
+    typeof v === "object" &&
+    !Array.isArray(v) &&
+    Object.prototype.hasOwnProperty.call(v, "value")
+  ) {
+    return v.value;
+  }
+  return v;
+}
+
+/** Trimmed string for comparisons and normalization; empty string if absent. */
+export function vitalScalarString(v) {
+  const u = unwrapVitalsFieldValue(v);
+  if (u == null) return "";
+  return String(u).trim();
+}
+
+/** Label/value lines for UI when API sends `{ value, unit }`. */
+export function formatVitalDisplayForUi(v) {
+  if (v == null) return "";
+  if (
+    typeof v === "object" &&
+    !Array.isArray(v) &&
+    Object.prototype.hasOwnProperty.call(v, "value")
+  ) {
+    const val = vitalScalarString(v);
+    const u = v.unit != null ? String(v.unit).trim() : "";
+    if (!val && !u) return "";
+    return u ? `${val} ${u}`.trim() : val;
+  }
+  return vitalScalarString(v);
+}
+
 export function hasVitalsAndBodyCompositionData(vbc) {
   if (!vbc || typeof vbc !== "object") return false;
   return Object.entries(vbc).some(([k, v]) => {
     if (VITALS_META_KEYS.has(k)) return false;
-    return v != null && String(v).trim() !== "";
+    return vitalScalarString(v) !== "";
   });
 }
 
@@ -48,7 +86,8 @@ export function normalizeVitalsAndBodyCompositionToRxRowFields(vbc) {
 
   const patch = {};
   const take = (field, val) => {
-    if (val != null && String(val).trim() !== "") patch[field] = String(val).trim();
+    const s = vitalScalarString(val);
+    if (s !== "") patch[field] = s;
   };
 
   for (const k of RX_VITALS_ROW_KEYS) {
@@ -59,7 +98,8 @@ export function normalizeVitalsAndBodyCompositionToRxRowFields(vbc) {
 
   if (!patch.temp) take("temp", vbc.temperature);
   if (!patch.pres) take("pres", vbc.pulse);
-  if (!patch.resp_rate) take("resp_rate", vbc.respiratoryRate);
+  if (!patch.resp_rate)
+    take("resp_rate", vbc.respiratoryRate ?? vbc.respRate);
   if (!patch.spo2) take("spo2", vbc.spo2);
   if (!patch.height) take("height", vbc.height);
   if (!patch.weight) take("weight", vbc.weight);
@@ -70,12 +110,12 @@ export function normalizeVitalsAndBodyCompositionToRxRowFields(vbc) {
   if (!patch.bmr) take("bmr", vbc.bmr);
   if (!patch.bsa) take("bsa", vbc.bsa);
 
-  let systolic = String(patch.systolic ?? vbc.systolic ?? "").trim();
-  let diastolic = String(patch.diastolic ?? vbc.diastolic ?? "").trim();
+  let systolic = vitalScalarString(patch.systolic ?? vbc.systolic);
+  let diastolic = vitalScalarString(patch.diastolic ?? vbc.diastolic);
 
-  const bpCombined = String(
+  const bpCombined = vitalScalarString(
     patch.blood_press ?? vbc.bloodPressure ?? vbc.blood_press ?? ""
-  ).trim();
+  );
   if (bpCombined.includes("/")) {
     const parts = bpCombined.split("/").map((p) => p.trim());
     if (!systolic && parts[0]) systolic = parts[0];
@@ -98,15 +138,9 @@ export function normalizeVitalsAndBodyCompositionToRxRowFields(vbc) {
   }
 
   if (!patch.general_rbs) {
-    if (
-      vbc.generalRBS != null &&
-      String(vbc.generalRBS).trim() !== ""
-    ) {
+    if (vitalScalarString(vbc.generalRBS) !== "") {
       take("general_rbs", vbc.generalRBS);
-    } else if (
-      vbc.randomBloodSugar != null &&
-      String(vbc.randomBloodSugar).trim() !== ""
-    ) {
+    } else if (vitalScalarString(vbc.randomBloodSugar) !== "") {
       take("general_rbs", vbc.randomBloodSugar);
     }
   }
@@ -131,7 +165,7 @@ export function rxVitalsPatchToCollectorDisplayKeys(vbc) {
   if (n.systolic) add("systolic");
   if (n.diastolic) add("diastolic");
   if (
-    String(vbc.bloodPressure ?? "").trim() !== "" &&
+    vitalScalarString(vbc.bloodPressure) !== "" &&
     !n.systolic &&
     !n.diastolic
   ) {
@@ -139,10 +173,7 @@ export function rxVitalsPatchToCollectorDisplayKeys(vbc) {
   }
   if (n.spo2) add("spo2");
   if (n.general_rbs) {
-    if (
-      vbc.randomBloodSugar != null &&
-      String(vbc.randomBloodSugar).trim() !== ""
-    ) {
+    if (vitalScalarString(vbc.randomBloodSugar) !== "") {
       add("randomBloodSugar");
     } else {
       add("generalRBS");
