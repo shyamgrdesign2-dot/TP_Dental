@@ -2134,6 +2134,10 @@ function PrescriptionNew() {
                 labParamsData={labParamsData}
                 gynecHistory={updatedGynecHistory}
                 vaccineRefreshKey={vaccineRefreshKey}
+                customizedPadLeftList={customizedPadLeftList}
+                isVaccinationAccessable={isVaccinationAccessable}
+                isGrowthChartAccessable={isGrowthChartAccessable}
+                isGynaecHistoryAccessable={isGynaecHistoryAccessable}
                 onSectionAction={handleSideNavbarSectionAction}
               />
               <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>

@@ -63,8 +63,36 @@ const NAV_ITEMS = [
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
 ];
 
-const NAV_SEQUENCE = NAV_ITEMS.map((item) => item.id);
+const NAV_ITEM_BY_ID = NAV_ITEMS.reduce((acc, item) => {
+  acc[item.id] = item;
+  return acc;
+}, {});
 const SIDE_NAV_BATCH_SIZE = 3;
+
+function getCustomizedPadNavId(item, access = {}) {
+  if (!item || item.tmdpm_status !== 0) return null;
+
+  switch (Number(item.tmdpm_id)) {
+    case 1:
+      return "vitals";
+    case 3:
+      return access.isGynaecHistoryAccessable ? "gynec" : "history";
+    case 7:
+      return access.isVaccinationAccessable ? "vaccine" : null;
+    case 8:
+      return "personalNotes";
+    case 16:
+      return access.isGrowthChartAccessable ? "growth" : null;
+    case 17:
+      return access.isGynaecHistoryAccessable ? "obstetric" : null;
+    case 18:
+      return "medicalRecords";
+    case 19:
+      return "labResults";
+    default:
+      return null;
+  }
+}
 
 const SECTION_TITLES = {
   pastVisits: "Past Visit",
@@ -1236,7 +1264,7 @@ function NavItem({ item, active, onClick }) {
   );
 }
 
-function NavPanel({ activeId, onSelect }) {
+function NavPanel({ activeId, onSelect, items = NAV_ITEMS }) {
   const scrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
 
@@ -1270,7 +1298,7 @@ function NavPanel({ activeId, onSelect }) {
   return (
     <div className="snv-rail">
       <div ref={scrollRef} className="snv-rail-scroll">
-        {NAV_ITEMS.map((item) => (
+        {items.map((item) => (
           <NavItem
             key={item.id}
             item={item}
@@ -2888,6 +2916,10 @@ export function SideNavbar({
   labParamsData: labParamsDataProp,
   gynecHistory: gynecHistoryProp,
   vaccineRefreshKey = 0,
+  customizedPadLeftList = [],
+  isVaccinationAccessable = false,
+  isGrowthChartAccessable = false,
+  isGynaecHistoryAccessable = false,
 }) {
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
@@ -2899,6 +2931,7 @@ export function SideNavbar({
   const [pastVisitsPage, setPastVisitsPage] = useState(1);
   const [pastVisitsTotalPages, setPastVisitsTotalPages] = useState(1);
   const [isPastVisitsLoading, setIsPastVisitsLoading] = useState(false);
+  const [hasPastVisitsLoaded, setHasPastVisitsLoaded] = useState(false);
   const [patientVaccineRows, setPatientVaccineRows] = useState([]);
   const [vaccineTemplateRows, setVaccineTemplateRows] = useState([]);
   const [opthalPrescriptionRows, setOpthalPrescriptionRows] = useState([]);
@@ -2908,6 +2941,7 @@ export function SideNavbar({
   const opthalRequestRef = useRef(0);
   const growthRequestRef = useRef(0);
   const pastVisitsRequestRef = useRef(0);
+  const emptyPastVisitsAutoSelectRef = useRef(false);
   const activePatientRef = useRef(patientId);
   const { vitalsPastList, patientBirthWeight } = useSelector((state) => state.vitals);
   const { allUploadedDocs = [], uploadDocCategories = [] } = useSelector((state) => state.uploadDoc);
@@ -3044,6 +3078,7 @@ export function SideNavbar({
     } finally {
       if (pastVisitsRequestRef.current === requestId) {
         setIsPastVisitsLoading(false);
+        if (page === 1) setHasPastVisitsLoaded(true);
       }
     }
   }, [patientId]);
@@ -3054,9 +3089,13 @@ export function SideNavbar({
     setPastVisitLoadingIds({});
     setPastVisitsPage(1);
     setPastVisitsTotalPages(1);
+    setHasPastVisitsLoaded(false);
+    emptyPastVisitsAutoSelectRef.current = false;
     pastVisitsRequestRef.current += 1;
     if (patientId) {
       fetchPastVisitsPage(1);
+    } else {
+      setHasPastVisitsLoaded(true);
     }
   }, [fetchPastVisitsPage, patientId]);
 
@@ -3206,6 +3245,36 @@ export function SideNavbar({
     medicalRecords: allUploadedDocs.length > 0,
   }), [allUploadedDocs.length]);
 
+  const navItems = useMemo(() => {
+    const seen = new Set(["pastVisits"]);
+    const orderedItems = [NAV_ITEM_BY_ID.pastVisits];
+    const access = {
+      isVaccinationAccessable,
+      isGrowthChartAccessable,
+      isGynaecHistoryAccessable,
+    };
+
+    (customizedPadLeftList || []).forEach((item) => {
+      const navId = getCustomizedPadNavId(item, access);
+      if (!navId || seen.has(navId) || !NAV_ITEM_BY_ID[navId]) return;
+      seen.add(navId);
+      orderedItems.push(NAV_ITEM_BY_ID[navId]);
+    });
+
+    return orderedItems;
+  }, [
+    customizedPadLeftList,
+    isGynaecHistoryAccessable,
+    isGrowthChartAccessable,
+    isVaccinationAccessable,
+  ]);
+
+  const navSequence = useMemo(() => navItems.map((item) => item.id), [navItems]);
+  const firstCustomizedNavId = useMemo(
+    () => navSequence.find((id) => id !== "pastVisits") || null,
+    [navSequence]
+  );
+
   const handleSectionAction = useCallback((sectionId) => {
     if (onSectionAction) {
       onSectionAction(sectionId);
@@ -3220,6 +3289,25 @@ export function SideNavbar({
     if (onSectionSelect) onSectionSelect(id);
   }, [onSectionSelect]);
 
+  useEffect(() => {
+    if (!activeId || navSequence.includes(activeId)) return;
+    setActiveSection(firstCustomizedNavId || "pastVisits", null);
+  }, [activeId, firstCustomizedNavId, navSequence, setActiveSection]);
+
+  useEffect(() => {
+    if (!hasPastVisitsLoaded || isPastVisitsLoading || activeId !== "pastVisits") return;
+    if (legacyPastVisitEntries.length > 0 || !firstCustomizedNavId || emptyPastVisitsAutoSelectRef.current) return;
+    emptyPastVisitsAutoSelectRef.current = true;
+    setActiveSection(firstCustomizedNavId, null);
+  }, [
+    activeId,
+    firstCustomizedNavId,
+    hasPastVisitsLoaded,
+    isPastVisitsLoading,
+    legacyPastVisitEntries.length,
+    setActiveSection,
+  ]);
+
   const handleSelect = (id) => {
     const next = activeId === id ? null : id;
     setActiveSection(next, null);
@@ -3230,13 +3318,13 @@ export function SideNavbar({
   };
 
   const handleNavigate = useCallback((dir) => {
-    const currentIndex = NAV_SEQUENCE.indexOf(activeId);
+    const currentIndex = navSequence.indexOf(activeId);
     if (currentIndex === -1) return;
     const nextIndex = dir === "next" ? currentIndex + 1 : currentIndex - 1;
-    const next = NAV_SEQUENCE[nextIndex];
+    const next = navSequence[nextIndex];
     if (!next) return;
     setActiveSection(next, dir);
-  }, [activeId, setActiveSection]);
+  }, [activeId, navSequence, setActiveSection]);
 
   const updateVoiceState = useCallback((sectionId, patch) => {
     setVoiceBySection((prev) => ({
@@ -3306,7 +3394,7 @@ export function SideNavbar({
 
   return (
     <aside className="snv-root" data-side-navbar="true">
-      <NavPanel activeId={activeId} onSelect={handleSelect} />
+      <NavPanel activeId={activeId} onSelect={handleSelect} items={navItems} />
       {activeId ? (
         <SectionPanel
           activeId={activeId}
