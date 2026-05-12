@@ -710,7 +710,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         label: (
           <div className="d-flex align-items-center">
             <i className="icon-Report"></i>
-            Pending Digitisation ({unDigitizedUnReviewedIdsLength})
+            {/* Pending Digitisation ({unDigitizedUnReviewedIdsLength}) */}
+            Pending Digitisation
           </div>
         ),
       });
