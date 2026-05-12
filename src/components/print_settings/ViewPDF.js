@@ -17,6 +17,7 @@ import ThenConnector from './ThenConnector';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
+const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
 const widthOfA4PageInPts = 595;
 
 // Roboto
@@ -1056,14 +1057,17 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         return undefined;
     }
 
-    const getMarginByFormat = (letterheadFormat, headerFooter, position, defaultValue) => {
+    const getMarginByFormat = (letterheadFormat, headerFooter, position) => {
         const marginType =
             letterheadFormat === 0 ? "custom_letterhead_margin" :
                 letterheadFormat === 1 ? "uploaded_letterhead_margin" :
                     letterheadFormat === 2 ? "margin" : null;
 
-        return marginType && headerFooter?.[marginType]?.[position] >= 0
-            ? (headerFooter?.[marginType]?.[position] || defaultValue) * CM_TO_PT
+        const rawMarginValue = headerFooter?.[marginType]?.[position];
+        const marginValue = rawMarginValue === "" ? NaN : Number(rawMarginValue);
+
+        return marginType && Number.isFinite(marginValue) && marginValue >= 0
+            ? marginValue * CM_TO_PT
             : PX_TO_PT * 30;
     };
 
@@ -1098,26 +1102,67 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const extraTopSpace = Math.max(0, userTopMargin - standardMargin);
      const isOwnLetterheadFirstPageOnly = printSettings?.letterhead_format === 2 && showMode === 'first';
      
+     const getFooterTextRenderHeight = (footer) => {
+        if (!footer?.title) return 0;
+
+        const footerFontSize = PX_TO_PT * (footer?.font_size || 12);
+        return PX_TO_PT * 2 + PX_TO_PT * 8 + footerFontSize * 1.2;
+     };
+
+     const getFooterImageRenderHeightForWidth = (paddingLeft = 0, paddingRight = 0) => {
+       const footerWidth = Number(fileFooter?.footerWidth);
+       const footerHeight = Number(fileFooter?.footerHeight);
+       const availableWidth = Math.max(
+         0,
+         widthOfA4PageInPts - ((paddingLeft || 0) + (paddingRight || 0))
+       );
+
+       if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
+         return (footerHeight / footerWidth) * availableWidth;
+       }
+
+       return Number.isFinite(fileFooter?.renderedFooterImageHeight)
+         ? fileFooter.renderedFooterImageHeight
+         : 0;
+     };
+
      const calculatePadding = () => {
         const { letterhead_format, header_footer, whatsapp_letterhead_format } = printSettings || {};
-        const renderedFooterImageHeight = Number.isFinite(fileFooter?.renderedFooterImageHeight)
-            ? fileFooter?.renderedFooterImageHeight
-            : 0;
-        const hasFooterDimensions =
-            Number.isFinite(fileFooter?.footerHeight) &&
-            Number.isFinite(fileFooter?.footerWidth) &&
-            fileFooter?.footerWidth > 0;
+        const footer = header_footer?.footer;
+
+        const getReservedBottomPadding = ({
+            letterheadFormat,
+            whatsappLetterheadFormat,
+            paddingLeft,
+            paddingRight,
+        }) => {
+            const bottomMargin = getMarginByFormat(letterheadFormat, header_footer, "bottom");
+            const footerHeight = mode !== NORMAL
+                ? whatsappLetterheadFormat === 1 && fileFooter?.imageShow
+                    ? getFooterImageRenderHeightForWidth(paddingLeft, paddingRight)
+                    : whatsappLetterheadFormat === 0
+                        ? getFooterTextRenderHeight(footer)
+                        : 0
+                : letterheadFormat === 1 && fileFooter?.imageShow
+                    ? getFooterImageRenderHeightForWidth(paddingLeft, paddingRight)
+                    : letterheadFormat === 0
+                        ? getFooterTextRenderHeight(footer)
+                        : 0;
+
+            return bottomMargin + footerHeight + FOOTER_CONTENT_GAP;
+        };
 
         if (mode !== NORMAL) {
             return {
                 paddingTop: PX_TO_PT * 30,
-                paddingBottom: whatsapp_letterhead_format === 1
-                    ? fileFooter?.imageShow
-                        ? renderedFooterImageHeight + (PX_TO_PT * 30)
-                        : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5
-                        : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5,
                 paddingLeft: PX_TO_PT * 30,
                 paddingRight: PX_TO_PT * 30,
+                paddingBottom: getReservedBottomPadding({
+                    letterheadFormat: letterhead_format,
+                    whatsappLetterheadFormat: whatsapp_letterhead_format,
+                    paddingLeft: PX_TO_PT * 30,
+                    paddingRight: PX_TO_PT * 30,
+                }),
                 display: 'flex',
                 flexDirection: 'column',
             };
@@ -1137,14 +1182,20 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
         : PX_TO_PT * 30;
 
         const paddingBottom = letterhead_format === 2
-        ? (isOwnLetterheadFirstPageOnly ? userBottomMargin : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5)
-        : letterhead_format === 1
-            ? fileFooter?.imageShow
-                ? (hasFooterDimensions
-                    ? ((fileFooter?.footerHeight / fileFooter?.footerWidth) * (widthOfA4PageInPts - (paddingLeft + paddingRight))) + paddingTop
-                    : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5)
-                : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5
-                : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) + 5;
+            ? (isOwnLetterheadFirstPageOnly
+                ? userBottomMargin
+                : getReservedBottomPadding({
+                    letterheadFormat: letterhead_format,
+                    whatsappLetterheadFormat: whatsapp_letterhead_format,
+                    paddingLeft,
+                    paddingRight,
+                }))
+            : getReservedBottomPadding({
+                letterheadFormat: letterhead_format,
+                whatsappLetterheadFormat: whatsapp_letterhead_format,
+                paddingLeft,
+                paddingRight,
+            });
 
         return {
             paddingTop,
@@ -1157,20 +1208,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     const paddingStyles = calculatePadding();
 
      const getFooterImageRenderHeight = () => {
-       const footerWidth = Number(fileFooter?.footerWidth);
-       const footerHeight = Number(fileFooter?.footerHeight);
-       const availableWidth = Math.max(
-         0,
-         widthOfA4PageInPts - ((paddingStyles?.paddingLeft || 0) + (paddingStyles?.paddingRight || 0))
+       return getFooterImageRenderHeightForWidth(
+         paddingStyles?.paddingLeft,
+         paddingStyles?.paddingRight
        );
-
-       if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
-         return (footerHeight / footerWidth) * availableWidth;
-       }
-
-       return Number.isFinite(fileFooter?.renderedFooterImageHeight)
-         ? fileFooter.renderedFooterImageHeight
-         : 0;
      };
 
      const renderFooterImage = () => {
