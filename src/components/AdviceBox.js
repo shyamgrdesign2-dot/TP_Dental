@@ -789,6 +789,7 @@ function AdviceBox() {
           {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Advices"
+              previousContext={adviceData}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.advice}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

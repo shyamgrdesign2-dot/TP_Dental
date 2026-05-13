@@ -254,6 +254,16 @@ const CustomModuleV2 = ({ module }) => {
       createId: uuidv4,
     })
   ), [module?.name, module?.namedFields]);
+  const customVoiceRequiredFields = useMemo(
+    () => module?.namedFields?.map((field) => field.fieldName).filter(Boolean) || [],
+    [module?.namedFields]
+  );
+  const customVoicePreviousContext = useMemo(
+    () => moduleData?.filter((row) => (
+      module?.namedFields?.some((field) => String(row[field.fieldName] || "").trim())
+    )) || [],
+    [module?.namedFields, moduleData]
+  );
 
   const isCustomRowFilled = useCallback((row) => (
     module.namedFields?.some(
@@ -1717,6 +1727,10 @@ const CustomModuleV2 = ({ module }) => {
         {isVoiceRxNewFromGB && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
             moduleName={module?.name || "Custom Module"}
+            moduleApiName="custom_module"
+            customModuleName={module?.name || "Custom Module"}
+            requiredFields={customVoiceRequiredFields}
+            previousContext={customVoicePreviousContext}
             dummyDigitisedData={customVoiceDummyData}
             onCancel={() => setVoiceCaptureOpen(false)}
             onComplete={handleVoiceCaptureComplete} />

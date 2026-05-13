@@ -930,6 +930,7 @@ function SurgicalBox() {
           {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
+              previousContext={surgeriesData}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

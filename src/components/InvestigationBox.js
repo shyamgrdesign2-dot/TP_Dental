@@ -1051,6 +1051,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
           {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
+              previousContext={investigationData}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

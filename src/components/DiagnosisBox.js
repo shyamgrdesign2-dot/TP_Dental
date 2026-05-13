@@ -1025,6 +1025,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
           {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
+              previousContext={diagnosisData}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.diagnosis}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

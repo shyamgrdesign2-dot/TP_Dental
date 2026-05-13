@@ -2392,6 +2392,7 @@ function MedicationsBox() {
           {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Medication (Rx)"
+              previousContext={medicationData}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.medicine}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

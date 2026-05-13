@@ -121,6 +121,7 @@ const SIDE_NAV_MODULE_NAMES = {
 const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NAMES));
 const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
 const SIDE_NAV_SHINER_DELAY_MS = 5000;
+const SIDE_NAV_MODULE_TIMEOUT_MS = 120000;
 
 const VITAL_DISPLAY_FIELDS = [
   { key: "temperature", label: "Temperature", unit: "Frh" },
@@ -701,10 +702,11 @@ function getPastVisitDate(consultation, detail) {
 function buildPastVisitEntry(consultation, detail) {
   const tcmId = consultation?.tcm_id || consultation?.tcmId || detail?.tcm_id;
   const consultationDate = getPastVisitDate(consultation, detail);
-  const detailRx = detail ? buildPastVisitDigitalRx(detail) : null;
+  const detailRx = buildPastVisitDigitalRx(detail || consultation);
   const printUrl = detail?.print_url || consultation?.print_url || "";
-  const transcriptBlocks = detail ? buildPastVisitTranscriptBlocks(detail) : [];
-  const showTranscript = detail ? hasPastVisitTranscriptMode(detail) : false;
+  const transcriptSource = detail || consultation;
+  const transcriptBlocks = buildPastVisitTranscriptBlocks(transcriptSource);
+  const showTranscript = hasPastVisitTranscriptMode(transcriptSource);
   return {
     id: `past-visit-${tcmId || consultationDate}`,
     tcmId,
@@ -714,7 +716,7 @@ function buildPastVisitEntry(consultation, detail) {
     transcriptBlocks,
     writtenRx: printUrl ? [{ id: `written-rx-${tcmId || consultationDate}`, printUrl, doctorName: detail?.doctor_data?.doctor_name || consultation?.doctor_name || "", speciality: detail?.doctor_data?.dp_name || consultation?.dp_name || "" }] : [],
     detailLoaded: Boolean(detail),
-    detailLoading: Boolean(consultation?.detailLoading),
+    detailLoading: Boolean(consultation?.detailLoading) && !detailRx && !printUrl && !transcriptBlocks.length,
   };
 }
 
@@ -1360,11 +1362,24 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   formData.append("module_name", moduleName);
   formData.append("audio", audioBlob, "audio.webm");
 
-  const response = await fetch(joinAgentModuleApiUrl(SIDE_NAV_MODULE_ENDPOINT), {
-    method: "POST",
-    headers: buildClinicalApiHeaders({ includeContentType: false }),
-    body: formData,
-  });
+  const abortController = new AbortController();
+  const timeoutId = window.setTimeout(() => abortController.abort(), SIDE_NAV_MODULE_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(joinAgentModuleApiUrl(SIDE_NAV_MODULE_ENDPOINT), {
+      method: "POST",
+      headers: buildClinicalApiHeaders({ includeContentType: false }),
+      body: formData,
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Section voice digitise timed out after 120 seconds.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(`Section voice digitise failed with ${response.status}`);
@@ -3348,9 +3363,13 @@ export function SideNavbar({
   const legacyPastVisitEntries = useMemo(
     () => pastVisitRows.map((row) => {
       const tcmId = row?.tcm_id || row?.tcmId;
+      const entry = buildPastVisitEntry(row, pastVisitDetails[tcmId]);
+      const hasRenderableData = entry.digitalRx ||
+        entry.writtenRx?.length ||
+        entry.transcriptBlocks?.length;
       return {
-        ...buildPastVisitEntry(row, pastVisitDetails[tcmId]),
-        detailLoading: Boolean(pastVisitLoadingIds[tcmId]),
+        ...entry,
+        detailLoading: Boolean(pastVisitLoadingIds[tcmId]) && !hasRenderableData,
       };
     }),
     [pastVisitRows, pastVisitDetails, pastVisitLoadingIds]

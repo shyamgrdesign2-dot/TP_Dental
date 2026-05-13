@@ -840,6 +840,7 @@ function ExaminationBox() {
           {isVoiceRxNewFromGB && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Examinations"
+              previousContext={examinationData}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

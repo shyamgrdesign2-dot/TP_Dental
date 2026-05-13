@@ -20,6 +20,7 @@ import styles from "./VoiceRxModuleCapture.module.scss";
 const ENABLE_REAL_MODULE_DIGITISE_API = true;
 const MODULE_DIGITISE_ENDPOINT = "/agents/module";
 const BUTTON_PROCESSING_MS = 5000;
+const MODULE_DIGITISE_TIMEOUT_MS = 120000;
 
 const MODULE_API_NAMES = {
   "patient details": "patient_details",
@@ -391,6 +392,11 @@ function resolveModuleApiName(moduleName) {
   return MODULE_API_NAMES[normalized] || "other_clinical_info";
 }
 
+function appendJsonFormField(formData, key, value) {
+  if (value === undefined || value === null) return;
+  formData.append(key, JSON.stringify(value));
+}
+
 function extractModulePayload(responseJson) {
   return responseJson?.data?.documents?.[0]?.data ??
     responseJson?.data?.document?.data ??
@@ -398,12 +404,14 @@ function extractModulePayload(responseJson) {
     responseJson;
 }
 
-function firstPresentArray(payload, keys) {
+function firstPresentArray(payload, keys, { allowObjectRow = false } = {}) {
   if (Array.isArray(payload)) return payload;
   for (const key of keys) {
     const value = payload?.[key];
     if (Array.isArray(value)) return value;
+    if (allowObjectRow && value && typeof value === "object") return [value];
   }
+  if (allowObjectRow && payload && typeof payload === "object") return [payload];
   return [];
 }
 
@@ -552,7 +560,7 @@ function normalizeModuleRows(responseJson, moduleApiName) {
   const moduleKeys = moduleApiName === "medications"
     ? [moduleApiName, artifactType, "medications", "medicine", "medicines", "items", "data"]
     : [moduleApiName, artifactType, "items", "data"];
-  const rows = firstPresentArray(payload, moduleKeys)
+  const rows = firstPresentArray(payload, moduleKeys, { allowObjectRow: moduleApiName === "custom_module" })
     .filter((row) => Object.values(row || {}).some((value) => value !== undefined && value !== null && String(value).trim() !== ""));
 
   return rows.map((row) => {
@@ -669,8 +677,18 @@ function normalizeModuleRows(responseJson, moduleApiName) {
   });
 }
 
-async function requestTranscribeAndDigitise({ audioBlob, moduleName, patientId, doctorId, sessionId }) {
-  const moduleApiName = resolveModuleApiName(moduleName);
+async function requestTranscribeAndDigitise({
+  audioBlob,
+  moduleName,
+  moduleApiName: moduleApiNameOverride,
+  customModuleName,
+  requiredFields,
+  previousContext,
+  patientId,
+  doctorId,
+  sessionId
+}) {
+  const moduleApiName = moduleApiNameOverride || resolveModuleApiName(moduleName);
   if (!patientId || !doctorId || !sessionId) {
     throw new Error("Missing patient, doctor, or session id for module voice digitisation.");
   }
@@ -683,13 +701,31 @@ async function requestTranscribeAndDigitise({ audioBlob, moduleName, patientId, 
   formData.append("doctor_id", String(doctorId));
   formData.append("session_id", String(sessionId));
   formData.append("module_name", moduleApiName);
+  if (customModuleName) {
+    formData.append("custom_module_name", String(customModuleName));
+  }
+  appendJsonFormField(formData, "required_fields", requiredFields);
+  appendJsonFormField(formData, "previousContext", previousContext);
   formData.append("audio", audioBlob, "audio.webm");
 
-  const response = await fetch(joinAgentModuleApiUrl(MODULE_DIGITISE_ENDPOINT), {
-    method: "POST",
-    headers: buildClinicalApiHeaders({ includeContentType: false }),
-    body: formData,
-  });
+  const abortController = new AbortController();
+  const timeoutId = window.setTimeout(() => abortController.abort(), MODULE_DIGITISE_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(joinAgentModuleApiUrl(MODULE_DIGITISE_ENDPOINT), {
+      method: "POST",
+      headers: buildClinicalApiHeaders({ includeContentType: false }),
+      body: formData,
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Module voice digitise timed out after 120 seconds.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(`Module voice digitise failed with ${response.status}`);
@@ -755,6 +791,10 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage })
 
 export function VoiceRxModuleCapture({
   moduleName,
+  moduleApiName,
+  customModuleName,
+  requiredFields,
+  previousContext,
   dummyDigitisedData = [],
   onCancel,
   onComplete,
@@ -791,12 +831,16 @@ export function VoiceRxModuleCapture({
       ? await requestTranscribeAndDigitise({
         audioBlob,
         moduleName,
+        moduleApiName,
+        customModuleName,
+        requiredFields,
+        previousContext,
         patientId: patient_data?.patient_unique_id,
         doctorId: profile?.doctor_unique_id,
         sessionId: getModuleSessionId(),
       })
       : dummyDigitisedData;
-  }, [dummyDigitisedData, getModuleSessionId, moduleName, patient_data?.patient_unique_id, profile?.doctor_unique_id]);
+  }, [customModuleName, dummyDigitisedData, getModuleSessionId, moduleApiName, moduleName, patient_data?.patient_unique_id, previousContext, profile?.doctor_unique_id, requiredFields]);
 
   const handleSubmit = useCallback(({ audioBlob, transcript, durationMs }) => {
     const nextTranscript = "Captured voice input.";

@@ -239,6 +239,11 @@ function CustomModule({ module }) {
       createId: uuidv4,
     })
   ), [module?.name]);
+  const customVoiceRequiredFields = useMemo(() => ["title", "notes"], []);
+  const customVoicePreviousContext = useMemo(
+    () => moduleData?.filter((row) => row.title || row.notes) || [],
+    [moduleData]
+  );
 
   const applyVoiceCustomModule = useCallback((nextRows) => {
     const existingRows = moduleData?.filter((row) => row.title || row.notes) || [];
@@ -1439,6 +1444,10 @@ function CustomModule({ module }) {
         {isVoiceRxNewFromGB && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
             moduleName={module?.name || "Custom Module"}
+            moduleApiName="custom_module"
+            customModuleName={module?.name || "Custom Module"}
+            requiredFields={customVoiceRequiredFields}
+            previousContext={customVoicePreviousContext}
             dummyDigitisedData={customVoiceDummyData}
             onCancel={() => setVoiceCaptureOpen(false)}
             onComplete={handleVoiceCaptureComplete} />
