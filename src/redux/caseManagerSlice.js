@@ -192,6 +192,30 @@ export const getInvestigationAndMedicine = createAsyncThunk(
     }
 );
 
+export const orderMedicineAndInvestigation = createAsyncThunk(
+    "caseManager/orderMedicineAndInvestigation",
+    async (data) => {
+        try {
+            const result = await ApiCaseManager.orderMedicineAndInvestigation(data);
+            if (result?.status === false) {
+                return {
+                    status: false,
+                    message: result?.error || result?.message || "orderMedicineAndInvestigation failed",
+                };
+            }
+            return {
+                status: true,
+                data: result?.data ?? result,
+            };
+        } catch (error) {
+            return {
+                status: false,
+                message: error?.message || "orderMedicineAndInvestigation exception",
+            };
+        }
+    }
+);
+
 export const listConsultations = createAsyncThunk(
     "caseManager/listConsultations",
     async (data) => {

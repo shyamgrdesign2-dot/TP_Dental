@@ -37,6 +37,7 @@ import {
     addCaseManager,
     editCaseManager,
     getInvestigationAndMedicine,
+    orderMedicineAndInvestigation,
     draftToConsultation
 } from "../redux/caseManagerSlice";
 import { customizedPad, listVideo } from "../redux/doctorsSlice";
@@ -138,6 +139,48 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false} = useLocation().state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx;
+
+    const syncOrderMedicineAndInvestigation = useCallback((resolvedTcmId) => {
+        const patientUniqueId = patient_data?.patient_unique_id;
+        const hasMedication = Array.isArray(medicationData) && medicationData.length > 0;
+        const hasInvestigation = Array.isArray(investigationData) && investigationData.length > 0;
+        if (!resolvedTcmId || !patientUniqueId || (!hasMedication && !hasInvestigation)) return;
+        const clinic_name = getClinicName(profile?.hospital_data);
+        const eventPayload = {
+            clinic_name,
+            patient_id: patientUniqueId,
+            tcm_id: resolvedTcmId,
+            hasMedication,
+            hasInvestigation,
+        };
+
+        dispatch(orderMedicineAndInvestigation({
+            tcm_id: resolvedTcmId,
+            patient_unique_id: patientUniqueId,
+        }))
+            .then((orderAction) => {
+                const requestSucceeded =
+                    orderAction?.meta?.requestStatus === "fulfilled" &&
+                    orderAction?.payload?.status !== false;
+                if (requestSucceeded) {
+                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                        ...eventPayload,
+                        status: "success",
+                    });
+                } else {
+                    const failureReason =
+                        orderAction?.payload?.message ||
+                        orderAction?.payload?.error ||
+                        orderAction?.error?.message ||
+                        "request_rejected";
+                    window?.Moengage?.track_event("TP_orderMedicineAndInvestigation_API_response", {
+                        ...eventPayload,
+                        status: "failure",
+                        reason: failureReason,
+                    });
+                }
+            });
+    }, [dispatch, patient_data?.patient_unique_id, medicationData, investigationData, profile?.hospital_data]);
 
     const trackSaveDraftEvent = useCallback(() => {
         window?.Moengage?.track_event(EVENTS.SAVE_DRAFT.save, {
@@ -1599,6 +1642,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 }
             }
             if (action.meta.requestStatus === "fulfilled") {
+                const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+                syncOrderMedicineAndInvestigation(generatedTcmId);
                 if (
                     opthalModuleAutoAdded &&
                     customizedPadRightList?.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)
@@ -1618,8 +1663,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     // Ensure care plan is linked to the definitive consultation id
                     const decodedToken = getDecodedToken();
                     const tokenData = decodedToken?.result;
-                    const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
                     const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
                         patient_data?.patient_unique_id,
                         generatedTcmId,

@@ -636,6 +636,16 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     },
   ]);
 
+  // Compute the actual number of visible zydus appointment rows (mirrors Table dataSource filter)
+  const zydusAppointmentVisibleCount = useMemo(() => {
+    if (statusFilters.length > 0 && selectedTab === TAB_ZYDUS_APPOINTMENT) {
+      return matchedAppointment.filter((item) =>
+        statusFilters.includes(item.appointmentStatus)
+      ).length;
+    }
+    return zydusAappointmentCount;
+  }, [matchedAppointment, statusFilters, selectedTab, zydusAappointmentCount]);
+
   // UseEffect to update items when pendingDigitisation changes
   useEffect(() => {
     const updatedItems = [
@@ -700,7 +710,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         label: (
           <div className="d-flex align-items-center">
             <i className="icon-Report"></i>
-            Pending Digitisation ({unDigitizedUnReviewedIdsLength})
+            {/* Pending Digitisation ({unDigitizedUnReviewedIdsLength}) */}
+            Pending Digitisation
           </div>
         ),
       });
@@ -720,7 +731,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             <div className="d-flex align-items-center">
               <i className="icon-Queue"></i>
               Appointment{" "}
-              {zydusAappointmentCount ? `(${zydusAappointmentCount})` : ""}
+              {zydusAppointmentVisibleCount ? `(${zydusAppointmentVisibleCount})` : ""}
             </div>
           ),
         },
@@ -751,6 +762,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isSaveAsDraftRxAccessableFromGB,
     draftRxCount,
     selectedTab,
+    zydusAppointmentVisibleCount,
   ]);
 
   const [isDigitisationTab, setIsDigitisationTab] = useState(false);
@@ -822,6 +834,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       setFirstSymptomIndex(firstIndex);
     }
   }, [appointmentsData, matchedAppointment, selectedTab]);
+
 
   const decodedToken = getDecodedToken();
   const isAdmin = decodedToken?.result?.admin;

@@ -33,6 +33,7 @@ const dev = {
   obstetric_api_url:
     "https://pm-medicalhistory-uat.tatvacare.in/api/v1/obstetric-history",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
+  mission_hospital_business_id: "7921766745277649",
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
@@ -85,6 +86,7 @@ const dev = {
   ipd_api_url: "https://pm-ipd-uat.tatvacare.in/api/v1",
   templates_api_url: "https://pm-ipd-uat.tatvacare.in",
   agent_module_api_base_url: "https://pm-digitise-transcription-uat.tatvacare.in",
+  order_management_api_url: "https://pm-order-management-uat.tatvacare.in",
 };
 
 const qa_tp = {
@@ -128,6 +130,7 @@ const qa_tp = {
     "https://pm-medicalhistory-qa.tatvacare.in/api/v1/obstetric-history",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-qa.tatvacare.in`,
+  mission_hospital_business_id: "7921766745277649",
   zydus_business_id: "754811713438773",
   rx_digitization: "https://pm-rxdigitization-qa.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-qa.tatvacare.in",
@@ -183,6 +186,7 @@ const qa_tp = {
   agent_module_api_base_url: "https://pm-digitise-transcription-uat.tatvacare.in",
   cdss_disabled: [],
   consultation_api_url: "https://pm-consultation-qa.tatvacare.in",
+  order_management_api_url: "https://pm-order-management-qa.tatvacare.in",
 };
 
 const qa = {
@@ -221,6 +225,7 @@ const qa = {
     "https://pm-medicalhistory-uat.tatvacare.in/api/v1/obstetric-history",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
+  mission_hospital_business_id: "7921766745277649",
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-uat.tatvacare.in",
@@ -272,6 +277,7 @@ const qa = {
   templates_api_url: "https://pm-ipd-uat.tatvacare.in",
   agent_module_api_base_url: "https://pm-digitise-transcription-uat.tatvacare.in",
   cdss_disabled: [],
+  order_management_api_url: "https://pm-order-management-uat.tatvacare.in",
 };
 
 const uat = {
@@ -314,6 +320,7 @@ const uat = {
   obstetric_api_url:
     "https://pm-medicalhistory-uat.tatvacare.in/api/v1/obstetric-history",
   zydus_api_url: `https://pm-ingest-webhook-uat.tatvacare.in`,
+  mission_hospital_business_id: "7921766745277649",
   zydus_business_id: "754811713438773",
   zydus_proxy_url: "https://pm-ict-proxy-uat.tatvacare.in",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy-uat.tatvacare.in",
@@ -372,6 +379,7 @@ const uat = {
   abha_api_url: "https://pm-abha-uat.tatvacare.in",
   abha_records_api_url: "https://pm-abha-uat.tatvacare.in",  
   consultation_api_url: "https://pm-consultation-uat.tatvacare.in",
+  order_management_api_url: "https://pm-order-management-uat.tatvacare.in",
 };
 
 const prod = {
@@ -410,6 +418,7 @@ const prod = {
     "https://pm-medicalhistory-prod.tatvacare.in/api/v1/obstetric-history",
   zydus_ict_lab_result_api_url: "https://pm-ict-proxy.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-prod.tatvacare.in`,
+  mission_hospital_business_id: "7821776311505768",
   zydus_business_id: "368451724046474",
   zydus_proxy_url: "https://pm-ict-proxy.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-prod.tatvacare.in",
@@ -495,6 +504,7 @@ const prod = {
   abha_api_url: "https://pm-abha.tatvacare.in",
   abha_records_api_url: "https://pm-abha.tatvacare.in",
   consultation_api_url: "https://pm-consultation-prod.tatvacare.in",
+  order_management_api_url: "https://pm-order-management-prod.tatvacare.in",
 };
 
 const getEnv = () => {
