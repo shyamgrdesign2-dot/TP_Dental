@@ -1766,7 +1766,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   }
 
   const getCustomModuleName = (id) => {
-    const customModule = customModules?.modules?.find(
+    const customModuleList = Array.isArray(customModules) ? customModules : customModules?.modules;
+    const customModule = customModuleList?.find(
       (module) => module?.module_id === id,
     );
     return customModule?.name
@@ -3876,8 +3877,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         module_name:
                           getCustomModuleName(option?.id) ||
                           customModule.module_name ||
-                          customModule.name ||
-                          option?.title,
+                          customModule.name,
                       };
                     }
 
