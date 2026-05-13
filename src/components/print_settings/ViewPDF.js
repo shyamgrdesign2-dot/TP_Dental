@@ -401,8 +401,7 @@ function enrichCaseManagerAiMedicationForPrint(medicine) {
 
 const formatCustomModuleColumnTitle = (value = "") => {
     return String(value || "")
-        .trim()
-        .toUpperCase();
+        .trim();
 };
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
@@ -7124,7 +7123,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                 {entry.label}:&nbsp;
                                                                             </Text>
                                                                             <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
-                                                                                {entry.value}
+                                                                                {normalizePdfText(entry.value)}
                                                                             </Text>
                                                                             {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
                                                                         </Text>
@@ -7178,7 +7177,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                                                 {entry.label}:&nbsp;
                                                                             </Text>
                                                                             <Text style={{ color: '#171725', fontFamily: getIndianLanguageFont(entry.value, printSettings?.page_format?.font_family), fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 500 }}>
-                                                                                {entry.value}
+                                                                                {normalizePdfText(entry.value)}
                                                                             </Text>
                                                                             {idx < fieldEntries.length - 1 && <Text style={{ color: '#171725', fontFamily: printSettings?.page_format?.font_family, fontSize: PX_TO_PT * printSettings?.page_format?.font_size, fontWeight: 400 }}>, </Text>}
                                                                         </Text>
