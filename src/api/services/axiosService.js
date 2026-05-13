@@ -148,7 +148,7 @@ instance.interceptors.response.use(
         }
 
         // Silently reject cancelled requests without showing a notification
-        if (error.code === 'ERR_CANCELED') {
+        if (error?.code === 'ERR_CANCELED') {
             return Promise.reject(error);
         }
 
