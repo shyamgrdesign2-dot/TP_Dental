@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -18,7 +18,7 @@ import CashManagerContext from "../context/CashManagerContext";
 import HeaderPrescription from "../common/HeaderPrescription";
 import SymptomsBox from "../components/SymptomsBox";
 import ExaminationBox from "../components/ExaminationBox";
-import OphthalmologyExamPanel from "../components/ophthalmology/OphthalmologyExamPanel";
+import OphthalmologyExamDrawer from "../components/ophthalmology/OphthalmologyExamDrawer";
 import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
@@ -94,7 +94,7 @@ import GenRxBox from "../components/GenRxBox";
 import ConsultationDrawer from "../components/ConsultationDrawer";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
-import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
+import { services } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
@@ -125,12 +125,6 @@ import {
   CustomModuleV2,
 } from "../components/customModulesV2";
 import { getModules, searchModulesByHospital } from "../redux/customModuleSlice";
-import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
-import {
-  resetOpthalForm,
-  setLastOpthalPrescriptionData,
-  setOpthalPrescriptionId,
-} from "../redux/ophthalmologyExamSlice";
 import { GB_OPTHAL_MODULE } from "../utils/constants";
 import { ASSETS } from "../assets";
 
@@ -149,7 +143,6 @@ function PrescriptionNew() {
     customizedPadRightList: originalCustomizedPadRightList,
     frequencyList,
     timingList,
-    opthalModuleAutoAdded,
   } = useSelector((state) => state.doctors);
 
   const {
@@ -431,7 +424,6 @@ function PrescriptionNew() {
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
-  const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
@@ -456,39 +448,6 @@ function PrescriptionNew() {
     }
   }, [teleconsultAutoJoin?.token, teleconsultAutoJoin?.consultationId, videoConsultData?.pam_id, dispatch]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchOpthalPrescription = async () => {
-      dispatch(resetOpthalForm());
-      dispatch(setLastOpthalPrescriptionData(null));
-      dispatch(setOpthalPrescriptionId(null));
-      if (!tcmId) {
-        return;
-      }
-      try {
-        const response = await getOpthalPrescriptionDetails({
-          tcm_id: tcmId,
-          patientId: patient_data?.patient_unique_id,
-        });
-        const data = response?.data ?? response;
-        const payload = Array.isArray(data) ? data[0] : data;
-        if (!isMounted || !payload) {
-          return;
-        }
-        dispatch(setLastOpthalPrescriptionData(payload));
-        if (payload?._id) {
-          dispatch(setOpthalPrescriptionId(payload._id));
-        }
-        setLoadPrevOpthalSignal((prev) => prev + 1);
-      } catch (error) {
-        console.error("Error fetching opthal prescription details:", error);
-      }
-    };
-    fetchOpthalPrescription();
-    return () => {
-      isMounted = false;
-    };
-  }, [dispatch, tcmId]);
   const [useDDX, setUseDDX] = useState(false);
 
   const responsive = {
@@ -537,6 +496,8 @@ function PrescriptionNew() {
     setVitalsData,
     medicalHistoryData,
     setMedicalHistoryData,
+    labParamsData,
+    setLabParamsData,
     privateNotesData,
     setPrivateNotesData,
     followUpDate,
@@ -578,6 +539,9 @@ function PrescriptionNew() {
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
   const [vaccineRefreshKey, setVaccineRefreshKey] = useState(0);
+  const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
+  const [opthalDrawer, setOpthalDrawer] = useState(false);
+  const [opthalRefreshKey, setOpthalRefreshKey] = useState(0);
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
@@ -829,40 +793,6 @@ function PrescriptionNew() {
   }, [userId, dispatch]);
 
   useEffect(() => {
-    if (!isOpthalModuleAccessible) {
-      return;
-    }
-    if (!Array.isArray(customizedPadRightList) || customizedPadRightList.length === 0) {
-      return;
-    }
-    if (customizedPadRightList.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)) {
-      return;
-    }
-    if (opthalModuleAutoAdded) {
-      return;
-    }
-    const medicationsIndex = customizedPadRightList.findIndex(
-      (item) => item?.tmdpm_id === 12
-    );
-    const nextRightList = [...customizedPadRightList];
-    if (medicationsIndex >= 0) {
-      nextRightList.splice(medicationsIndex + 1, 0, { ...OPTHAL_PAD_MODULE });
-    } else {
-      nextRightList.push({ ...OPTHAL_PAD_MODULE });
-    }
-    dispatch(
-      setCustomizedPadLists({
-        right: nextRightList,
-        opthalModuleAutoAdded: true,
-      })
-    );
-  }, [
-    customizedPadRightList,
-    isOpthalModuleAccessible,
-    opthalModuleAutoAdded,
-  ]);
-
-  useEffect(() => {
     if (isGynaecHistoryAccessable) {
       dispatch(resetObstetricState());
       getAllObstetricDetails(patient_data?.patient_unique_id);
@@ -1098,10 +1028,32 @@ function PrescriptionNew() {
   }, [patient_data, profile, refreshSideNavbarVaccines, vaccinationDrawer]);
 
   // Drawer Growth Chart
-  const handleDrawerGrowth = () => {
-    setGrowthDrawer(!growthDrawer);
-    setIsGrowthChart(!isGrowthChart);
-  };
+  const refreshSideNavbarGrowth = useCallback(() => {
+    setGrowthRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const handleDrawerGrowth = useCallback(() => {
+    setGrowthDrawer((prev) => {
+      if (prev) {
+        refreshSideNavbarGrowth();
+      }
+      return !prev;
+    });
+    setIsGrowthChart((prev) => !prev);
+  }, [refreshSideNavbarGrowth]);
+
+  const refreshSideNavbarOpthal = useCallback(() => {
+    setOpthalRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const handleDrawerOpthal = useCallback(() => {
+    setOpthalDrawer((prev) => {
+      if (prev) {
+        refreshSideNavbarOpthal();
+      }
+      return !prev;
+    });
+  }, [refreshSideNavbarOpthal]);
 
   // Drawer Upload Document
   const handleDrawerUploadDoc = () => {
@@ -2070,6 +2022,9 @@ function PrescriptionNew() {
       case "growth":
         handleDrawerGrowth();
         break;
+      case "optal":
+        handleDrawerOpthal();
+        break;
       default:
         break;
     }
@@ -2081,6 +2036,7 @@ function PrescriptionNew() {
     handleDrawerMedicalHistory,
     handleDrawerMedicalReport,
     handleDrawerObstetric,
+    handleDrawerOpthal,
     handleDrawerVaccination,
     handleDrawerVital,
     handleViewLabParamsDrawer,
@@ -2089,6 +2045,7 @@ function PrescriptionNew() {
 
   return (
     <CashManagerContext.Provider value={contextApi}>
+      <RxPadSyncProvider>
       <>
         <input
           type="file"
@@ -2134,7 +2091,10 @@ function PrescriptionNew() {
                 labParamsData={labParamsData}
                 gynecHistory={updatedGynecHistory}
                 vaccineRefreshKey={vaccineRefreshKey}
+                growthRefreshKey={growthRefreshKey}
+                opthalRefreshKey={opthalRefreshKey}
                 customizedPadLeftList={customizedPadLeftList}
+                isOpthalModuleAccessible={isOpthalModuleAccessible}
                 isVaccinationAccessable={isVaccinationAccessable}
                 isGrowthChartAccessable={isGrowthChartAccessable}
                 isGynaecHistoryAccessable={isGynaecHistoryAccessable}
@@ -2243,16 +2203,6 @@ function PrescriptionNew() {
                     <div key={i} className="prescription-box-sm">
                       <MedicationsBox />
                     </div>
-                  ) : e.tmdpm_id === OPTHAL_PAD_MODULE_ID && e.tmdpm_status === 0 ? (
-                      <div key={i} className="opthal-panel-wrapper">
-                        <OphthalmologyExamPanel
-                          patientData={patient_data}
-                          showHeader
-                          headerTitle="Ophthal"
-                          loadPrevAllSignal={loadPrevOpthalSignal}
-                          fetchLastOnMount={true}
-                        />
-                      </div>
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
                       <AdviceBox />
@@ -2360,6 +2310,15 @@ function PrescriptionNew() {
           >
             <GrowthChart handleDrawerVaccination={handleDrawerGrowth} />
           </Drawer>
+        )}
+        {opthalDrawer && (
+          <OphthalmologyExamDrawer
+            open={opthalDrawer}
+            onClose={handleDrawerOpthal}
+            patientData={patient_data}
+            tcmId={tcmId}
+            title="Ophthal"
+          />
         )}
         {obstetricDrawer && (
           <Drawer
@@ -2586,7 +2545,6 @@ function PrescriptionNew() {
         )}
 
         {/* ── Dr Agent Panel + FAB ── */}
-        <RxPadSyncProvider>
           <DrAgentRuntime
             isOpen={drAgentOpen}
             overlayClassName={drAgentOverlayClassName}
@@ -2595,11 +2553,11 @@ function PrescriptionNew() {
             onClose={() => setDrAgentOpen(false)}
             onOpen={() => setDrAgentOpen(true)}
           />
-        </RxPadSyncProvider>
 
           </>
         )}
       </>
+      </RxPadSyncProvider>
     </CashManagerContext.Provider>
   );
 }

@@ -77,6 +77,7 @@ function ActiveCheckIcon({ size = 24 }) {
 
 export function DrAgentFab({
   onClick,
+  disabled = false,
   hasNudge,
   isPanelOpen,
   isModuleRecording,
@@ -240,6 +241,9 @@ export function DrAgentFab({
   const sheenId = `${uid.replace(/[:]/g, "")}-fab-sheen`;
 
   const showShimmer = !isPanelOpen && !isModuleRecording;
+  const handleOpen = () => {
+    if (!disabled) onClick?.();
+  };
 
   return (
     <div
@@ -249,7 +253,7 @@ export function DrAgentFab({
         pointerEvents: isPanelOpen ? "none" : "auto",
         position: "fixed",
         zIndex: 40,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         transition: "all 500ms cubic-bezier(0.16,1,0.3,1)",
         top: "50%",
         right: 0,
@@ -258,20 +262,21 @@ export function DrAgentFab({
         transform: isPanelOpen
           ? "translateY(-50%) translateX(110%)"
           : "translateY(-50%)",
-        opacity: isPanelOpen ? 0 : 1,
+        opacity: isPanelOpen ? 0 : disabled ? 0.45 : 1,
       }}
       role="button"
-      tabIndex={0}
+      tabIndex={disabled ? -1 : 0}
       aria-label="Open VoiceRx"
-      onClick={onClick}
+      aria-disabled={disabled || undefined}
+      onClick={handleOpen}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onClick();
+        if (e.key === "Enter" || e.key === " ") handleOpen();
       }}
     >
       {/* Hover tooltip — left of the chip */}
       <div className={styles.tooltip}>
         <div className={styles.tooltipInner}>
-          {isModuleRecording ? "Voice recording in progress" : "Open VoiceRx"}
+          {disabled || isModuleRecording ? "Voice recording in progress" : "Open VoiceRx"}
           <div className={styles.tooltipArrow} />
         </div>
       </div>

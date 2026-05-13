@@ -403,12 +403,16 @@ export function VoiceRecorderCore({
 
   // Sync context (safe without provider — context has no-op defaults)
   const {
+    activeVoiceModule,
     setMicUnavailable,
-    setActiveVoiceModule,
+    claimActiveVoiceModule,
+    releaseActiveVoiceModule,
     setCollapsedVoiceSession,
     voicePauseToggleRequest,
     voiceSubmitRequest
   } = useRxPadSync();
+  const voiceLockIdRef = useRef(`voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const resumeBlockedByOtherVoice = manualMute && !!activeVoiceModule;
 
   useEffect(() => {
     setMicUnavailable(!!micError, micError || null);
@@ -417,9 +421,14 @@ export function VoiceRecorderCore({
 
   useEffect(() => {
     if (!sectionLabel) return;
-    setActiveVoiceModule(sectionLabel);
-    return () => setActiveVoiceModule(null);
-  }, [sectionLabel, setActiveVoiceModule]);
+    const lockId = voiceLockIdRef.current;
+    if (!paused && micEnabled) {
+      claimActiveVoiceModule(lockId, sectionLabel);
+    } else {
+      releaseActiveVoiceModule(lockId);
+    }
+    return () => releaseActiveVoiceModule(lockId);
+  }, [claimActiveVoiceModule, micEnabled, paused, releaseActiveVoiceModule, sectionLabel]);
 
   // Mute stream tracks
   useEffect(() => {
@@ -702,8 +711,11 @@ export function VoiceRecorderCore({
       <span className="vrx-lg-sheen" aria-hidden />
       <button
         type="button"
-        onClick={() => setManualMute((v) => !v)}
-        disabled={isFullscreen ? (networkPaused || isAwaitingResponse) : !!criticalBlock}
+        onClick={() => {
+          if (resumeBlockedByOtherVoice) return;
+          setManualMute((v) => !v);
+        }}
+        disabled={isFullscreen ? (networkPaused || isAwaitingResponse || resumeBlockedByOtherVoice) : (!!criticalBlock || resumeBlockedByOtherVoice)}
         aria-label={manualMute ? "Unmute microphone" : "Mute microphone"}
         aria-pressed={manualMute}
         className={[

@@ -33,15 +33,19 @@ import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
 import CashManagerContext from "../../context/CashManagerContext";
 import { useAccess } from "../../pages/vaccination/useAccess";
-import { getPatientVaccineDetails, getVaccineTemplates } from "../../pages/vaccination/service";
+import { getOverridenDueDate, getPatientVaccineDetails, getVaccineBrands, getVaccineTemplates } from "../../pages/vaccination/service";
+import { mergeDataPatientDetails } from "../../pages/vaccination/VaccinationHelper";
 import { getAllOpthalPrescriptions } from "../../pages/ophthalmology/service";
 import { getAllGrowthChartParams, getParentalDetails } from "../../pages/growthChart/service";
 import { getMidParentalHeight } from "../../pages/growthChart/growthChartHelper";
 import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../../assets";
-import { digitiseClinicalData, transcribeAudio } from "../dr-agent/voicerx/api/clinical-processing";
+import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
+import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
+import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
+import { convertMedicalHistoryToContextFormat } from "../../utils/medicalHistoryConverters";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import "./sideNavbar.css";
 
@@ -108,6 +112,16 @@ const SECTION_TITLES = {
   personalNotes: "Private Notes",
 };
 
+const SIDE_NAV_MODULE_NAMES = {
+  vitals: "vitals_body",
+  history: "medical_history",
+  labResults: "lab_investigations",
+};
+
+const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NAMES));
+const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
+const SIDE_NAV_SHINER_DELAY_MS = 5000;
+
 const VITAL_DISPLAY_FIELDS = [
   { key: "temperature", label: "Temperature", unit: "Frh" },
   { key: "pulse", label: "Pulse", unit: "/min" },
@@ -155,6 +169,24 @@ function parsePatientDobForGrowth(patientData) {
     if (loose.isValid()) return loose;
   }
   return null;
+}
+
+function parsePatientDobForVaccines(patientData) {
+  const candidates = [
+    patientData?.vac_dob,
+    patientData?.pm_dob,
+    patientData?.patient_dob,
+    patientData?.DOB,
+    patientData?.dob,
+  ].filter(Boolean);
+  const formats = ["DD-MMM-YYYY", "Do MMMM YYYY", "YYYY-MM-DD", "DD/MM/YYYY", "DD-MM-YYYY", moment.ISO_8601];
+  for (const value of candidates) {
+    const parsed = moment(value, formats, true);
+    if (parsed.isValid()) return parsed.toDate();
+    const loose = moment(value);
+    if (loose.isValid()) return loose.toDate();
+  }
+  return "";
 }
 
 function formatFixedVitalValue(value) {
@@ -840,11 +872,11 @@ function buildVitalsRows(payload) {
 }
 
 function buildLabRows(payload) {
-  const labs = toArray(payload?.labResults || payload?.labs || payload);
+  const labs = toArray(payload?.labResults || payload?.labs || payload?.lab_investigations || payload?.labInvestigations || payload);
   return labs.flatMap((item) => {
-    const label = item?.testname || item?.testName || item?.name || item?.label;
-    const value = item?.value || item?.result;
-    if (!hasValue(label) || !hasValue(value)) return [];
+    const label = item?.testname || item?.testName || item?.investigation_name || item?.test_name || item?.name || item?.label;
+    const value = item?.value || item?.result || item?.note || item?.notes || "--";
+    if (!hasValue(label)) return [];
     return [{
       label,
       unit: item?.unit ? `(${item.unit})` : item?.units ? `(${item.units})` : "",
@@ -1210,6 +1242,135 @@ function buildSectionOverrides(response, requestedSectionId) {
   if (clinical.obstetricHistory || clinical.gravidity !== undefined || clinical.antenatalExamination) updates.obstetric = clinical;
 
   return updates;
+}
+
+function createSideNavVoiceId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `snv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function extractSideNavModulePayload(responseJson) {
+  return responseJson?.data?.documents?.[0]?.data ??
+    responseJson?.data?.document?.data ??
+    responseJson?.data ??
+    responseJson;
+}
+
+function firstSideNavArray(payload, keys) {
+  if (Array.isArray(payload)) return payload;
+  for (const key of keys) {
+    const value = payload?.[key];
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+}
+
+function firstSideNavObject(payload, keys) {
+  if (isObject(payload) && keys.some((key) => payload?.[key] !== undefined)) return payload;
+  for (const key of keys) {
+    const value = payload?.[key];
+    if (isObject(value)) return value;
+    if (Array.isArray(value) && isObject(value[0])) return value[0];
+  }
+  return {};
+}
+
+function normalizeSideNavVitals(payload) {
+  const vitals = firstSideNavObject(payload, ["vitals_body", "vitalsBody", "vitalsAndBodyComposition", "vitals"]);
+  const systolic = vitals?.systolic ?? vitals?.bp_systolic;
+  const diastolic = vitals?.diastolic ?? vitals?.bp_diastolic;
+  const bloodPress = vitals?.blood_press || ((hasValue(systolic) || hasValue(diastolic)) ? `${systolic || ""}/${diastolic || ""}` : "");
+  return {
+    date: moment().format("YYYY-MM-DD"),
+    temp: vitals?.temp ?? vitals?.temperature ?? "",
+    pres: vitals?.pres ?? vitals?.pulse ?? "",
+    resp_rate: vitals?.resp_rate ?? vitals?.respiratoryRate ?? "",
+    blood_press: bloodPress,
+    spo2: vitals?.spo2 ?? vitals?.SpO2 ?? "",
+    general_rbs: vitals?.general_rbs ?? vitals?.randomBloodSugar ?? vitals?.rbs ?? "",
+    height: vitals?.height ?? "",
+    weight: vitals?.weight ?? "",
+    bmi: vitals?.bmi ?? "",
+    bmr: vitals?.bmr ?? "",
+    bsa: vitals?.bsa ?? "",
+    fib4: vitals?.fib4 ?? "",
+    ofc: vitals?.ofc ?? "",
+    waist_circumference: vitals?.waist_circumference ?? vitals?.waistCircumference ?? "",
+  };
+}
+
+function normalizeSideNavHistoryItems(payload) {
+  const rows = firstSideNavArray(payload, ["medical_history", "medicalHistory", "history"]);
+  return rows.map((row) => ({
+    ...row,
+    type: row?.type || row?.category || row?.section || "Medical Condition",
+    name: row?.name || row?.title || row?.condition || row?.lineItem || "",
+    duration: row?.duration || row?.since || "",
+    notes: row?.notes ?? row?.note ?? "",
+    relation: row?.relation || row?.relationship || "",
+  })).filter((row) => hasValue(row.name) || hasValue(row.notes));
+}
+
+function normalizeSideNavLabItems(payload) {
+  return firstSideNavArray(payload, ["lab_investigations", "labInvestigations", "labInvestigation", "investigations", "investigation", "labResults", "labs"])
+    .map((row) => ({
+      ...row,
+      investigation_name: row?.investigation_name || row?.test_name || row?.testName || row?.name || row?.label || "",
+      note: row?.note ?? row?.notes ?? row?.value ?? row?.result ?? "",
+      unique_id: row?.unique_id || row?.id || createSideNavVoiceId(),
+    }))
+    .filter((row) => hasValue(row.investigation_name));
+}
+
+function normalizeSideNavModuleResponse(responseJson, sectionId) {
+  const payload = extractSideNavModulePayload(responseJson);
+  switch (sectionId) {
+    case "vitals":
+      return { vitals: normalizeSideNavVitals(payload) };
+    case "history":
+      return { history: normalizeSideNavHistoryItems(payload) };
+    case "labResults":
+      return { labResults: normalizeSideNavLabItems(payload) };
+    default:
+      return {};
+  }
+}
+
+function sideNavObjectHasContent(object, ignoredKeys = []) {
+  const ignored = new Set(ignoredKeys);
+  return Object.entries(object || {}).some(([key, value]) => !ignored.has(key) && hasValue(value));
+}
+
+async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, doctorId, sessionId }) {
+  const moduleName = SIDE_NAV_MODULE_NAMES[sectionId];
+  if (!moduleName) {
+    throw new Error("Voice input is not available for this section.");
+  }
+  if (!patientId || !doctorId || !sessionId) {
+    throw new Error("Missing patient, doctor, or session id for section voice digitisation.");
+  }
+  if (!audioBlob?.size) {
+    throw new Error("No audio recording found for section voice digitisation.");
+  }
+
+  const formData = new FormData();
+  formData.append("patient_id", String(patientId));
+  formData.append("doctor_id", String(doctorId));
+  formData.append("session_id", String(sessionId));
+  formData.append("module_name", moduleName);
+  formData.append("audio", audioBlob, "audio.webm");
+
+  const response = await fetch(joinAgentModuleApiUrl(SIDE_NAV_MODULE_ENDPOINT), {
+    method: "POST",
+    headers: buildClinicalApiHeaders({ includeContentType: false }),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Section voice digitise failed with ${response.status}`);
+  }
+
+  return normalizeSideNavModuleResponse(await response.json(), sectionId);
 }
 
 function MedicalMaskIcon({ name, active }) {
@@ -1999,6 +2160,32 @@ function groupVaccByWeek(rows) {
 }
 
 function buildLegacyVaccineData(patientVaccineRows = [], vaccineTemplateRows = []) {
+  if (vaccineTemplateRows.length) {
+    const rows = vaccineTemplateRows.map((item) => {
+      const dueDate = item?.tvd_due_date || item?.dueDate || "";
+      return {
+        week: item?.tvt_age || "Vaccines",
+        name: item?.tvac_name || item?.tvt_name || "Vaccine",
+        givenDate: item?.tvp_given_date ? formatVaccDate(item.tvp_given_date) : "",
+        dueDate,
+        brand: item?.tvc_name || item?.brandName || "",
+        notes: [
+          item?.tvp_remarks,
+          item?.tvd_remarks,
+          item?.remarks,
+          item?.tvpv_route && `Route: ${item.tvpv_route}`,
+          item?.tvpv_dose && `Dose: ${item.tvpv_dose}`,
+          item?.tvpv_site && `Site: ${item.tvpv_site}`,
+        ].filter(Boolean).join(" | "),
+      };
+    });
+
+    return {
+      pending: rows.filter((item) => !item.givenDate && item.dueDate),
+      given: rows.filter((item) => item.givenDate),
+    };
+  }
+
   const templateById = new Map(
     vaccineTemplateRows
       .filter((item) => item?.tvt_id)
@@ -2802,10 +2989,11 @@ function sectionVoiceLabel(activeId) {
   return title.replace(/\s+History$/i, "").replace(/^Medical\s+/, "").trim() || "Details";
 }
 
-function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, hidePlusIcon }) {
-  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal") return null;
+function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, hidePlusIcon, voiceEnabled, voiceLocked }) {
+  if (activeId === "pastVisits" || activeId === "personalNotes") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
+  const disabled = busy || voiceLocked;
   const label = sectionActionLabel(activeId, actionLabels);
 
   return (
@@ -2818,22 +3006,24 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
         {!hidePlusIcon ? <span className="snv-add-plus" aria-hidden="true" /> : null}
         <span>{label}</span>
       </button>
-      <button
-        type="button"
-        className="snv-voice-cta-btn vrx-rt-voice-cta-outline"
-        onClick={busy ? undefined : onVoiceClick}
-        disabled={busy}
-        aria-label={`Use Voice AI to fill ${label.toLowerCase()}`}
-        title={`Use Voice AI to fill ${label.toLowerCase()}`}
-      >
-        <VoiceRxIcon size={20} color="#673AAC" />
-      </button>
+      {voiceEnabled ? (
+        <button
+          type="button"
+          className="snv-voice-cta-btn vrx-rt-voice-cta-outline"
+          onClick={disabled ? undefined : onVoiceClick}
+          disabled={disabled}
+          aria-label={`Use Voice AI to fill ${label.toLowerCase()}`}
+          title={`Use Voice AI to fill ${label.toLowerCase()}`}
+        >
+          <VoiceRxIcon size={20} color="#673AAC" />
+        </button>
+      ) : null}
     </div>
   );
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, voiceEnabled, voiceLocked }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -2871,6 +3061,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
         onActionClick={onActionClick}
         actionLabels={actionLabels}
         hidePlusIcon={actionHidePlusIcons?.[activeId]}
+        voiceEnabled={voiceEnabled}
+        voiceLocked={voiceLocked}
       />
       <div key={activeId} className={`snv-section-anim ${transitionDir ? `snv-section-${transitionDir}` : ""}`}>
         <SectionContent
@@ -2916,7 +3108,10 @@ export function SideNavbar({
   labParamsData: labParamsDataProp,
   gynecHistory: gynecHistoryProp,
   vaccineRefreshKey = 0,
+  growthRefreshKey = 0,
+  opthalRefreshKey = 0,
   customizedPadLeftList = [],
+  isOpthalModuleAccessible = false,
   isVaccinationAccessable = false,
   isGrowthChartAccessable = false,
   isGynaecHistoryAccessable = false,
@@ -2924,6 +3119,7 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
+  const { activeVoiceModule } = useRxPadSync();
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
   const [pastVisitRows, setPastVisitRows] = useState([]);
   const [pastVisitDetails, setPastVisitDetails] = useState({});
@@ -2941,6 +3137,7 @@ export function SideNavbar({
   const opthalRequestRef = useRef(0);
   const growthRequestRef = useRef(0);
   const pastVisitsRequestRef = useRef(0);
+  const voiceDelayTimerRef = useRef(null);
   const emptyPastVisitsAutoSelectRef = useRef(false);
   const activePatientRef = useRef(patientId);
   const { vitalsPastList, patientBirthWeight } = useSelector((state) => state.vitals);
@@ -2949,8 +3146,13 @@ export function SideNavbar({
   const { isPediatricAccessable } = useAccess();
   const {
     vitalsData = [],
+    setVitalsData,
     medicalHistoryData = [],
+    setMedicalHistoryData,
+    setLabParamsData,
     patient_data: patientData,
+    tcmId,
+    pamId,
     privateNotesData,
     setPrivateNotesData,
   } = useContext(CashManagerContext) || {};
@@ -2958,8 +3160,15 @@ export function SideNavbar({
     activePatientRef.current = patientId;
   }, [patientId]);
 
+  useEffect(() => () => {
+    if (voiceDelayTimerRef.current) {
+      window.clearTimeout(voiceDelayTimerRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     const patientPid = patientData?.pm_pid || patientData?.vac_pid;
+    const patientDob = parsePatientDobForVaccines(patientData);
     const requestId = vaccineRequestRef.current + 1;
     vaccineRequestRef.current = requestId;
 
@@ -2970,13 +3179,22 @@ export function SideNavbar({
 
     const fetchVaccines = async () => {
       try {
-        const [patientTemplates, standardTemplates] = await Promise.all([
+        const [patientTemplates, standardTemplates, overridenVaccines, vaccineBrands] = await Promise.all([
           getPatientVaccineDetails(patientId, patientPid),
           getVaccineTemplates(),
+          getOverridenDueDate(patientId, patientPid),
+          getVaccineBrands(),
         ]);
         if (vaccineRequestRef.current !== requestId) return;
+        const mergedTemplates = mergeDataPatientDetails(
+          Array.isArray(standardTemplates) ? standardTemplates : [],
+          Array.isArray(patientTemplates) ? patientTemplates : [],
+          Array.isArray(overridenVaccines) ? overridenVaccines : [],
+          Array.isArray(vaccineBrands) ? vaccineBrands : [],
+          patientDob
+        );
         setPatientVaccineRows(Array.isArray(patientTemplates) ? patientTemplates : []);
-        setVaccineTemplateRows(Array.isArray(standardTemplates) ? standardTemplates : []);
+        setVaccineTemplateRows(Array.isArray(mergedTemplates) ? mergedTemplates : []);
       } catch (error) {
         if (vaccineRequestRef.current !== requestId) return;
         setPatientVaccineRows([]);
@@ -2986,7 +3204,7 @@ export function SideNavbar({
     };
 
     fetchVaccines();
-  }, [patientId, patientData?.pm_pid, patientData?.vac_pid, vaccineRefreshKey]);
+  }, [patientId, patientData?.DOB, patientData?.dob, patientData?.patient_dob, patientData?.pm_dob, patientData?.pm_pid, patientData?.vac_dob, patientData?.vac_pid, vaccineRefreshKey]);
 
   useEffect(() => {
     const requestId = opthalRequestRef.current + 1;
@@ -3016,7 +3234,7 @@ export function SideNavbar({
     };
 
     fetchOpthalPrescriptions();
-  }, [patientId]);
+  }, [patientId, opthalRefreshKey]);
 
   useEffect(() => {
     const requestId = growthRequestRef.current + 1;
@@ -3048,7 +3266,7 @@ export function SideNavbar({
     };
 
     fetchGrowthData();
-  }, [patientData?.patient_id, patientData?.pm_id, patientData?.pm_pid, patientData?.pmId, patientData?.pmPid]);
+  }, [growthRefreshKey, patientData?.patient_id, patientData?.pm_id, patientData?.pm_pid, patientData?.pmId, patientData?.pmPid]);
 
   const fetchPastVisitsPage = useCallback(async (page = 1) => {
     if (!patientId) return;
@@ -3222,28 +3440,24 @@ export function SideNavbar({
   }), [fetchPastVisitDetail, fetchPastVisitsPage, isPastVisitsLoading, pastVisitsPage, pastVisitsTotalPages]);
 
   const actionLabels = useMemo(() => ({
-    vitals: vitalsData.length > 0 ? "Edit" : "Add",
-    history: medicalHistoryData.length > 0 ? "Edit" : "Add",
-    labResults: labParamsDataProp?.length > 0 ? "View All" : "Add",
-    medicalRecords: allUploadedDocs.length > 0 ? "View All" : "Add",
-    gynec: gynecHistoryProp && Object.keys(gynecHistoryProp).length > 0 ? "Edit" : "Add",
-    obstetric: legacyObstetricSections.length > 0 ? "Edit" : "Add",
-    vaccine: patientVaccineRows.length > 0 ? "Edit" : "Add",
-    growth: growthChartRows.length > 0 ? "Edit" : "Add",
+    vitals: "Add/Edit Details",
+    history: "Add/Edit Details",
+    labResults: labParamsDataProp?.length > 0 ? "View All" : "Add/Edit Details",
+    medicalRecords: allUploadedDocs.length > 0 ? "View All" : "Add/Edit Details",
+    gynec: "Add/Edit Details",
+    obstetric: "Add/Edit Details",
+    vaccine: "Add/Edit Details",
+    optal: "Add/Edit Details",
+    growth: "Add/Edit Details",
   }), [
     allUploadedDocs.length,
-    gynecHistoryProp,
-    growthChartRows.length,
     labParamsDataProp?.length,
-    legacyObstetricSections.length,
-    medicalHistoryData.length,
-    patientVaccineRows.length,
-    vitalsData.length,
   ]);
 
   const actionHidePlusIcons = useMemo(() => ({
+    labResults: labParamsDataProp?.length > 0,
     medicalRecords: allUploadedDocs.length > 0,
-  }), [allUploadedDocs.length]);
+  }), [allUploadedDocs.length, labParamsDataProp?.length]);
 
   const navItems = useMemo(() => {
     const seen = new Set(["pastVisits"]);
@@ -3256,16 +3470,27 @@ export function SideNavbar({
 
     (customizedPadLeftList || []).forEach((item) => {
       const navId = getCustomizedPadNavId(item, access);
+      if (navId === "growth") return;
       if (!navId || seen.has(navId) || !NAV_ITEM_BY_ID[navId]) return;
       seen.add(navId);
       orderedItems.push(NAV_ITEM_BY_ID[navId]);
     });
+
+    if (isOpthalModuleAccessible && !seen.has("optal")) {
+      seen.add("optal");
+      orderedItems.push(NAV_ITEM_BY_ID.optal);
+    }
+    if (isGrowthChartAccessable && !seen.has("growth")) {
+      seen.add("growth");
+      orderedItems.push(NAV_ITEM_BY_ID.growth);
+    }
 
     return orderedItems;
   }, [
     customizedPadLeftList,
     isGynaecHistoryAccessable,
     isGrowthChartAccessable,
+    isOpthalModuleAccessible,
     isVaccinationAccessable,
   ]);
 
@@ -3333,62 +3558,105 @@ export function SideNavbar({
     }));
   }, []);
 
-  const transcribeSectionAudio = useCallback(async (sectionId, audioBlob) => {
-    updateVoiceState(sectionId, { status: "transcribing", error: "", transcript: "", digitizedSummary: "" });
-    let transcript = "";
-    try {
-      const context = {
-        patientId: String(patientId || "mock-patient"),
-        doctorId: String(doctorId || "mock-doctor"),
-        sessionId: createSessionId(),
+  const applySideNavVoiceResult = useCallback((sectionId, result) => {
+    if (sectionId === "vitals" && result?.vitals && sideNavObjectHasContent(result.vitals, ["date"])) {
+      setVitalsData?.((prev = []) => [result.vitals, ...prev]);
+      setDigitizedOverrides((prev) => ({ ...prev, vitals: result.vitals }));
+      return;
+    }
+
+    if (sectionId === "history" && Array.isArray(result?.history) && result.history.length > 0) {
+      setMedicalHistoryData?.((prev = []) => convertMedicalHistoryToContextFormat(result.history, prev));
+      setDigitizedOverrides((prev) => ({ ...prev, history: { medicalHistory: result.history } }));
+      return;
+    }
+
+    if (sectionId === "labResults" && Array.isArray(result?.labResults) && result.labResults.length > 0) {
+      const entry = {
+        date: moment().format("YYYY-MM-DD"),
+        inputs: result.labResults.map((item) => ({
+          testName: item.investigation_name,
+          value: item.value || item.result || item.note || "--",
+          units: item.unit || item.units || "",
+          arrowDirection: item.arrowDirection || item.direction || "",
+        })),
       };
-      transcript = await transcribeAudio({ audioBlob, context });
-      console.log("[sideNavbar] transcribe-audio response", { sectionId, transcript });
-      updateVoiceState(sectionId, { status: "digitizing", transcript, error: "", digitizedSummary: "" });
+      setLabParamsData?.((prev = []) => [entry, ...prev]);
+      setDigitizedOverrides((prev) => ({ ...prev, labResults: { lab_investigations: result.labResults } }));
+    }
+  }, [setLabParamsData, setMedicalHistoryData, setVitalsData]);
 
-      const digitizedResult = await digitiseClinicalData({
-        context,
-        onResult: (name, result) => {
-          console.log("[sideNavbar] digitise-data module result", { sectionId, name, result });
-        },
+  const transcribeSectionAudio = useCallback(async (sectionId, audioBlob) => {
+    if (!SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(sectionId)) {
+      return;
+    }
+    updateVoiceState(sectionId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
+    if (voiceDelayTimerRef.current) {
+      window.clearTimeout(voiceDelayTimerRef.current);
+    }
+    voiceDelayTimerRef.current = window.setTimeout(() => {
+      updateVoiceState(sectionId, { status: "digitizing", error: "", transcript: "", digitizedSummary: "" });
+    }, SIDE_NAV_SHINER_DELAY_MS);
+
+    try {
+      const result = await requestSideNavModuleDigitise({
+        sectionId,
+        audioBlob,
+        patientId,
+        doctorId,
+        sessionId: tcmId && Number(tcmId) !== 0 ? tcmId : pamId || createSessionId(),
       });
-      console.log("[sideNavbar] digitise-data response", { sectionId, digitizedResult });
-      if (digitizedResult?.status === "rejected") {
-        throw new Error(digitizedResult.error || "Digitization failed.");
+      if (voiceDelayTimerRef.current) {
+        window.clearTimeout(voiceDelayTimerRef.current);
+        voiceDelayTimerRef.current = null;
       }
-
-      const sectionUpdates = buildSectionOverrides(digitizedResult, sectionId);
-      setDigitizedOverrides((prev) => ({ ...prev, ...sectionUpdates }));
+      applySideNavVoiceResult(sectionId, result);
       updateVoiceState(sectionId, {
         status: "done",
-        transcript,
-        digitizedSummary: JSON.stringify(sectionUpdates, null, 2),
+        transcript: "",
+        digitizedSummary: JSON.stringify(result, null, 2),
         error: "",
       });
     } catch (error) {
+      if (voiceDelayTimerRef.current) {
+        window.clearTimeout(voiceDelayTimerRef.current);
+        voiceDelayTimerRef.current = null;
+      }
       console.error("[sideNavbar] voice processing failed", { sectionId, error });
-      updateVoiceState(sectionId, { status: "error", error: error?.message || "Voice processing failed.", transcript, digitizedSummary: "" });
+      toast.error(error?.message || "Voice processing failed.");
+      updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
     }
-  }, [patientId, doctorId, updateVoiceState]);
+  }, [applySideNavVoiceResult, doctorId, pamId, patientId, tcmId, updateVoiceState]);
 
   const handleVoiceClick = useCallback(() => {
     if (!activeId) return;
+    if (!SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)) return;
+    if (activeVoiceModule) return;
     const existing = voiceBySection[activeId]?.status;
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, voiceBySection, updateVoiceState]);
+  }, [activeId, activeVoiceModule, voiceBySection, updateVoiceState]);
 
   const handleVoiceRecorderSubmit = useCallback(({ audioBlob } = {}) => {
-    if (activeId) transcribeSectionAudio(activeId, audioBlob);
+    if (activeId) return transcribeSectionAudio(activeId, audioBlob);
+    return Promise.resolve();
   }, [activeId, transcribeSectionAudio]);
 
   const handleVoiceCancel = useCallback(() => {
     if (!activeId) return;
+    if (voiceDelayTimerRef.current) {
+      window.clearTimeout(voiceDelayTimerRef.current);
+      voiceDelayTimerRef.current = null;
+    }
     updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
   }, [activeId, updateVoiceState]);
 
   const handleVoiceOverlayClose = useCallback(() => {
     if (!activeId) return;
+    if (voiceDelayTimerRef.current) {
+      window.clearTimeout(voiceDelayTimerRef.current);
+      voiceDelayTimerRef.current = null;
+    }
     updateVoiceState(activeId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
   }, [activeId, updateVoiceState]);
 
@@ -3413,6 +3681,8 @@ export function SideNavbar({
           actionHidePlusIcons={actionHidePlusIcons}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={handlePrivateNotesChange}
+          voiceEnabled={SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
+          voiceLocked={!!activeVoiceModule}
         />
       ) : null}
     </aside>

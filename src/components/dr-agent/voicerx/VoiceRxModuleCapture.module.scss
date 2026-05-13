@@ -25,6 +25,11 @@
   // background: rgba(103, 58, 172, 0.08);
 }
 
+.voiceButtonDisabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
 .captureRoot {
   width: 100%;
   min-width: 0;

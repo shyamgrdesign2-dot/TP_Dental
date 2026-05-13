@@ -17,6 +17,8 @@ const RxPadSyncContext = createContext({
   setVoiceActive: () => {},
   activeVoiceModule: null,
   setActiveVoiceModule: () => {},
+  claimActiveVoiceModule: () => {},
+  releaseActiveVoiceModule: () => {},
   collapsedVoiceSession: {
     active: false,
     paused: false,
@@ -63,7 +65,18 @@ export function RxPadSyncProvider({ children }) {
   }, []);
   const [copyOverlayActive, setCopyOverlayActive] = useState(false);
   const copyOverlayTimerRef = useRef(null);
-  const [activeVoiceModule, setActiveVoiceModule] = useState(null);
+  const [activeVoiceLock, setActiveVoiceLock] = useState(null);
+  const activeVoiceModule = activeVoiceLock?.label || null;
+  const setActiveVoiceModule = useCallback((label) => {
+    setActiveVoiceLock(label ? { id: "legacy", label } : null);
+  }, []);
+  const claimActiveVoiceModule = useCallback((id, label) => {
+    if (!id || !label) return;
+    setActiveVoiceLock({ id, label });
+  }, []);
+  const releaseActiveVoiceModule = useCallback((id) => {
+    setActiveVoiceLock((prev) => (prev?.id === id ? null : prev));
+  }, []);
   const [collapsedVoiceSession, setCollapsedVoiceSessionRaw] = useState({
     active: false,
     paused: false,
@@ -235,6 +248,8 @@ export function RxPadSyncProvider({ children }) {
       runCopyWithAura,
       activeVoiceModule,
       setActiveVoiceModule,
+      claimActiveVoiceModule,
+      releaseActiveVoiceModule,
       collapsedVoiceSession,
       setCollapsedVoiceSession,
       voicePauseToggleRequest,
@@ -262,6 +277,7 @@ export function RxPadSyncProvider({ children }) {
       lastCopyRequest, lastSignal, requestCopyToRxPad, publishSignal,
       patientAllergies, aiFillInProgress, voiceActive, copyAllAuraActive,
       flashCopyAllAura, copyOverlayActive, runCopyWithAura, activeVoiceModule,
+      setActiveVoiceModule, claimActiveVoiceModule, releaseActiveVoiceModule,
       collapsedVoiceSession, setCollapsedVoiceSession, voicePauseToggleRequest,
       requestVoicePauseToggle, voiceSubmitRequest, requestVoiceSubmit,
       micUnavailable, micUnavailableReason, historicalUpdates,

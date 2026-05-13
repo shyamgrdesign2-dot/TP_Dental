@@ -14,6 +14,7 @@ export function DrAgentRuntime({
 }) {
   const {
     collapsedVoiceSession,
+    activeVoiceModule,
     requestVoicePauseToggle,
     requestVoiceSubmit
   } = useRxPadSync();
@@ -53,7 +54,7 @@ export function DrAgentRuntime({
       </div>
 
       {showIdleFab && (
-        <DrAgentFab onClick={onOpen} />
+        <DrAgentFab disabled={!!activeVoiceModule} onClick={onOpen} />
       )}
 
       {collapsedVoiceActive && (

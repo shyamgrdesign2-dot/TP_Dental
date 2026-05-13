@@ -11,7 +11,7 @@ import {
   Spin,
   Tooltip
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -51,6 +51,18 @@ const {
 } = ASSETS.images;
 
 const { TextArea } = Input;
+
+const isVoiceRxModuleInvestigation = (item) => !!item?.voice_rx_from_module;
+const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
+  background: "#2f2e39",
+  borderRadius: 8,
+  color: "#fff",
+  fontSize: 14,
+  lineHeight: 1.35,
+  maxWidth: 360,
+  padding: "12px 16px",
+  textAlign: "center",
+};
 
 function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   const isChikitsalayAccessable = useChikitsalay();
@@ -136,6 +148,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   const [searchChildQuery, setSearchChildQuery] = useState(null);
   const [childSearchOptions, setChildSearchOptions] = useState([]);
+  const [activeVoiceInvestigationIndex, setActiveVoiceInvestigationIndex] = useState(null);
 
   //PopOver2
   const [popOver2, setPopOver2] = useState(false);
@@ -338,6 +351,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     );
   };
 
+  const handleVoiceInvestigationClick = (i) => {
+    setActiveVoiceInvestigationIndex(i);
+    onFocusChid(i);
+  };
+
   const onSearchChild = useCallback(
     (query, i) => {
       const updateQuery = removeBeforeWhiteSpace(query)
@@ -354,9 +372,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   const onSelectChild = useCallback(
     (data, e, i) => {
-      investigationData[i] = { ...investigationData[i], ...JSON.parse(e.key) };
+      investigationData[i] = {
+        ...investigationData[i],
+        ...JSON.parse(e.key),
+        voice_rx_from_module: false,
+      };
       setInvestigationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).investigation_name, index: i });
+      setActiveVoiceInvestigationIndex(null);
     },
     [searchChildQuery, investigationData]
   );
@@ -630,24 +653,54 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                           >
                           </MenuOutlined>
                         </Col>
-                        <Col lg={8} md={8} sm={8} xs={8}>
+                        <Col
+                          lg={8}
+                          md={8}
+                          sm={8}
+                          xs={8}
+                          style={isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
+                        >
                           <div className="fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100">
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                              <AutoComplete
-                                defaultValue={item.investigation_name}
-                                value={item.investigation_name}
-                                placeholder="Investigation Name"
-                                bordered={false}
-                                disabled={true}
-                                defaultOpen={false}
-                                onSearch={(query) => onSearchChild(query, index)}
-                                onFocus={() => onFocusChid(index)}
-                                options={childSearchOptions}
-                                className="autocomplete-custom w-100 inputborder"
-                                defaultActiveFirstOption={true}
-                                onSelect={(data, e) => onSelectChild(data, e, index)}
-                              />
+                              {isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
+                                <button
+                                  type="button"
+                                  className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
+                                  onClick={() => handleVoiceInvestigationClick(index)}
+                                >
+                                  {item.investigation_name}
+                                </button>
+                              ) : (
+                                <AutoComplete
+                                  autoFocus={activeVoiceInvestigationIndex === index}
+                                  defaultValue={item.investigation_name}
+                                  value={item.investigation_name}
+                                  placeholder="Investigation Name"
+                                  bordered={false}
+                                  disabled={!isVoiceRxModuleInvestigation(item)}
+                                  defaultOpen={activeVoiceInvestigationIndex === index}
+                                  open={activeVoiceInvestigationIndex === index ? true : undefined}
+                                  onSearch={(query) => onSearchChild(query, index)}
+                                  onFocus={() => onFocusChid(index)}
+                                  options={childSearchOptions}
+                                  className="autocomplete-custom w-100 inputborder"
+                                  defaultActiveFirstOption={true}
+                                  onSelect={(data, e) => onSelectChild(data, e, index)}
+                                />
+                              )}
                             </div>
+                            {isVoiceRxModuleInvestigation(item) && (
+                              <Tooltip
+                                placement="top"
+                                overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
+                                title={`This ${INVESTIGATION_TITLE.toLowerCase()} is not from your Zydus inventory list. Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()}.`}
+                              >
+                                <InfoCircleOutlined
+                                  className="fs-18 flex-shrink-0"
+                                  style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                />
+                              </Tooltip>
+                            )}
                             {(item?.hm_type === 1 && item?.um_id === 0) && (
                               <span
                                 className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0"
@@ -706,7 +759,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
         </Droppable>
       </DragDropContext>
     );
-  }, [investigationData, childSearchOptions, isChikitsalayAccessable]);
+  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, isChikitsalayAccessable]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
