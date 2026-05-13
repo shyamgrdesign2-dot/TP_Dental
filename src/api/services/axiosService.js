@@ -147,6 +147,11 @@ instance.interceptors.response.use(
             message: ''
         }
 
+        // Silently reject cancelled requests without showing a notification
+        if (error.code === 'ERR_CANCELED') {
+            return Promise.reject(error);
+        }
+
         // Check if error.response exists before accessing its properties
         if (!error.response) {
             // Handle network errors, CORS errors, or other non-HTTP errors
