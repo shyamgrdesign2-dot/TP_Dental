@@ -3876,7 +3876,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                         module_name:
                           getCustomModuleName(option?.id) ||
                           customModule.module_name ||
-                          customModule.name,
+                          customModule.name ||
+                          option?.title,
                       };
                     }
 
