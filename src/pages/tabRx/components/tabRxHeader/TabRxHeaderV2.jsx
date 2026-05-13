@@ -742,12 +742,12 @@ function TabRxHeaderV2({
                     advice_name,
                     ...(change !== undefined && { change }),
                 })),
-                investigation: investigationData.map(
-                    ({ investigation_name, change }) => ({
-                        investigation_name,
-                        ...(change !== undefined && { change }),
-                    }),
-                ),
+                investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+                    investigation_name,
+                    ...(change !== undefined && { change }),
+                    ...(id != null && String(id).trim() !== "" && { id }),
+                    ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+                })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -901,12 +901,12 @@ function TabRxHeaderV2({
                     advice_name,
                     ...(change !== undefined && { change }),
                 })),
-                investigation: investigationData.map(
-                    ({ investigation_name, change }) => ({
-                        investigation_name,
-                        ...(change !== undefined && { change }),
-                    }),
-                ),
+                investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+                    investigation_name,
+                    ...(change !== undefined && { change }),
+                    ...(id != null && String(id).trim() !== "" && { id }),
+                    ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+                })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
