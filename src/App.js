@@ -202,8 +202,10 @@ const growthbook = new GrowthBook({
 
 function PrescriptionRouteElement() {
   const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const location = useLocation();
+  const isVoiceRxNewUiFlow = Boolean(location.state?.isVoiceRxNewUiFlow);
 
-  if (isVoiceRxNewFromGB) {
+  if (isVoiceRxNewFromGB && isVoiceRxNewUiFlow) {
     return <PrescriptionNew />;
   }
 

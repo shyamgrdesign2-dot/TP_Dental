@@ -37,6 +37,7 @@ import {
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
+  GB_VOICE_RX_NEW_UI,
   GB_CVT_EXT_HOS,
   CLINIC_TARGET_STATUS,
 } from "../utils/constants";
@@ -592,6 +593,7 @@ function Cardiology(props) {
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
@@ -3360,9 +3362,13 @@ function Cardiology(props) {
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
-    navigate("/voice-rx-consult", {
+    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
       state: {
         patient_data: patient_data,
+        ...(isVoiceRxNewFromGB && {
+          isVoiceRxNewUiFlow: true,
+          voiceRxEntryPoint: "patient_details_no_visit",
+        }),
       },
     });
   };
@@ -4493,9 +4499,13 @@ function Cardiology(props) {
                           doctor_unique_id: profile?.doctor_unique_id,
                           clinic_name,
                         });
-                        navigate("/voice-rx-consult", {
+                        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
                           state: {
                             patient_data: patient_data,
+                            ...(isVoiceRxNewFromGB && {
+                              isVoiceRxNewUiFlow: true,
+                              voiceRxEntryPoint: "patient_details_no_visit_fallback",
+                            }),
                           },
                         });
                       } else {
@@ -4506,20 +4516,12 @@ function Cardiology(props) {
                               ? patient_data.patient_unique_id
                               : 0,
                         });
-                        if (isMobile && !isTablet) {
-                          navigate("/voice-rx-consult", {
-                            state: {
-                              patient_data: patient_data,
-                            },
-                          });
-                        } else {
                         navigate("/prescription", {
                           state: {
                             patient_data: patient_data,
                             send_path: "patient_details",
                           },
                         });
-                        }
                       }
                     }}
                   >

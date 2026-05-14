@@ -87,6 +87,7 @@ import {
   PATIENT_DETAILS_SIDEBAR_KEYS,
   GB_TAB_RX_CVT,
   GB_VOICE_RX_FREE,
+  GB_VOICE_RX_NEW_UI,
   TAB_CLINIC_QUEUE,
   TAB_CLINIC_APPOINTMENT,
   CLINIC_TARGET_STATUS,
@@ -270,6 +271,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   const isSnapRxDigitizationAccessable = useFeatureIsOn(GB_SNAP_RX_DIGITIZATION);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isAppointmentAgentAccessableFromGB =
@@ -3349,11 +3351,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       source: selectedTab === TAB_ZYDUS_ENCOUNTER ? "Encounter" : "Appt Landing",
     });
     
-    // Navigate to Voice Rx Doctor Consult Page
-    navigate("/voice-rx-consult", {
+    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
       state: { 
         patient_data: record,
-        isFromTabView: isMobile
+        isFromTabView: isMobile,
+        ...(isVoiceRxNewFromGB && {
+          isVoiceRxNewUiFlow: true,
+          voiceRxEntryPoint: selectedTab === TAB_ZYDUS_ENCOUNTER ? "zydus_encounter" : "appointment_landing",
+        }),
       },
     });
   };
