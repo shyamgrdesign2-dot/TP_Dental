@@ -53,6 +53,7 @@ import {
   useVoiceRxModuleCapture,
 } from "../dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { Grid5, Trash } from "iconsax-reactjs";
 const {
   customModule: ModuleIcon,
   editIconBlue: editIcon,
@@ -1181,7 +1182,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -1219,7 +1220,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -1343,7 +1344,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
@@ -1782,7 +1783,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                   className="btn py-0 btn-delete-prescription px-0"
                   onClick={() => handleDeleteRow(row.id)}
                 >
-                  <i className="icon-delete"></i>
+                  {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                 </Button>
               </td>
             </tr>

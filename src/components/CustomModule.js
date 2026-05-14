@@ -55,6 +55,7 @@ import { MESSAGE_KEY } from "../utils/constants";
 import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
 import { ASSETS } from "../assets";
+import { Grid5, Trash } from "iconsax-reactjs";
 import {
   VoiceRxModuleActionButton,
   VoiceRxModuleButton,
@@ -881,7 +882,7 @@ function CustomModule({ module, showVoiceRxModule }) {
                           className="btn py-0 btn-delete-prescription px-0"
                           onClick={() => onRemoveRow(index)}
                         >
-                          <i className="icon-delete"></i>
+                          {isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>}
                         </Button>
                       </Col>
                     </Row>
@@ -932,7 +933,7 @@ function CustomModule({ module, showVoiceRxModule }) {
                     className="round-box"
                     onClick={() => onTemplateSelected(template)}
                   >
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div
                     className="text-truncate w-100"
@@ -965,7 +966,7 @@ function CustomModule({ module, showVoiceRxModule }) {
                         }
                       />
                     ) : (
-                      <i className="icon-delete"></i>
+                      isVoiceRxModuleEnabled ? <Trash color="currentColor" size={18} strokeWidth={1.5} variant="Linear" /> : <i className="icon-delete"></i>
                     )}
                   </Button>
                 </div>
@@ -1038,7 +1039,7 @@ function CustomModule({ module, showVoiceRxModule }) {
               optionRender={(option) => (
                 <div className="align-items-center d-flex text-truncate w-100">
                   <div className="round-box">
-                    <i className="icon-template"></i>
+                    {isVoiceRxModuleEnabled ? <Grid5 color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" /> : <i className="icon-template"></i>}
                   </div>
                   <div className="text-truncate w-100">
                     <div className="title text-main2">{option.data.value}</div>
