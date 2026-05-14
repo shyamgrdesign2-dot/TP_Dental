@@ -33,6 +33,8 @@
 .captureRoot {
   width: 100%;
   min-width: 0;
+  scroll-margin-top: 76px;
+  scroll-margin-bottom: 32px;
 }
 
 .confirmLayer {
@@ -157,6 +159,94 @@
 
 .moduleSlot {
   padding: 14px;
+}
+
+.medicationWideDropdown {
+  width: max-content !important;
+  min-width: 220px !important;
+  max-width: min(560px, calc(100vw - 32px));
+
+  :global(.ant-select-item-option-content) {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+}
+
+.medicationScrollWrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+.medicationTableRow {
+  width: max-content;
+  min-width: 100%;
+  flex-wrap: nowrap !important;
+}
+
+.medicationInnerRow {
+  width: max-content;
+  min-width: 784px;
+  flex-wrap: nowrap !important;
+}
+
+.medicationDragCell {
+  flex: 0 0 48px !important;
+  max-width: 48px !important;
+  min-width: 48px;
+}
+
+.medicationNameCell {
+  flex: 0 0 320px !important;
+  max-width: 320px !important;
+  min-width: 320px;
+}
+
+.medicationDetailsCell {
+  flex: 0 0 auto !important;
+  max-width: none !important;
+  min-width: 784px;
+}
+
+.medicationUnitCell {
+  flex: 0 0 130px !important;
+  max-width: 130px !important;
+  min-width: 130px;
+}
+
+.medicationFrequencyCell {
+  flex: 0 0 140px !important;
+  max-width: 140px !important;
+  min-width: 140px;
+}
+.medicationWhenCell,
+.medicationDurationCell {
+  flex: 0 0 120px !important;
+  max-width: 120px !important;
+  min-width: 120px;
+}
+
+.medicationNoteCell {
+  flex: 0 0 240px !important;
+  max-width: 240px !important;
+  min-width: 240px;
+}
+
+.medicationActionCell {
+  position: sticky !important;
+  right: 0;
+  z-index: 5;
+  background: #fff;
+  box-shadow: -18px 0 22px -18px rgba(35, 35, 45, 0.48);
 }
 
 @keyframes moduleVoiceProgress {

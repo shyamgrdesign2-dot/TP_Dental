@@ -34,6 +34,11 @@ import {
 import VideoModal from "../common/VideoModal";
 import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
+import {
+    VoiceRxModuleCapture,
+    useVoiceRxModuleCapture,
+} from "./dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   noRecordRound: noRecordFound,
   verticleUpDown,
@@ -47,9 +52,119 @@ const {
 const dateFormat = 'YYYY-MM-DD'
 const showDateFormat = 'DD-MM-YYYY'
 
+function normalizeMedicalHistoryMatch(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
+function normalizeMedicalHistoryEnable(value) {
+    const key = String(value || "").trim().toLowerCase();
+    if (!key) return "Y";
+    if (["y", "yes", "true", "active", "inactive", "present", "positive"].includes(key)) return "Y";
+    if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
+    return value;
+}
+
+function medicalHistoryStatusFromEnable(value) {
+    const key = String(value || "").trim().toLowerCase();
+    if (key === "active") return "Active";
+    if (key === "inactive") return "Inactive";
+    return "";
+}
+
+function mapMedicalHistoryIdsFromDefaultList(data = [], defaultList = []) {
+    if (!Array.isArray(data)) return [];
+
+    return data
+        .map((item) => {
+            const incomingTitle = item?.title || item?.section || item?.type || "Medical Condition";
+            let section = defaultList?.find((defaultItem) => (
+                Number(defaultItem?.tmmhs_id) === Number(item?.tmmhs_id) ||
+                normalizeMedicalHistoryMatch(defaultItem?.title) === normalizeMedicalHistoryMatch(incomingTitle)
+            ));
+            if (!section && normalizeMedicalHistoryMatch(incomingTitle) === "others") {
+                section = defaultList?.find((defaultItem) => normalizeMedicalHistoryMatch(defaultItem?.title) === "lifestyle");
+            }
+
+            const mappedTags = Array.isArray(item?.tags)
+                ? item.tags
+                    .map((tag) => {
+                        const tagTitle = String(tag?.title || tag?.name || tag?.lineItem || "").trim();
+                        if (!tagTitle) return null;
+                        const matchedTag = findMatchingMedicalHistoryTag(
+                            { title: tagTitle, tmmhst_id: tag?.tmmhst_id },
+                            section?.tags,
+                            section?.tmmhs_id
+                        );
+                        return {
+                            ...tag,
+                            title: tagTitle,
+                            ...(matchedTag?.tmmhst_id ? { tmmhst_id: matchedTag.tmmhst_id } : {}),
+                            note: tag?.note || tag?.notes || "",
+                            notes: tag?.notes || tag?.note || "",
+                            enable: normalizeMedicalHistoryEnable(tag?.enable),
+                            relationship: tag?.relationship || tag?.relation || "",
+                            since: tag?.since || tag?.duration || "",
+                            status: tag?.status || medicalHistoryStatusFromEnable(tag?.enable),
+                            medication: tag?.medication || "",
+                        };
+                    })
+                    .filter(Boolean)
+                : [];
+
+            return {
+                ...item,
+                title: section?.title || incomingTitle,
+                ...(section?.tmmhs_id ? { tmmhs_id: section.tmmhs_id } : {}),
+                no_know_history: Boolean(item?.no_know_history),
+                tags: mappedTags,
+            };
+        })
+        .filter((section) => section.no_know_history || section.tags.length);
+}
+
+function mergeMedicalHistorySections(base = [], incoming = []) {
+    const baseData = Array.isArray(base) ? JSON.parse(JSON.stringify(base)) : [];
+    const incomingData = Array.isArray(incoming) ? JSON.parse(JSON.stringify(incoming)) : [];
+    const usedIncomingIndexes = new Set();
+
+    const merged = baseData.map((section) => {
+        const incomingIndex = incomingData.findIndex((item) => (
+            Number(item?.tmmhs_id) === Number(section?.tmmhs_id) ||
+            normalizeMedicalHistoryMatch(item?.title) === normalizeMedicalHistoryMatch(section?.title)
+        ));
+        const incomingSection = incomingIndex >= 0 ? incomingData[incomingIndex] : null;
+        if (!incomingSection) return section;
+        usedIncomingIndexes.add(incomingIndex);
+
+        const mergedTags = [
+            ...(section?.tags || []).map((tag) => ({
+                ...tag,
+                ...(findMatchingMedicalHistoryTag(tag, incomingSection?.tags, section?.tmmhs_id) || {}),
+            })),
+            ...(incomingSection?.tags || []).filter(
+                (incomingTag) => !(section?.tags || []).some((existingTag) =>
+                    tagsAreDuplicateForHistoryMerge(existingTag, incomingTag, section?.tmmhs_id)
+                )
+            ),
+        ];
+
+        return {
+            ...section,
+            ...incomingSection,
+            tags: mergeMedicalHistoryTagsBySection(mergedTags, [], section?.tmmhs_id || incomingSection?.tmmhs_id),
+        };
+    });
+
+    incomingData.forEach((section, index) => {
+        if (!usedIncomingIndexes.has(index)) merged.push(section);
+    });
+
+    return merged;
+}
+
 function MedicalHistoryBox(props) {
 
-    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, gynecOnly = false, initialGynecHistory } = props
+    const { handleDrawerMedicalHistory, handleCollapsed, onSave, initialActiveKey, hideMenstrualHistoryTab, overrideMedicalHistoryData, gynecOnly = false, initialGynecHistory, showVoiceRxModule } = props
     const { TabPane } = Tabs;
     const {
         searchList,
@@ -129,6 +244,30 @@ function MedicalHistoryBox(props) {
     const [remarks,setRemarks] = useState(medicalHistoryData?.[0]?.medical_history_remarks || "");
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
+    const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && !gynecOnly;
+
+    const applyVoiceMedicalHistory = useCallback((nextMedicalHistory) => {
+        const mappedMedicalHistory = mapMedicalHistoryIdsFromDefaultList(nextMedicalHistory, defaultList);
+        if (!mappedMedicalHistory.length) return;
+
+        if (typeof setMedicalHistoryData === "function") {
+            setMedicalHistoryData((prev = []) => mergeMedicalHistorySections(prev, mappedMedicalHistory));
+        }
+        setCloneMedicalHistoryData((prev = []) => mergeMedicalHistorySections(prev, mappedMedicalHistory));
+        const nextRemarks = mappedMedicalHistory.find((section) => section?.medical_history_remarks)?.medical_history_remarks;
+        if (nextRemarks) setRemarks(nextRemarks);
+    }, [defaultList, setMedicalHistoryData]);
+
+    const {
+        voiceCaptureOpen,
+        setVoiceCaptureOpen,
+        voiceUpdated,
+        handleVoiceCaptureComplete,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Medical History",
+        onApply: applyVoiceMedicalHistory,
+        successMessage: "Medical history filled from voice dictation",
+    });
 
     const datePickerRef = useRef(null);
     // Function to handle custom input changes
@@ -1329,7 +1468,11 @@ function MedicalHistoryBox(props) {
                     }
                 `}</style>
             )}
-            <Card bordered={false} className="search-modalCard">
+            <Card bordered={false} className={[
+                "search-modalCard",
+                isVoiceRxModuleEnabled ? voiceModuleStyles.moduleRoot : "",
+                isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+            ].filter(Boolean).join(" ")}>
                 <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'>
                     <div className='align-items-center d-flex h-100'>
                         <div className='border-end h-100 text-center me-3'>
@@ -1808,6 +1951,18 @@ function MedicalHistoryBox(props) {
                     {!gynecOnly && (
                     <TabPane tab="Medical History" key="medical">
                         <div style={{ marginTop: hideMenstrualHistoryTab ? "16px" : "-1rem" }}>
+                            {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
+                                <div className={voiceModuleStyles.moduleSlot}>
+                                    <VoiceRxModuleCapture
+                                        moduleName="Medical History"
+                                        moduleApiName="medical_history"
+                                        previousContext={medicalHistoryData}
+                                        dummyDigitisedData={[]}
+                                        onCancel={() => setVoiceCaptureOpen(false)}
+                                        onComplete={handleVoiceCaptureComplete}
+                                    />
+                                </div>
+                            ) : null}
                             <Row>
                                 <Col lg={15}>
                                     <div className="bg-white overflow-y-auto medical-history-section" style={{ height: 'calc(100vh - 115px)' }}>

@@ -229,6 +229,20 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const getMedicationPopupProps = useCallback(
+    (popupClassName = "") => {
+      if (!isVoiceRxModuleEnabled) {
+        return popupClassName ? { popupClassName } : {};
+      }
+      return {
+        popupMatchSelectWidth: false,
+        popupClassName: [popupClassName, voiceModuleStyles.medicationWideDropdown]
+          .filter(Boolean)
+          .join(" "),
+      };
+    },
+    [isVoiceRxModuleEnabled]
+  );
 
   const handleViewDoseCalcDrawer = (tab, value) => {
     setDoseCalculatorDrawer(!doseCalculatorDrawer)
@@ -1203,28 +1217,28 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const TABLE_MEDICATION = useMemo(() => {
     return (
-      <>
+      <div className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationScrollWrap : undefined}>
         {medicationData.length > 0 &&
           <Row
             gutter={[0]}
-            className={`mt-14 border-top align-items-center`}
+            className={`mt-14 border-top align-items-center ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationTableRow : ""}`}
           >
-            <Col lg={1} md={1} sm={1} xs={1}>
+            <Col lg={1} md={1} sm={1} xs={1} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDragCell : undefined}>
               &nbsp;
             </Col>
-            <Col lg={5} md={5} sm={5} xs={5}>
+            <Col lg={5} md={5} sm={5} xs={5} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : undefined}>
               <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                 <label>MEDICINE</label>
               </div>
             </Col>
-            <Col lg={18} md={18} sm={18} xs={18}>
-              <Row>
-                <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start">
+            <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined}>
+              <Row className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationInnerRow : undefined}>
+                <Col lg={5} md={5} sm={5} xs={5} className={`border-end border-start ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationUnitCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>UNIT PER DOSE</label>
                   </div>
                 </Col>
-                <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationFrequencyCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome d-flex align-items-center flex-wrap">
                     <label>FREQUENCY </label>
                     <Popover
@@ -1239,22 +1253,22 @@ function MedicationsBox({ showVoiceRxModule }) {
                     </Popover>
                   </div>
                 </Col>
-                <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWhenCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>WHEN</label>
                   </div>
                 </Col>
-                <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDurationCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>DURATION</label>
                   </div>
                 </Col>
-                <Col lg={6} md={6} sm={6} xs={6} className="border-end">
+                <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label>NOTE</label>
                   </div>
                 </Col>
-                <Col lg={1} md={1} sm={2} xs={2} className="text-center">
+                <Col lg={1} md={1} sm={2} xs={2} className={`text-center ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
                   <div className="fontroboto fw-medium p-2 fs-12 text-welcome">
                     <label></label>
                   </div>
@@ -1276,9 +1290,9 @@ function MedicationsBox({ showVoiceRxModule }) {
                           {...provided.draggableProps}
                           key={i}
                           gutter={[0]}
-                          className={`taper-dose align-items-center ${i === 0 && "border-top"} border-bottom`}
+                          className={`taper-dose align-items-center ${i === 0 && "border-top"} border-bottom ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationTableRow : ""}`}
                         >
-                          <Col lg={1} md={1} sm={1} xs={1} className="text-center d-flex flex-column align-self-stretch">
+                          <Col lg={1} md={1} sm={1} xs={1} className={`text-center d-flex flex-column align-self-stretch ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDragCell : ""}`}>
                             <div className="d-flex align-items-center justify-content-center flex-grow-1 w-100">
                               <MenuOutlined
                                 {...provided.dragHandleProps}
@@ -1293,7 +1307,10 @@ function MedicationsBox({ showVoiceRxModule }) {
                             md={5}
                             sm={5}
                             xs={5}
-                            className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : undefined}
+                            className={[
+                              isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
+                              isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : ""
+                            ].filter(Boolean).join(" ") || undefined}
                             onClick={() => {
                               if (isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
                                 handleVoiceMedicineClick(item);
@@ -1318,7 +1335,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                         onBlur={handleVoiceMedicineBlur}
                                         options={parentSearchOptions}
                                         className="autocomplete-custom w-100 inputborder"
-                                        popupClassName="medicine-parent-autocomplete-dropdown"
+                                        {...getMedicationPopupProps("medicine-parent-autocomplete-dropdown")}
                                         defaultActiveFirstOption
                                       />
                                     ) : (
@@ -1356,7 +1373,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                               {renderLowStockBadge(item)}
                             </div>
                           </Col>
-                          <Col lg={18} md={18} sm={18} xs={18}>
+                          <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined}>
                             {!item.pms_default && !(isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
@@ -1376,8 +1393,8 @@ function MedicationsBox({ showVoiceRxModule }) {
                             }
                             {innerMedication(item.index).map(e1 => ({ ...e1, index: medicationData.findIndex(e => e.unique_id == e1.unique_id) })).map((item, ii) => {
                               return (
-                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'}`}>
-                                  <Col lg={5} md={5} sm={5} xs={5} className="border-end border-start">
+                                <Row key={ii} className={`${ii != 0 && 'position-relative border-top'} ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationInnerRow : ""}`}>
+                                  <Col lg={5} md={5} sm={5} xs={5} className={`border-end border-start ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationUnitCell : ""}`}>
                                     <AutoComplete
                                       defaultValue={item.tmm_dosage_unit_name}
                                       value={item.tmm_dosage_unit_name}
@@ -1389,6 +1406,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       options={unitPerDoseOptions}
                                       // backfill={true}
                                       className="autocomplete-custom w-100 h-100 inputborder"
+                                      {...getMedicationPopupProps()}
                                       defaultActiveFirstOption={true}
                                       onSelect={(data, e) => onSelectUnitPerDoseChild(data, e, item?.index)}
                                       onClear={() => onSearchUnitPerDoseChid("", item?.index)}
@@ -1402,7 +1420,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       )
                                     )}
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationFrequencyCell : ""}`}>
                                     <Select
                                       showSearch
                                       className="autocomplete-custom w-100 h-100 inputborder"
@@ -1414,11 +1432,12 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       onBlur={() => onBlurFrequencyChild(item?.index)}
                                       onSelect={(data) => onSelectFrequencyChild(data, item?.index)}
                                       options={frequencyOptions}
+                                      {...getMedicationPopupProps()}
                                       onClear={() => onSelectFrequencyChild("", item?.index)}
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end">
+                                  <Col lg={4} md={4} sm={4} xs={4} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationWhenCell : ""}`}>
                                     <Select
                                       className="autocomplete-custom w-100 h-100 inputborder"
                                       placeholder="e.g Before Food"
@@ -1431,11 +1450,12 @@ function MedicationsBox({ showVoiceRxModule }) {
                                           label: e.tmt_title,
                                         };
                                       })}
+                                      {...getMedicationPopupProps()}
                                       onClear={() => onSelectTimingChild("", item?.index)}
                                       allowClear
                                     />
                                   </Col>
-                                  <Col lg={4} md={4} sm={4} xs={4} className="border-end autofill">
+                                  <Col lg={4} md={4} sm={4} xs={4} className={`border-end autofill ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDurationCell : ""}`}>
                                     <AutoComplete
                                       defaultValue={item.tmm_days_duration_type}
                                       value={hasNumber(item.tmm_days_duration_type) ? item.tmm_days_duration_type : capitalize(item.tmm_days_duration_type, true)}
@@ -1445,7 +1465,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       onSearch={(query) => onSearchSinceChid(query, item?.index)}
                                       options={sinceOptions}
                                       className="autocomplete-custom h-100 w-100 inputborder truncate-autocomplete"
-                                      popupClassName="option-truncate"
+                                      {...getMedicationPopupProps("option-truncate")}
                                       defaultActiveFirstOption={true}
                                       onSelect={(data, e) => onSelectSinceChild(data, e, item?.index)}
                                       onClear={() => onSearchSinceChid("", item?.index)}
@@ -1455,7 +1475,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       <div className="badge-autofill" onClick={() => onAutoFillDuration(item?.index)}><i className="icon-copyIcon fs-12-1" />Autofill to all meds</div>
                                     )}
                                   </Col>
-                                  <Col lg={6} md={6} sm={6} xs={6} className="border-end">
+                                  <Col lg={6} md={6} sm={6} xs={6} className={`border-end ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNoteCell : ""}`}>
                                     <TextArea
                                       className="notesinput border-0 h-100 align-self-center"
                                       placeholder="Notes"
@@ -1468,7 +1488,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                       onChange={(e) => onChangeNoteChild(e, item?.index)}
                                     />
                                   </Col>
-                                  <Col lg={1} md={1} sm={2} xs={2} className="d-flex align-items-center justify-content-center">
+                                  <Col lg={1} md={1} sm={2} xs={2} className={`d-flex align-items-center justify-content-center ${isVoiceRxModuleEnabled ? voiceModuleStyles.medicationActionCell : ""}`}>
                                     <Button
                                       className="btn py-0 btn-delete-prescription px-0"
                                       onClick={() => onRemoveRow(item?.index)}
@@ -1493,9 +1513,9 @@ function MedicationsBox({ showVoiceRxModule }) {
             )}
           </Droppable>
         </DragDropContext>
-      </>
+      </div>
     );
-  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderLowStockBadge, voiceMedicineEdit]);
+  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderLowStockBadge, voiceMedicineEdit, isVoiceRxModuleEnabled]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {
@@ -1817,6 +1837,7 @@ function MedicationsBox({ showVoiceRxModule }) {
               onSearch={onSearchTemplate}
               onSelect={onSelectTemplate}
               optionLabelProp="label"
+              {...getMedicationPopupProps()}
               options={allTemplates.map((template) => {
                 return {
                   key: JSON.stringify(template),
@@ -2096,6 +2117,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                   defaultValue={addCustom?.tmy_title !== undefined ? addCustom?.tmy_title : null}
                   value={addCustom?.tmy_title !== undefined ? addCustom?.tmy_title : null}
                   onSelect={onSelectMedicineType}
+                  {...getMedicationPopupProps()}
                   options={medicineTypeList.map((e) => {
                     return {
                       value: JSON.stringify({ ...e }),
@@ -2119,6 +2141,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                   value={addCustom?.tmm_generic !== undefined ? addCustom?.tmm_generic : null}
                   onSearch={onSearchGeneric}
                   onSelect={onSelectGeneric}
+                  {...getMedicationPopupProps()}
                   options={[...genericList, { tmm_generic: genericQuery }].filter(e => e.tmm_generic).map((e, i) => {
                     return {
                       value: JSON.stringify({ ...e }),
@@ -2427,9 +2450,9 @@ function MedicationsBox({ showVoiceRxModule }) {
               className="autocomplete-custom w-100"
               onSelect={onSelectParent}
               defaultActiveFirstOption={true}
-              popupClassName={`medicine-parent-autocomplete-dropdown ${
+              {...getMedicationPopupProps(`medicine-parent-autocomplete-dropdown ${
                 !searchParentQuery ? "boxpopup" : ""
-              }`}
+              }`)}
             >
               <Input
                 placeholder="Search Medicines by Name"

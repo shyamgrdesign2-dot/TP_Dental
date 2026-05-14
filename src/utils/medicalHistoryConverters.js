@@ -1,3 +1,18 @@
+function normalizeMedicalHistoryEnable(value) {
+  const key = String(value || '').trim().toLowerCase();
+  if (!key) return 'Y';
+  if (['y', 'yes', 'true', 'active', 'inactive', 'present', 'positive'].includes(key)) return 'Y';
+  if (['n', 'no', 'false', 'absent', 'negative'].includes(key)) return 'N';
+  return value;
+}
+
+function statusFromMedicalHistoryEnable(value) {
+  const key = String(value || '').trim().toLowerCase();
+  if (key === 'active') return 'Active';
+  if (key === 'inactive') return 'Inactive';
+  return '';
+}
+
 /**
  * Converts Rx Pad / API medical history format to CashManagerContext format
  * for use in MedicalHistoryBox. Input: [{ type, name, lineItem, since?, status?, relation?, notes?, duration?, enable? }]
@@ -71,7 +86,9 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
       };
     }
     let tagTitle = item.name || '';
-    let tagEnable = item.enable; // Preserve exact enable value from Rx pad
+    let tagEnable = item.enable !== undefined && item.enable !== null
+      ? normalizeMedicalHistoryEnable(item.enable)
+      : item.enable;
     
     // Handle "No [condition]" pattern (takes priority)
     if (!item.enable || item.enable === undefined || item.enable === null) {
@@ -121,7 +138,7 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
         enable: tagEnable,
         note: item.notes || '',
         since: item.duration || '',
-        status: item.status || 'Active',
+        status: item.status || statusFromMedicalHistoryEnable(item.enable) || 'Active',
         relationship: item.relation || ''
       };
       if (item.medication !== undefined && item.medication !== null) {
@@ -183,7 +200,7 @@ export function convertMedicalHistoryToContextFormat(apiMedicalHistory, existing
             if (existingIndex !== -1) {
               const existingIsDash = existingTag.enable === undefined || existingTag.enable === '-' || existingTag.enable === '';
               if (existingIsDash) {
-                updatedTags[existingIndex].enable = existingTag.enable;
+                updatedTags[existingIndex].enable = newTag.enable;
               } else if (existingTag.enable === 'N' && newTag.enable === 'Y') {
                 // Existing has 'N', new has 'Y' - likely newTag was defaulted, preserve 'N'
                 updatedTags[existingIndex].enable = existingTag.enable;

@@ -297,17 +297,25 @@ function buildLegacyVitalsEntries({
   return entries;
 }
 
-const HISTORY_DISPLAY_GROUPS = [
-  { id: "medical", title: "Medical Conditions", type: "Medical condition" },
-  { id: "allergies", title: "Allergies", type: "Allergies" },
-  { id: "family", title: "Family History", type: "Family History" },
-  { id: "surgical", title: "Surgeries", type: "Surgical History" },
-  { id: "lifestyle", title: "Lifestyle", type: "Lifestyle" },
-  { id: "additional", title: "Additional Notes", type: "Additional Notes" },
-];
-
 function legacyHistoryHasValue(value) {
   return value !== undefined && value !== null && value !== "";
+}
+
+function legacyHistoryEnableState(value) {
+  const key = String(value || "").trim().toLowerCase();
+  if (!key) return "";
+  if (["y", "yes", "true", "active", "inactive", "present", "positive"].includes(key)) return "Y";
+  if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
+  return value;
+}
+
+function legacyHistoryStatus(sectionId, tag) {
+  if (legacyHistoryHasValue(tag?.status)) return tag.status;
+  if (sectionId === 3 || sectionId === 5) return "";
+  const key = String(tag?.enable || "").trim().toLowerCase();
+  if (key === "active") return "Active";
+  if (key === "inactive") return "Inactive";
+  return "";
 }
 
 function legacyHistoryDetailParts(sectionId, tag) {
@@ -320,7 +328,8 @@ function legacyHistoryDetailParts(sectionId, tag) {
     parts.push(`Date of Surgery: ${tag.date}`);
   }
   if (sectionId !== 3 && sectionId !== 5) {
-    if (legacyHistoryHasValue(tag?.status)) parts.push(`Status: ${tag.status}`);
+    const status = legacyHistoryStatus(sectionId, tag);
+    if (legacyHistoryHasValue(status)) parts.push(`Status: ${status}`);
     if (legacyHistoryHasValue(tag?.medication)) parts.push(`Medication: ${tag.medication}`);
   }
   if (sectionId === 3 && legacyHistoryHasValue(tag?.relationship)) {
@@ -345,7 +354,10 @@ function buildLegacyMedicalHistorySections(medicalHistoryData = []) {
 
     const sectionId = section?.tmmhs_id;
     const enabledItems = tags
-      .filter((tag) => tag?.enable === "Y")
+      .filter((tag) => {
+        const enableState = legacyHistoryEnableState(tag?.enable);
+        return enableState === "Y" || (enableState !== "N" && legacyHistoryDetailParts(sectionId, tag).length > 0);
+      })
       .map((tag, tagIndex) => {
         const detail = legacyHistoryDetailParts(sectionId, tag).join(" | ");
         return {
@@ -355,7 +367,7 @@ function buildLegacyMedicalHistorySections(medicalHistoryData = []) {
         };
       });
     const disabledItems = tags
-      .filter((tag) => tag?.enable === "N")
+      .filter((tag) => legacyHistoryEnableState(tag?.enable) === "N")
       .map((tag, tagIndex) => ({
         id: `legacy-history-${index}-disabled-${tagIndex}`,
         name: `No ${tag?.title || ""}`,
@@ -890,25 +902,6 @@ function buildLabRows(payload) {
   });
 }
 
-function historyDetail(entry) {
-  if (entry.type === "Family History") return valueText([entry.relation, entry.notes]) || undefined;
-  const showsStatus = entry.type === "Medical condition" || entry.type === "Allergies" || entry.type === "Lifestyle";
-  const status = showsStatus && entry.enable === "N" ? "Negated" : showsStatus && entry.enable === "Y" ? "Active" : "";
-  return valueText([entry.duration, status, entry.notes]) || undefined;
-}
-
-function buildHistoryGroups(payload) {
-  const items = toArray(payload?.medicalHistory || payload?.history || payload);
-  return HISTORY_DISPLAY_GROUPS.map((group) => ({
-    id: group.id,
-    title: group.title,
-    fresh: true,
-    items: items
-      .filter((entry) => entry?.type === group.type)
-      .map((entry) => ({ name: entry.name, detail: historyDetail(entry), fresh: true })),
-  }));
-}
-
 function lineFromParts(parts) {
   return parts.filter(hasValue).join(" | ");
 }
@@ -1212,9 +1205,6 @@ function buildViewData(overrides = {}, sourceData = {}) {
     data.vitals = [{ id: "digitized-vitals", dateLabel: currentDate, rows: vitalsRows, fresh: true }, ...data.vitals];
   }
 
-  const historyGroups = buildHistoryGroups(overrides.history).filter((group) => group.items.length);
-  if (historyGroups.length) data.history = historyGroups;
-
   const labRows = buildLabRows(overrides.labResults);
   if (labRows.length) {
     data.labResults = [{ id: "digitized-labs", dateLabel: currentDate, rows: labRows, fresh: true }, ...data.labResults];
@@ -1252,7 +1242,10 @@ function createSideNavVoiceId() {
 }
 
 function extractSideNavModulePayload(responseJson) {
-  return responseJson?.data?.documents?.[0]?.data ??
+  return responseJson?.payload?.data?.rxDigitizationHistory?.[0]?.response ??
+    responseJson?.data?.rxDigitizationHistory?.[0]?.response ??
+    responseJson?.rxDigitizationHistory?.[0]?.response ??
+    responseJson?.data?.documents?.[0]?.data ??
     responseJson?.data?.document?.data ??
     responseJson?.data ??
     responseJson;
@@ -1301,11 +1294,47 @@ function normalizeSideNavVitals(payload) {
   };
 }
 
+const TODO_INTEL_SIDE_NAV_HISTORY_TYPE_TO_TITLE = {
+  allergy: "Allergies",
+  allergies: "Allergies",
+  past: "Medical Condition",
+  past_history: "Medical Condition",
+  past_medical_history: "Medical Condition",
+  medical: "Medical Condition",
+  condition: "Medical Condition",
+  medical_condition: "Medical Condition",
+  medical_history: "Medical Condition",
+  family: "Family History",
+  family_history: "Family History",
+  lifestyle: "Lifestyle",
+  others: "Lifestyle",
+  other: "Lifestyle",
+  surgery: "Surgical History",
+  surgical_history: "Surgical History",
+};
+
+function todoIntelSideNavHistoryType(type) {
+  const key = String(type || "").trim().toLowerCase().replace(/\s+/g, "_");
+  return TODO_INTEL_SIDE_NAV_HISTORY_TYPE_TO_TITLE[key] || "Medical Condition";
+}
+
 function normalizeSideNavHistoryItems(payload) {
   const rows = firstSideNavArray(payload, ["medical_history", "medicalHistory", "history"]);
+  if (rows.some((row) => Array.isArray(row?.tags))) {
+    return rows.flatMap((section) => (
+      (section?.tags || []).map((tag) => ({
+        ...tag,
+        type: todoIntelSideNavHistoryType(section?.title || section?.type || section?.section),
+        name: tag?.name || tag?.title || tag?.lineItem || "",
+        duration: tag?.duration || tag?.since || "",
+        notes: tag?.notes ?? tag?.note ?? "",
+        relation: tag?.relation || tag?.relationship || "",
+      }))
+    )).filter((row) => hasValue(row.name) || hasValue(row.notes));
+  }
   return rows.map((row) => ({
     ...row,
-    type: row?.type || row?.category || row?.section || "Medical Condition",
+    type: todoIntelSideNavHistoryType(row?.type || row?.category || row?.section),
     name: row?.name || row?.title || row?.condition || row?.lineItem || "",
     duration: row?.duration || row?.since || "",
     notes: row?.notes ?? row?.note ?? "",
@@ -1494,7 +1523,7 @@ function NavPanel({ activeId, onSelect, items = NAV_ITEMS }) {
   );
 }
 
-function CopyAffordance() {
+function PastVisitCopyAffordance() {
   return (
     <button type="button" className="snv-copy-btn" aria-label="Copy to RxPad">
       <Copy size={14} variant="Linear" />
@@ -1526,7 +1555,7 @@ function RxSection({ title, icon, children }) {
       <div className="snv-rx-section-title">
         <span className="snv-rx-section-icon">{icon}</span>
         <span>{title}</span>
-        <CopyAffordance />
+        <PastVisitCopyAffordance />
       </div>
       {children}
     </div>
@@ -1919,7 +1948,7 @@ function HistoryContent({ sections = [] }) {
         <div className="snv-empty-state">No data recorded.</div>
       ) : sections.map((section) => (
         <div key={section.id} className={`snv-info-card ${section.fresh ? "snv-fresh-card" : ""}`}>
-          <div className="snv-info-card-title">{section.title}<CopyAffordance /></div>
+          <div className="snv-info-card-title">{section.title}</div>
           {section.items.length ? <BulletList items={section.items.map((item) => ({ label: item.name, detail: item.detail, fresh: item.fresh }))} /> : <div className="snv-empty-state">No data recorded.</div>}
         </div>
       ))}
@@ -1934,7 +1963,7 @@ function SectionCardsContent({ sections }) {
         <div className="snv-empty-state">No data recorded.</div>
       ) : sections.map((section) => (
         <div key={section.id} className={`snv-info-card ${section.fresh ? "snv-fresh-card" : ""}`}>
-          <div className="snv-info-card-title">{section.title}<CopyAffordance /></div>
+          <div className="snv-info-card-title">{section.title}</div>
           <div className="snv-card-lines">
             {(section.lines || []).map((line, i) => (
               <p key={i} className="snv-card-line">{line}</p>
@@ -2544,7 +2573,6 @@ function OptalContent({ entries = [] }) {
                 <div className="snv-optal-subsection-title">
                   <span className="snv-optal-icon">{section.icon}</span>
                   <span>{section.title}</span>
-                  <CopyAffordance />
                 </div>
                 <BulletList items={section.items} />
               </div>

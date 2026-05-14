@@ -14,11 +14,69 @@ function formatVoiceItem(item) {
   return item.detail ? `${item.name} (${item.detail})` : item.name;
 }
 
+function field(data, camelKey, snakeKey) {
+  return data?.[camelKey] ?? data?.[snakeKey];
+}
+
+function sectionDigitizationKey(sectionId) {
+  switch (sectionId) {
+    case "symptoms":
+      return "symptoms";
+    case "examination":
+    case "examinations":
+      return "examinations";
+    case "diagnosis":
+    case "diagnoses":
+      return "diagnosis";
+    case "medication":
+    case "medications":
+      return "medications";
+    case "investigation":
+    case "investigations":
+    case "lab":
+    case "labInvestigations":
+    case "lab-investigation":
+      return "lab_investigation";
+    case "advice":
+      return "advice";
+    case "followUp":
+    case "follow_up":
+    case "follow-up":
+      return "follow_up";
+    default:
+      return null;
+  }
+}
+
+function getSectionDigitizationRows(digitization, sectionId) {
+  const key = sectionDigitizationKey(sectionId);
+  if (!digitization || !key) return null;
+  if (key === "lab_investigation") {
+    return field(digitization, "labInvestigation", "lab_investigation") ?? null;
+  }
+  if (key === "follow_up") {
+    const followUp = field(digitization, "followUp", "follow_up");
+    return followUp == null || String(followUp).trim() === "" ? null : [followUp];
+  }
+  return digitization[key] ?? null;
+}
+
 /**
  * Build a minimal RxPadCopyPayload for a single item (or list of items)
  * scoped to one section.
  */
-function buildSectionPayload(sectionId, items) {
+function buildSectionPayload(sectionId, items, rawRows) {
+  const digitizationKey = sectionDigitizationKey(sectionId);
+  if (digitizationKey && rawRows?.length) {
+    return {
+      sourceDateLabel: "Voice consult",
+      targetSection: "rxpad",
+      digitization: {
+        [digitizationKey]: rawRows,
+      },
+    };
+  }
+
   const labels = items.map(formatVoiceItem);
   const base = {
     sourceDateLabel: "Voice consult",
@@ -39,9 +97,11 @@ function buildSectionPayload(sectionId, items) {
     case "investigations":
     case "lab":
     case "labInvestigations":
+    case "lab-investigation":
       return { ...base, labInvestigations: labels };
     case "followUp":
     case "follow_up":
+    case "follow-up":
       return { ...base, followUp: labels.join("; ") };
     case "history":
       return { ...base, historyChangeSummaries: labels };
@@ -69,17 +129,17 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
 
   const isCanvasMode = !!hideHeader;
 
-  const handleCopyItem = (sectionId, item, key) => {
+  const handleCopyItem = (sectionId, item, key, rawRow) => {
     safeClipboardWrite(formatVoiceItem(item));
-    onCopy?.(buildSectionPayload(sectionId, [item]));
+    onCopy?.(buildSectionPayload(sectionId, [item], rawRow ? [rawRow] : null));
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 1500);
   };
 
-  const handleCopySection = (sectionId, items) => {
+  const handleCopySection = (sectionId, items, rawRows) => {
     const text = items.map(formatVoiceItem).join("\n");
     safeClipboardWrite(text);
-    onCopy?.(buildSectionPayload(sectionId, items));
+    onCopy?.(buildSectionPayload(sectionId, items, rawRows));
     setCopiedKey(`section-${sectionId}`);
     setTimeout(() => setCopiedKey(null), 1500);
   };
@@ -126,10 +186,18 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
                 <span className={styles.sectionCopyWrap}>
                   <ActionableTooltip
                     label={`Fill ${section.title.toLowerCase()} to RxPad`}
-                    onAction={() => handleCopySection(section.sectionId, section.items)}>
+                    onAction={() => handleCopySection(
+                      section.sectionId,
+                      section.items,
+                      getSectionDigitizationRows(data.copyAllPayload?.digitization, section.sectionId)
+                    )}>
                     <CopyIcon
                       size={14}
-                      onClick={() => handleCopySection(section.sectionId, section.items)}
+                      onClick={() => handleCopySection(
+                        section.sectionId,
+                        section.items,
+                        getSectionDigitizationRows(data.copyAllPayload?.digitization, section.sectionId)
+                      )}
                     />
                   </ActionableTooltip>
                 </span>
@@ -140,13 +208,15 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
           <ul className={styles.itemList}>
             {section.items.map((item, idx) => {
               const itemKey = `${section.sectionId}-${idx}`;
+              const rawRows = getSectionDigitizationRows(data.copyAllPayload?.digitization, section.sectionId);
+              const rawRow = Array.isArray(rawRows) ? rawRows[idx] : null;
               return (
                 <li key={idx} className={styles.item}>
                   <span className={styles.bullet}>•</span>
                   {isTouch ? (
                     <ActionableTooltip
                       label="Copy to Rx"
-                      onAction={() => handleCopyItem(section.sectionId, item, itemKey)}>
+                      onAction={() => handleCopyItem(section.sectionId, item, itemKey, rawRow)}>
                       <span className={styles.itemTextTouch}>
                         {item.name}
                         {item.detail && (
@@ -194,10 +264,10 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
                       ) : (
                         <ActionableTooltip
                           label="Fill to RxPad"
-                          onAction={() => handleCopyItem(section.sectionId, item, itemKey)}>
+                          onAction={() => handleCopyItem(section.sectionId, item, itemKey, rawRow)}>
                           <CopyIcon
                             size={14}
-                            onClick={() => handleCopyItem(section.sectionId, item, itemKey)}
+                            onClick={() => handleCopyItem(section.sectionId, item, itemKey, rawRow)}
                           />
                         </ActionableTooltip>
                       )}

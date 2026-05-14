@@ -284,7 +284,15 @@ export function DrAgentPanel({
           onCopyResult={(payload) => runCopyWithAura(payload)}
           onCopyAll={() => {
             if (!voiceRxResult) return;
-            runCopyWithAura(voiceRxResult.structured.copyAllPayload, { bulk: true });
+            const copyAllPayload = voiceRxResult.digitization
+              ? {
+                sourceDateLabel: "Voice consult",
+                targetSection: "rxpad",
+                digitization: voiceRxResult.digitization
+              }
+              : voiceRxResult.structured?.copyAllPayload;
+            if (!copyAllPayload) return;
+            runCopyWithAura(copyAllPayload, { bulk: true });
             if (voiceRxResult.pendingSidebarBatch) {
               pushHistoricalUpdates(voiceRxResult.pendingSidebarBatch);
               setVoiceRxResult((prev) => prev ? { ...prev, pendingSidebarBatch: undefined } : prev);

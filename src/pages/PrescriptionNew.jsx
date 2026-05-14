@@ -137,10 +137,152 @@ import {
 // ── Dr Agent Panel ──
 import "../components/dr-agent/dr-agent-globals.css";
 import { DrAgentRuntime } from "../components/dr-agent/rxpad/dr-agent/shell/DrAgentRuntime";
-import { RxPadSyncProvider } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
+import {
+  RxPadSyncProvider,
+  useRxPadSync,
+} from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
+import { normalizeModuleRows } from "../components/dr-agent/voicerx/VoiceRxModuleCapture";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
 import { useTabletViewport } from "../hooks/useTabletViewport";
+
+const FOLLOW_UP_DATE_FORMATS = [
+  "YYYY-MM-DD",
+  "DD-MM-YYYY",
+  "DD/MM/YYYY",
+  "YYYY/MM/DD",
+  "DD MMM YYYY",
+  "DD MMMM YYYY",
+  "MMM DD, YYYY",
+  "MMMM DD, YYYY",
+];
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      if (value.length > 0) return value;
+      continue;
+    }
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return null;
+}
+
+function toArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === undefined || value === null || String(value).trim() === "") return [];
+  return [value];
+}
+
+function parseFollowUpDate(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  const iso = moment(text, moment.ISO_8601, true);
+  if (iso.isValid()) return iso.format("YYYY-MM-DD");
+  const parsed = moment(text, FOLLOW_UP_DATE_FORMATS, true);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
+}
+
+function appendFollowUpNote(setAdditionalNote, value) {
+  const text = String(value ?? "").trim();
+  if (!text) return;
+  setAdditionalNote((prev) => {
+    const current = String(prev || "").trim();
+    return current ? `${current}\n${text}` : text;
+  });
+}
+
+function PrescriptionNewRxPadCopyListener() {
+  const { lastCopyRequest } = useRxPadSync();
+  const {
+    setSymptomsData,
+    setExaminationData,
+    setDiagnosisData,
+    setMedicationData,
+    setInvestigationData,
+    setAdviceData,
+    setFollowUpDate,
+    setAdditionalNote,
+  } = React.useContext(CashManagerContext);
+  const handledRequestIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!lastCopyRequest || handledRequestIdRef.current === lastCopyRequest.id) return;
+    handledRequestIdRef.current = lastCopyRequest.id;
+
+    const payload = lastCopyRequest.payload || {};
+    const digitization = payload.digitization || {};
+    const appendRows = (setter, rows) => {
+      if (!rows.length) return;
+      setter((prev) => [...prev, ...rows]);
+    };
+
+    const symptoms = firstNonEmpty(digitization.symptoms, payload.symptoms);
+    appendRows(
+      setSymptomsData,
+      normalizeModuleRows({ symptoms: toArray(symptoms) }, "symptoms")
+    );
+
+    const examinations = firstNonEmpty(digitization.examinations, payload.examinations);
+    appendRows(
+      setExaminationData,
+      normalizeModuleRows({ examinations: toArray(examinations) }, "examinations")
+    );
+
+    const diagnosis = firstNonEmpty(digitization.diagnosis, payload.diagnosis, payload.diagnoses);
+    appendRows(
+      setDiagnosisData,
+      normalizeModuleRows({ diagnosis: toArray(diagnosis) }, "diagnosis")
+    );
+
+    const medications = firstNonEmpty(digitization.medications, payload.medications);
+    appendRows(
+      setMedicationData,
+      normalizeModuleRows({ medications: toArray(medications) }, "medications")
+    );
+
+    const investigations = firstNonEmpty(
+      digitization.lab_investigation,
+      digitization.labInvestigation,
+      payload.labInvestigations,
+      payload.investigations
+    );
+    appendRows(
+      setInvestigationData,
+      normalizeModuleRows({ lab_investigation: toArray(investigations) }, "lab_investigations")
+    );
+
+    const advice = firstNonEmpty(digitization.advice, payload.advice);
+    appendRows(
+      setAdviceData,
+      normalizeModuleRows({ advice: toArray(advice) }, "advice")
+    );
+
+    const followUp = firstNonEmpty(digitization.follow_up, digitization.followUp, payload.followUp);
+    toArray(followUp).forEach((item) => {
+      const parsedDate = parseFollowUpDate(item);
+      if (parsedDate) {
+        setFollowUpDate(parsedDate);
+      } else {
+        appendFollowUpNote(setAdditionalNote, item);
+      }
+    });
+  }, [
+    lastCopyRequest,
+    setAdditionalNote,
+    setAdviceData,
+    setDiagnosisData,
+    setExaminationData,
+    setFollowUpDate,
+    setInvestigationData,
+    setMedicationData,
+    setSymptomsData,
+  ]);
+
+  return null;
+}
 
 function PrescriptionNew() {
   const {
@@ -595,6 +737,11 @@ function PrescriptionNew() {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isVoiceRxAccessible = isFreeVoiceRxUser || tp_monetization_enable;
   const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible;
+  useEffect(() => {
+    if (canUseVoiceRxModuleUi) {
+      setDrAgentOpen(true);
+    }
+  }, [canUseVoiceRxModuleUi, patient_data?.patient_unique_id]);
   useEffect(() => {
     if (!canUseVoiceRxModuleUi && drAgentOpen) {
       setDrAgentOpen(false);
@@ -2136,7 +2283,8 @@ function PrescriptionNew() {
   return (
     <CashManagerContext.Provider value={contextApi}>
       <RxPadSyncProvider>
-      <>
+        <PrescriptionNewRxPadCopyListener />
+        <>
         <input
           type="file"
           multiple
@@ -2376,6 +2524,7 @@ function PrescriptionNew() {
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
             initialActiveKey={medicalHistoryInitialActiveKey}
+            showVoiceRxModule={canUseVoiceRxModuleUi}
           />
         </Drawer>
         <Drawer
@@ -2662,7 +2811,7 @@ function PrescriptionNew() {
 
           </>
         )}
-      </>
+        </>
       </RxPadSyncProvider>
     </CashManagerContext.Provider>
   );

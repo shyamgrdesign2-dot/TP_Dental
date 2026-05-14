@@ -21,6 +21,8 @@ const ENABLE_REAL_MODULE_DIGITISE_API = true;
 const MODULE_DIGITISE_ENDPOINT = "/agents/module";
 const BUTTON_PROCESSING_MS = 5000;
 const MODULE_DIGITISE_TIMEOUT_MS = 120000;
+const MODULE_CAPTURE_SCROLL_TOP_OFFSET = 76;
+const MODULE_CAPTURE_SCROLL_BOTTOM_OFFSET = 32;
 
 const MODULE_API_NAMES = {
   "patient details": "patient_details",
@@ -387,6 +389,23 @@ function createModuleVoiceId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function isModuleCaptureVisible(node) {
+  if (!node || typeof node.getBoundingClientRect !== "function") return true;
+  const rect = node.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  return rect.top >= MODULE_CAPTURE_SCROLL_TOP_OFFSET &&
+    rect.bottom <= viewportHeight - MODULE_CAPTURE_SCROLL_BOTTOM_OFFSET;
+}
+
+function scrollModuleCaptureIntoView(node) {
+  if (!node || isModuleCaptureVisible(node)) return;
+  node.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+    inline: "nearest",
+  });
+}
+
 function resolveModuleApiName(moduleName) {
   const normalized = String(moduleName || "").trim().toLowerCase();
   return MODULE_API_NAMES[normalized] || "other_clinical_info";
@@ -398,7 +417,10 @@ function appendJsonFormField(formData, key, value) {
 }
 
 function extractModulePayload(responseJson) {
-  return responseJson?.data?.documents?.[0]?.data ??
+  return responseJson?.payload?.data?.rxDigitizationHistory?.[0]?.response ??
+    responseJson?.data?.rxDigitizationHistory?.[0]?.response ??
+    responseJson?.rxDigitizationHistory?.[0]?.response ??
+    responseJson?.data?.documents?.[0]?.data ??
     responseJson?.data?.document?.data ??
     responseJson?.data ??
     responseJson;
@@ -567,16 +589,101 @@ function firstTextValue(...values) {
   return "";
 }
 
-function normalizeModuleRows(responseJson, moduleApiName) {
+const TODO_INTEL_MEDICAL_HISTORY_TYPE_TO_TITLE = {
+  allergy: "Allergies",
+  allergies: "Allergies",
+  past: "Medical Condition",
+  past_history: "Medical Condition",
+  past_medical_history: "Medical Condition",
+  medical: "Medical Condition",
+  condition: "Medical Condition",
+  medical_condition: "Medical Condition",
+  medical_history: "Medical Condition",
+  family: "Family History",
+  family_history: "Family History",
+  lifestyle: "Lifestyle",
+  others: "Lifestyle",
+  other: "Lifestyle",
+  surgery: "Surgical History",
+  surgical_history: "Surgical History",
+};
+
+function todoIntelMedicalHistoryTitleFromCurrentBackendType(type) {
+  const key = String(type || "").trim().toLowerCase().replace(/\s+/g, "_");
+  return TODO_INTEL_MEDICAL_HISTORY_TYPE_TO_TITLE[key] || "Medical Condition";
+}
+
+function todoIntelMedicalHistoryEnableFromCurrentBackend(enable) {
+  const key = String(enable || "").trim().toLowerCase();
+  if (!key) return "Y";
+  if (["y", "yes", "true", "active", "inactive", "present", "positive"].includes(key)) return "Y";
+  if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
+  return enable;
+}
+
+function todoIntelMedicalHistoryStatusFromCurrentBackend(row = {}) {
+  if (row?.status) return row.status;
+  const key = String(row?.enable || "").trim().toLowerCase();
+  if (key === "active") return "Active";
+  if (key === "inactive") return "Inactive";
+  return "";
+}
+
+function todoIntelMedicalHistoryTagFromCurrentBackendRow(row = {}) {
+  const title = String(row?.name || row?.title || row?.lineItem || "").trim();
+  if (!title) return null;
+  return {
+    ...row,
+    title,
+    enable: todoIntelMedicalHistoryEnableFromCurrentBackend(row?.enable),
+    note: row?.note || row?.notes || "",
+    notes: row?.notes || row?.note || "",
+    since: row?.since || row?.duration || "",
+    relationship: row?.relationship || row?.relation || "",
+    medication: row?.medication || "",
+    status: todoIntelMedicalHistoryStatusFromCurrentBackend(row),
+    dateType: row?.dateType || "",
+    date: row?.date || "",
+  };
+}
+
+function todoIntelMedicalHistoryResponseToSections(rows = []) {
+  if (!Array.isArray(rows)) return [];
+
+  if (rows.some((row) => Array.isArray(row?.tags))) {
+    return rows.filter((section) => section?.no_know_history || section?.tags?.length);
+  }
+
+  const sections = new Map();
+  rows.forEach((row) => {
+    const tag = todoIntelMedicalHistoryTagFromCurrentBackendRow(row);
+    if (!tag) return;
+    const title = todoIntelMedicalHistoryTitleFromCurrentBackendType(row?.type);
+    if (!sections.has(title)) {
+      sections.set(title, { title, no_know_history: false, tags: [] });
+    }
+    sections.get(title).tags.push(tag);
+  });
+
+  return Array.from(sections.values());
+}
+
+export function normalizeModuleRows(responseJson, moduleApiName) {
   const payload = extractModulePayload(responseJson);
   const artifactType = payload?.artifact_type || responseJson?.artifact_type || moduleApiName;
   const moduleKeys = moduleApiName === "medications"
     ? [moduleApiName, artifactType, "medications", "medicine", "medicines", "items", "data"]
     : moduleApiName === "lab_investigations"
       ? [moduleApiName, artifactType, "lab_investigation", "lab_investigations", "items", "data"]
+      : moduleApiName === "medical_history"
+        ? [moduleApiName, artifactType, "medical_history", "medicalHistory", "pastMedicalHistory", "history", "response", "items", "data"]
       : [moduleApiName, artifactType, "items", "data"];
-  const rows = firstPresentArray(payload, moduleKeys, { allowObjectRow: moduleApiName === "custom_module" })
+  const rows = firstPresentArray(payload, moduleKeys, { allowObjectRow: moduleApiName === "custom_module" || moduleApiName === "medical_history" })
     .filter((row) => Object.values(row || {}).some((value) => value !== undefined && value !== null && String(value).trim() !== ""));
+
+  if (moduleApiName === "medical_history") {
+    return todoIntelMedicalHistoryResponseToSections(rows);
+  }
 
   return rows.map((row) => {
     const isPrimitiveRow = typeof row === "string" || typeof row === "number";
@@ -730,7 +837,7 @@ async function requestTranscribeAndDigitise({
     formData.append("custom_module_name", String(customModuleName));
   }
   appendJsonFormField(formData, "required_fields", requiredFields);
-  appendJsonFormField(formData, "previousContext", previousContext);
+  appendJsonFormField(formData, "previous_context", previousContext);
   formData.append("audio", audioBlob, "audio.webm");
 
   const abortController = new AbortController();
@@ -829,6 +936,7 @@ export function VoiceRxModuleCapture({
   const [phase, setPhase] = useState("recording");
   const [capturedTranscript, setCapturedTranscript] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const captureRootRef = useRef(null);
   const mountedRef = useRef(true);
   const buttonTimerRef = useRef(null);
   const moduleSessionIdRef = useRef(null);
@@ -847,6 +955,13 @@ export function VoiceRxModuleCapture({
         window.clearTimeout(buttonTimerRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      scrollModuleCaptureIntoView(captureRootRef.current);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   const getDigitisedData = useCallback(async ({ audioBlob }) => {
@@ -902,7 +1017,7 @@ export function VoiceRxModuleCapture({
   const isDiarized = hasDiarizedTranscript(capturedTranscript);
 
   return (
-    <div className={styles.captureRoot}>
+    <div ref={captureRootRef} className={styles.captureRoot}>
       {phase === "structuring" ? (
         <div className={styles.processingShell}>
           <div className={styles.processingCard}>

@@ -987,7 +987,7 @@
 
 .snv-fresh-card {
   border-color: rgba(75, 74, 213, 0.35);
-  box-shadow: inset 3px 0 0 rgba(75, 74, 213, 0.72), 0 8px 20px rgba(75, 74, 213, 0.08);
+  box-shadow: 0 8px 20px rgba(75, 74, 213, 0.08);
   animation: snv-fresh-flash 900ms ease-out;
 }
 
@@ -1506,10 +1506,6 @@
   font-size: 15px;
   line-height: 20px;
   color: var(--tp-slate-500) !important;
-}
-
-.snv-optal-subsection-title .snv-copy-btn {
-  margin-left: auto;
 }
 
 .snv-optal-icon {
