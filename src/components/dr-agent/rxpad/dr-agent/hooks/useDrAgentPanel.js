@@ -24,7 +24,6 @@ import { buildReply, buildDocumentReply } from "../engines/reply-engine";
 import { parseVoiceToStructuredRx } from "../engines/voice-rx-engine";
 
 import { VOICE_RX_DICTATION_CHUNKS, VOICE_RX_AMBIENT_CHUNKS } from "../../../voicerx/utils";
-import { emrSectionsToHtml } from "../../../voicerx/emrUtils";
 import { createVoiceRxSessionContext } from "../../../voicerx/api/run-voice-rx-pipeline";
 import {
   transcribeAudio,
@@ -32,7 +31,7 @@ import {
   transcriptToText as clinicalTranscriptToText,
   hasTranscriptContent as clinicalHasTranscriptContent
 } from "../../../voicerx/api/clinical-processing";
-import { digitizationToSections, digitizationToHtml } from "../../../voicerx/utils/result-formatters";
+import { digitizationToSections } from "../../../voicerx/utils/result-formatters";
 
 import { useLiveTranscript } from "../../../voicerx/use-live-transcript";
 import { uid, getQueryHint, detectSpecialties } from "../utils/panelUtils";
@@ -166,7 +165,6 @@ export function useDrAgentPanel({
         return {
           transcript: "",
           sections: data.sections,
-          clinicalNotesHtml: emrSectionsToHtml(data.sections.map((s) => ({ id: s.sectionId, title: s.title, items: s.items.map((it) => it.detail ? `${it.name} (${it.detail})` : it.name) }))),
           durationMs: 0,
           structured: data,
           modeLabel: data.modeLabel || "Conversation Mode"
@@ -388,7 +386,6 @@ export function useDrAgentPanel({
 
       const digitization = digitizeResult?.data ?? null;
       const resultSections = digitizationToSections(digitization);
-      const clinicalNotesHtml = digitizationToHtml(digitization) || emrSectionsToHtml(resultSections);
       const structuredStub = {
         sections: resultSections.map((s) => ({
           sectionId: s.id,
@@ -443,7 +440,6 @@ export function useDrAgentPanel({
           transcript: transcriptSegments.map((s) => clinicalTranscriptToText(s.body)).join("\n\n"),
           transcriptSegments,
           sections: resultSections,
-          clinicalNotesHtml,
           digitization,
           durationMs: (prev.durationMs ?? 0) + (meta?.durationMs ?? 0),
           structured: structuredStub,
@@ -576,7 +572,6 @@ export function useDrAgentPanel({
         }
         const digitization = digitizeResult?.data ?? null;
         const resultSections = digitizationToSections(digitization);
-        const clinicalNotesHtml = digitizationToHtml(digitization) || emrSectionsToHtml(resultSections);
 
         // Update the user echo bubble with the real transcript.
         setMessagesByPatient((prev) => {
@@ -629,7 +624,6 @@ export function useDrAgentPanel({
           transcript: mergedTranscriptText,
           transcriptSegments,
           sections: resultSections,
-          clinicalNotesHtml,
           digitization,
           durationMs: (meta?.durationMs ?? 0) + (prior?.durationMs ?? 0),
           structured: structuredStub,
