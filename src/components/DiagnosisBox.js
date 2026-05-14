@@ -45,6 +45,7 @@ import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
   VoiceRxModuleButton,
+  VoiceRxModuleActionButton,
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
@@ -954,13 +955,19 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                 label="Start Diagnosis voice input"
                 onClick={() => setVoiceCaptureOpen(true)} />
             )}
-            <button
-              className="btn d-flex align-items-center btn-text"
-              onClick={loadPreviousClick}
-            >
-              {" "}
-              <i className="icon-reload me-2"></i> <span>Load Prev. Diagnosis</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Load previous diagnosis">
+                <VoiceRxModuleActionButton type="reload" label="Load previous diagnosis" onClick={loadPreviousClick} />
+              </Tooltip>
+            ) : (
+              <button
+                className="btn d-flex align-items-center btn-text"
+                onClick={loadPreviousClick}
+              >
+                {" "}
+                <i className="icon-reload me-2"></i> <span>Load Prev. Diagnosis</span>
+              </button>
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -969,10 +976,18 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2" /> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse diagnosis templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse diagnosis templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2" /> <span>Templates</span>
+                </button>
+              )}
             </Popover>
 
             <Tooltip placement="bottom" title={(diagnosisData.length > 0) ? "" : "Please enter some Diagnosis to save a template"}>
@@ -985,15 +1000,36 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2" /> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label="Save diagnosis as template"
+                      disabled={diagnosisData.length === 0}
+                    />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2" /> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={diagnosisData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton
+                  type="clear"
+                  label="Clear diagnosis"
+                  onClick={showHideClearData}
+                  disabled={diagnosisData.length === 0}
+                />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={diagnosisData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 

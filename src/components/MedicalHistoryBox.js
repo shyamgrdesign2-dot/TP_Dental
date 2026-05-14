@@ -5,6 +5,7 @@ import { isMobile } from 'react-device-detect';
 
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from 'uuid';
 
 import CashManagerContext from '../context/CashManagerContext';
@@ -20,7 +21,7 @@ import {
 } from "../redux/medicalhistorySlice";
 import { useLocation } from "react-router-dom";
 import { getGynecDetails, postGynecDetails, updateGynecDetails } from "../api/services/ApiGynec";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { GB_VOICE_RX_NEW_UI, PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
 import { jwtDecode } from "jwt-decode";
 import { CLOTS_LIST, CYCLE_KEY_LIST, FLOW_LIST, GYNEC_SECTION_ENABLE_LIST, PAIN_LIST, PAIN_OCCURANCE_LIST, REPRODUCTIVE_LIFE_STAGES_LIST, TYPES_REPRODUCTIVE_STAGES } from "../utils/gynec_constants";
 import { useAccess } from "../pages/vaccination/useAccess";
@@ -36,6 +37,7 @@ import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
 import {
     VoiceRxModuleCapture,
+    VoiceRxModuleButton,
     useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
@@ -244,7 +246,8 @@ function MedicalHistoryBox(props) {
     const [remarks,setRemarks] = useState(medicalHistoryData?.[0]?.medical_history_remarks || "");
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
-    const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && !gynecOnly;
+    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+    const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
 
     const applyVoiceMedicalHistory = useCallback((nextMedicalHistory) => {
         const mappedMedicalHistory = mapMedicalHistoryIdsFromDefaultList(nextMedicalHistory, defaultList);
@@ -1502,6 +1505,13 @@ function MedicalHistoryBox(props) {
                                     </span>
                                 </button>
                             </Popover>
+                        )}
+                        {isVoiceRxModuleEnabled && (
+                            <VoiceRxModuleButton
+                                active={voiceCaptureOpen}
+                                label="Start Medical History voice input"
+                                onClick={() => setVoiceCaptureOpen(true)}
+                            />
                         )}
                         <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={onSaveClicked}>
                             Save

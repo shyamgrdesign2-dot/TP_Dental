@@ -732,6 +732,137 @@ function buildPastVisitEntry(consultation, detail) {
   };
 }
 
+function pastVisitRowText(item) {
+  if (typeof item === "string") return { label: item, detail: "" };
+  return {
+    label: String(item?.label || item?.name || item?.title || "").trim(),
+    detail: String(item?.detail || item?.notes || item?.note || "").trim(),
+  };
+}
+
+function pastVisitRows(items) {
+  return toArray(items)
+    .map(pastVisitRowText)
+    .filter((item) => item.label || item.detail);
+}
+
+function pastVisitMedicalHistoryType(detail) {
+  const text = String(detail || "").trim();
+  if (!text) return "Medical Condition";
+  const type = text.split(" - ")[0]?.trim();
+  return type || "Medical Condition";
+}
+
+function buildPastVisitSectionPayload(visitItem, sectionKey) {
+  const rx = visitItem?.digitalRx;
+  if (!rx) return null;
+  const base = {
+    sourceDateLabel: visitItem.dateLabel || "Past visit",
+    targetSection: "rxpad",
+  };
+
+  switch (sectionKey) {
+    case "symptoms": {
+      const rows = pastVisitRows(rx.symptoms).map((item) => ({
+        symptom_name: item.label,
+        note: item.detail,
+      }));
+      return rows.length ? { ...base, digitization: { symptoms: rows } } : null;
+    }
+    case "examinations": {
+      const rows = pastVisitRows(rx.examinations).map((item) => ({
+        examination_name: item.label,
+        note: item.detail,
+      }));
+      return rows.length ? { ...base, digitization: { examinations: rows } } : null;
+    }
+    case "diagnosis": {
+      const rows = pastVisitRows(rx.diagnoses).map((item) => ({
+        tds_name: item.label,
+        note: item.detail,
+      }));
+      return rows.length ? { ...base, digitization: { diagnosis: rows } } : null;
+    }
+    case "medications": {
+      const rows = pastVisitRows(rx.medications).map((item) => ({
+        tmm_medicine_name: item.label,
+        notes: item.detail,
+      }));
+      return rows.length ? { ...base, digitization: { medications: rows } } : null;
+    }
+    case "medicalHistory": {
+      const rows = pastVisitRows(rx.medicalHistory).map((item) => ({
+        name: item.label,
+        type: pastVisitMedicalHistoryType(item.detail),
+        notes: item.detail.includes(" - ") ? item.detail.split(" - ").slice(1).join(" - ") : "",
+      }));
+      return rows.length ? { ...base, digitization: { medical_history: rows } } : null;
+    }
+    case "surgeries": {
+      const rows = pastVisitRows(rx.surgeries).map((item) => ({
+        name: item.label,
+        notes: item.detail,
+      }));
+      return rows.length ? { ...base, digitization: { surgeries: rows } } : null;
+    }
+    case "advice":
+      return rx.advice ? { ...base, digitization: { advice: [rx.advice] } } : null;
+    case "investigations": {
+      const rows = pastVisitRows(rx.labInvestigations).map((item) => ({
+        investigation_name: item.label,
+        note: item.detail,
+      }));
+      return rows.length ? { ...base, digitization: { lab_investigation: rows } } : null;
+    }
+    case "additionalNotes":
+      return rx.additionalNotes ? { ...base, digitization: { others: [rx.additionalNotes] } } : null;
+    case "followUp":
+      return rx.followUp ? { ...base, digitization: { follow_up: [rx.followUp] } } : null;
+    case "moduleContents": {
+      const notes = pastVisitRows(rx.moduleContents)
+        .map((item) => [item.label, item.detail ? `(${item.detail})` : ""].filter(Boolean).join(" "))
+        .filter(Boolean);
+      return notes.length ? { ...base, digitization: { others: notes } } : null;
+    }
+    default:
+      return null;
+  }
+}
+
+function buildPastVisitAllPayload(visitItem) {
+  const payloads = [
+    "symptoms",
+    "examinations",
+    "diagnosis",
+    "medications",
+    "medicalHistory",
+    "surgeries",
+    "advice",
+    "investigations",
+    "additionalNotes",
+    "followUp",
+    "moduleContents",
+  ].map((sectionKey) => buildPastVisitSectionPayload(visitItem, sectionKey)).filter(Boolean);
+  if (!payloads.length) return null;
+  return payloads.reduce((acc, payload) => ({
+    ...acc,
+    digitization: Object.entries(payload.digitization || {}).reduce((digitizationAcc, [key, value]) => {
+      const prevValue = digitizationAcc[key];
+      if (Array.isArray(prevValue) || Array.isArray(value)) {
+        return {
+          ...digitizationAcc,
+          [key]: [...toArray(prevValue), ...toArray(value)],
+        };
+      }
+      return { ...digitizationAcc, [key]: value };
+    }, acc.digitization),
+  }), {
+    sourceDateLabel: visitItem.dateLabel || "Past visit",
+    targetSection: "rxpad",
+    digitization: {},
+  });
+}
+
 function shouldUseVoiceRxPrintPayload(detail) {
   const smartFile = detail?.smart_prescription_filename || detail?.smartPrescriptionFilename;
   return isValidMongoId(smartFile) &&
@@ -1523,9 +1654,17 @@ function NavPanel({ activeId, onSelect, items = NAV_ITEMS }) {
   );
 }
 
-function PastVisitCopyAffordance() {
+function PastVisitCopyAffordance({ onClick, label = "Copy to RxPad" }) {
   return (
-    <button type="button" className="snv-copy-btn" aria-label="Copy to RxPad">
+    <button
+      type="button"
+      className="snv-copy-btn"
+      aria-label={label}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
+    >
       <Copy size={14} variant="Linear" />
     </button>
   );
@@ -1549,13 +1688,13 @@ function BulletList({ items }) {
   );
 }
 
-function RxSection({ title, icon, children }) {
+function RxSection({ title, icon, children, onCopy }) {
   return (
     <div className="snv-rx-section">
       <div className="snv-rx-section-title">
         <span className="snv-rx-section-icon">{icon}</span>
         <span>{title}</span>
-        <PastVisitCopyAffordance />
+        <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} to RxPad`} />
       </div>
       {children}
     </div>
@@ -1592,13 +1731,18 @@ function hasListData(items) {
   return Array.isArray(items) && items.length > 0;
 }
 
-function DateCard({ title, expanded, onToggle, children, fresh }) {
+function DateCard({ title, expanded, onToggle, onCopy, children, fresh }) {
   return (
     <article className={`snv-date-card ${fresh ? "snv-fresh-card" : ""}`}>
-      <button type="button" className="snv-date-card-header" onClick={onToggle}>
-        <span>{title}</span>
-        {expanded ? <ArrowSquareUp size={18} variant="Linear" /> : <ArrowSquareDown size={18} variant="Linear" />}
-      </button>
+      <div className="snv-date-card-header">
+        <button type="button" className="snv-date-toggle-btn" onClick={onToggle}>
+          <span>{title}</span>
+        </button>
+        <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} visit to RxPad`} />
+        <button type="button" className="snv-date-arrow-btn" onClick={onToggle} aria-label={expanded ? "Collapse visit" : "Expand visit"}>
+          {expanded ? <ArrowSquareUp size={18} variant="Linear" /> : <ArrowSquareDown size={18} variant="Linear" />}
+        </button>
+      </div>
       {expanded ? <div className="snv-date-card-body">{children}</div> : null}
     </article>
   );
@@ -1608,7 +1752,7 @@ function defaultExpandedMap(firstId) {
   return firstId ? { [firstId]: true } : {};
 }
 
-function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand }) {
+function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload }) {
   const scrollRef = useRef(null);
   const pendingLoadMoreRef = useRef(false);
   const firstVisitId = visits[0]?.id;
@@ -1652,6 +1796,27 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand }) {
     }
   }, [hasMore, loading, onLoadMore, visibleCount, visits.length]);
 
+  const handleCopyPayload = useCallback((payload, successMessage, opts) => {
+    if (!payload) return;
+    onCopyPayload?.(payload, opts);
+    toast.success(successMessage);
+  }, [onCopyPayload]);
+
+  const handleCopyVisit = useCallback((visitItem) => {
+    handleCopyPayload(
+      buildPastVisitAllPayload(visitItem),
+      `${visitItem.dateLabel} copied to RxPad`,
+      { bulk: true }
+    );
+  }, [handleCopyPayload]);
+
+  const handleCopySection = useCallback((visitItem, sectionKey, title) => {
+    handleCopyPayload(
+      buildPastVisitSectionPayload(visitItem, sectionKey),
+      `${title} copied to RxPad`
+    );
+  }, [handleCopyPayload]);
+
   const rowVirtualizer = useVirtualizer({
     count: visibleVisits.length,
     getScrollElement: () => scrollRef.current,
@@ -1685,6 +1850,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand }) {
               expanded={expanded}
               fresh={visitItem.fresh}
               onToggle={() => handleVisitToggle(visitItem, expanded)}
+              onCopy={() => handleCopyVisit(visitItem)}
             >
               <div className="snv-segmented">
                 <button
@@ -1714,17 +1880,17 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand }) {
                 <div className="snv-loading-state">Loading visit details...</div>
               ) : rx ? (
                 <>
-                  {hasListData(rx.symptoms) ? <RxSection title="Symptoms" icon={<RxSectionIcon src={RX_SECTION_ICONS.symptoms} />}><BulletList items={rx.symptoms} /></RxSection> : null}
-                  {hasListData(rx.examinations) ? <RxSection title="Examination" icon={<RxSectionIcon src={RX_SECTION_ICONS.examination} />}><BulletList items={rx.examinations} /></RxSection> : null}
-                  {hasListData(rx.diagnoses) ? <RxSection title="Diagnosis" icon={<RxSectionIcon src={RX_SECTION_ICONS.diagnosis} />}><BulletList items={rx.diagnoses} /></RxSection> : null}
-                  {hasListData(rx.medications) ? <RxSection title="Med (Rx)" icon={<RxSectionIcon src={RX_SECTION_ICONS.medications} />}><BulletList items={rx.medications} /></RxSection> : null}
-                  {hasListData(rx.medicalHistory) ? <RxSection title="Medical History" icon={<RxSectionIcon src={RX_SECTION_ICONS.medicalHistory} />}><BulletList items={rx.medicalHistory} /></RxSection> : null}
-                  {hasListData(rx.surgeries) ? <RxSection title="Surgeries" icon={<RxSectionIcon src={RX_SECTION_ICONS.surgeries} />}><BulletList items={rx.surgeries} /></RxSection> : null}
-                  {hasListData(rx.moduleContents) ? <RxSection title="Custom Modules" icon={<RxSectionIcon src={RX_SECTION_ICONS.customModules} />}><BulletList items={rx.moduleContents} /></RxSection> : null}
-                  {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
-                  {hasListData(rx.labInvestigations) ? <RxSection title="Investigations" icon={<RxSectionIcon src={RX_SECTION_ICONS.investigations} />}><BulletList items={rx.labInvestigations} /></RxSection> : null}
-                  {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
-                  {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
+                  {hasListData(rx.symptoms) ? <RxSection title="Symptoms" icon={<RxSectionIcon src={RX_SECTION_ICONS.symptoms} />} onCopy={() => handleCopySection(visitItem, "symptoms", "Symptoms")}><BulletList items={rx.symptoms} /></RxSection> : null}
+                  {hasListData(rx.examinations) ? <RxSection title="Examination" icon={<RxSectionIcon src={RX_SECTION_ICONS.examination} />} onCopy={() => handleCopySection(visitItem, "examinations", "Examination")}><BulletList items={rx.examinations} /></RxSection> : null}
+                  {hasListData(rx.diagnoses) ? <RxSection title="Diagnosis" icon={<RxSectionIcon src={RX_SECTION_ICONS.diagnosis} />} onCopy={() => handleCopySection(visitItem, "diagnosis", "Diagnosis")}><BulletList items={rx.diagnoses} /></RxSection> : null}
+                  {hasListData(rx.medications) ? <RxSection title="Med (Rx)" icon={<RxSectionIcon src={RX_SECTION_ICONS.medications} />} onCopy={() => handleCopySection(visitItem, "medications", "Med (Rx)")}><BulletList items={rx.medications} /></RxSection> : null}
+                  {hasListData(rx.medicalHistory) ? <RxSection title="Medical History" icon={<RxSectionIcon src={RX_SECTION_ICONS.medicalHistory} />} onCopy={() => handleCopySection(visitItem, "medicalHistory", "Medical History")}><BulletList items={rx.medicalHistory} /></RxSection> : null}
+                  {hasListData(rx.surgeries) ? <RxSection title="Surgeries" icon={<RxSectionIcon src={RX_SECTION_ICONS.surgeries} />} onCopy={() => handleCopySection(visitItem, "surgeries", "Surgeries")}><BulletList items={rx.surgeries} /></RxSection> : null}
+                  {hasListData(rx.moduleContents) ? <RxSection title="Custom Modules" icon={<RxSectionIcon src={RX_SECTION_ICONS.customModules} />} onCopy={() => handleCopySection(visitItem, "moduleContents", "Custom Modules")}><BulletList items={rx.moduleContents} /></RxSection> : null}
+                  {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
+                  {hasListData(rx.labInvestigations) ? <RxSection title="Investigations" icon={<RxSectionIcon src={RX_SECTION_ICONS.investigations} />} onCopy={() => handleCopySection(visitItem, "investigations", "Investigations")}><BulletList items={rx.labInvestigations} /></RxSection> : null}
+                  {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
+                  {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />} onCopy={() => handleCopySection(visitItem, "followUp", "Follow Up")}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
                 </>
               ) : (
                 <div className="snv-empty-state">No digital Rx available for this visit.</div>
@@ -3015,7 +3181,7 @@ function PrivateNotesContent({ value, onChange, showVoiceRx }) {
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, showVoiceRx }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onCopyPayload, showVoiceRx }) {
   switch (activeId) {
     case "pastVisits":
       return (
@@ -3025,6 +3191,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           loading={pastVisitsState.loading}
           onLoadMore={pastVisitsState.onLoadMore}
           onExpand={pastVisitsState.onExpand}
+          onCopyPayload={onCopyPayload}
         />
       );
     case "vitals":
@@ -3097,7 +3264,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, voiceEnabled, voiceLocked, showVoiceRx }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -3145,6 +3312,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           pastVisitsState={pastVisitsState}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={onPrivateNotesChange}
+          onCopyPayload={onCopyPayload}
           showVoiceRx={showVoiceRx}
         />
       </div>
@@ -3195,7 +3363,7 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
-  const { activeVoiceModule } = useRxPadSync();
+  const { activeVoiceModule, runCopyWithAura } = useRxPadSync();
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
   const [pastVisitRows, setPastVisitRows] = useState([]);
   const [pastVisitDetails, setPastVisitDetails] = useState({});
@@ -3519,6 +3687,10 @@ export function SideNavbar({
     onExpand: fetchPastVisitDetail,
   }), [fetchPastVisitDetail, fetchPastVisitsPage, isPastVisitsLoading, pastVisitsPage, pastVisitsTotalPages]);
 
+  const handlePastVisitCopyPayload = useCallback((payload, opts) => {
+    runCopyWithAura(payload, opts);
+  }, [runCopyWithAura]);
+
   const actionLabels = useMemo(() => ({
     vitals: "Add/Edit Details",
     history: "Add/Edit Details",
@@ -3761,6 +3933,7 @@ export function SideNavbar({
           actionHidePlusIcons={actionHidePlusIcons}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={handlePrivateNotesChange}
+          onCopyPayload={handlePastVisitCopyPayload}
           voiceEnabled={showVoiceRx && SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
           voiceLocked={!!activeVoiceModule}
           showVoiceRx={showVoiceRx}

@@ -41,6 +41,7 @@ import FreeBadge from "../common/FreeBadge";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
@@ -2351,13 +2352,19 @@ function MedicationsBox({ showVoiceRxModule }) {
                 <img src={calculatorIcon} alt="Dose calcultor" className="svg-hovered me-2" /><span>{isPillUpAccessableFromGB ? 'Dose calc' : 'Dose calculator'}</span>
               </button>
             )}
-            <button
-              className="btn d-flex align-items-center btn-text"
-              onClick={loadPreviousRxClick}
-            >
-              {" "}
-              <i className="icon-reload me-2"></i> <span>{isPillUpAccessableFromGB ? 'Prev. Rx ' : 'Load Prev. Rx'}</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Load previous Rx">
+                <VoiceRxModuleActionButton type="reload" label="Load previous Rx" onClick={loadPreviousRxClick} />
+              </Tooltip>
+            ) : (
+              <button
+                className="btn d-flex align-items-center btn-text"
+                onClick={loadPreviousRxClick}
+              >
+                {" "}
+                <i className="icon-reload me-2"></i> <span>{isPillUpAccessableFromGB ? 'Prev. Rx ' : 'Load Prev. Rx'}</span>
+              </button>
+            )}
             <Popover
               open={popOver1}
               onOpenChange={showHideTemplatesListPopover}
@@ -2366,10 +2373,18 @@ function MedicationsBox({ showVoiceRxModule }) {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>{isPillUpAccessableFromGB ? 'Temp' : 'Templates'}</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse medication templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse medication templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>{isPillUpAccessableFromGB ? 'Temp' : 'Templates'}</span>
+                </button>
+              )}
             </Popover>
             <Tooltip placement="bottom" title={(medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
               <Popover
@@ -2381,16 +2396,28 @@ function MedicationsBox({ showVoiceRxModule }) {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label="Save medications as template" disabled={medicationData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
 
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={medicationData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> {!isPillUpAccessableFromGB && <span>Clear</span>}
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label="Clear medications" onClick={showHideClearData} disabled={medicationData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={medicationData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> {!isPillUpAccessableFromGB && <span>Clear</span>}
+              </button>
+            )}
           </div>
         </div>
 

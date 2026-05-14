@@ -20,6 +20,10 @@ import CommonModal from './CommonModal';
 import VideoModal from './VideoModal';
 import SaveDraft from './SaveDraft';
 import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
+import {
+    VoiceRxModuleActionButton,
+} from '../components/dr-agent/voicerx/VoiceRxModuleCapture';
+import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
 
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes } from "../utils/utils";
 
@@ -2006,7 +2010,52 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
-                            {!isMobile ? (
+                            {isVoiceRxNewFromGB ? (
+                                <div className={voiceModuleStyles.headerActionGroup}>
+                                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
+                                    <Popover
+                                        open={popOver1}
+                                        onOpenChange={showHideTemplatesListPopover}
+                                        content={isMobile ? TEMPLATE_CONTENT_TAB : TEMPLATE_CONTENT_WEB}
+                                        trigger="click"
+                                        overlayClassName="pop-350 pp-0"
+                                        placement="bottom"
+                                    >
+                                        <span>
+                                            <Tooltip placement="bottom" title="Browse prescription templates">
+                                                <VoiceRxModuleActionButton type="template" label="Browse prescription templates" />
+                                            </Tooltip>
+                                        </span>
+                                    </Popover>
+                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"}>
+                                        {isMobile ? (
+                                            <VoiceRxModuleActionButton
+                                                type="save"
+                                                label="Save prescription as template"
+                                                disabled={!(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                                onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}
+                                            />
+                                        ) : (
+                                            <Popover
+                                                open={popOver2}
+                                                onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                                                content={SAVE_CONTENT_WEB}
+                                                trigger="click"
+                                                overlayClassName="pop-450 pp-0"
+                                                placement="bottom"
+                                            >
+                                                <span>
+                                                    <VoiceRxModuleActionButton
+                                                        type="save"
+                                                        label="Save prescription as template"
+                                                        disabled={!(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                                    />
+                                                </span>
+                                            </Popover>
+                                        )}
+                                    </Tooltip>
+                                </div>
+                            ) : !isMobile ? (
                                 <div className="d-flex align-items-center">
                                     <Popover
                                         open={popOver1}
@@ -2051,27 +2100,35 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                             {DELETE_MODAL}
 
-                            <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
-                                {isTablet ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isTablet) ? "Custom" : "Customize"}</span>
-                            </button>
+                            {isVoiceRxNewFromGB ? (
+                                <Tooltip placement="bottom" title="Customize prescription sections">
+                                    <VoiceRxModuleActionButton type="customize" label="Customize prescription sections" onClick={handleDrawerCustomize} />
+                                </Tooltip>
+                            ) : (
+                                <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
+                                    {isTablet ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isTablet) ? "Custom" : "Customize"}</span>
+                                </button>
+                            )}
 
                             {/* <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                <span><img height={42} src={tutorial} /></span>
                             </button> */}
 
-                            <Popover
-                                open={popOverVideo}
-                                onOpenChange={showHideVideoListPopover}
-                                content={VIDEO_CONTENT}
-                                trigger="click"
-                                overlayClassName="pop-430 pp-0 videoTutorial"
-                                placement="bottom"
-                            >
-                                <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
-                                    {/* onClick={showHideVideoListPopover} */}
-                                    <span><img src={tutorial2} /></span>
-                                </button>
-                            </Popover>
+                            {!isVoiceRxNewFromGB && (
+                                <Popover
+                                    open={popOverVideo}
+                                    onOpenChange={showHideVideoListPopover}
+                                    content={VIDEO_CONTENT}
+                                    trigger="click"
+                                    overlayClassName="pop-430 pp-0 videoTutorial"
+                                    placement="bottom"
+                                >
+                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
+                                        {/* onClick={showHideVideoListPopover} */}
+                                        <span><img src={tutorial2} /></span>
+                                    </button>
+                                </Popover>
+                            )}
 
                             <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto">
                                 {TEMPLATE_CONTENT_TAB}

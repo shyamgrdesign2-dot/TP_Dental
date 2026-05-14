@@ -46,6 +46,7 @@ import CustomModuleFieldTextAreaAutoComplete from "./CustomModuleFieldTextAreaAu
 import EditCustomModuleDrawer from "./EditCustomModuleDrawer";
 import { ASSETS } from "../../assets";
 import {
+  VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
   buildCustomModuleDummyDigitisedData,
@@ -1528,14 +1529,45 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                   label={`Start ${module?.name || "Custom Module"} voice input`}
                   onClick={() => setVoiceCaptureOpen(true)} />
               )}
-              <button
-                className="btn d-flex align-items-center btn-text"
-                onClick={loadPreviousClick}
-              >
-                <i className="icon-reload me-2"></i>
-                <span>Load Prev. data</span>
-              </button>
-              {isMobile ? (
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Load previous data">
+                  <VoiceRxModuleActionButton type="reload" label="Load previous data" onClick={loadPreviousClick} />
+                </Tooltip>
+              ) : (
+                <button
+                  className="btn d-flex align-items-center btn-text"
+                  onClick={loadPreviousClick}
+                >
+                  <i className="icon-reload me-2"></i>
+                  <span>Load Prev. data</span>
+                </button>
+              )}
+              {isVoiceRxModuleEnabled ? (
+                isMobile ? (
+                  <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                    <VoiceRxModuleActionButton
+                      type="template"
+                      label={`Browse ${module?.name || "module"} templates`}
+                      onClick={handleDrawerTemplate}
+                    />
+                  </Tooltip>
+                ) : (
+                  <Popover
+                    open={popOver1}
+                    onOpenChange={showHideTemplatesListPopover}
+                    content={TEMPLATE_CONTENT}
+                    trigger="click"
+                    overlayClassName="pop-350 pp-0"
+                    placement="bottom"
+                  >
+                    <span>
+                      <Tooltip placement="bottom" title={`Browse ${module?.name || "module"} templates`}>
+                        <VoiceRxModuleActionButton type="template" label={`Browse ${module?.name || "module"} templates`} />
+                      </Tooltip>
+                    </span>
+                  </Popover>
+                )
+              ) : isMobile ? (
                 <button
                   className="btn d-flex align-items-center btn-text"
                   onClick={handleDrawerTemplate}
@@ -1565,7 +1597,35 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                     : `Please enter some ${module?.name} to save a template`
                 }
               >
-                {isMobile ? (
+                {isVoiceRxModuleEnabled ? (
+                  isMobile ? (
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label={`Save ${module?.name || "module"} as template`}
+                      onClick={() => hasDataToSave && handleSaveTemplateDrawer()}
+                      disabled={!hasDataToSave}
+                    />
+                  ) : (
+                    <Popover
+                      open={popOver2}
+                      onOpenChange={() =>
+                        hasDataToSave && showHideSaveTemplatePopOver()
+                      }
+                      content={SAVE_CONTENT}
+                      trigger="click"
+                      overlayClassName="pop-450 pp-0"
+                      placement="bottom"
+                    >
+                      <span>
+                        <VoiceRxModuleActionButton
+                          type="save"
+                          label={`Save ${module?.name || "module"} as template`}
+                          disabled={!hasDataToSave}
+                        />
+                      </span>
+                    </Popover>
+                  )
+                ) : isMobile ? (
                   <button
                     className="btn d-flex align-items-center btn-text"
                     style= {{border: "none"}}
@@ -1592,13 +1652,24 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                   </Popover>
                 )}
               </Tooltip>
-              <button
-                onClick={handleClear}
-                className="btn btn-text clear-text d-flex align-items-center"
-                disabled={!hasDataToSave}
-              >
-                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <Tooltip placement="bottom" title="Clear this section">
+                  <VoiceRxModuleActionButton
+                    type="clear"
+                    label={`Clear ${module?.name || "module"}`}
+                    onClick={handleClear}
+                    disabled={!hasDataToSave}
+                  />
+                </Tooltip>
+              ) : (
+                <button
+                  onClick={handleClear}
+                  className="btn btn-text clear-text d-flex align-items-center"
+                  disabled={!hasDataToSave}
+                >
+                  <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+                </button>
+              )}
               <Dropdown
                 overlay={moreMenu}
                 trigger={["click"]}

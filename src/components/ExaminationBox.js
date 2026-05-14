@@ -37,6 +37,7 @@ import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
   VoiceRxModuleButton,
+  VoiceRxModuleActionButton,
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
@@ -803,10 +804,18 @@ function ExaminationBox({ showVoiceRxModule }) {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse examination templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse examination templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip placement="bottom" title={(examinationData.length > 0) ? "" : "Please enter some Examination to save a template"}>
               <Popover
@@ -818,15 +827,36 @@ function ExaminationBox({ showVoiceRxModule }) {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton
+                      type="save"
+                      label="Save examination as template"
+                      disabled={examinationData.length === 0}
+                    />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={examinationData.length > 0 ? false : true}>
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton
+                  type="clear"
+                  label="Clear examinations"
+                  onClick={showHideClearData}
+                  disabled={examinationData.length === 0}
+                />
+              </Tooltip>
+            ) : (
+              <button onClick={showHideClearData} className="btn btn-text clear-text d-flex align-items-center" disabled={examinationData.length > 0 ? false : true}>
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 

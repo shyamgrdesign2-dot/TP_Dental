@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { Eraser, Grid5, Ram, Refresh2, Setting2 } from "iconsax-reactjs";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./api/clinical-api";
 import {
@@ -11,6 +12,7 @@ import {
 } from "./VoiceTranscriptProcessingCard";
 import { ShineBorder } from "./ShineBorder";
 import { VoiceRxIcon } from "./voice-consult-icons";
+import { HoverTooltip } from "../atoms/Tooltip";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import CashManagerContext from "../../../context/CashManagerContext";
 import { useRxPadSync } from "../rxpad/dr-agent/RxPadSyncContext";
@@ -867,20 +869,51 @@ async function requestTranscribeAndDigitise({
   return normalizeModuleRows(responseJson, moduleApiName);
 }
 
+const VOICE_RX_ACTION_ICONS = {
+  template: Grid5,
+  save: Ram,
+  clear: Eraser,
+  customize: Setting2,
+  reload: Refresh2,
+};
+
+export const VoiceRxModuleActionButton = React.forwardRef(function VoiceRxModuleActionButton(
+  { type = "template", label, disabled = false, onClick, className = "", ...rest },
+  ref
+) {
+  const Icon = VOICE_RX_ACTION_ICONS[type] || Grid5;
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={disabled ? undefined : onClick}
+      className={[styles.moduleActionButton, className].filter(Boolean).join(" ")}
+      {...rest}
+    >
+      <Icon color="#4C4E5C" size={18} strokeWidth={1.6} variant="Linear" />
+    </button>
+  );
+});
+
 export function VoiceRxModuleButton({ active = false, disabled = false, onClick, label = "Start voice input" }) {
   const { activeVoiceModule } = useRxPadSync();
   const locked = disabled || (!!activeVoiceModule && !active);
 
   return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      disabled={locked}
-      onClick={locked ? undefined : onClick}
-      className={[styles.voiceButton, active ? styles.voiceButtonActive : "", locked ? styles.voiceButtonDisabled : ""].filter(Boolean).join(" ")}>
-      <VoiceRxIcon size={36} color="#673AAC" />
-    </button>
+    <HoverTooltip content={locked ? "VoiceRx is active in another section" : label} side="top">
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        disabled={locked}
+        onClick={locked ? undefined : onClick}
+        className={[styles.voiceButton, active ? styles.voiceButtonActive : "", locked ? styles.voiceButtonDisabled : ""].filter(Boolean).join(" ")}>
+        <VoiceRxIcon size={36} color="#673AAC" />
+      </button>
+    </HoverTooltip>
   );
 }
 

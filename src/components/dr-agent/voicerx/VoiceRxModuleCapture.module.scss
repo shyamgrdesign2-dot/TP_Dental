@@ -30,6 +30,52 @@
   opacity: 0.35;
 }
 
+.moduleActionButton {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: #f1f1f5;
+  color: #4c4e5c;
+  cursor: pointer;
+  margin-left: 14px;
+  padding: 0;
+  transition: background 150ms ease, opacity 150ms ease, transform 150ms ease;
+
+  &:hover:not(:disabled) {
+    background: #e8e8ee;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+}
+
+.headerActionGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+
+  .moduleActionButton {
+    margin-left: 0;
+  }
+}
+
+.headerActionDivider {
+  width: 1px;
+  height: 28px;
+  margin: 0 14px 0 2px;
+  background: #e5e7ef;
+}
+
 .captureRoot {
   width: 100%;
   min-width: 0;

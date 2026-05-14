@@ -142,6 +142,7 @@ import {
   useRxPadSync,
 } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { normalizeModuleRows } from "../components/dr-agent/voicerx/VoiceRxModuleCapture";
+import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
 import { useTabletViewport } from "../hooks/useTabletViewport";
@@ -203,6 +204,8 @@ function PrescriptionNewRxPadCopyListener() {
     setMedicationData,
     setInvestigationData,
     setAdviceData,
+    setMedicalHistoryData,
+    setSurgeriesData,
     setFollowUpDate,
     setAdditionalNote,
   } = React.useContext(CashManagerContext);
@@ -260,6 +263,22 @@ function PrescriptionNewRxPadCopyListener() {
       normalizeModuleRows({ advice: toArray(advice) }, "advice")
     );
 
+    const medicalHistory = firstNonEmpty(
+      digitization.medical_history,
+      digitization.medicalHistory,
+      payload.medicalHistory
+    );
+    const medicalHistoryRows = toArray(medicalHistory);
+    if (medicalHistoryRows.length) {
+      setMedicalHistoryData((prev = []) => convertMedicalHistoryToContextFormat(medicalHistoryRows, prev));
+    }
+
+    const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
+    appendRows(
+      setSurgeriesData,
+      normalizeModuleRows({ surgery: toArray(surgeries) }, "surgery")
+    );
+
     const followUp = firstNonEmpty(digitization.follow_up, digitization.followUp, payload.followUp);
     toArray(followUp).forEach((item) => {
       const parsedDate = parseFollowUpDate(item);
@@ -269,6 +288,13 @@ function PrescriptionNewRxPadCopyListener() {
         appendFollowUpNote(setAdditionalNote, item);
       }
     });
+
+    const additionalNotes = firstNonEmpty(
+      digitization.others,
+      digitization.additionalNotes,
+      payload.additionalNotes
+    );
+    toArray(additionalNotes).forEach((item) => appendFollowUpNote(setAdditionalNote, item));
   }, [
     lastCopyRequest,
     setAdditionalNote,
@@ -277,7 +303,9 @@ function PrescriptionNewRxPadCopyListener() {
     setExaminationData,
     setFollowUpDate,
     setInvestigationData,
+    setMedicalHistoryData,
     setMedicationData,
+    setSurgeriesData,
     setSymptomsData,
   ]);
 

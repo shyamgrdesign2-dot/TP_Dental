@@ -47,6 +47,7 @@ import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
   useVoiceRxModuleCapture,
@@ -882,10 +883,18 @@ function SurgicalBox({ showVoiceRxModule }) {
               overlayClassName="pop-350 pp-0"
               placement="bottom"
             >
-              <button className="btn d-flex align-items-center btn-text">
-                {" "}
-                <i className="icon-template me-2"></i> <span>Templates</span>
-              </button>
+              {isVoiceRxModuleEnabled ? (
+                <span>
+                  <Tooltip placement="bottom" title="Browse surgery templates">
+                    <VoiceRxModuleActionButton type="template" label="Browse surgery templates" />
+                  </Tooltip>
+                </span>
+              ) : (
+                <button className="btn d-flex align-items-center btn-text">
+                  {" "}
+                  <i className="icon-template me-2"></i> <span>Templates</span>
+                </button>
+              )}
             </Popover>
             <Tooltip
               placement="bottom"
@@ -906,19 +915,31 @@ function SurgicalBox({ showVoiceRxModule }) {
                 overlayClassName="pop-450 pp-0"
                 placement="bottom"
               >
-                <button className="btn d-flex align-items-center btn-text">
-                  {" "}
-                  <i className="icon-save me-2"></i> <span>Save</span>
-                </button>
+                {isVoiceRxModuleEnabled ? (
+                  <span>
+                    <VoiceRxModuleActionButton type="save" label="Save surgery as template" disabled={surgeriesData.length === 0} />
+                  </span>
+                ) : (
+                  <button className="btn d-flex align-items-center btn-text">
+                    {" "}
+                    <i className="icon-save me-2"></i> <span>Save</span>
+                  </button>
+                )}
               </Popover>
             </Tooltip>
-            <button
-              onClick={showHideClearData}
-              className="btn btn-text clear-text d-flex align-items-center"
-              disabled={surgeriesData.length > 0 ? false : true}
-            >
-              <i className="icon-eraser1 me-2"></i> <span>Clear</span>
-            </button>
+            {isVoiceRxModuleEnabled ? (
+              <Tooltip placement="bottom" title="Clear this section">
+                <VoiceRxModuleActionButton type="clear" label="Clear surgery" onClick={showHideClearData} disabled={surgeriesData.length === 0} />
+              </Tooltip>
+            ) : (
+              <button
+                onClick={showHideClearData}
+                className="btn btn-text clear-text d-flex align-items-center"
+                disabled={surgeriesData.length > 0 ? false : true}
+              >
+                <i className="icon-eraser1 me-2"></i> <span>Clear</span>
+              </button>
+            )}
           </div>
         </div>
 
