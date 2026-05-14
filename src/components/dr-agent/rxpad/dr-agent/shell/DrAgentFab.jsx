@@ -250,7 +250,7 @@ export function DrAgentFab({
       data-dr-agent="true"
       className="vrx-fab-wrapper"
       style={{
-        pointerEvents: isPanelOpen ? "none" : "auto",
+        pointerEvents: "none",
         position: "fixed",
         zIndex: 40,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -397,7 +397,12 @@ export function DrAgentFab({
           </defs>
 
           <g filter={`url(#${shadowId})`}>
-            <path d={FAB_PATH} fill={`url(#${shellId})`} />
+            <path
+              d={FAB_PATH}
+              fill={`url(#${shellId})`}
+              pointerEvents={isPanelOpen ? "none" : "visiblePainted"}
+              style={{ cursor: disabled ? "not-allowed" : "pointer" }}
+            />
           </g>
           {showShimmer && (
             <path

@@ -40,6 +40,7 @@ import {
     orderMedicineAndInvestigation,
     draftToConsultation
 } from "../redux/caseManagerSlice";
+import { addMedicine } from "../redux/medicationSlice";
 import { customizedPad, listVideo } from "../redux/doctorsSlice";
 import GenRxButton from '../components/GenRxButton';
 
@@ -77,7 +78,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
-    const { frequencyList, timingList, videoList } = useSelector((state) => state.doctors);
+    const { frequencyList, timingList, videoList, medicineTypeList } = useSelector((state) => state.doctors);
     const vaccines = useSelector((state) => state.vaccines);
     const { givenVaccines, updatedDueVaccines } = vaccines;
     const { measurements } = useSelector((state) => state.growthChart);
@@ -1284,6 +1285,67 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         };
     }, [ophthalmologyExam]);
 
+    const buildMedicinePayload = useCallback(async () => {
+        const getVoiceRxMedicineName = (item = {}) => (
+            item.tmm_medicine_name ||
+            item.medicine_name ||
+            item.voice_rx_original_name ||
+            item.name ||
+            "Intel"
+        );
+
+        const hasMedicineId = (item = {}) => {
+            const numericTmmId = Number(item?.tmm_id);
+            return item?.tmm_id !== undefined &&
+                item?.tmm_id !== null &&
+                String(item.tmm_id).trim() !== "" &&
+                Number.isFinite(numericTmmId) &&
+                numericTmmId !== 0;
+        };
+
+        const payload = [];
+        const defaultMedicineType = Array.isArray(medicineTypeList) ? medicineTypeList[0]?.tmy_id : 0;
+
+        for (const { medicineUnit, ...rest } of medicationData) {
+            if (!rest?.voice_rx_from_module || hasMedicineId(rest)) {
+                payload.push(rest);
+                continue;
+            }
+
+            const medicineName = getVoiceRxMedicineName(rest);
+            const action = await dispatch(addMedicine({
+                tmm_medicine_name: medicineName,
+                tmm_type: rest.tmm_type || defaultMedicineType || 0,
+                tmm_generic: rest.tmm_generic || "",
+                tmm_company: rest.tmm_company || "",
+            }));
+            if (action.meta.requestStatus !== "fulfilled") {
+                throw new Error(action?.error?.message || `Failed to add medicine ${medicineName}`);
+            }
+
+            const createdMedicine = Array.isArray(action.payload) ? action.payload[0] : action.payload;
+            const resolvedUnit = rest.tmm_unit || createdMedicine?.default_tmm_unit || createdMedicine?.tmm_unit || 0;
+
+            payload.push({
+                ...rest,
+                tmm_id: createdMedicine?.tmm_id,
+                tmm_medicine_name: createdMedicine?.tmm_medicine_name || medicineName,
+                tmm_type: createdMedicine?.tmm_type ?? rest.tmm_type ?? 0,
+                tmm_generic: createdMedicine?.tmm_generic ?? rest.tmm_generic ?? "",
+                tmm_company: createdMedicine?.tmm_company ?? rest.tmm_company ?? "",
+                tmm_unit: resolvedUnit,
+                voice_rx_original_tmm_id: rest.tmm_id ?? 0,
+                voice_rx_from_module: false,
+                voice_rx_original_name: rest.voice_rx_original_name || medicineName,
+                pms_default: createdMedicine?.pms_default ?? rest.pms_default ?? 1,
+                objectID: createdMedicine?.objectID || rest.objectID,
+                default_tmm_unit: rest.default_tmm_unit ?? createdMedicine?.default_tmm_unit ?? 0,
+            });
+        }
+
+        return payload;
+    }, [dispatch, medicationData, medicineTypeList]);
+
     const onSaveAsDraft = async () => {
         if (saveDraftLoading) return;
         trackSaveDraftEvent();
@@ -1301,6 +1363,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
           const opthalPatientId = patient_data?.patient_unique_id;
           const shouldSyncOpthal = hasOphthalPayloadData(opthalPayload);
       
+          const medicinePayload = await buildMedicinePayload();
+
           const sendData = {
             is_draft: 1,
             action: tcmId == 0 ? "add" : "edit",
@@ -1318,7 +1382,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             examination: examinationData,
             surgeries: surgeriesData,
             diagnosis: diagnosisData,
-            medicine: medicationData.map(({ medicineUnit, ...rest }) => rest),
+            medicine: medicinePayload,
             advice: adviceData,
             investigation: investigationData,
             vitals: vitalsData,
@@ -1515,6 +1579,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             const opthalPatientId = patient_data?.patient_unique_id;
             const shouldSyncOpthal = hasOphthalPayloadData(opthalPayload);
 
+            const medicinePayload = await buildMedicinePayload();
+
             var sendData = {
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
@@ -1525,7 +1591,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 examination: examinationData,
                 surgeries: surgeriesData,
                 diagnosis: diagnosisData,
-                medicine: medicationData.map(({ medicineUnit, ...rest }) => rest),
+                medicine: medicinePayload,
                 advice: adviceData,
                 investigation: investigationData,
                 vitals: vitalsData,

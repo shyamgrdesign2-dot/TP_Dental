@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -19,6 +19,7 @@ import HeaderPrescription from "../common/HeaderPrescription";
 import SymptomsBox from "../components/SymptomsBox";
 import ExaminationBox from "../components/ExaminationBox";
 import OphthalmologyExamDrawer from "../components/ophthalmology/OphthalmologyExamDrawer";
+import OphthalmologyExamPanel from "../components/ophthalmology/OphthalmologyExamPanel";
 import DiagnosisBox from "../components/DiagnosisBox";
 import MedicationsBox from "../components/MedicationsBox";
 import AdviceBox from "../components/AdviceBox";
@@ -94,7 +95,7 @@ import GenRxBox from "../components/GenRxBox";
 import ConsultationDrawer from "../components/ConsultationDrawer";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
-import { services } from "../redux/doctorsSlice";
+import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
 import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
@@ -125,8 +126,13 @@ import {
   CustomModuleV2,
 } from "../components/customModulesV2";
 import { getModules, searchModulesByHospital } from "../redux/customModuleSlice";
-import { GB_OPTHAL_MODULE } from "../utils/constants";
 import { ASSETS } from "../assets";
+import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
+import {
+  resetOpthalForm,
+  setLastOpthalPrescriptionData,
+  setOpthalPrescriptionId,
+} from "../redux/ophthalmologyExamSlice";
 
 // ── Dr Agent Panel ──
 import "../components/dr-agent/dr-agent-globals.css";
@@ -143,6 +149,7 @@ function PrescriptionNew() {
     customizedPadRightList: originalCustomizedPadRightList,
     frequencyList,
     timingList,
+    opthalModuleAutoAdded,
   } = useSelector((state) => state.doctors);
 
   const {
@@ -429,7 +436,6 @@ function PrescriptionNew() {
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
 
   const { servicesList } = useSelector((state) => state.doctors);
-
   const isNormalConsultFlow = !fromVoiceRecording && !send_path && !digitizedData;
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
@@ -542,6 +548,7 @@ function PrescriptionNew() {
   const [growthRefreshKey, setGrowthRefreshKey] = useState(0);
   const [opthalDrawer, setOpthalDrawer] = useState(false);
   const [opthalRefreshKey, setOpthalRefreshKey] = useState(0);
+  const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [growthDrawer, setGrowthDrawer] = useState(false);
   const [updatedGynecHistory, setUpdatedGynecHistory] = useState(null);
   const [obstetricDrawer, setObstetricDrawer] = useState(false);
@@ -584,7 +591,15 @@ function PrescriptionNew() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
+  const isVoiceRxAccessible = isFreeVoiceRxUser || tp_monetization_enable;
+  const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible;
+  useEffect(() => {
+    if (!canUseVoiceRxModuleUi && drAgentOpen) {
+      setDrAgentOpen(false);
+    }
+  }, [canUseVoiceRxModuleUi, drAgentOpen]);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isGroundingAccessableForZydus =
@@ -791,6 +806,78 @@ function PrescriptionNew() {
 
     fetchModules();
   }, [userId, dispatch]);
+
+  useEffect(() => {
+    if (!isOpthalModuleAccessible) {
+      return;
+    }
+    if (!Array.isArray(customizedPadRightList) || customizedPadRightList.length === 0) {
+      return;
+    }
+    if (customizedPadRightList.some((item) => item?.tmdpm_id === OPTHAL_PAD_MODULE_ID)) {
+      return;
+    }
+    if (opthalModuleAutoAdded) {
+      return;
+    }
+    const medicationsIndex = customizedPadRightList.findIndex(
+      (item) => item?.tmdpm_id === 12
+    );
+    const nextRightList = [...customizedPadRightList];
+    if (medicationsIndex >= 0) {
+      nextRightList.splice(medicationsIndex + 1, 0, { ...OPTHAL_PAD_MODULE });
+    } else {
+      nextRightList.push({ ...OPTHAL_PAD_MODULE });
+    }
+    dispatch(
+      setCustomizedPadLists({
+        right: nextRightList,
+        opthalModuleAutoAdded: true,
+      })
+    );
+  }, [
+    customizedPadRightList,
+    dispatch,
+    isOpthalModuleAccessible,
+    opthalModuleAutoAdded,
+  ]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchOpthalPrescription = async () => {
+      if (!isOpthalModuleAccessible) {
+        return;
+      }
+      dispatch(resetOpthalForm());
+      dispatch(setLastOpthalPrescriptionData(null));
+      dispatch(setOpthalPrescriptionId(null));
+      if (!tcmId) {
+        return;
+      }
+      try {
+        const response = await getOpthalPrescriptionDetails({
+          tcm_id: tcmId,
+          patientId: patient_data?.patient_unique_id,
+        });
+        const data = response?.data ?? response;
+        const payload = Array.isArray(data) ? data[0] : data;
+        if (!isMounted || !payload) {
+          return;
+        }
+        dispatch(setLastOpthalPrescriptionData(payload));
+        if (payload?._id) {
+          dispatch(setOpthalPrescriptionId(payload._id));
+        }
+        setLoadPrevOpthalSignal((prev) => prev + 1);
+      } catch (error) {
+        console.error("Error fetching opthal prescription details:", error);
+      }
+    };
+    fetchOpthalPrescription();
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch, isOpthalModuleAccessible, patient_data?.patient_unique_id, tcmId]);
 
   useEffect(() => {
     if (isGynaecHistoryAccessable) {
@@ -2023,7 +2110,9 @@ function PrescriptionNew() {
         handleDrawerGrowth();
         break;
       case "optal":
-        handleDrawerOpthal();
+        if (isOpthalModuleAccessible) {
+          handleDrawerOpthal();
+        }
         break;
       default:
         break;
@@ -2040,6 +2129,7 @@ function PrescriptionNew() {
     handleDrawerVaccination,
     handleDrawerVital,
     handleViewLabParamsDrawer,
+    isOpthalModuleAccessible,
     labParamsData?.length,
   ]);
 
@@ -2098,6 +2188,7 @@ function PrescriptionNew() {
                 isVaccinationAccessable={isVaccinationAccessable}
                 isGrowthChartAccessable={isGrowthChartAccessable}
                 isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+                showVoiceRx={canUseVoiceRxModuleUi}
                 onSectionAction={handleSideNavbarSectionAction}
               />
               <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
@@ -2178,15 +2269,16 @@ function PrescriptionNew() {
                       <SymptomsBox
                         handleDDxDrawer={handleDDxDrawer}
                         generatedDDx={generatedDDx?.results}
+                        showVoiceRxModule={canUseVoiceRxModuleUi}
                       />
                     </div>
                   ) : e.tmdpm_id === 10 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <ExaminationBox />
+                      <ExaminationBox showVoiceRxModule={canUseVoiceRxModuleUi} />
                     </div>
                   ) : e.tmdpm_id === 21 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <SurgicalBox />
+                      <SurgicalBox showVoiceRxModule={canUseVoiceRxModuleUi} />
                     </div>
                   ) : e.tmdpm_id === 11 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
@@ -2197,15 +2289,26 @@ function PrescriptionNew() {
                         isDDxLoading={isDDxLoading}
                         handleDDxKnowMore={handleDDxKnowMore}
                         isDDxGenerated={isDDxGenerated}
+                        showVoiceRxModule={canUseVoiceRxModuleUi}
                       />
                     </div>
                   ) : e.tmdpm_id === 12 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <MedicationsBox />
+                      <MedicationsBox showVoiceRxModule={canUseVoiceRxModuleUi} />
+                    </div>
+                  ) : isOpthalModuleAccessible && e.tmdpm_id === OPTHAL_PAD_MODULE_ID && e.tmdpm_status === 0 ? (
+                    <div key={i} className="opthal-panel-wrapper">
+                      <OphthalmologyExamPanel
+                        patientData={patient_data}
+                        showHeader
+                        headerTitle="Ophthal"
+                        loadPrevAllSignal={loadPrevOpthalSignal}
+                        fetchLastOnMount={true}
+                      />
                     </div>
                   ) : e.tmdpm_id === 13 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
-                      <AdviceBox />
+                      <AdviceBox showVoiceRxModule={canUseVoiceRxModuleUi} />
                     </div>
                   ) : e.tmdpm_id === 14 && e.tmdpm_status === 0 ? (
                     <div key={i} className="prescription-box-sm">
@@ -2213,6 +2316,7 @@ function PrescriptionNew() {
                       <InvestigationBox
                         handleDDxDrawer={handleDDxDrawer}
                         generatedDDx={generatedDDx?.results}
+                        showVoiceRxModule={canUseVoiceRxModuleUi}
                       />
                     </div>
                   ) : e.tmdpm_id === 15 && e.tmdpm_status === 0 ? (
@@ -2224,9 +2328,9 @@ function PrescriptionNew() {
                     e.tmdpm_status === 0 &&
                     customModule &&
                     (customModule.version === "v2" ? (
-                      <CustomModuleV2 module={customModule} />
+                      <CustomModuleV2 module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} />
                     ) : (
-                      <CustomModule module={customModule} />
+                      <CustomModule module={customModule} showVoiceRxModule={canUseVoiceRxModuleUi} />
                     ))
                   );
                 })}
@@ -2308,10 +2412,10 @@ function PrescriptionNew() {
             width="100%"
             push={false}
           >
-            <GrowthChart handleDrawerVaccination={handleDrawerGrowth} />
+            <GrowthChart handleDrawerVaccination={handleDrawerGrowth} onGrowthUpdated={refreshSideNavbarGrowth} />
           </Drawer>
         )}
-        {opthalDrawer && (
+        {isOpthalModuleAccessible && opthalDrawer && (
           <OphthalmologyExamDrawer
             open={opthalDrawer}
             onClose={handleDrawerOpthal}
@@ -2545,14 +2649,16 @@ function PrescriptionNew() {
         )}
 
         {/* ── Dr Agent Panel + FAB ── */}
-          <DrAgentRuntime
-            isOpen={drAgentOpen}
-            overlayClassName={drAgentOverlayClassName}
-            patientId={patient_data?.patient_unique_id}
-            doctorId={profile?.doctor_unique_id}
-            onClose={() => setDrAgentOpen(false)}
-            onOpen={() => setDrAgentOpen(true)}
-          />
+          {canUseVoiceRxModuleUi && (
+            <DrAgentRuntime
+              isOpen={drAgentOpen}
+              overlayClassName={drAgentOverlayClassName}
+              patientId={patient_data?.patient_unique_id}
+              doctorId={profile?.doctor_unique_id}
+              onClose={() => setDrAgentOpen(false)}
+              onOpen={() => setDrAgentOpen(true)}
+            />
+          )}
 
           </>
         )}

@@ -114,7 +114,7 @@ export function useDrAgentPanel({
    * `voiceRxHandoffExiting` is briefly true (≈320ms) at the moment we
    * cross from "shiner card with loader" to "result tabs". Lets us
    * play a coordinated exit (shiner slides UP + fades out) BEFORE the
-   * panel hard-swaps to VoiceRxResultTabs, which then slides in from
+   * panel hard-swaps to the VoiceRx result canvas, which then slides in from
    * the top. Without this gate the swap reads as a single-frame jump
    * and the user perceives a glitch.
    */

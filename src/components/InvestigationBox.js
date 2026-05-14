@@ -34,7 +34,7 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
-import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
@@ -64,7 +64,7 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   textAlign: "center",
 };
 
-function InvestigationBox({handleDDxDrawer, generatedDDx}) {
+function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const isChikitsalayAccessable = useChikitsalay();
   const {
     selectedInvestigationList,
@@ -104,7 +104,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     );
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
 
@@ -354,6 +354,12 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
   const handleVoiceInvestigationClick = (i) => {
     setActiveVoiceInvestigationIndex(i);
     onFocusChid(i);
+  };
+
+  const handleVoiceInvestigationBlur = () => {
+    window.setTimeout(() => {
+      setActiveVoiceInvestigationIndex(null);
+    }, 150);
   };
 
   const onSearchChild = useCallback(
@@ -658,11 +664,17 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                           md={8}
                           sm={8}
                           xs={8}
-                          style={isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
+                          className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
+                          onClick={() => {
+                            if (isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index) {
+                              handleVoiceInvestigationClick(index);
+                            }
+                          }}
+                          style={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
                         >
-                          <div className="fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100">
+                          <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                              {isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
+                              {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
                                 <button
                                   type="button"
                                   className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
@@ -677,11 +689,12 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                                   value={item.investigation_name}
                                   placeholder="Investigation Name"
                                   bordered={false}
-                                  disabled={!isVoiceRxModuleInvestigation(item)}
+                                  disabled={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? false : undefined}
                                   defaultOpen={activeVoiceInvestigationIndex === index}
                                   open={activeVoiceInvestigationIndex === index ? true : undefined}
                                   onSearch={(query) => onSearchChild(query, index)}
                                   onFocus={() => onFocusChid(index)}
+                                  onBlur={handleVoiceInvestigationBlur}
                                   options={childSearchOptions}
                                   className="autocomplete-custom w-100 inputborder"
                                   defaultActiveFirstOption={true}
@@ -689,7 +702,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                                 />
                               )}
                             </div>
-                            {isVoiceRxModuleInvestigation(item) && (
+                            {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && (
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
@@ -972,14 +985,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
             <div className="title-common">{INVESTIGATION_TITLE}</div>
           </div>
           <div className="d-flex align-items-center">
-            {isVoiceRxNewFromGB && (
+            {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
                 label={`Start ${INVESTIGATION_TITLE} voice input`}
@@ -1047,8 +1060,8 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
           </div>
         )}
 
-        <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxNewFromGB && voiceCaptureOpen ? (
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
               previousContext={investigationData}

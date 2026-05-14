@@ -162,25 +162,27 @@ export function VoiceRxCanvas({
     <div className={["vrx-canvas vrx-canvas--enter", styles.root].join(" ")}>
       {/* Header */}
       <div className={styles.topBar}>
-        <span className={["vrx-cn-mode-pill", styles.modePill].join(" ")}>
-          <button
-            type="button"
-            onClick={navLocked ? undefined : handleBackClick}
-            disabled={navLocked}
-            aria-label="Back to chat"
+        <button
+          type="button"
+          onClick={navLocked ? undefined : handleBackClick}
+          disabled={navLocked}
+          aria-label="Back to chat"
+          className={["vrx-cn-mode-pill", styles.modePill].join(" ")}>
+          <span
             className={[
               styles.backBtn,
               navLocked ? styles.backBtnLocked : styles.backBtnNormal
-            ].join(" ")}>
+            ].join(" ")}
+            aria-hidden="true">
             <svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-          </button>
+          </span>
           <span
             className={[styles.modePillLabel, styles.modePillLabelText].join(" ")}>
             {canvasTitle}
           </span>
-        </span>
+        </button>
         <div className={styles.topBarRight}>
           {onMinimize && (
             <button

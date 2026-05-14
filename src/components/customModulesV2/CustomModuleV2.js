@@ -30,7 +30,6 @@ import {
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CashManagerContext from "../../context/CashManagerContext";
 
 import DisabledModuleTooltip from "./DisabledModuleTooltip";
@@ -39,7 +38,6 @@ import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage, getClinic } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
-import { GB_VOICE_RX_NEW_UI } from "../../utils/constants";
 import "./CustomModuleV2.scss";
 import { isMobile } from "react-device-detect";
 import CustomModuleV2Drawer from "./CustomModuleV2Drawer";
@@ -72,8 +70,8 @@ const {
  * @param {String} module.name - Module name
  * @param {Array} module.namedFields - Array of field configurations
  */
-const CustomModuleV2 = ({ module }) => {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const dispatch = useDispatch();
   const {
     userId,
@@ -1479,7 +1477,7 @@ const CustomModuleV2 = ({ module }) => {
 
   return (
     <div
-      className={["prescription-box-sm", voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+      className={["prescription-box-sm", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
       data-module-id={module?.module_id}
     >
       {/* Header */}
@@ -1524,7 +1522,7 @@ const CustomModuleV2 = ({ module }) => {
             </div>
 
             <div className="d-flex align-items-center">
-              {isVoiceRxNewFromGB && (
+              {isVoiceRxModuleEnabled && (
                 <VoiceRxModuleButton
                   active={voiceCaptureOpen}
                   label={`Start ${module?.name || "Custom Module"} voice input`}
@@ -1723,8 +1721,8 @@ const CustomModuleV2 = ({ module }) => {
       </table>
 
       {/* Add New Line Button */}
-      <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-        {isVoiceRxNewFromGB && voiceCaptureOpen ? (
+      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
             moduleName={module?.name || "Custom Module"}
             moduleApiName="custom_module"

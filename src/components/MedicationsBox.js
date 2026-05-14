@@ -30,7 +30,7 @@ import {
   updateFrequentlyMedication,
   getAllDoses
 } from "../redux/medicationSlice";
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_VOICE_RX_NEW_UI, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 
@@ -89,7 +89,7 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   textAlign: "center",
 };
 
-function MedicationsBox() {
+function MedicationsBox({ showVoiceRxModule }) {
   const isChikitsalayAccessable = useChikitsalay();
   const renderLowStockBadge = useCallback((med) => {
     if (!isChikitsalayAccessable) return null;
@@ -228,7 +228,7 @@ function MedicationsBox() {
   const [isModalOpen2, setIsModalOpen2] = useState(false);
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
 
   const handleViewDoseCalcDrawer = (tab, value) => {
     setDoseCalculatorDrawer(!doseCalculatorDrawer)
@@ -377,6 +377,8 @@ function MedicationsBox() {
   };
 
   const handleVoiceMedicineClick = (item) => {
+    if (!isVoiceRxModuleEnabled) return;
+    if (!isVoiceRxUngroundedMedication(item)) return;
     const query = item.tmm_medicine_name || "";
     setVoiceMedicineEdit({
       index: item.index,
@@ -391,6 +393,12 @@ function MedicationsBox() {
 
   const handleVoiceMedicineSearch = (query, index) => {
     setVoiceMedicineEdit({ index, query: removeBeforeWhiteSpace(query) });
+  };
+
+  const handleVoiceMedicineBlur = () => {
+    window.setTimeout(() => {
+      setVoiceMedicineEdit({ index: null, query: "" });
+    }, 150);
   };
 
   const onSelectVoiceMedicine = async (data, item, index) => {
@@ -1217,7 +1225,7 @@ function MedicationsBox() {
                   </div>
                 </Col>
                 <Col lg={4} md={4} sm={4} xs={4} className="border-end">
-                  <div className="fontroboto fw-medium p-2 fs-12 text-welcome d-flex align-items-center">
+                  <div className="fontroboto fw-medium p-2 fs-12 text-welcome d-flex align-items-center flex-wrap">
                     <label>FREQUENCY </label>
                     <Popover
                       open={frequencyPopOver}
@@ -1285,36 +1293,46 @@ function MedicationsBox() {
                             md={5}
                             sm={5}
                             xs={5}
-                            style={isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
+                            className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : undefined}
+                            onClick={() => {
+                              if (isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
+                                handleVoiceMedicineClick(item);
+                              }
+                            }}
+                            style={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
                           >
-                            <div className="fontroboto fw-medium p-2 pe-3">
-                              <div className="d-flex align-items-center flex-wrap gap-1">
-                                {isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index === item.index ? (
-                                  <AutoComplete
-                                    autoFocus
-                                    value={voiceMedicineEdit.query}
-                                    placeholder="Medicine Name"
-                                    bordered={false}
-                                    defaultOpen
-                                    open
-                                    onSearch={(query) => handleVoiceMedicineSearch(query, item.index)}
-                                    onSelect={(data, e) => onSelectVoiceMedicine(data, e, item.index)}
-                                    options={parentSearchOptions}
-                                    className="autocomplete-custom w-100 inputborder"
-                                    popupClassName="medicine-parent-autocomplete-dropdown"
-                                    defaultActiveFirstOption
-                                  />
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2"
-                                    onClick={() => isVoiceRxUngroundedMedication(item) && handleVoiceMedicineClick(item)}
-                                    style={{ cursor: isVoiceRxUngroundedMedication(item) ? "pointer" : "default" }}
-                                  >
-                                    {item.tmm_medicine_name}
-                                  </button>
-                                )}
-                                {isVoiceRxUngroundedMedication(item) && (
+                            <div className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
+                              {isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? (
+                                <div className="d-flex align-items-center gap-1 w-100">
+                                  <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
+                                    {voiceMedicineEdit.index === item.index ? (
+                                      <AutoComplete
+                                        autoFocus
+                                        value={voiceMedicineEdit.query}
+                                        placeholder="Medicine Name"
+                                        bordered={false}
+                                        defaultOpen
+                                        open
+                                        onSearch={(query) => handleVoiceMedicineSearch(query, item.index)}
+                                        onSelect={(data, e) => onSelectVoiceMedicine(data, e, item.index)}
+                                        onBlur={handleVoiceMedicineBlur}
+                                        options={parentSearchOptions}
+                                        className="autocomplete-custom w-100 inputborder"
+                                        popupClassName="medicine-parent-autocomplete-dropdown"
+                                        defaultActiveFirstOption
+                                      />
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2"
+                                        onClick={() => handleVoiceMedicineClick(item)}
+                                        style={{ cursor: "pointer" }}
+                                      >
+                                        {item.tmm_medicine_name}
+                                      </button>
+                                    )}
+                                    {renderHmTypeBadge(item)}
+                                  </div>
                                   <Tooltip
                                     placement="top"
                                     overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
@@ -1325,9 +1343,13 @@ function MedicationsBox() {
                                       style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
                                     />
                                   </Tooltip>
-                                )}
-                                {renderHmTypeBadge(item)}
-                              </div>
+                                </div>
+                              ) : (
+                                <div className="d-flex align-items-center flex-wrap gap-1">
+                                  <span className="text-main2">{item.tmm_medicine_name}</span>
+                                  {renderHmTypeBadge(item)}
+                                </div>
+                              )}
                               <Tooltip placement="bottom" title={item.tmm_generic}>
                                 <div className="text-truncate fw-normal me-1">{item.tmm_generic}</div>
                               </Tooltip>
@@ -1335,7 +1357,7 @@ function MedicationsBox() {
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18}>
-                            {!item.pms_default && !isVoiceRxUngroundedMedication(item) &&
+                            {!item.pms_default && !(isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)
@@ -2263,7 +2285,7 @@ function MedicationsBox() {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
@@ -2291,7 +2313,7 @@ function MedicationsBox() {
             }
           </div>
           <div className="d-flex align-items-center">
-            {isVoiceRxNewFromGB && (
+            {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
                 label="Start Medication Rx voice input"
@@ -2388,8 +2410,8 @@ function MedicationsBox() {
           </Drawer>
         }
 
-        <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxNewFromGB && voiceCaptureOpen ? (
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Medication (Rx)"
               previousContext={medicationData}

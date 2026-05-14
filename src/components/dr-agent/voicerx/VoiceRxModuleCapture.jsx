@@ -510,7 +510,7 @@ function normalizeDurationText(duration) {
     twenty: 20,
     thirty: 30,
   };
-  const match = text.match(/^(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty)\s*(day|days|week|weeks|month|months|year|years)\b/i);
+  const match = text.match(/^(?:for\s+)?(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty)\s*(day|days|week|weeks|month|months|year|years)\b/i);
   if (!match) {
     return {
       days: "",
@@ -554,24 +554,40 @@ function normalizeDosageText(dosage) {
   };
 }
 
+function firstTextValue(...values) {
+  for (const value of values) {
+    if (Array.isArray(value)) {
+      const text = firstTextValue(...value);
+      if (text) return text;
+      continue;
+    }
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
 function normalizeModuleRows(responseJson, moduleApiName) {
   const payload = extractModulePayload(responseJson);
   const artifactType = payload?.artifact_type || responseJson?.artifact_type || moduleApiName;
   const moduleKeys = moduleApiName === "medications"
     ? [moduleApiName, artifactType, "medications", "medicine", "medicines", "items", "data"]
-    : [moduleApiName, artifactType, "items", "data"];
+    : moduleApiName === "lab_investigations"
+      ? [moduleApiName, artifactType, "lab_investigation", "lab_investigations", "items", "data"]
+      : [moduleApiName, artifactType, "items", "data"];
   const rows = firstPresentArray(payload, moduleKeys, { allowObjectRow: moduleApiName === "custom_module" })
     .filter((row) => Object.values(row || {}).some((value) => value !== undefined && value !== null && String(value).trim() !== ""));
 
   return rows.map((row) => {
-    const name = row?.name || row?.title || row?.label || "";
-    const notes = row?.notes ?? row?.note ?? "";
+    const isPrimitiveRow = typeof row === "string" || typeof row === "number";
+    const name = isPrimitiveRow ? String(row).trim() : row?.name || row?.title || row?.label || "";
+    const notes = isPrimitiveRow ? "" : row?.notes ?? row?.note ?? "";
 
     switch (moduleApiName) {
       case "symptoms":
         return {
           symptom_name: row?.symptom_name || name,
-          since: row?.since || "",
+          since: row?.since || row?.duration || "",
           severity: row?.severity || "",
           note: notes,
           objectID: row?.objectID || row?.id || createModuleVoiceId(),
@@ -599,7 +615,16 @@ function normalizeModuleRows(responseJson, moduleApiName) {
       case "medications": {
         const frequency = normalizeFrequencyText(row?.frequency || row?.tmm_freq_type_name || row?.frequencyText || row?.frequency_text);
         const duration = normalizeDurationText(row?.duration || row?.tmm_days_duration_type);
-        const medicineName = row?.tmm_medicine_name || row?.medicine_name || row?.name || "";
+        const medicineName = firstTextValue(
+          row?.tmm_medicine_name,
+          row?.tm_medicine_name,
+          row?.medicine_name,
+          row?.dm_name,
+          row?.dm_names,
+          row?.name,
+          row?.title,
+          name
+        );
         const dosage = normalizeDosageText(row?.tmm_dosage ?? row?.dosage ?? "");
         const tmmId = hasMedicineMasterId(row?.tmm_id) ? row.tmm_id : 0;
         const voiceGroupId = row?.voice_rx_group_id || row?.unique_id || createModuleVoiceId();
@@ -608,9 +633,9 @@ function normalizeModuleRows(responseJson, moduleApiName) {
           tmm_id: tmmId,
           voice_rx_group_id: voiceGroupId,
           voice_rx_from_module: true,
-          voice_rx_original_name: medicineName || name,
+          voice_rx_original_name: medicineName,
           tcm_tmr_type: row?.tcm_tmr_type || "M",
-          tmm_medicine_name: medicineName || name,
+          tmm_medicine_name: medicineName,
           tmm_generic: row?.tmm_generic || "",
           tmm_company: row?.tmm_company || "",
           tmm_type: row?.tmm_type || 0,
@@ -799,7 +824,7 @@ export function VoiceRxModuleCapture({
   onCancel,
   onComplete,
 }) {
-  const { patient_data, tcmId, pamId } = useContext(CashManagerContext) || {};
+  const { patient_data } = useContext(CashManagerContext) || {};
   const { profile } = useSelector((state) => state.doctors);
   const [phase, setPhase] = useState("recording");
   const [capturedTranscript, setCapturedTranscript] = useState("");
@@ -809,13 +834,11 @@ export function VoiceRxModuleCapture({
   const moduleSessionIdRef = useRef(null);
 
   const getModuleSessionId = useCallback(() => {
-    if (tcmId && Number(tcmId) !== 0) return tcmId;
-    if (pamId) return pamId;
     if (!moduleSessionIdRef.current) {
-      moduleSessionIdRef.current = `module_${createModuleVoiceId()}`;
+      moduleSessionIdRef.current = createModuleVoiceId();
     }
     return moduleSessionIdRef.current;
-  }, [pamId, tcmId]);
+  }, []);
 
   useEffect(() => {
     return () => {

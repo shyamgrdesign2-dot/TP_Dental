@@ -30,7 +30,6 @@ import {
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import "./CustomModule.scss";
 
 import CommonModal from "../common/CommonModal";
@@ -51,7 +50,7 @@ import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 import TextArea from "antd/es/input/TextArea";
-import { GB_VOICE_RX_NEW_UI, MESSAGE_KEY } from "../utils/constants";
+import { MESSAGE_KEY } from "../utils/constants";
 
 import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
@@ -72,8 +71,8 @@ const {
   closeVisit: imgCloseVisit,
 } = ASSETS.images;
 
-function CustomModule({ module }) {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+function CustomModule({ module, showVoiceRxModule }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
@@ -1306,7 +1305,7 @@ function CustomModule({ module }) {
   };
 
   return (
-    <div className={["prescription-box-sm", voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+    <div className={["prescription-box-sm", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
           <div className="d-flex w-100">
@@ -1348,7 +1347,7 @@ function CustomModule({ module }) {
             </div>
 
             <div className="d-flex align-items-center">
-              {isVoiceRxNewFromGB && (
+              {isVoiceRxModuleEnabled && (
                 <VoiceRxModuleButton
                   active={voiceCaptureOpen}
                   label={`Start ${module?.name || "Custom Module"} voice input`}
@@ -1440,8 +1439,8 @@ function CustomModule({ module }) {
       {TABLE_CUSTOM_MODULE}
       {DELETE_MODULE_MODAL}
 
-      <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-        {isVoiceRxNewFromGB && voiceCaptureOpen ? (
+      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
             moduleName={module?.name || "Custom Module"}
             moduleApiName="custom_module"

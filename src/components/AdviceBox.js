@@ -17,7 +17,6 @@ import {
 import { LoadingOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import CommonModal from '../common/CommonModal';
 
@@ -37,7 +36,6 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { classNames } from "@react-pdf-viewer/core";
 import { ASSETS } from "../assets";
-import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
   VoiceRxModuleButton,
@@ -50,8 +48,8 @@ const {
   advice: Adviceicon,
 } = ASSETS.images;
 
-function AdviceBox() {
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+function AdviceBox({ showVoiceRxModule }) {
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const inputRef = useRef();
   const {
     selectedAdviceList,
@@ -730,14 +728,14 @@ function AdviceBox() {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Adviceicon} alt="Advice" />
             <div className="title-common">Advices</div>
           </div>
           <div className="d-flex align-items-center">
-            {isVoiceRxNewFromGB && (
+            {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
                 label="Start Advices voice input"
@@ -785,8 +783,8 @@ function AdviceBox() {
           {CHILD_DRAWER_DATA}
         </Drawer>
 
-        <div className={isVoiceRxNewFromGB && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
-          {isVoiceRxNewFromGB && voiceCaptureOpen ? (
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+          {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Advices"
               previousContext={adviceData}

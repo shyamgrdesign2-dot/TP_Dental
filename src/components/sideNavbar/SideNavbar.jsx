@@ -2328,21 +2328,50 @@ function buildLegacyOpthalEntries(rows = []) {
   });
 }
 
+function getGrowthRowDate(row) {
+  return row?.tcbc_created_date || row?.created_date || row?.date || row?.createdAt || row?.created_at;
+}
+
+function getGrowthRowValue(row, key) {
+  return row?.[key] ?? row?.[`tcbc_${key}`] ?? row?.[`gc_${key}`] ?? "";
+}
+
+function hasGrowthMetricValue(value) {
+  return value !== "" && value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+
 function buildLegacyGrowthData(rows = [], parentalDetails, patientData) {
   const dob = parsePatientDobForGrowth(patientData);
   const todayAgeMonths = dob ? Math.max(0, moment().diff(dob, "months")) : 36;
   const sortedRows = rows
-    .filter((row) => row?.tcbc_created_date)
-    .sort((a, b) => moment(a.tcbc_created_date).valueOf() - moment(b.tcbc_created_date).valueOf());
+    .filter((row) => (
+      getGrowthRowDate(row) ||
+      hasGrowthMetricValue(getGrowthRowValue(row, "height")) ||
+      hasGrowthMetricValue(getGrowthRowValue(row, "weight")) ||
+      hasGrowthMetricValue(getGrowthRowValue(row, "bmi")) ||
+      hasGrowthMetricValue(getGrowthRowValue(row, "ofc"))
+    ))
+    .sort((a, b) => {
+      const aDate = moment(getGrowthRowDate(a));
+      const bDate = moment(getGrowthRowDate(b));
+      if (!aDate.isValid() && !bDate.isValid()) return 0;
+      if (!aDate.isValid()) return 1;
+      if (!bDate.isValid()) return -1;
+      return aDate.valueOf() - bDate.valueOf();
+    });
   const entries = sortedRows
     .map((row, index) => {
-      const created = moment(row.tcbc_created_date);
+      const created = moment(getGrowthRowDate(row));
       const fallbackStep = sortedRows.length > 1 ? 36 / (sortedRows.length - 1) : 36;
       const ageMonths = dob && created.isValid()
         ? Math.max(0, created.diff(dob, "months"))
         : Math.min(36, Math.round(index * fallbackStep));
       return {
         ...row,
+        height: getGrowthRowValue(row, "height"),
+        weight: getGrowthRowValue(row, "weight"),
+        bmi: getGrowthRowValue(row, "bmi"),
+        ofc: getGrowthRowValue(row, "ofc"),
         ageMonths,
       };
     })
@@ -2578,7 +2607,7 @@ function makeWhoDatasets(whoData, visiblePercentiles = PCT_ORDER) {
 
 function makeMeasurementDataset(entries, valueKey, label) {
   const data = entries
-    .filter((entry) => entry.ageMonths !== null && Number.isFinite(Number(entry[valueKey])))
+    .filter((entry) => entry.ageMonths !== null && hasGrowthMetricValue(entry[valueKey]))
     .map((entry) => ({
       x: entry.ageMonths,
       y: Number(entry[valueKey]),
@@ -2598,7 +2627,7 @@ function makeMeasurementDataset(entries, valueKey, label) {
 
 function makeHeightWeightDataset(entries) {
   const data = entries
-    .filter((entry) => Number.isFinite(Number(entry.height)) && Number.isFinite(Number(entry.weight)))
+    .filter((entry) => hasGrowthMetricValue(entry.height) && hasGrowthMetricValue(entry.weight))
     .map((entry) => ({
       x: Number(entry.height),
       y: Number(entry.weight),
@@ -2894,10 +2923,10 @@ function GrowthContent({ data }) {
     ["Gestation period", info.gestationPeriod],
   ].filter(([, value]) => hasValue(value));
   const hasMetricData = entries.some((entry) => (
-    Number.isFinite(Number(entry.height)) ||
-    Number.isFinite(Number(entry.weight)) ||
-    Number.isFinite(Number(entry.bmi)) ||
-    Number.isFinite(Number(entry.ofc))
+    hasGrowthMetricValue(entry.height) ||
+    hasGrowthMetricValue(entry.weight) ||
+    hasGrowthMetricValue(entry.bmi) ||
+    hasGrowthMetricValue(entry.ofc)
   ));
   if (!hasMetricData && !infoRows.length) {
     return (
@@ -2934,7 +2963,7 @@ function GrowthContent({ data }) {
   );
 }
 
-function PrivateNotesContent({ value, onChange }) {
+function PrivateNotesContent({ value, onChange, showVoiceRx }) {
   return (
     <div className="snv-content-scroll snv-private-notes-content" data-snv-scroll-root="true">
       <div className="snv-private-note-wrap">
@@ -2944,9 +2973,11 @@ function PrivateNotesContent({ value, onChange }) {
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
-        <span className="snv-private-note-voice" aria-hidden="true">
-          <VoiceRxIcon size={22} color="#8B3FD1" />
-        </span>
+        {showVoiceRx ? (
+          <span className="snv-private-note-voice" aria-hidden="true">
+            <VoiceRxIcon size={22} color="#8B3FD1" />
+          </span>
+        ) : null}
       </div>
       <div className="snv-private-note-hint">
         <span className="snv-private-note-hint-icon">!</span>
@@ -2956,7 +2987,7 @@ function PrivateNotesContent({ value, onChange }) {
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, showVoiceRx }) {
   switch (activeId) {
     case "pastVisits":
       return (
@@ -2987,7 +3018,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
     case "optal":
       return <OptalContent entries={viewData.optal} />;
     case "personalNotes":
-      return <PrivateNotesContent value={privateNotesValue} onChange={onPrivateNotesChange} />;
+      return <PrivateNotesContent value={privateNotesValue} onChange={onPrivateNotesChange} showVoiceRx={showVoiceRx} />;
     default:
       return <div className="snv-empty-state">No data recorded.</div>;
   }
@@ -3005,7 +3036,7 @@ function sectionVoiceLabel(activeId) {
 }
 
 function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, actionLabels, hidePlusIcon, voiceEnabled, voiceLocked }) {
-  if (activeId === "pastVisits" || activeId === "personalNotes") return null;
+  if (activeId === "pastVisits" || activeId === "personalNotes" || activeId === "optal") return null;
   const status = voiceState?.status || "idle";
   const busy = status === "recording" || status === "transcribing" || status === "digitizing";
   const disabled = busy || voiceLocked;
@@ -3038,7 +3069,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, voiceEnabled, voiceLocked }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, voiceEnabled, voiceLocked, showVoiceRx }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -3086,9 +3117,10 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           pastVisitsState={pastVisitsState}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={onPrivateNotesChange}
+          showVoiceRx={showVoiceRx}
         />
       </div>
-      {voiceRecorderVisible && (
+      {showVoiceRx && voiceRecorderVisible && (
         <div className="snv-vrx-overlay" data-dr-agent="true" data-voice-allow="true">
           <VoiceRecorderCore
             layout="overlay"
@@ -3130,6 +3162,7 @@ export function SideNavbar({
   isVaccinationAccessable = false,
   isGrowthChartAccessable = false,
   isGynaecHistoryAccessable = false,
+  showVoiceRx = true,
 }) {
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
@@ -3479,8 +3512,8 @@ export function SideNavbar({
   }), [allUploadedDocs.length, labParamsDataProp?.length]);
 
   const navItems = useMemo(() => {
-    const seen = new Set(["pastVisits"]);
-    const orderedItems = [NAV_ITEM_BY_ID.pastVisits];
+    const seen = new Set(["pastVisits", "vitals", "history"]);
+    const orderedItems = [NAV_ITEM_BY_ID.pastVisits, NAV_ITEM_BY_ID.vitals, NAV_ITEM_BY_ID.history];
     const access = {
       isVaccinationAccessable,
       isGrowthChartAccessable,
@@ -3700,8 +3733,9 @@ export function SideNavbar({
           actionHidePlusIcons={actionHidePlusIcons}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={handlePrivateNotesChange}
-          voiceEnabled={SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
+          voiceEnabled={showVoiceRx && SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
           voiceLocked={!!activeVoiceModule}
+          showVoiceRx={showVoiceRx}
         />
       ) : null}
     </aside>

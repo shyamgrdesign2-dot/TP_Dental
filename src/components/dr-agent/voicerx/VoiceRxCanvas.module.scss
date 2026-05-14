@@ -23,13 +23,20 @@
 .modePill {
   display: inline-flex;
   align-items: center;
+  border: none;
   border-radius: 12px;
   padding: 5px 12px 5px 8px;
+  font: inherit;
+  text-align: left;
   backdrop-filter: blur(12px);
-    background: linear-gradient(#ffffff7a 0%, #fff3 100%), linear-gradient(135deg, #d565ea29 0%, #673aac1f 55%, #4b4ad51f 100%);
-    box-shadow: inset 0 1px #ffffffd9, inset 0 0 0 1px #673aac24, 0 4px 12px -4px #673aac1f;
+  background: linear-gradient(#ffffff7a 0%, #fff3 100%), linear-gradient(135deg, #d565ea29 0%, #673aac1f 55%, #4b4ad51f 100%);
+  box-shadow: inset 0 1px #ffffffd9, inset 0 0 0 1px #673aac24, 0 4px 12px -4px #673aac1f;
   transition: background 150ms, box-shadow 150ms;
   cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
 }
 
 .backBtn {
