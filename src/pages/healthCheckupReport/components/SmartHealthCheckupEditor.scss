@@ -206,15 +206,13 @@
         border: 1px solid #f1f1f5 !important;
         border-radius: 0;
 
-        tbody {
-            min-height: 52px !important;
-            height: 52px !important;
-        }
-
         td {
             overflow: visible;
             padding: 6px 12px;
             border: none;
+            height: 52px;
+            word-break: break-word;
+            vertical-align: top;
 
             p {
                 font-family: 'Poppins', sans-serif;
@@ -470,4 +468,9 @@
     height: auto !important;
     min-height: 800px !important;
     overflow: visible !important;
+}
+
+.jodit-context table tr,
+.jodit-wysiwyg table tr {
+    height: 32px !important;
 }

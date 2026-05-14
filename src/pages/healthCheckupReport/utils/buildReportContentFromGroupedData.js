@@ -397,7 +397,7 @@ export function buildReportContentFromGroupedData(
   // Patient info table
   const patientTable = `
   <table class="report-patient-table">
-  <tr><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
+  <tr style="height: 0px !important;"><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
   <tr>
     <td class="report-patient-left">
       <p>Patient Name: <strong>${escapeHtml(patientInfo.name)}</strong></p>
@@ -410,7 +410,7 @@ export function buildReportContentFromGroupedData(
       <p>Package Details: <strong>${escapeHtml(patientInfo.packageDetails)}</strong></p>
     </td>
   </tr>
-  <tr><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
+  <tr style="height: 0px !important;"><td colspan="2"><p class="report-divider">&#8203;</p></td></tr>
 </table>
 `;
 
