@@ -41,6 +41,16 @@ import { buildIntroMessages } from "../engines/intro-engine";
 
 const VOICE_RX_SUBMIT_BUTTON_MIN_MS = 5000;
 
+const toStructuredVoiceItem = (item) => {
+  if (item && typeof item === "object") {
+    return {
+      name: item.name ?? "",
+      detail: item.detail ?? "",
+    };
+  }
+  return { name: item };
+};
+
 export function useDrAgentPanel({
   voiceRxMode,
   onVoiceCaptureModeChange,
@@ -156,7 +166,7 @@ export function useDrAgentPanel({
         return {
           transcript: "",
           sections: data.sections,
-          clinicalNotesHtml: emrSectionsToHtml(data.sections.map((s) => ({ id: s.sectionId, title: s.title, items: s.items.map((it) => it.detail ? `${it.name} — ${it.detail}` : it.name) }))),
+          clinicalNotesHtml: emrSectionsToHtml(data.sections.map((s) => ({ id: s.sectionId, title: s.title, items: s.items.map((it) => it.detail ? `${it.name} (${it.detail})` : it.name) }))),
           durationMs: 0,
           structured: data,
           modeLabel: data.modeLabel || "Conversation Mode"
@@ -383,7 +393,8 @@ export function useDrAgentPanel({
         sections: resultSections.map((s) => ({
           sectionId: s.id,
           title: s.title,
-          items: s.items.map((it) => ({ name: it }))
+          tpIconName: s.tpIconName,
+          items: s.items.map(toStructuredVoiceItem)
         })),
         copyAllPayload: { digitization }
       };
@@ -575,7 +586,12 @@ export function useDrAgentPanel({
         });
 
         const structuredStub = {
-          sections: resultSections.map((s) => ({ sectionId: s.id, title: s.title, items: s.items.map((it) => ({ name: it })) })),
+          sections: resultSections.map((s) => ({
+            sectionId: s.id,
+            title: s.title,
+            tpIconName: s.tpIconName,
+            items: s.items.map(toStructuredVoiceItem),
+          })),
           copyAllPayload: { digitization }
         };
 

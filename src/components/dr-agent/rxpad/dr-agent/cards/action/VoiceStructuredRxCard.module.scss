@@ -57,19 +57,24 @@
 .itemText {
   flex: 1;
   font-weight: 400;
-  color: var(--tp-slate-700, #334155);
+  color: var(--tp-slate-500, #6b7280);
 }
 
 .itemTextTouch {
   flex: 1;
   cursor: pointer;
   font-weight: 400;
-  color: var(--tp-slate-700, #334155);
+  color: var(--tp-slate-500, #6b7280);
+}
+
+.itemName {
+  font-weight: 500;
+  color: var(--tp-slate-700, #374151);
 }
 
 .itemDetail {
   margin-left: 4px;
-  color: var(--tp-slate-400, #94a3b8);
+  color: var(--tp-slate-500, #6b7280);
 }
 
 /* ─── Per-item copy icon ────────────────────────────────────────── */

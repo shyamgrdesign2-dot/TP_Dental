@@ -49,6 +49,14 @@
   justify-content: center;
 }
 
+.iconImg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  filter: grayscale(1) saturate(0) opacity(0.72);
+}
+
 .medicalIcon {
   display: inline-block;
   width: 18px;

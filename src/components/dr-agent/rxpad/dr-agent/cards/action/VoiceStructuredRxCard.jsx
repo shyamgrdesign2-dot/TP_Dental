@@ -11,7 +11,8 @@ import styles from "./VoiceStructuredRxCard.module.scss";
 
 /** Format a VoiceRxItem to a plain text string for clipboard copy */
 function formatVoiceItem(item) {
-  return item.detail ? `${item.name} (${item.detail})` : item.name;
+  if (typeof item === "string") return item;
+  return item?.detail ? `${item.name} (${item.detail})` : item?.name || "";
 }
 
 function field(data, camelKey, snakeKey) {
@@ -158,7 +159,7 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
         <div key={section.sectionId}>
           <SectionSummaryBar
             label={section.title}
-            icon={section.tpIconName}
+            icon={section.tpIconName || section.sectionId}
             trailing={
               copiedKey === `section-${section.sectionId}` ? (
                 <TooltipProvider delayDuration={120}>
@@ -218,7 +219,7 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
                       label="Copy to Rx"
                       onAction={() => handleCopyItem(section.sectionId, item, itemKey, rawRow)}>
                       <span className={styles.itemTextTouch}>
-                        {item.name}
+                        <span className={styles.itemName}>{item.name}</span>
                         {item.detail && (
                           <span className={styles.itemDetail}>({item.detail})</span>
                         )}
@@ -226,7 +227,7 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
                     </ActionableTooltip>
                   ) : (
                     <span className={styles.itemText}>
-                      {item.name}
+                      <span className={styles.itemName}>{item.name}</span>
                       {item.detail && (
                         <span className={styles.itemDetail}>({item.detail})</span>
                       )}
