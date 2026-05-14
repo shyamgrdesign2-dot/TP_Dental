@@ -62,7 +62,7 @@
 .headerActionGroup {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 
   .moduleActionButton {
     margin-left: 0;
@@ -72,7 +72,7 @@
 .headerActionDivider {
   width: 1px;
   height: 28px;
-  margin: 0 14px 0 2px;
+  margin: 0;
   background: #e5e7ef;
 }
 

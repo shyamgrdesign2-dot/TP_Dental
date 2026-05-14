@@ -2349,6 +2349,7 @@ function PrescriptionNew() {
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
+              showVoiceRxModule={canUseVoiceRxModuleUi}
             />
             <div style={{ display: "flex", height: "calc(100vh - 60px)", minHeight: 0, overflow: "hidden" }}>
               <SideNavbar

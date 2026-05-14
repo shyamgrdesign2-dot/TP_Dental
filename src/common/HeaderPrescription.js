@@ -78,7 +78,7 @@ const {
 
 var oneClickCosultationTemplateId = 0
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -2010,8 +2010,36 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     </Col>
                     <Col sm="auto" className={isTablet ? 'headerprescription-actions-col' : ''}>
                         <div className={`align-items-center d-flex h-100${isTablet ? ' headerprescription-actions' : ''}`}>
-                            {isVoiceRxNewFromGB ? (
+                            {!showVoiceRxModule && (
+                                <Popover
+                                    open={popOverVideo}
+                                    onOpenChange={showHideVideoListPopover}
+                                    content={VIDEO_CONTENT}
+                                    trigger="click"
+                                    overlayClassName="pop-430 pp-0 videoTutorial"
+                                    placement="bottom"
+                                >
+                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
+                                        {/* onClick={showHideVideoListPopover} */}
+                                        <span><img src={tutorial2} /></span>
+                                    </button>
+                                </Popover>
+                            )}
+                            {showVoiceRxModule ? (
                                 <div className={voiceModuleStyles.headerActionGroup}>
+                                    <Popover
+                                        open={popOverVideo}
+                                        onOpenChange={showHideVideoListPopover}
+                                        content={VIDEO_CONTENT}
+                                        trigger="click"
+                                        overlayClassName="pop-430 pp-0 videoTutorial"
+                                        placement="bottom"
+                                    >
+                                        <button className="btn d-flex align-items-center btn-text p-0">
+                                            {/* onClick={showHideVideoListPopover} */}
+                                            <span><img src={tutorial2} /></span>
+                                        </button>
+                                    </Popover>
                                     <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
                                     <Popover
                                         open={popOver1}
@@ -2054,6 +2082,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             </Popover>
                                         )}
                                     </Tooltip>
+                                    <Tooltip placement="bottom" title="Customize prescription sections">
+                                        <VoiceRxModuleActionButton type="customize" label="Customize prescription sections" onClick={handleDrawerCustomize} />
+                                    </Tooltip>
+                                    <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
                                 </div>
                             ) : !isMobile ? (
                                 <div className="d-flex align-items-center">
@@ -2100,11 +2132,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                             {DELETE_MODAL}
 
-                            {isVoiceRxNewFromGB ? (
-                                <Tooltip placement="bottom" title="Customize prescription sections">
-                                    <VoiceRxModuleActionButton type="customize" label="Customize prescription sections" onClick={handleDrawerCustomize} />
-                                </Tooltip>
-                            ) : (
+                            {!showVoiceRxModule && (
                                 <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerCustomize}>
                                     {isTablet ? <img src={settingsIcon} alt="Settings" className='me-2' /> : <i className="icon-setting me-2"></i>} <span>{(isTablet) ? "Custom" : "Customize"}</span>
                                 </button>
@@ -2114,21 +2142,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                <span><img height={42} src={tutorial} /></span>
                             </button> */}
 
-                            {!isVoiceRxNewFromGB && (
-                                <Popover
-                                    open={popOverVideo}
-                                    onOpenChange={showHideVideoListPopover}
-                                    content={VIDEO_CONTENT}
-                                    trigger="click"
-                                    overlayClassName="pop-430 pp-0 videoTutorial"
-                                    placement="bottom"
-                                >
-                                    <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
-                                        {/* onClick={showHideVideoListPopover} */}
-                                        <span><img src={tutorial2} /></span>
-                                    </button>
-                                </Popover>
-                            )}
 
                             <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto">
                                 {TEMPLATE_CONTENT_TAB}
