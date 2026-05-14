@@ -231,6 +231,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const hasUngroundedMedications = medicationData.some(isVoiceRxUngroundedMedication);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
       if (!isVoiceRxModuleEnabled) {
@@ -2387,10 +2388,10 @@ function MedicationsBox({ showVoiceRxModule }) {
                 </button>
               )}
             </Popover>
-            <Tooltip placement="bottom" title={(medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
+            <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (medicationData.length > 0) ? "" : "Please enter some medications to save a template"}>
               <Popover
                 open={popOver2}
-                onOpenChange={() => (medicationData.length > 0) && showHideSaveTemplatePopOver()}
+                onOpenChange={() => (medicationData.length > 0) && !hasUngroundedMedications && showHideSaveTemplatePopOver()}
                 // onOpenChange={showHideSaveTemplatePopOver}
                 content={SAVE_CONTENT}
                 trigger="click"
@@ -2399,7 +2400,7 @@ function MedicationsBox({ showVoiceRxModule }) {
               >
                 {isVoiceRxModuleEnabled ? (
                   <span>
-                    <VoiceRxModuleActionButton type="save" label="Save medications as template" disabled={medicationData.length === 0} />
+                    <VoiceRxModuleActionButton type="save" label="Save medications as template" disabled={medicationData.length === 0 || hasUngroundedMedications} />
                   </span>
                 ) : (
                   <button className="btn d-flex align-items-center btn-text">

@@ -699,28 +699,33 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           since: row?.since || row?.duration || "",
           severity: row?.severity || "",
           note: notes,
-          objectID: row?.objectID || row?.id || createModuleVoiceId(),
-          pms_default: row?.pms_default ?? 0,
+          unique_id: row?.unique_id || createModuleVoiceId(),
+          change: row?.change ?? 1,
+          pms_default: 0,
         };
       case "examinations":
         return {
           examination_name: row?.examination_name || name,
           note: notes,
-          objectID: row?.objectID || row?.id || "",
-          pms_default: row?.pms_default ?? 1,
+          unique_id: row?.unique_id || createModuleVoiceId(),
+          change: row?.change ?? 1,
+          pms_default: 0,
         };
-      case "diagnosis":
+      case "diagnosis": {
+        const hasMasterId = row?.tds_id > 0;
         return {
-          objectID: row?.objectID || row?.id || createModuleVoiceId(),
-          tds_id: row?.tds_id,
+          tds_name: row?.tds_name || name,
+          tds_id: row?.tds_id ?? 0,
+          unique_id: row?.unique_id || createModuleVoiceId(),
+          change: row?.change ?? 1,
           pms_default: row?.pms_default ?? 0,
           icd_code: row?.icd_code || "",
-          tds_name: row?.tds_name || name,
-          unique_id: row?.unique_id || createModuleVoiceId(),
           since: row?.since || "",
           status: normalizeDiagnosisStatus(row?.status),
           note: notes,
+          ...(hasMasterId ? { objectID: row?.objectID || row?.id || "" } : {}),
         };
+      }
       case "medications": {
         const frequency = normalizeFrequencyText(row?.frequency || row?.tmm_freq_type_name || row?.frequencyText || row?.frequency_text);
         const duration = normalizeDurationText(row?.duration || row?.tmm_days_duration_type);
@@ -1063,7 +1068,7 @@ export function VoiceRxModuleCapture({
             <div className={styles.processingTranscript}>
               {hasTranscript ? (
                 isDiarized ? (
-                  <ConversationTranscript raw={capturedTranscript} />
+                  <ConversationTranscript raw={capturedTranscript} shimmer />
                 ) : (
                   <DictationTranscript raw={capturedTranscript} animate />
                 )

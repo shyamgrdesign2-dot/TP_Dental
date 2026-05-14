@@ -87,7 +87,7 @@ export function hasTranscriptContent(raw) {
   return transcriptToText(raw).trim().length > 0;
 }
 
-export function ConversationTranscript({ raw }) {
+export function ConversationTranscript({ raw, shimmer = false }) {
   const turns = useMemo(() => getDiarizedTurns(raw), [raw]);
   const [rootRef, inView] = useInView(0.15);
   return (
@@ -109,7 +109,12 @@ export function ConversationTranscript({ raw }) {
               ].filter(Boolean).join(" ")}
               style={{ animationDelay: `${i * 180}ms` }}>
               <span className={styles.turnSpeaker}>{label}:</span>{" "}
-              <span>{t.text}</span>
+              {shimmer ? (() => {
+                const turnWords = t.text.split(/\s+/).filter(Boolean);
+                return turnWords.map((word, wi) => (
+                  <span key={wi} className={inView ? "da-shimmer-word" : undefined} style={inView ? { "--da-delay": `${i * 180 + wi * 70}ms` } : undefined}>{word}{wi < turnWords.length - 1 ? " " : ""}</span>
+                ));
+              })() : <span>{t.text}</span>}
             </div>
           </li>
         );
@@ -125,12 +130,12 @@ export function DictationTranscript({ raw, animate = true }) {
     <p
       aria-label={cleaned}
       className={styles.dictationText}>
-      <span aria-hidden="true" className={animate ? "vrx-dt-word vrx-dt-word--quote" : undefined}>{`"`}</span>
+      <span aria-hidden="true" className={animate ? "da-shimmer-word vrx-dt-word--quote" : undefined} style={animate ? { "--da-delay": "0ms" } : undefined}>{`"`}</span>
       {words.map((word, i) => (
         <span key={`${i}-${word}`} aria-hidden="true">
           <span
-            className={animate ? "vrx-dt-word inline-block" : undefined}
-            style={animate ? { animationDelay: `${i * 35}ms` } : undefined}>
+            className={animate ? "da-shimmer-word" : undefined}
+            style={animate ? { "--da-delay": `${(i + 1) * 70}ms` } : undefined}>
             {word}
           </span>
           {i < words.length - 1 ? " " : null}
@@ -138,8 +143,8 @@ export function DictationTranscript({ raw, animate = true }) {
       ))}
       <span
         aria-hidden="true"
-        className={animate ? "vrx-dt-word" : undefined}
-        style={animate ? { animationDelay: `${words.length * 35}ms` } : undefined}>
+        className={animate ? "da-shimmer-word" : undefined}
+        style={animate ? { "--da-delay": `${(words.length + 1) * 70}ms` } : undefined}>
         {`"`}
       </span>
     </p>

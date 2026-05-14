@@ -140,6 +140,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
     const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
+    const hasUngroundedMedications = medicationData.some(
+      (item) => !!item?.voice_rx_from_module && !(Number(item?.tmm_id) > 0)
+    );
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false} = useLocation().state || {};
@@ -2055,18 +2058,18 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             </Tooltip>
                                         </span>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"}>
                                         {isMobile ? (
                                             <VoiceRxModuleActionButton
                                                 type="save"
                                                 label="Save prescription as template"
-                                                disabled={!(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
-                                                onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}
+                                                disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                                onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}
                                             />
                                         ) : (
                                             <Popover
                                                 open={popOver2}
-                                                onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                                                onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
                                                 content={SAVE_CONTENT_WEB}
                                                 trigger="click"
                                                 overlayClassName="pop-450 pp-0"
@@ -2076,7 +2079,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                                     <VoiceRxModuleActionButton
                                                         type="save"
                                                         label="Save prescription as template"
-                                                        disabled={!(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
+                                                        disabled={hasUngroundedMedications || !(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent())}
                                                     />
                                                 </span>
                                             </Popover>
@@ -2102,20 +2105,21 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
                                         <Popover
                                             open={popOver2}
-                                            onOpenChange={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
+                                            onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
                                             content={SAVE_CONTENT_WEB}
                                             trigger="click"
                                             overlayClassName="pop-450 pp-0"
                                             placement="bottom"
                                         >
-                                            <button className="btn d-flex align-items-center btn-text">
-                                                {" "}
-                                                <i className="icon-save me-2"></i> <span>Save</span>
-                                            </button>
-
+                                            <span>
+                                                <button className="btn d-flex align-items-center btn-text" disabled={hasUngroundedMedications}>
+                                                    {" "}
+                                                    <i className="icon-save me-2"></i> <span>Save</span>
+                                                </button>
+                                            </span>
                                         </Popover>
                                     </Tooltip>
                                 </div>
@@ -2124,8 +2128,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
                                         <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
-                                        <button className='btn d-flex align-items-center btn-text' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()} > <i className="icon-save me-2"></i> <span>Save</span></button>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                        <span>
+                                            <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> <i className="icon-save me-2"></i> <span>Save</span></button>
+                                        </span>
                                     </Tooltip>
                                 </div>
                             )}
