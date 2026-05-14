@@ -1,3 +1,5 @@
+import { normalizeHealthCheckupReportHtml } from "./normalizeReportHtml";
+
 /**
  * Print report to PDF using the browser's native print engine via a hidden iframe.
  * No screenshot, canvas, or jsPDF — true CSS layout, page breaks, vector text.
@@ -23,10 +25,11 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
   try {
     const parser = new DOMParser();
     const parsedDoc = parser.parseFromString(rawHtmlContent, 'text/html');
-    const editableEl = parsedDoc.querySelector('.smart-editor-editable') || parsedDoc.querySelector('.ProseMirror');
+    const editableEl = parsedDoc.querySelector('.smart-editor-editable') || parsedDoc.querySelector('.ProseMirror') || parsedDoc.querySelector('.jodit-wysiwyg');
     if (editableEl) {
       htmlContent = editableEl.innerHTML; // Extract ONLY the tables/paragraphs/headers
     }
+    htmlContent = normalizeHealthCheckupReportHtml(htmlContent);
   } catch (e) {
     console.error("printReportWithIframe: failed to parse HTML wrappers", e);
   }
@@ -95,24 +98,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     </div>
   `;
 
-  // Basic sanitization
-  function sanitizeReportHtml(rawHtml) {
-    const parsed = new DOMParser().parseFromString(rawHtml || "", "text/html");
-    parsed.querySelectorAll("script, iframe, object, embed").forEach((node) => node.remove());
-    parsed.querySelectorAll("*").forEach((node) => {
-      Array.from(node.attributes).forEach((attr) => {
-        const name = attr.name.toLowerCase();
-        const value = String(attr.value || "").trim().toLowerCase();
-        if (name.startsWith("on")) node.removeAttribute(attr.name);
-        if ((name === "href" || name === "src") && value.startsWith("javascript:")) {
-          node.removeAttribute(attr.name);
-        }
-      });
-    });
-    return parsed.body.innerHTML;
-  }
-
-  const sanitizedHtmlStructure = sanitizeReportHtml(finalHtmlStructure);
+  const sanitizedHtmlStructure = normalizeHealthCheckupReportHtml(finalHtmlStructure);
 
   doc.open();
   const criticalTableCss = `
@@ -227,8 +213,8 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     
     
     /* Critical table layout */
-    .smart-editor-editable .tableWrapper:not(:first-of-type) > table,
-    .smart-editor-editable > table:not(:first-of-type) {
+    .smart-editor-editable .tableWrapper:not(:first-of-type) > table:not(.report-section-box),
+    .smart-editor-editable > table:not(:first-of-type):not(.report-section-box) {
       table-layout: auto !important; /* using auto instead of fixed to avoid overlapping headers when content is long */
       border-collapse: collapse !important;
       width: 100% !important;
@@ -241,10 +227,10 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       page-break-inside: avoid !important;
       page-break-after: auto !important;
     }
-    .smart-editor-editable .tableWrapper:not(:first-of-type) > table th,
-    .smart-editor-editable .tableWrapper:not(:first-of-type) > table td,
-    .smart-editor-editable > table:not(:first-of-type) th,
-    .smart-editor-editable > table:not(:first-of-type) td {
+    .smart-editor-editable .tableWrapper:not(:first-of-type) > table:not(.report-section-box) th,
+    .smart-editor-editable .tableWrapper:not(:first-of-type) > table:not(.report-section-box) td,
+    .smart-editor-editable > table:not(:first-of-type):not(.report-section-box) th,
+    .smart-editor-editable > table:not(:first-of-type):not(.report-section-box) td {
       border: 1px solid #d1d5db !important;
       white-space: normal !important;
       word-break: break-word !important;

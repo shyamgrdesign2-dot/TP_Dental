@@ -641,11 +641,9 @@ const module_id =
     : "68624471353771e0a587fed6";
 const um_id = process.env?.NODE_ENV !== "prod" ? "493" : "12028";
 
-const formatCustomModuleColumnTitle = (value = "") => {
-  return String(value || "")
-    .trim()
-    .toUpperCase();
-};
+/** Custom module labels/values in PDF: keep user casing and spacing; only normalize NBSP. */
+const formatCustomModuleColumnTitle = (value = "") =>
+  value == null || value === "" ? "" : String(value).replace(/\u00A0/g, " ");
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const {
@@ -15356,7 +15354,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   fontWeight: 500,
                                                 }}
                                               >
-                                                {entry.value}
+                                                {normalizePdfText(entry.value)}
                                               </Text>
                                               {idx <
                                                 fieldEntries.length - 1 && (
@@ -15583,7 +15581,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   fontWeight: 500,
                                                 }}
                                               >
-                                                {entry.value}
+                                                {normalizePdfText(entry.value)}
                                               </Text>
                                               {idx <
                                                 fieldEntries.length - 1 && (
