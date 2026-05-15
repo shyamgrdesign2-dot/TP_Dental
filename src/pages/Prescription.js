@@ -44,7 +44,7 @@ import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails } from "../redux/obstetricSlice";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, isValidMongoId } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import {
@@ -209,7 +209,18 @@ function Prescription() {
 
   const { state } = useLocation();
   const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx, fromRepeatRx } = state || {};
-  
+
+  const isPrescriptionVoiceOrGenRxFlow =
+    Boolean(fromVoiceRecording) ||
+    (typeof inputText === "string" && inputText.trim().length > 0) ||
+    (caseManagerData?.smart_prescription_filename &&
+      isValidMongoId(caseManagerData.smart_prescription_filename));
+
+  const shouldApplyZydusVisibleRepeatEditFilter =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    (Boolean(fromRepeatRx) || Boolean(isEditRx)) &&
+    !isPrescriptionVoiceOrGenRxFlow;
+
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
   const allAvailableModules = React.useMemo(() => {
@@ -914,13 +925,25 @@ function Prescription() {
       ) {
         setDiagnosisData(caseManagerData.diagnosis);
       }
+      const medicineListForHydration = (() => {
+        const list = caseManagerData.medicine;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (m) =>
+            !Object.prototype.hasOwnProperty.call(m, "visible") ||
+            m.visible === undefined ||
+            m.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.medicine?.length > 0 &&
+        medicineListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        const updatedData = caseManagerData.medicine.map((e) => {
+        const updatedData = medicineListForHydration.map((e) => {
           const unitObj = e?.medicineUnit
             ? e?.medicineUnit.find((x) => x.tmu_id == e.tmm_unit)
             : null;
@@ -985,13 +1008,25 @@ function Prescription() {
       ) {
         setAdviceData(caseManagerData.advice);
       }
+      const investigationListForHydration = (() => {
+        const list = caseManagerData.investigation;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (row) =>
+            !Object.prototype.hasOwnProperty.call(row, "visible") ||
+            row.visible === undefined ||
+            row.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.investigation?.length > 0 &&
+        investigationListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        setInvestigationData(caseManagerData.investigation);
+        setInvestigationData(investigationListForHydration);
       }
       if (
         caseManagerData.follow_up_date &&

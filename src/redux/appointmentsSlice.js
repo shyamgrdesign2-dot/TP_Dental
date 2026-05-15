@@ -617,7 +617,9 @@ const appointmentsSlice = createSlice({
 
         let modifiedData = [];
         if (action.meta.arg.apStatue === TAB_ZYDUS_ENCOUNTER) {
-          modifiedData = action.payload.map((e) => {
+          modifiedData = (action.payload || [])
+            .filter((e) => !e.isCancelled)
+            .map((e) => {
             const age = calculateAge(
               moment(e.dob, "DD-MM-YYYY").format("YYYY-MM-DD")
             );
@@ -670,7 +672,7 @@ const appointmentsSlice = createSlice({
           : modifiedData;
 
         if (action.meta.arg.apStatue === TAB_ZYDUS_ENCOUNTER) {
-          state.zydusEncounterCount = modifiedData?.length;
+          state.zydusEncounterCount = updatedData?.length ?? 0;
         } else {
           state.zydusAappointmentCount = updatedData?.filter(
             (item) =>

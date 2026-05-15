@@ -65,7 +65,7 @@ import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree, isValidMongoId } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import {
@@ -240,6 +240,17 @@ function TabPrescription() {
   }, [customModules, hospitalSearchResults, userId]);
   const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin, isEditRx, fromRepeatRx} = state || {};
   const chartType = state?.chartType;
+
+  const isPrescriptionVoiceOrGenRxFlow =
+    Boolean(fromVoiceRecording) ||
+    (typeof inputText === "string" && inputText.trim().length > 0) ||
+    (caseManagerData?.smart_prescription_filename &&
+      isValidMongoId(caseManagerData.smart_prescription_filename));
+
+  const shouldApplyZydusVisibleRepeatEditFilter =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    (Boolean(fromRepeatRx) || Boolean(isEditRx)) &&
+    !isPrescriptionVoiceOrGenRxFlow;
 
   const tcmId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.tcm_id;
   const pamId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.pam_id;
@@ -864,13 +875,25 @@ function TabPrescription() {
       ) {
         setDiagnosisData(caseManagerData.diagnosis);
       }
+      const medicineListForHydration = (() => {
+        const list = caseManagerData.medicine;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (m) =>
+            !Object.prototype.hasOwnProperty.call(m, "visible") ||
+            m.visible === undefined ||
+            m.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.medicine?.length > 0 &&
+        medicineListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        const updatedData = caseManagerData.medicine.map((e) => {
+        const updatedData = medicineListForHydration.map((e) => {
           const medicineUnit = e?.medicineUnit.map((e1) => {
             return {
               key: JSON.stringify({ ...e1 }),
@@ -913,13 +936,25 @@ function TabPrescription() {
       ) {
         setAdviceData(caseManagerData.advice);
       }
+      const investigationListForHydration = (() => {
+        const list = caseManagerData.investigation;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (row) =>
+            !Object.prototype.hasOwnProperty.call(row, "visible") ||
+            row.visible === undefined ||
+            row.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.investigation?.length > 0 &&
+        investigationListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        setInvestigationData(caseManagerData.investigation);
+        setInvestigationData(investigationListForHydration);
       }
       if (
         caseManagerData.follow_up_date &&
