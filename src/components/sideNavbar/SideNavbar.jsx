@@ -2243,6 +2243,37 @@ function WrittenRxShimmer() {
   );
 }
 
+function LoadMoreRowsShimmer({ label = "Loading more" }) {
+  return (
+    <div className="snv-load-more-shimmer" aria-label={label} role="status">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <span key={index} className="snv-shimmer-block snv-load-more-shimmer-row" />
+      ))}
+    </div>
+  );
+}
+
+function LoadMoreButton({ onClick, disabled = false }) {
+  return (
+    <button type="button" className="snv-load-more-btn" onClick={onClick} disabled={disabled}>
+      <span className="snv-load-more-content">
+        <span>Load more</span>
+        <span className="snv-scroll-hint-dot snv-load-more-arrow" aria-hidden="true">
+          <ArrowDown2 color="#202124" size={16} strokeWidth={1.5} variant="Linear" />
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function LoadMoreFooter({ loading = false, onClick, shimmerLabel }) {
+  return (
+    <div className={`snv-load-more-footer ${loading ? "snv-load-more-footer-loading" : ""}`}>
+      {loading ? <LoadMoreRowsShimmer label={shimmerLabel} /> : <LoadMoreButton onClick={onClick} />}
+    </div>
+  );
+}
+
 function PastVisitInnerSectionCard({ title, children }) {
   const [expanded, setExpanded] = useState(true);
   return (
@@ -2331,6 +2362,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
 
   const visibleVisits = useMemo(() => visits.slice(0, visibleCount), [visibleCount, visits]);
   const canLoadMore = visibleCount < visits.length || hasMore;
+  const showLoadMoreFooter = canLoadMore || loading;
 
   const handleLoadMore = useCallback(() => {
     if (visibleCount < visits.length) {
@@ -2367,7 +2399,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
   }, [handleCopyPayload]);
 
   return (
-    <div className="snv-content-scroll snv-past-visits-scroll" data-snv-scroll-root="true">
+    <div className={`snv-content-scroll snv-past-visits-scroll ${showLoadMoreFooter ? "snv-content-scroll-has-load-more" : ""}`} data-snv-scroll-root="true">
       {visits.length === 0 && !loading ? (
         <div className="snv-empty-state">No past visits recorded.</div>
       ) : (
@@ -2435,18 +2467,8 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
           );
         })
       )}
-      {loading ? <div className="snv-loading-state">Loading visits...</div> : null}
-      {canLoadMore ? (
-        <button type="button" className="snv-load-more-btn" onClick={handleLoadMore} disabled={loading}>
-          <span className="snv-load-more-content">
-            <span>{loading ? "Loading..." : "Load more"}</span>
-            {!loading ? (
-              <span className="snv-scroll-hint-dot snv-load-more-arrow" aria-hidden="true">
-                <ArrowDown2 color="#202124" size={16} strokeWidth={1.5} variant="Linear" />
-              </span>
-            ) : null}
-          </span>
-        </button>
+      {showLoadMoreFooter ? (
+        <LoadMoreFooter loading={loading} onClick={handleLoadMore} shimmerLabel="Loading more visits" />
       ) : null}
     </div>
   );
@@ -2601,16 +2623,40 @@ function DateRowsContent({ entries = [] }) {
   const firstEntryId = entries[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstEntryId));
   const [visibleCount, setVisibleCount] = useState(SIDE_NAV_BATCH_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreTimerRef = useRef(null);
 
   useEffect(() => {
     setExpandedById(defaultExpandedMap(firstEntryId));
     setVisibleCount(SIDE_NAV_BATCH_SIZE);
+    setLoadingMore(false);
+    if (loadingMoreTimerRef.current) {
+      clearTimeout(loadingMoreTimerRef.current);
+      loadingMoreTimerRef.current = null;
+    }
   }, [firstEntryId]);
+
+  useEffect(() => () => {
+    if (loadingMoreTimerRef.current) clearTimeout(loadingMoreTimerRef.current);
+  }, []);
 
   const visibleEntries = useMemo(() => entries.slice(0, visibleCount), [entries, visibleCount]);
 
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    loadingMoreTimerRef.current = setTimeout(() => {
+      setVisibleCount((current) => Math.min(current + SIDE_NAV_BATCH_SIZE, entries.length));
+      setLoadingMore(false);
+      loadingMoreTimerRef.current = null;
+    }, 300);
+  }, [entries.length, loadingMore]);
+
+  const canLoadMore = visibleCount < entries.length;
+  const showLoadMoreFooter = canLoadMore || loadingMore;
+
   return (
-    <div className="snv-content-scroll" data-snv-scroll-root="true">
+    <div className={`snv-content-scroll ${showLoadMoreFooter ? "snv-content-scroll-has-load-more" : ""}`} data-snv-scroll-root="true">
       {entries.length === 0 ? (
         <div className="snv-empty-state">No data recorded.</div>
       ) : (
@@ -2626,14 +2672,8 @@ function DateRowsContent({ entries = [] }) {
           );
         })
       )}
-      {visibleCount < entries.length ? (
-        <button
-          type="button"
-          className="snv-load-more-btn"
-          onClick={() => setVisibleCount((current) => Math.min(current + SIDE_NAV_BATCH_SIZE, entries.length))}
-        >
-          Load more
-        </button>
+      {showLoadMoreFooter ? (
+        <LoadMoreFooter loading={loadingMore} onClick={handleLoadMore} shimmerLabel="Loading more vitals" />
       ) : null}
     </div>
   );
