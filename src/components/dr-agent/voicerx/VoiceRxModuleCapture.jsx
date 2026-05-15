@@ -591,83 +591,74 @@ function firstTextValue(...values) {
   return "";
 }
 
-const TODO_INTEL_MEDICAL_HISTORY_TYPE_TO_TITLE = {
-  allergy: "Allergies",
-  allergies: "Allergies",
-  past: "Medical Condition",
-  past_history: "Medical Condition",
-  past_medical_history: "Medical Condition",
-  medical: "Medical Condition",
-  condition: "Medical Condition",
-  medical_condition: "Medical Condition",
-  medical_history: "Medical Condition",
-  family: "Family History",
-  family_history: "Family History",
-  lifestyle: "Lifestyle",
-  others: "Lifestyle",
-  other: "Lifestyle",
-  surgery: "Surgical History",
-  surgical_history: "Surgical History",
-};
-
-function todoIntelMedicalHistoryTitleFromCurrentBackendType(type) {
-  const key = String(type || "").trim().toLowerCase().replace(/\s+/g, "_");
-  return TODO_INTEL_MEDICAL_HISTORY_TYPE_TO_TITLE[key] || "Medical Condition";
+function compactModuleContextRow(row) {
+  return Object.fromEntries(
+    Object.entries(row).filter(([, value]) => (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ""
+    ))
+  );
 }
 
-function todoIntelMedicalHistoryEnableFromCurrentBackend(enable) {
-  const key = String(enable || "").trim().toLowerCase();
-  if (!key) return "Y";
-  if (["y", "yes", "true", "active", "inactive", "present", "positive"].includes(key)) return "Y";
-  if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
-  return enable;
-}
+export function moduleRowsToPreviousContext(rows = [], moduleApiName) {
+  if (!Array.isArray(rows)) return undefined;
 
-function todoIntelMedicalHistoryStatusFromCurrentBackend(row = {}) {
-  if (row?.status) return row.status;
-  const key = String(row?.enable || "").trim().toLowerCase();
-  if (key === "active") return "Active";
-  if (key === "inactive") return "Inactive";
-  return "";
-}
+  const contextRows = rows
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
 
-function todoIntelMedicalHistoryTagFromCurrentBackendRow(row = {}) {
-  const title = String(row?.name || row?.title || row?.lineItem || "").trim();
-  if (!title) return null;
-  return {
-    ...row,
-    title,
-    enable: todoIntelMedicalHistoryEnableFromCurrentBackend(row?.enable),
-    note: row?.note || row?.notes || "",
-    notes: row?.notes || row?.note || "",
-    since: row?.since || row?.duration || "",
-    relationship: row?.relationship || row?.relation || "",
-    medication: row?.medication || "",
-    status: todoIntelMedicalHistoryStatusFromCurrentBackend(row),
-    dateType: row?.dateType || "",
-    date: row?.date || "",
-  };
-}
+      switch (moduleApiName) {
+        case "symptoms":
+          return compactModuleContextRow({
+            name: row.symptom_name,
+            duration: row.since,
+            severity: row.severity,
+            notes: row.note,
+          });
+        case "examinations":
+          return compactModuleContextRow({
+            name: row.examination_name,
+            notes: row.note,
+          });
+        case "diagnosis":
+          return compactModuleContextRow({
+            name: row.tds_name,
+            icd_code: row.icd_code,
+            duration: row.since,
+            status: row.status,
+            notes: row.note,
+          });
+        case "medications":
+          return compactModuleContextRow({
+            name: row.tmm_medicine_name || row.tm_medicine_name || row.medicine_name,
+            dosage: row.tmm_dosage_unit_name || row.tmm_dosage,
+            frequency: row.tmm_freq_type_name,
+            duration: row.tmm_days_duration_type || [row.tmm_days, row.tmm_duration_type].filter(Boolean).join(" "),
+            schedule: row.tmm_time_name,
+            notes: row.tmm_remarks || row.note,
+          });
+        case "advice":
+          return compactModuleContextRow({
+            name: row.advice_name,
+          });
+        case "lab_investigations":
+          return compactModuleContextRow({
+            name: row.investigation_name,
+            notes: row.note,
+          });
+        case "surgery":
+          return compactModuleContextRow({
+            name: row.name || row.surgery_name || row.procedure_name,
+            notes: row.notes || row.note,
+          });
+        default:
+          return compactModuleContextRow(row);
+      }
+    })
+    .filter((row) => row && Object.keys(row).length > 0);
 
-function todoIntelMedicalHistoryResponseToSections(rows = []) {
-  if (!Array.isArray(rows)) return [];
-
-  if (rows.some((row) => Array.isArray(row?.tags))) {
-    return rows.filter((section) => section?.no_know_history || section?.tags?.length);
-  }
-
-  const sections = new Map();
-  rows.forEach((row) => {
-    const tag = todoIntelMedicalHistoryTagFromCurrentBackendRow(row);
-    if (!tag) return;
-    const title = todoIntelMedicalHistoryTitleFromCurrentBackendType(row?.type);
-    if (!sections.has(title)) {
-      sections.set(title, { title, no_know_history: false, tags: [] });
-    }
-    sections.get(title).tags.push(tag);
-  });
-
-  return Array.from(sections.values());
+  return contextRows.length ? contextRows : undefined;
 }
 
 export function normalizeModuleRows(responseJson, moduleApiName) {
@@ -684,7 +675,7 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
     .filter((row) => Object.values(row || {}).some((value) => value !== undefined && value !== null && String(value).trim() !== ""));
 
   if (moduleApiName === "medical_history") {
-    return todoIntelMedicalHistoryResponseToSections(rows);
+    return rows.filter((section) => section?.no_know_history || section?.tags?.length);
   }
 
   return rows.map((row) => {
@@ -1099,7 +1090,7 @@ export function VoiceRxModuleCapture({
                   <DictationTranscript raw={capturedTranscript} animate />
                 )
               ) : (
-                <p className={styles.processingPlaceholder}>Capturing your consultation…</p>
+                <p className={styles.processingPlaceholder}>Refining your captured consultation...</p>
               )}
             </div>
           </div>

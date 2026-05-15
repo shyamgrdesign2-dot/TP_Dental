@@ -37,6 +37,7 @@ import { ASSETS } from "../assets";
 import { Grid5, Trash } from "iconsax-reactjs";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
   VoiceRxModuleButton,
   VoiceRxModuleActionButton,
   VoiceRxModuleCapture,
@@ -87,8 +88,14 @@ function ExaminationBox({ showVoiceRxModule }) {
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const applyVoiceExaminations = useCallback((nextExaminations) => {
-    setExaminationData((prev) => [...prev, ...nextExaminations]);
+    if (nextExaminations.length > 0) {
+      setExaminationData(nextExaminations);
+    }
   }, [setExaminationData]);
+  const examinationsVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(examinationData, "examinations"),
+    [examinationData]
+  );
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
@@ -871,7 +878,7 @@ function ExaminationBox({ showVoiceRxModule }) {
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Examinations"
-              previousContext={examinationData}
+              previousContext={examinationsVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

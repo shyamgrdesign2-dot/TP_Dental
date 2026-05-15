@@ -38,6 +38,7 @@ import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
   VoiceRxModuleButton,
   VoiceRxModuleActionButton,
   VoiceRxModuleCapture,
@@ -128,8 +129,14 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const [showShimmer, setShowShimmer] = useState(false);
   const applyVoiceSymptoms = useCallback((nextSymptoms) => {
-    setSymptomsData((prev) => [...prev, ...nextSymptoms]);
+    if (nextSymptoms.length > 0) {
+      setSymptomsData(nextSymptoms);
+    }
   }, [setSymptomsData]);
+  const symptomsVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(symptomsData, "symptoms"),
+    [symptomsData]
+  );
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
@@ -1113,7 +1120,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Symptoms"
-              previousContext={symptomsData}
+              previousContext={symptomsVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.symptoms}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

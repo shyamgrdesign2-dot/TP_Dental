@@ -281,7 +281,9 @@ export function DrAgentPanel({
           onMinimize={onClose}
           onAddDetailsByVoice={beginVoiceAddOn}
           onQuickEditSubmit={submitQuickEdit}
-          onCopyResult={(payload) => runCopyWithAura(payload)}
+          onCopyResult={(payload) => runCopyWithAura(payload, {
+            onAfterCopy: () => toast.success("Copied to RxPad")
+          })}
           onCopyAll={() => {
             if (!voiceRxResult) return;
             const copyAllPayload = voiceRxResult.digitization

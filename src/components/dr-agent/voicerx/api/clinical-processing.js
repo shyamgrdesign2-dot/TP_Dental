@@ -157,6 +157,21 @@ function buildIdentityPayload(context) {
 	};
 }
 
+function hasPreviousContext(value) {
+	if (value === undefined || value === null) return false;
+	if (Array.isArray(value)) return value.length > 0;
+	if (typeof value === 'object') return Object.keys(value).length > 0;
+	return String(value).trim() !== '';
+}
+
+function buildDigitizationPayload(context, previousContext) {
+	const payload = buildIdentityPayload(context);
+	if (hasPreviousContext(previousContext)) {
+		payload.previous_context = previousContext;
+	}
+	return payload;
+}
+
 function describeFormData(formData) {
 	if (typeof FormData === 'undefined' || !(formData instanceof FormData)) return [];
 	return Array.from(formData.entries()).map(([key, value]) => {
@@ -293,9 +308,9 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 	});
 }
 
-function runDigitizeModule({ context, signal, onResult }) {
+function runDigitizeModule({ context, previousContext, signal, onResult }) {
 	const cfg = MODULES.digitization;
-	return withRetry(() => postJson(cfg.path, buildIdentityPayload(context), cfg.name, { timeoutMs: MODULE_TIMEOUT_MS, signal }))
+	return withRetry(() => postJson(cfg.path, buildDigitizationPayload(context, previousContext), cfg.name, { timeoutMs: MODULE_TIMEOUT_MS, signal }))
 		.then((responseJson) => {
 			const result = {
 				name: cfg.tab,
@@ -312,14 +327,14 @@ function runDigitizeModule({ context, signal, onResult }) {
 		});
 }
 
-export async function digitiseClinicalData({ context, signal, onResult }) {
+export async function digitiseClinicalData({ context, previousContext, signal, onResult }) {
 	if (!context?.patientId || !context?.doctorId || !context?.sessionId) {
 		throw new Error('Missing patient, doctor, or session id for clinical processing.');
 	}
-	return runDigitizeModule({ context, signal, onResult });
+	return runDigitizeModule({ context, previousContext, signal, onResult });
 }
 
-export function retryDigitization({ context, signal, onResult }) {
+export function retryDigitization({ context, previousContext, signal, onResult }) {
 	onResult?.('digitization', { name: 'digitization', status: 'pending' });
-	return runDigitizeModule({ context, signal, onResult });
+	return runDigitizeModule({ context, previousContext, signal, onResult });
 }

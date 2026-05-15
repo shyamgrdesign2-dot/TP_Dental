@@ -334,7 +334,7 @@ export function VoiceRxCanvas({
               showSectionInStatus={false}
               isAwaitingResponse={voiceEditProcessing}
               processingTranscript={voiceEditTranscript}
-              processingLabel={voiceEditPhase === "creating_transcript" ? "Capturing your consultation…" : "Updating clinical notes…"}
+              processingLabel={voiceEditPhase === "creating_transcript" ? "Refining your captured consultation..." : "Updating clinical notes…"}
               onCancel={handleVoiceEditCancel}
               onSubmit={handleVoiceEditSubmit}
               radiusClassName="rounded-t-[18px]"
@@ -377,15 +377,15 @@ function VoiceEditProcessing({ phase, transcript }) {
           <div className={styles.overlayTranscriptScroll}>
             {hasTranscript ? (
               isDiarized ? (
-                <ConversationTranscript raw={transcript} />
+                <ConversationTranscript raw={transcript} shimmer={phase !== "creating_transcript"} />
               ) : (
                 <DictationTranscript
                   raw={transcript}
-                  animate={phase === "transcript_ready"} />
+                  animate={phase !== "creating_transcript"} />
               )
             ) : (
               <p className={styles.overlayTranscriptPlaceholder}>
-                Capturing your consultation…
+                Refining your captured consultation...
               </p>
             )}
           </div>

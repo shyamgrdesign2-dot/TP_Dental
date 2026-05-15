@@ -278,9 +278,9 @@ export function VoiceTranscriptProcessingCard({
             ref={transcriptScrollRef}
             className={styles.shinerBody}>
             {transcriptPending ? (
-              <div className={styles.creatingTranscript}>Capturing your consultation…</div>
+              <div className={styles.creatingTranscript}>Refining your captured consultation...</div>
             ) : isDiarized ? (
-              <ConversationTranscript raw={transcript} />
+              <ConversationTranscript raw={transcript} shimmer />
             ) : (
               <DictationTranscript raw={transcript} />
             )}

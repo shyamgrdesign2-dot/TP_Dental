@@ -38,6 +38,7 @@ import { classNames } from "@react-pdf-viewer/core";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
   VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
@@ -66,8 +67,14 @@ function AdviceBox({ showVoiceRxModule }) {
   // const [adviceData, setAdviceData] = useState([]);
   const [adviceDataCheck, setAdviceDataCheck] = useState([]);
   const applyVoiceAdvice = useCallback((nextAdvice) => {
-    setAdviceData((prev) => [...prev, ...nextAdvice]);
+    if (nextAdvice.length > 0) {
+      setAdviceData(nextAdvice);
+    }
   }, [setAdviceData]);
+  const adviceVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(adviceData, "advice"),
+    [adviceData]
+  );
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
@@ -811,7 +818,7 @@ function AdviceBox({ showVoiceRxModule }) {
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Advices"
-              previousContext={adviceData}
+              previousContext={adviceVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.advice}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

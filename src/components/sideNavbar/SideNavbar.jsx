@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Line } from "react-chartjs-2";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import moment from "moment";
 import axios from "axios";
@@ -45,7 +45,12 @@ import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voic
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
-import { convertMedicalHistoryToContextFormat } from "../../utils/medicalHistoryConverters";
+import {
+  findMatchingMedicalHistoryTag,
+  mergeMedicalHistoryTagsBySection,
+  tagsAreDuplicateForHistoryMerge,
+} from "../../utils/medicalHistoryUtils";
+import { listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import "./sideNavbar.css";
 
@@ -1425,52 +1430,104 @@ function normalizeSideNavVitals(payload) {
   };
 }
 
-const TODO_INTEL_SIDE_NAV_HISTORY_TYPE_TO_TITLE = {
-  allergy: "Allergies",
-  allergies: "Allergies",
-  past: "Medical Condition",
-  past_history: "Medical Condition",
-  past_medical_history: "Medical Condition",
-  medical: "Medical Condition",
-  condition: "Medical Condition",
-  medical_condition: "Medical Condition",
-  medical_history: "Medical Condition",
-  family: "Family History",
-  family_history: "Family History",
-  lifestyle: "Lifestyle",
-  others: "Lifestyle",
-  other: "Lifestyle",
-  surgery: "Surgical History",
-  surgical_history: "Surgical History",
-};
-
-function todoIntelSideNavHistoryType(type) {
-  const key = String(type || "").trim().toLowerCase().replace(/\s+/g, "_");
-  return TODO_INTEL_SIDE_NAV_HISTORY_TYPE_TO_TITLE[key] || "Medical Condition";
+function normalizeSideNavHistorySections(payload) {
+  const rows = firstSideNavArray(payload, ["medical_history", "medicalHistory", "history"]);
+  return rows.filter((section) => section?.no_know_history || section?.tags?.length);
 }
 
-function normalizeSideNavHistoryItems(payload) {
-  const rows = firstSideNavArray(payload, ["medical_history", "medicalHistory", "history"]);
-  if (rows.some((row) => Array.isArray(row?.tags))) {
-    return rows.flatMap((section) => (
-      (section?.tags || []).map((tag) => ({
+function normalizeSideNavMedicalHistoryMatch(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function mapSideNavMedicalHistoryIdsFromDefaultList(data = [], defaultList = []) {
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .map((item) => {
+      const incomingTitle = item?.title || item?.section || item?.type || "Medical Condition";
+      let section = defaultList?.find((defaultItem) => (
+        Number(defaultItem?.tmmhs_id) === Number(item?.tmmhs_id) ||
+        normalizeSideNavMedicalHistoryMatch(defaultItem?.title) === normalizeSideNavMedicalHistoryMatch(incomingTitle)
+      ));
+      if (!section && normalizeSideNavMedicalHistoryMatch(incomingTitle) === "others") {
+        section = defaultList?.find((defaultItem) => normalizeSideNavMedicalHistoryMatch(defaultItem?.title) === "lifestyle");
+      }
+
+      const mappedTags = Array.isArray(item?.tags)
+        ? item.tags
+          .map((tag) => {
+            const tagTitle = String(tag?.title || tag?.name || tag?.lineItem || "").trim();
+            if (!tagTitle) return null;
+            const matchedTag = findMatchingMedicalHistoryTag(
+              { title: tagTitle, tmmhst_id: tag?.tmmhst_id },
+              section?.tags,
+              section?.tmmhs_id
+            );
+            return {
+              ...tag,
+              title: tagTitle,
+              ...(matchedTag?.tmmhst_id ? { tmmhst_id: matchedTag.tmmhst_id } : {}),
+              note: tag?.note || tag?.notes || "",
+              notes: tag?.notes || tag?.note || "",
+              enable: tag?.enable === "" || tag?.enable === undefined ? "Y" : tag?.enable,
+              relationship: tag?.relationship || tag?.relation || "",
+              since: tag?.since || tag?.duration || "",
+              status: tag?.status || "",
+              medication: tag?.medication || "",
+            };
+          })
+          .filter(Boolean)
+        : [];
+
+      return {
+        ...item,
+        title: section?.title || incomingTitle,
+        ...(section?.tmmhs_id ? { tmmhs_id: section.tmmhs_id } : {}),
+        no_know_history: Boolean(item?.no_know_history),
+        tags: mappedTags,
+      };
+    })
+    .filter((section) => section.no_know_history || section.tags.length);
+}
+
+function mergeSideNavMedicalHistorySections(base = [], incoming = []) {
+  const baseData = Array.isArray(base) ? JSON.parse(JSON.stringify(base)) : [];
+  const incomingData = Array.isArray(incoming) ? JSON.parse(JSON.stringify(incoming)) : [];
+  const usedIncomingIndexes = new Set();
+
+  const merged = baseData.map((section) => {
+    const incomingIndex = incomingData.findIndex((item) => (
+      Number(item?.tmmhs_id) === Number(section?.tmmhs_id) ||
+      normalizeSideNavMedicalHistoryMatch(item?.title) === normalizeSideNavMedicalHistoryMatch(section?.title)
+    ));
+    const incomingSection = incomingIndex >= 0 ? incomingData[incomingIndex] : null;
+    if (!incomingSection) return section;
+    usedIncomingIndexes.add(incomingIndex);
+
+    const mergedTags = [
+      ...(section?.tags || []).map((tag) => ({
         ...tag,
-        type: todoIntelSideNavHistoryType(section?.title || section?.type || section?.section),
-        name: tag?.name || tag?.title || tag?.lineItem || "",
-        duration: tag?.duration || tag?.since || "",
-        notes: tag?.notes ?? tag?.note ?? "",
-        relation: tag?.relation || tag?.relationship || "",
-      }))
-    )).filter((row) => hasValue(row.name) || hasValue(row.notes));
-  }
-  return rows.map((row) => ({
-    ...row,
-    type: todoIntelSideNavHistoryType(row?.type || row?.category || row?.section),
-    name: row?.name || row?.title || row?.condition || row?.lineItem || "",
-    duration: row?.duration || row?.since || "",
-    notes: row?.notes ?? row?.note ?? "",
-    relation: row?.relation || row?.relationship || "",
-  })).filter((row) => hasValue(row.name) || hasValue(row.notes));
+        ...(findMatchingMedicalHistoryTag(tag, incomingSection?.tags, section?.tmmhs_id) || {}),
+      })),
+      ...(incomingSection?.tags || []).filter(
+        (incomingTag) => !(section?.tags || []).some((existingTag) =>
+          tagsAreDuplicateForHistoryMerge(existingTag, incomingTag, section?.tmmhs_id)
+        )
+      ),
+    ];
+
+    return {
+      ...section,
+      ...incomingSection,
+      tags: mergeMedicalHistoryTagsBySection(mergedTags, [], section?.tmmhs_id || incomingSection?.tmmhs_id),
+    };
+  });
+
+  incomingData.forEach((section, index) => {
+    if (!usedIncomingIndexes.has(index)) merged.push(section);
+  });
+
+  return merged;
 }
 
 function normalizeSideNavLabItems(payload) {
@@ -1490,7 +1547,7 @@ function normalizeSideNavModuleResponse(responseJson, sectionId) {
     case "vitals":
       return { vitals: normalizeSideNavVitals(payload) };
     case "history":
-      return { history: normalizeSideNavHistoryItems(payload) };
+      return { history: normalizeSideNavHistorySections(payload) };
     case "labResults":
       return { labResults: normalizeSideNavLabItems(payload) };
     default:
@@ -3276,7 +3333,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
   const overlayActive = voiceState && !["idle", "done"].includes(voiceStatus);
   const voiceRecorderVisible = overlayActive;
   const isAwaitingResponse = voiceStatus === "transcribing" || voiceStatus === "digitizing";
-  const processingLabel = voiceStatus === "transcribing" ? "Capturing your consultation…" : voiceStatus === "digitizing" ? "Filling section…" : undefined;
+  const processingLabel = voiceStatus === "transcribing" ? "Refining your captured consultation..." : voiceStatus === "digitizing" ? "Filling section…" : undefined;
 
   useEdgeSwipeNavigation({
     containerRef,
@@ -3365,6 +3422,7 @@ export function SideNavbar({
   isGynaecHistoryAccessable = false,
   showVoiceRx = true,
 }) {
+  const dispatch = useDispatch();
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
@@ -3387,11 +3445,13 @@ export function SideNavbar({
   const growthRequestRef = useRef(0);
   const pastVisitsRequestRef = useRef(0);
   const voiceDelayTimerRef = useRef(null);
+  const medicalHistoryDefaultListRequestedRef = useRef(false);
   const emptyPastVisitsAutoSelectRef = useRef(false);
   const activePatientRef = useRef(patientId);
   const { vitalsPastList, patientBirthWeight } = useSelector((state) => state.vitals);
   const { allUploadedDocs = [], uploadDocCategories = [] } = useSelector((state) => state.uploadDoc);
   const obstetricRawDetails = useSelector((state) => state.obstetric?.obstetricDetails);
+  const { defaultList: medicalHistoryDefaultList = [], loading: medicalHistoryLoading } = useSelector((state) => state.medicalhistory);
   const { isPediatricAccessable } = useAccess();
   const {
     vitalsData = [],
@@ -3408,6 +3468,12 @@ export function SideNavbar({
   useEffect(() => {
     activePatientRef.current = patientId;
   }, [patientId]);
+
+  useEffect(() => {
+    if (medicalHistoryDefaultList?.length || medicalHistoryLoading || medicalHistoryDefaultListRequestedRef.current) return;
+    medicalHistoryDefaultListRequestedRef.current = true;
+    dispatch(listSectionwithTag());
+  }, [dispatch, medicalHistoryDefaultList, medicalHistoryLoading]);
 
   useEffect(() => () => {
     if (voiceDelayTimerRef.current) {
@@ -3823,8 +3889,11 @@ export function SideNavbar({
     }
 
     if (sectionId === "history" && Array.isArray(result?.history) && result.history.length > 0) {
-      setMedicalHistoryData?.((prev = []) => convertMedicalHistoryToContextFormat(result.history, prev));
-      setDigitizedOverrides((prev) => ({ ...prev, history: { medicalHistory: result.history } }));
+      setMedicalHistoryData?.((prev = []) => {
+        const defaultSource = medicalHistoryDefaultList?.length ? medicalHistoryDefaultList : prev;
+        const mappedHistory = mapSideNavMedicalHistoryIdsFromDefaultList(result.history, defaultSource);
+        return mergeSideNavMedicalHistorySections(prev, mappedHistory);
+      });
       return;
     }
 
@@ -3841,7 +3910,7 @@ export function SideNavbar({
       setLabParamsData?.((prev = []) => [entry, ...prev]);
       setDigitizedOverrides((prev) => ({ ...prev, labResults: { lab_investigations: result.labResults } }));
     }
-  }, [setLabParamsData, setMedicalHistoryData, setVitalsData]);
+  }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setVitalsData]);
 
   const transcribeSectionAudio = useCallback(async (sectionId, audioBlob) => {
     if (!SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(sectionId)) {

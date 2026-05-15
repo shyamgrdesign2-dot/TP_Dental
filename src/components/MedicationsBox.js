@@ -45,6 +45,7 @@ import {
   VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
+  moduleRowsToPreviousContext,
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
@@ -168,8 +169,14 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
   const applyVoiceMedication = useCallback((nextMedicines) => {
-    setMedicationData((prev) => [...prev, ...nextMedicines]);
+    if (nextMedicines.length > 0) {
+      setMedicationData(nextMedicines);
+    }
   }, [setMedicationData]);
+  const medicationVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(medicationData, "medications"),
+    [medicationData]
+  );
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
@@ -2468,7 +2475,7 @@ function MedicationsBox({ showVoiceRxModule }) {
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Medication (Rx)"
-              previousContext={medicationData}
+              previousContext={medicationVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.medicine}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

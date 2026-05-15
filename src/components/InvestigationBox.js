@@ -41,6 +41,7 @@ import { ASSETS } from "../assets";
 import { Grid5, Trash } from "iconsax-reactjs";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
   VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
@@ -81,8 +82,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     useContext(CashManagerContext);
   // const [ investigationData, setInvestigationData] = useState([]);
   const applyVoiceInvestigation = useCallback((nextInvestigation) => {
-    setInvestigationData((prev) => [...prev, ...nextInvestigation]);
+    if (nextInvestigation.length > 0) {
+      setInvestigationData(nextInvestigation);
+    }
   }, [setInvestigationData]);
+  const investigationVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(investigationData, "lab_investigations"),
+    [investigationData]
+  );
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
@@ -1088,7 +1095,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
-              previousContext={investigationData}
+              previousContext={investigationVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.investigation}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

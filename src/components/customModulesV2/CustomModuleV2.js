@@ -284,12 +284,10 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
 
     if (normalizedRows.length === 0) return;
 
-    const existingRows = moduleData?.filter(isCustomRowFilled) || [];
-    const updatedData = [...existingRows, ...normalizedRows];
-    setModuleData(updatedData);
-    updateCustomModuleContents(updatedData);
+    setModuleData(normalizedRows);
+    updateCustomModuleContents(normalizedRows);
     setHasChanges(true);
-  }, [isCustomRowFilled, module.namedFields, moduleData, updateCustomModuleContents]);
+  }, [isCustomRowFilled, module.namedFields, updateCustomModuleContents]);
 
   const {
     voiceCaptureOpen,

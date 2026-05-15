@@ -44,6 +44,7 @@ import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
   VoiceRxModuleButton,
   VoiceRxModuleActionButton,
   VoiceRxModuleCapture,
@@ -124,8 +125,14 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
   const applyVoiceDiagnosis = useCallback((nextDiagnosis) => {
-    setDiagnosisData((prev) => [...prev, ...nextDiagnosis]);
+    if (nextDiagnosis.length > 0) {
+      setDiagnosisData(nextDiagnosis);
+    }
   }, [setDiagnosisData]);
+  const diagnosisVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(diagnosisData, "diagnosis"),
+    [diagnosisData]
+  );
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
@@ -1063,7 +1070,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
-              previousContext={diagnosisData}
+              previousContext={diagnosisVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.diagnosis}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />

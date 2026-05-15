@@ -285,7 +285,7 @@ function OverlayProcessingView({ processingTranscript, processingLabel }) {
               )
             ) : (
               <p className={canvasStyles.overlayTranscriptPlaceholder}>
-                {processingLabel || "Capturing your consultation…"}
+                {processingLabel || "Refining your captured consultation..."}
               </p>
             )}
           </div>

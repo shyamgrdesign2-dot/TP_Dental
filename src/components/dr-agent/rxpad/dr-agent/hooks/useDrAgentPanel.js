@@ -376,6 +376,7 @@ export function useDrAgentPanel({
       progress?.onPhase?.("structuring_notes", { transcript: finalTranscript });
       const digitizeResult = await digitiseClinicalData({
         context,
+        previousContext: voiceRxResult?.digitization,
         signal: abortController.signal
       });
       if (digitizeResult?.status === "rejected") {
@@ -563,6 +564,7 @@ export function useDrAgentPanel({
         console.log("[voice-rx] phase:", "digitising");
         const digitizeResult = await digitiseClinicalData({
           context,
+          previousContext: priorVoiceResultRef.current?.digitization,
           signal: abortController.signal
         });
         if (digitizeResult?.status === "rejected") {
@@ -1046,7 +1048,10 @@ export function useDrAgentPanel({
   // runCopyWithAura).
   const handleCopy = useCallback((payload, opts) => {
     if (payload && typeof payload === "object" && "sourceDateLabel" in payload) {
-      runCopyWithAura(payload, opts);
+      runCopyWithAura(payload, {
+        ...opts,
+        onAfterCopy: opts?.onAfterCopy || (() => toast.success("Copied to RxPad"))
+      });
       try {
         const existing = sessionStorage.getItem("pendingRxPadCopy");
         const arr = existing ? JSON.parse(existing) : [];

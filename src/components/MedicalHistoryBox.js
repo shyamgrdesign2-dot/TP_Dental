@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback, useRef } from "react";
+import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from "react";
 import { Button, Card, Row, Col, Form, Radio, AutoComplete, Checkbox, Input, Spin, Popover, Tabs, DatePicker } from 'antd';
 
 import { isMobile } from 'react-device-detect';
@@ -58,21 +58,6 @@ function normalizeMedicalHistoryMatch(value) {
     return String(value || "").trim().toLowerCase();
 }
 
-function normalizeMedicalHistoryEnable(value) {
-    const key = String(value || "").trim().toLowerCase();
-    if (!key) return "Y";
-    if (["y", "yes", "true", "active", "inactive", "present", "positive"].includes(key)) return "Y";
-    if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
-    return value;
-}
-
-function medicalHistoryStatusFromEnable(value) {
-    const key = String(value || "").trim().toLowerCase();
-    if (key === "active") return "Active";
-    if (key === "inactive") return "Inactive";
-    return "";
-}
-
 function mapMedicalHistoryIdsFromDefaultList(data = [], defaultList = []) {
     if (!Array.isArray(data)) return [];
 
@@ -103,10 +88,10 @@ function mapMedicalHistoryIdsFromDefaultList(data = [], defaultList = []) {
                             ...(matchedTag?.tmmhst_id ? { tmmhst_id: matchedTag.tmmhst_id } : {}),
                             note: tag?.note || tag?.notes || "",
                             notes: tag?.notes || tag?.note || "",
-                            enable: normalizeMedicalHistoryEnable(tag?.enable),
+                            enable: tag?.enable === "" || tag?.enable === undefined ? "Y" : tag?.enable,
                             relationship: tag?.relationship || tag?.relation || "",
                             since: tag?.since || tag?.duration || "",
-                            status: tag?.status || medicalHistoryStatusFromEnable(tag?.enable),
+                            status: tag?.status || "",
                             medication: tag?.medication || "",
                         };
                     })
@@ -162,6 +147,53 @@ function mergeMedicalHistorySections(base = [], incoming = []) {
     });
 
     return merged;
+}
+
+function hasMedicalHistoryDetailValue(value) {
+    if (value === undefined || value === null) return false;
+    return String(value).trim() !== "" && String(value).trim() !== "-";
+}
+
+function medicalHistoryEnableState(value) {
+    const key = String(value || "").trim().toLowerCase();
+    if (["n", "no", "false", "absent", "negative"].includes(key)) return "N";
+    if (["y", "yes", "true", "active", "inactive", "present", "positive"].includes(key)) return "Y";
+    return key ? value : "";
+}
+
+function getDisplayableMedicalHistoryContext(data = []) {
+    if (!Array.isArray(data)) return undefined;
+
+    const sections = data
+        .map((section) => {
+            const tags = Array.isArray(section?.tags)
+                ? section.tags.filter((tag) => {
+                    const enable = medicalHistoryEnableState(tag?.enable);
+                    if (enable === "N") return true;
+                    if (enable === "Y") return true;
+                    return [
+                        tag?.since,
+                        tag?.status,
+                        tag?.medication,
+                        tag?.relationship,
+                        tag?.note,
+                        tag?.notes,
+                        tag?.date,
+                    ].some(hasMedicalHistoryDetailValue);
+                })
+                : [];
+            const nextSection = {
+                ...section,
+                tags,
+            };
+            const hasSectionData = Boolean(section?.no_know_history) ||
+                tags.length > 0 ||
+                hasMedicalHistoryDetailValue(section?.medical_history_remarks);
+            return hasSectionData ? nextSection : null;
+        })
+        .filter(Boolean);
+
+    return sections.length ? sections : undefined;
 }
 
 function MedicalHistoryBox(props) {
@@ -271,6 +303,10 @@ function MedicalHistoryBox(props) {
         onApply: applyVoiceMedicalHistory,
         successMessage: "Medical history filled from voice dictation",
     });
+    const medicalHistoryPreviousContext = useMemo(() => (
+        getDisplayableMedicalHistoryContext(medicalHistoryData) ||
+        getDisplayableMedicalHistoryContext(cloneMedicalHistoryData)
+    ), [cloneMedicalHistoryData, medicalHistoryData]);
 
     const datePickerRef = useRef(null);
     // Function to handle custom input changes
@@ -1966,7 +2002,7 @@ function MedicalHistoryBox(props) {
                                     <VoiceRxModuleCapture
                                         moduleName="Medical History"
                                         moduleApiName="medical_history"
-                                        previousContext={medicalHistoryData}
+                                        previousContext={medicalHistoryPreviousContext}
                                         dummyDigitisedData={[]}
                                         onCancel={() => setVoiceCaptureOpen(false)}
                                         onComplete={handleVoiceCaptureComplete}

@@ -247,7 +247,6 @@ function CustomModule({ module, showVoiceRxModule }) {
   );
 
   const applyVoiceCustomModule = useCallback((nextRows) => {
-    const existingRows = moduleData?.filter((row) => row.title || row.notes) || [];
     const normalizedRows = nextRows
       .map((row) => ({
         title: row.title || "",
@@ -257,8 +256,10 @@ function CustomModule({ module, showVoiceRxModule }) {
       }))
       .filter((row) => row.title || row.notes);
 
-    updateCustomModuleContents([...existingRows, ...normalizedRows]);
-  }, [moduleData, updateCustomModuleContents]);
+    if (normalizedRows.length === 0) return;
+
+    updateCustomModuleContents(normalizedRows);
+  }, [updateCustomModuleContents]);
 
   const {
     voiceCaptureOpen,

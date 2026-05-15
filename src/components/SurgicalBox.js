@@ -47,6 +47,7 @@ import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
+  moduleRowsToPreviousContext,
   VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
@@ -77,8 +78,14 @@ function SurgicalBox({ showVoiceRxModule }) {
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
   const applyVoiceSurgeries = useCallback((nextSurgeries) => {
-    setSurgeriesData((prev) => [...prev, ...nextSurgeries]);
+    if (nextSurgeries.length > 0) {
+      setSurgeriesData(nextSurgeries);
+    }
   }, [setSurgeriesData]);
+  const surgeriesVoicePreviousContext = useMemo(
+    () => moduleRowsToPreviousContext(surgeriesData, "surgery"),
+    [surgeriesData]
+  );
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
@@ -954,7 +961,7 @@ function SurgicalBox({ showVoiceRxModule }) {
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
-              previousContext={surgeriesData}
+              previousContext={surgeriesVoicePreviousContext}
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
