@@ -872,6 +872,21 @@
   animation: snv-slide-up 180ms ease-out;
 }
 
+.snv-past-native-sections {
+  display: block;
+}
+
+.snv-past-native-sections > .snv-date-card:last-child,
+.snv-past-native-body > .snv-info-card:last-child,
+.snv-past-native-body .snv-ob-card:last-child,
+.snv-past-native-body > .snv-date-card:last-child {
+  margin-bottom: 0;
+}
+
+.snv-past-native-body {
+  min-width: 0;
+}
+
 .snv-segmented {
   width: 100%;
   display: grid;

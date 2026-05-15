@@ -564,10 +564,30 @@ function maybeParseJsonObject(value) {
 function getPastVisitSmartDigitizeData(consultation) {
   const smartData = consultation?.smartDigitizeRxData ||
     consultation?.smart_digitize_rx_data ||
+    consultation?.caseManagerData?.smartDigitizeRxData ||
+    consultation?.caseManagerData?.smart_digitize_rx_data ||
+    consultation?.data?.smartDigitizeRxData ||
+    consultation?.data?.smart_digitize_rx_data ||
+    consultation?.data?.caseManagerData?.smartDigitizeRxData ||
+    consultation?.data?.caseManagerData?.smart_digitize_rx_data ||
+    consultation?.data?.data?.smartDigitizeRxData ||
+    consultation?.data?.data?.smart_digitize_rx_data ||
+    consultation?.data?.data?.caseManagerData?.smartDigitizeRxData ||
+    consultation?.data?.data?.caseManagerData?.smart_digitize_rx_data ||
     consultation?.printPayload?.smartDigitizeRxData ||
     consultation?.printPayload?.smart_digitize_rx_data ||
+    consultation?.printPayload?.caseManagerData?.smartDigitizeRxData ||
+    consultation?.printPayload?.caseManagerData?.smart_digitize_rx_data ||
     consultation?.printPayload?.data?.smartDigitizeRxData ||
+    consultation?.printPayload?.data?.smart_digitize_rx_data ||
+    consultation?.printPayload?.data?.caseManagerData?.smartDigitizeRxData ||
+    consultation?.printPayload?.data?.caseManagerData?.smart_digitize_rx_data ||
+    consultation?.printPayload?.data?.data?.smartDigitizeRxData ||
+    consultation?.printPayload?.data?.data?.smart_digitize_rx_data ||
+    consultation?.printPayload?.data?.data?.caseManagerData?.smartDigitizeRxData ||
+    consultation?.printPayload?.data?.data?.caseManagerData?.smart_digitize_rx_data ||
     consultation?.printPayload?.response?.smartDigitizeRxData ||
+    consultation?.printPayload?.response?.smart_digitize_rx_data ||
     null;
   return maybeParseJsonObject(smartData) || smartData;
 }
@@ -575,8 +595,10 @@ function getPastVisitSmartDigitizeData(consultation) {
 function unwrapDigitizePayload(value) {
   const parsedValue = maybeParseJsonObject(value) || value;
   if (!isObject(parsedValue)) return null;
+  const valueWithRxEdited = maybeParseJsonObject(parsedValue.rxDigitizeEditedData) || parsedValue.rxDigitizeEditedData;
   const valueWithVoiceEdited = maybeParseJsonObject(parsedValue.voiceRxDigitizeEditedData) || parsedValue.voiceRxDigitizeEditedData;
-  const candidate = parsedValue.editedData ||
+  const candidate = valueWithRxEdited ||
+    parsedValue.editedData ||
     valueWithVoiceEdited ||
     parsedValue.digitizeData ||
     parsedValue.refinedData ||
@@ -593,10 +615,13 @@ function unwrapDigitizePayload(value) {
 function getPastVisitSmartDigitalPayload(consultation) {
   const smartData = getPastVisitSmartDigitizeData(consultation);
   if (!isObject(smartData)) return null;
-  const direct = unwrapDigitizePayload(smartData.voiceRxDigitizeEditedData);
+  const direct = unwrapDigitizePayload(smartData.rxDigitizeEditedData) ||
+    unwrapDigitizePayload(smartData.voiceRxDigitizeEditedData);
   if (direct) return direct;
   const fallbacks = [
+    smartData.rxDigitizeEditedData,
     smartData.editedData,
+    smartData.voiceRxDigitizeEditedData,
     smartData.digitizeData,
     smartData.refinedData,
     smartData.digitize,
@@ -641,43 +666,49 @@ function buildPastVisitDigitalRx(consultation) {
   const smartPayload = getPastVisitSmartDigitalPayload(consultation);
   const smartRx = buildDigitalRx(smartPayload);
   if (smartRx) return smartRx;
+  const legacyConsultation = firstObject(
+    consultation?.caseManagerData,
+    consultation?.data?.caseManagerData,
+    consultation?.data?.data?.caseManagerData,
+    consultation
+  );
 
   const digitalRx = {
     symptoms: legacyVisitRows(
-      consultation.symptoms,
+      legacyConsultation.symptoms,
       ["symptom_name", "name", "title", "label"],
       ["since", "duration", "severity", "note", "notes"]
     ),
     examinations: legacyVisitRows(
-      consultation.examination,
+      legacyConsultation.examination,
       ["examination_name", "name", "title", "label"],
       ["note", "notes"]
     ),
     diagnoses: legacyVisitRows(
-      consultation.diagnosis,
+      legacyConsultation.diagnosis,
       ["tds_name", "diagnosis_name", "name", "title", "label"],
       ["since", "status", "note", "notes"]
     ),
     medications: legacyVisitRows(
-      consultation.medicine,
+      legacyConsultation.medicine,
       ["tmm_medicine_name", "medicine_name", "name", "title", "label"],
       ["tmm_dosage_unit_name", "dosage", "tmm_freq_type_name", "frequency", "tmm_time_name", "schedule", "tmm_days_duration_type", "duration", "tmm_remarks", "notes", "quantity"]
     ),
-    medicalHistory: buildPastVisitMedicalHistoryRows(consultation.medical_history || consultation.medicalHistory),
+    medicalHistory: buildPastVisitMedicalHistoryRows(legacyConsultation.medical_history || legacyConsultation.medicalHistory),
     surgeries: legacyVisitRows(
-      consultation.surgeries,
+      legacyConsultation.surgeries,
       ["surgery_name", "name", "title", "label"],
       ["notes", "note", "date", "since"]
     ),
-    moduleContents: buildPastVisitModuleRows(consultation.moduleContents || consultation.module_contents),
-    advice: legacyAdviceText(consultation.advice) || consultation.visit_advice || "",
+    moduleContents: buildPastVisitModuleRows(legacyConsultation.moduleContents || legacyConsultation.module_contents),
+    advice: legacyAdviceText(legacyConsultation.advice) || legacyConsultation.visit_advice || "",
     labInvestigations: legacyVisitRows(
-      consultation.investigation || consultation.investigations,
+      legacyConsultation.investigation || legacyConsultation.investigations,
       ["investigation_name", "test_name", "name", "title", "label"],
       ["note", "notes"]
     ).map((item) => (item.detail ? { label: item.label, detail: item.detail } : item.label)),
-    followUp: consultation.follow_up_date ? `On ${formatPastVisitDate(consultation.follow_up_date)}` : "",
-    additionalNotes: consultation.additional_notes || consultation.additionalNotes || consultation.notes || "",
+    followUp: legacyConsultation.follow_up_date ? `On ${formatPastVisitDate(legacyConsultation.follow_up_date)}` : "",
+    additionalNotes: legacyConsultation.additional_notes || legacyConsultation.additionalNotes || legacyConsultation.notes || "",
   };
   const hasDigitalRx = digitalRx.symptoms.length ||
     digitalRx.examinations.length ||
@@ -701,6 +732,8 @@ function formatPastVisitDate(date) {
 
 function getPastVisitDate(consultation, detail) {
   return consultation?.consultation_date ||
+    consultation?.caseManagerData?.consultation_date ||
+    consultation?.data?.caseManagerData?.consultation_date ||
     consultation?.tcm_consultation_date ||
     consultation?.tcm_created_date ||
     consultation?.created_date ||
@@ -708,6 +741,8 @@ function getPastVisitDate(consultation, detail) {
     consultation?.created_at ||
     consultation?.date ||
     detail?.consultation_date ||
+    detail?.caseManagerData?.consultation_date ||
+    detail?.data?.caseManagerData?.consultation_date ||
     detail?.tcm_consultation_date ||
     detail?.tcm_created_date ||
     detail?.created_date ||
@@ -720,7 +755,13 @@ function buildPastVisitEntry(consultation, detail) {
   const tcmId = consultation?.tcm_id || consultation?.tcmId || detail?.tcm_id;
   const consultationDate = getPastVisitDate(consultation, detail);
   const detailRx = buildPastVisitDigitalRx(detail || consultation);
-  const printUrl = detail?.print_url || consultation?.print_url || "";
+  const printUrl = detail?.print_url ||
+    detail?.caseManagerData?.print_url ||
+    detail?.data?.caseManagerData?.print_url ||
+    consultation?.print_url ||
+    consultation?.caseManagerData?.print_url ||
+    consultation?.data?.caseManagerData?.print_url ||
+    "";
   const transcriptSource = detail || consultation;
   const transcriptBlocks = buildPastVisitTranscriptBlocks(transcriptSource);
   const showTranscript = hasPastVisitTranscriptMode(transcriptSource);
@@ -829,6 +870,22 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
         .filter(Boolean);
       return notes.length ? { ...base, digitization: { others: notes } } : null;
     }
+    case "vitals":
+      return objectHasRenderableValue(rx.vitalsPayload)
+        ? { ...base, digitization: { vitalsAndBodyComposition: rx.vitalsPayload } }
+        : null;
+    case "gynec":
+      return objectHasRenderableValue(rx.gynecPayload)
+        ? { ...base, digitization: { gyneacHistory: rx.gynecPayload } }
+        : null;
+    case "obstetric":
+      return objectHasRenderableValue(rx.obstetricPayload)
+        ? { ...base, digitization: { obstetricHistory: rx.obstetricPayload } }
+        : null;
+    case "vaccinations":
+      return Array.isArray(rx.vaccinePayload) && rx.vaccinePayload.length
+        ? { ...base, digitization: { vaccinations: rx.vaccinePayload } }
+        : null;
     default:
       return null;
   }
@@ -847,6 +904,10 @@ function buildPastVisitAllPayload(visitItem) {
     "additionalNotes",
     "followUp",
     "moduleContents",
+    "vitals",
+    "gynec",
+    "obstetric",
+    "vaccinations",
   ].map((sectionKey) => buildPastVisitSectionPayload(visitItem, sectionKey)).filter(Boolean);
   if (!payloads.length) return null;
   return payloads.reduce((acc, payload) => ({
@@ -876,6 +937,16 @@ function shouldUseVoiceRxPrintPayload(detail) {
     !String(smartFile).includes("tab_rx");
 }
 
+function shouldUseRxDigitizePrintPayload(detail) {
+  const smartFile = String(detail?.smart_prescription_filename || detail?.smartPrescriptionFilename || "");
+  if (!smartFile) return Boolean(detail?.isRxDigitize || detail?.isRxDigitizeBool);
+  if (shouldUseVoiceRxPrintPayload(detail)) return false;
+  return smartFile.includes(".jpeg") ||
+    smartFile.includes("snap_rx") ||
+    smartFile.includes("tab_rx") ||
+    Boolean(detail?.isRxDigitize || detail?.isRxDigitizeBool);
+}
+
 function buildPastVisitPrintPayloadUrl(printUrl, detail) {
   if (!printUrl) return null;
   try {
@@ -884,6 +955,10 @@ function buildPastVisitPrintPayloadUrl(printUrl, detail) {
       url.searchParams.delete("ambientVoiceRxDigitize");
       url.searchParams.set("voiceRxDigitize", "true");
       url.searchParams.set("rxDigitize", "false");
+    } else if (shouldUseRxDigitizePrintPayload(detail)) {
+      url.searchParams.delete("ambientVoiceRxDigitize");
+      url.searchParams.set("voiceRxDigitize", "false");
+      url.searchParams.set("rxDigitize", "true");
     }
     if (!url.searchParams.get("lg")) {
       url.searchParams.set("lg", btoa("1"));
@@ -909,6 +984,36 @@ async function fetchPastVisitPrintPayload(printUrl, detail) {
   }
 }
 
+function normalizePastVisitDetailPayload(payload) {
+  const parsedPayload = maybeParseJsonObject(payload) || payload;
+  if (!isObject(parsedPayload)) return parsedPayload || null;
+  const root = isObject(parsedPayload?.data) &&
+    (parsedPayload.status !== undefined ||
+      parsedPayload.data?.caseManagerData ||
+      parsedPayload.data?.case_manager_data ||
+      parsedPayload.data?.smartDigitizeRxData ||
+      parsedPayload.data?.smart_digitize_rx_data)
+    ? parsedPayload.data
+    : parsedPayload;
+  const parsedRoot = maybeParseJsonObject(root) || root;
+  if (!isObject(parsedRoot)) return parsedRoot || null;
+  const caseManagerData = firstObject(parsedRoot.caseManagerData, parsedRoot.case_manager_data);
+  const smartDigitizeRxData = parsedRoot.smartDigitizeRxData ||
+    parsedRoot.smart_digitize_rx_data ||
+    caseManagerData.smartDigitizeRxData ||
+    caseManagerData.smart_digitize_rx_data ||
+    parsedRoot.printPayload?.smartDigitizeRxData ||
+    parsedRoot.printPayload?.smart_digitize_rx_data ||
+    null;
+
+  return {
+    ...parsedRoot,
+    ...caseManagerData,
+    caseManagerData: Object.keys(caseManagerData).length ? caseManagerData : parsedRoot.caseManagerData,
+    smartDigitizeRxData: maybeParseJsonObject(smartDigitizeRxData) || smartDigitizeRxData,
+  };
+}
+
 function isObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -931,6 +1036,15 @@ function valueText(values) {
 
 function firstObject(...values) {
   return values.find(isObject) || {};
+}
+
+function objectHasRenderableValue(value) {
+  if (!isObject(value)) return false;
+  return Object.values(value).some((item) => {
+    if (Array.isArray(item)) return item.length > 0;
+    if (isObject(item)) return objectHasRenderableValue(item);
+    return hasValue(item);
+  });
 }
 
 function extractClinicalPayload(response) {
@@ -959,8 +1073,93 @@ function extractClinicalPayload(response) {
   return candidate;
 }
 
+function buildSmartVitalsEntries(payload, visitDate) {
+  const vitals = firstObject(payload?.vitalsAndBodyComposition, payload?.vitals, payload);
+  if (!objectHasRenderableValue(vitals)) return [];
+  const rows = buildVitalsRows({ vitalsAndBodyComposition: vitals });
+  if (!rows.length) return [];
+  return [{
+    id: `smart-vitals-${visitDate || "current"}`,
+    dateLabel: "Vitals",
+    rows,
+    fresh: true,
+  }];
+}
+
+function buildSmartGynecSections(payload) {
+  return buildGynecCards(payload).map((section) => ({ ...section, id: `smart-gynec-${section.id}` }));
+}
+
+function buildSmartObstetricSections(payload) {
+  const raw = firstObject(payload?.obstetricHistory, payload);
+  if (!objectHasRenderableValue(raw)) return [];
+  const currentPregnancy = {
+    ...raw,
+    lmp: normalizeClinicalDate(raw.lmp || raw.lastMenstrualPeriod),
+    edd: normalizeClinicalDate(raw.edd || raw.expectedDateOfDelivery),
+    ceed: normalizeClinicalDate(raw.ceed || raw.calculatedExpectedDateOfDelivery),
+    blood: raw.blood || raw.bloodGroup,
+    husbandsBlood: raw.husbandsBlood || raw.husbandsBloodGroup,
+    consang: raw.consang ?? raw.consanguineousMarriage,
+    abortion: raw.abortion ?? raw.abortions,
+    maritialStatus: raw.maritialStatus || raw.maritalStatus,
+    examinationHistory: raw.examinationHistory || raw.antenatalExamination || [],
+    ancHistory: raw.ancHistory || [],
+    immunisationHistory: raw.immunisationHistory || [],
+  };
+  const pregnancyHistory = toArray(raw.pastPregnancyDetails || raw.pregnancyHistory).map((pregnancy) => ({
+    ...pregnancy,
+    gravidity: pregnancy?.gravidity || pregnancy?.gravidaNumber,
+    deliveryMode: pregnancy?.deliveryMode || pregnancy?.modeOfDelivery,
+    dateOfDelivery: normalizeClinicalDate(pregnancy?.dateOfDelivery),
+    gender: pregnancy?.gender || pregnancy?.babyGender,
+    babysWeight: pregnancy?.babysWeight || pregnancy?.babyWeight,
+    modeOfManagement: pregnancy?.modeOfManagement || pregnancy?.modeOfAbortion,
+  }));
+  return buildLegacyObstetricSections({ currentPregnancy, pregnancyHistory })
+    .map((section) => ({ ...section, id: `smart-${section.id}` }));
+}
+
+function buildSmartVaccineData(vaccinations) {
+  const rows = toArray(vaccinations).map((item) => {
+    const status = String(item?.status || item?.state || "").trim().toLowerCase();
+    const givenDate = item?.givenDate || item?.tvp_given_date || item?.dateGiven || item?.administeredDate || "";
+    const dueDate = item?.dueDate || item?.tvd_due_date || item?.dateDue || "";
+    const week = item?.week || item?.age || item?.tvt_age || item?.schedule || "Vaccines";
+    const name = item?.name || item?.vaccineName || item?.tvac_name || item?.tvt_name || item?.label || "";
+    if (!hasValue(name)) return null;
+    return {
+      week,
+      name,
+      givenDate: givenDate ? formatVaccDate(givenDate) : "",
+      dueDate,
+      brand: item?.brand || item?.brandName || item?.tvc_name || "",
+      notes: [item?.notes, item?.note, item?.remarks, item?.route && `Route: ${item.route}`, item?.dose && `Dose: ${item.dose}`, item?.site && `Site: ${item.site}`].filter(hasValue).join(" | "),
+      status,
+    };
+  }).filter(Boolean);
+
+  return {
+    pending: rows.filter((item) => !item.givenDate && !["given", "done", "completed", "complete"].includes(item.status)),
+    given: rows.filter((item) => item.givenDate || ["given", "done", "completed", "complete"].includes(item.status)),
+  };
+}
+
 function buildDigitalRx(payload) {
   const p = firstObject(payload?.payload, payload);
+  const vitalsPayload = firstObject(p.vitalsAndBodyComposition, p.vitals);
+  const gynecPayload = firstObject(p.gyneacHistory, p.gynecHistory);
+  const obstetricPayload = firstObject(p.obstetricHistory);
+  const vaccinePayload = toArray(p.vaccinations);
+  const vitals = buildSmartVitalsEntries(vitalsPayload);
+  const gynec = buildSmartGynecSections(gynecPayload);
+  const obstetric = buildSmartObstetricSections(obstetricPayload);
+  const vaccine = buildSmartVaccineData(vaccinePayload);
+  const hasNativeContent = vitals.length ||
+    gynec.length ||
+    obstetric.length ||
+    vaccine.pending.length ||
+    vaccine.given.length;
   const hasContent = toArray(p.symptoms).length ||
     toArray(p.examinations || p.examination).length ||
     toArray(p.diagnosis || p.diagnoses).length ||
@@ -970,7 +1169,8 @@ function buildDigitalRx(payload) {
     toArray(p.medicalHistory || p.medical_history).length ||
     toArray(p.surgeries).length ||
     toArray(p.moduleContents || p.module_contents).length ||
-    hasValue(p.followUp);
+    hasValue(p.followUp) ||
+    hasNativeContent;
 
   if (!hasContent) return null;
 
@@ -1010,6 +1210,14 @@ function buildDigitalRx(payload) {
     moduleContents: buildPastVisitModuleRows(p.moduleContents || p.module_contents),
     followUp: hasValue(p.followUp) ? `After ${p.followUp}` : "",
     additionalNotes: toArray(p.others).map((item) => (typeof item === "string" ? item : item?.notes || item?.label || "")).filter(Boolean).join(" "),
+    vitals,
+    gynec,
+    obstetric,
+    vaccine,
+    vitalsPayload,
+    gynecPayload,
+    obstetricPayload,
+    vaccinePayload,
   };
 }
 
@@ -1038,6 +1246,24 @@ function buildLabRows(payload) {
   });
 }
 
+function parseClinicalDate(value) {
+  if (!hasValue(value)) return null;
+  const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "DD MMM YYYY", "DD MMM, YYYY", moment.ISO_8601], true);
+  if (parsed.isValid()) return parsed;
+  const loose = moment(value);
+  return loose.isValid() ? loose : null;
+}
+
+function formatClinicalDate(value, fallback = value) {
+  const parsed = parseClinicalDate(value);
+  return parsed ? parsed.format("DD MMM'YY") : fallback;
+}
+
+function normalizeClinicalDate(value) {
+  const parsed = parseClinicalDate(value);
+  return parsed ? parsed.format("YYYY-MM-DD") : value;
+}
+
 function lineFromParts(parts) {
   return parts.filter(hasValue).join(" | ");
 }
@@ -1045,7 +1271,7 @@ function lineFromParts(parts) {
 function buildGynecCards(payload) {
   const g = firstObject(payload?.gyneacHistory, payload?.gynecHistory, payload);
   const cards = [
-    { id: "lmp", title: "LMP", lines: hasValue(g.lastMenstrualPeriod) ? [`LMP: ${g.lastMenstrualPeriod}`] : [] },
+    { id: "lmp", title: "LMP", lines: hasValue(g.lastMenstrualPeriod) ? [`LMP: ${formatClinicalDate(g.lastMenstrualPeriod)}`] : [] },
     { id: "menarche", title: "Menarche", lines: hasValue(g.ageAtMenarche) ? [`Age at: ${g.ageAtMenarche} years`] : [] },
     { id: "cycle", title: "Cycle", lines: [lineFromParts([g.cycle && `Type: ${g.cycle}`, valueText([g.intervalNotes, g.intervalCycle]) && `Interval: ${valueText([g.intervalNotes, g.intervalCycle])}`])].filter(Boolean) },
     { id: "flow", title: "Flow", lines: [lineFromParts([g.flow && `Volume: ${g.flow}`, g.durationOfMenstrualFlow && `Duration: ${g.durationOfMenstrualFlow} days`, g.clotsDuringFlow && `Clots: ${g.clotsDuringFlow}`, g.numberOfPadsPerDay && `Pads/day: ${g.numberOfPadsPerDay}`])].filter(Boolean) },
@@ -1243,6 +1469,9 @@ function buildLegacyObstetricSections(obstetricDetails) {
   pregnancyHistory.forEach((pregnancy, index) => {
     const gravida = pregnancy?.gravidity || pregnancy?.gravidaNumber;
     const details = [
+      pregnancy?.outcome && `Outcome: ${pregnancy.outcome}`,
+      pregnancy?.termLength && `Term Length: ${pregnancy.termLength}`,
+      pregnancy?.birthInfoType && `Birth Info: ${pregnancy.birthInfoType}`,
       pregnancy?.deliveryMode && `Mode of Delivery: ${pregnancy.deliveryMode}`,
       pregnancy?.dateOfDelivery && `Date of Delivery: ${moment(pregnancy.dateOfDelivery).format("DD MMM'YY")}`,
       pregnancy?.ageOfDelivery && `Age of Delivery: ${pregnancy.ageOfDelivery}`,
@@ -1827,6 +2056,63 @@ function WrittenRxShimmer() {
   );
 }
 
+function PastVisitInnerSectionCard({ title, children }) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <DateCard
+      title={title}
+      expanded={expanded}
+      onToggle={() => setExpanded((prev) => !prev)}
+    >
+      <div className="snv-past-native-body">
+        {children}
+      </div>
+    </DateCard>
+  );
+}
+
+function hasVaccineContent(data) {
+  return Boolean((data?.pending || []).length || (data?.given || []).length);
+}
+
+function PastVisitNativeSections({ rx }) {
+  const vitalsEntries = Array.isArray(rx?.vitals) ? rx.vitals : [];
+  const gynecSections = Array.isArray(rx?.gynec) ? rx.gynec : [];
+  const obstetricSections = Array.isArray(rx?.obstetric) ? rx.obstetric : [];
+  const vaccineData = rx?.vaccine || { pending: [], given: [] };
+
+  if (!vitalsEntries.length && !gynecSections.length && !obstetricSections.length && !hasVaccineContent(vaccineData)) {
+    return null;
+  }
+
+  return (
+    <div className="snv-past-native-sections">
+      {vitalsEntries.map((entry) => (
+        <PastVisitInnerSectionCard key={entry.id} title={entry.dateLabel || "Vitals"}>
+          <KeyValueRows rows={entry.rows || []} />
+        </PastVisitInnerSectionCard>
+      ))}
+      {gynecSections.length ? (
+        <PastVisitInnerSectionCard title="Gynec">
+          <SectionCardsBody sections={gynecSections} />
+        </PastVisitInnerSectionCard>
+      ) : null}
+      {obstetricSections.length ? (
+        <PastVisitInnerSectionCard title="Obstetric">
+          <div className="snv-ob-content">
+            <ObstetricBody sections={obstetricSections} />
+          </div>
+        </PastVisitInnerSectionCard>
+      ) : null}
+      {hasVaccineContent(vaccineData) ? (
+        <PastVisitInnerSectionCard title="Vaccine">
+          <VaccineBody data={vaccineData} />
+        </PastVisitInnerSectionCard>
+      ) : null}
+    </div>
+  );
+}
+
 function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload }) {
   const pendingLoadMoreRef = useRef(false);
   const firstVisitId = visits[0]?.id;
@@ -1953,6 +2239,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                   {hasListData(rx.labInvestigations) ? <RxSection title="Investigations" icon={<RxSectionIcon src={RX_SECTION_ICONS.investigations} />} onCopy={() => handleCopySection(visitItem, "investigations", "Investigations")}><BulletList items={rx.labInvestigations} /></RxSection> : null}
                   {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
                   {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />} onCopy={() => handleCopySection(visitItem, "followUp", "Follow Up")}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
+                  <PastVisitNativeSections rx={rx} />
                 </>
               ) : (
                 <div className="snv-empty-state">No digital Rx available for this visit.</div>
@@ -2234,12 +2521,10 @@ function HistoryContent({ sections = [] }) {
   );
 }
 
-function SectionCardsContent({ sections }) {
+function SectionCardsBody({ sections = [] }) {
   return (
-    <div className="snv-content-scroll" data-snv-scroll-root="true">
-      {sections.length === 0 ? (
-        <div className="snv-empty-state">No data recorded.</div>
-      ) : sections.map((section) => (
+    <>
+      {sections.map((section) => (
         <div key={section.id} className={`snv-info-card ${section.fresh ? "snv-fresh-card" : ""}`}>
           <div className="snv-info-card-title">{section.title}</div>
           <div className="snv-card-lines">
@@ -2249,6 +2534,18 @@ function SectionCardsContent({ sections }) {
           </div>
         </div>
       ))}
+    </>
+  );
+}
+
+function SectionCardsContent({ sections }) {
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      {sections.length === 0 ? (
+        <div className="snv-empty-state">No data recorded.</div>
+      ) : (
+        <SectionCardsBody sections={sections} />
+      )}
     </div>
   );
 }
@@ -2315,22 +2612,38 @@ function ObstetricBulletCard({ section }) {
   );
 }
 
-function ObstetricContent({ sections = [] }) {
-  const visibleSections = sections.filter((section) => {
+function getVisibleObstetricSections(sections = []) {
+  return sections.filter((section) => {
     if (section.type === "patientInfo") return (section.rows || []).some((row) => row.length > 0);
     if (section.type === "gplae") return (section.parts || []).length > 0 || section.badge || section.notes;
     return (section.items || []).length > 0;
   });
+}
+
+function ObstetricBody({ sections = [] }) {
+  const visibleSections = getVisibleObstetricSections(sections);
+
+  return (
+    <>
+      {visibleSections.map((section) => {
+        if (section.type === "patientInfo") return <ObstetricPatientInfoCard key={section.id} section={section} />;
+        if (section.type === "gplae") return <ObstetricGplaeCard key={section.id} section={section} />;
+        return <ObstetricBulletCard key={section.id} section={section} />;
+      })}
+    </>
+  );
+}
+
+function ObstetricContent({ sections = [] }) {
+  const visibleSections = getVisibleObstetricSections(sections);
 
   return (
     <div className="snv-content-scroll snv-ob-content" data-snv-scroll-root="true">
       {visibleSections.length === 0 ? (
         <div className="snv-empty-state">No data recorded.</div>
-      ) : visibleSections.map((section) => {
-        if (section.type === "patientInfo") return <ObstetricPatientInfoCard key={section.id} section={section} />;
-        if (section.type === "gplae") return <ObstetricGplaeCard key={section.id} section={section} />;
-        return <ObstetricBulletCard key={section.id} section={section} />;
-      })}
+      ) : (
+        <ObstetricBody sections={visibleSections} />
+      )}
     </div>
   );
 }
@@ -2756,7 +3069,7 @@ function VaccineWeekGroup({ week, items, kind }) {
   );
 }
 
-function VaccineContent({ data = { pending: [], given: [] } }) {
+function VaccineBody({ data = { pending: [], given: [] } }) {
   const pending = React.useMemo(() => Array.isArray(data.pending) ? data.pending : [], [data.pending]);
   const given = React.useMemo(() => Array.isArray(data.given) ? data.given : [], [data.given]);
   const { overdueGroups, upcomingGroups, overdueCount, upcomingCount } = React.useMemo(() => {
@@ -2772,16 +3085,8 @@ function VaccineContent({ data = { pending: [], given: [] } }) {
   const givenGroups = React.useMemo(() => groupVaccByWeek(given), [given]);
   const [exp, setExp] = useState({ overdue: true, upcoming: true, given: true });
 
-  if (!pending.length && !given.length) {
-    return (
-      <div className="snv-content-scroll" data-snv-scroll-root="true">
-        <div className="snv-empty-state">No data recorded.</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="snv-content-scroll" data-snv-scroll-root="true">
+    <>
       {overdueCount > 0 ? (
         <article className="snv-date-card">
           <button type="button" className="snv-date-card-header" onClick={() => setExp((p) => ({ ...p, overdue: !p.overdue }))}>
@@ -2823,6 +3128,25 @@ function VaccineContent({ data = { pending: [], given: [] } }) {
           ) : null}
         </article>
       ) : null}
+    </>
+  );
+}
+
+function VaccineContent({ data = { pending: [], given: [] } }) {
+  const pending = Array.isArray(data.pending) ? data.pending : [];
+  const given = Array.isArray(data.given) ? data.given : [];
+
+  if (!pending.length && !given.length) {
+    return (
+      <div className="snv-content-scroll" data-snv-scroll-root="true">
+        <div className="snv-empty-state">No data recorded.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      <VaccineBody data={data} />
     </div>
   );
 }
@@ -3692,14 +4016,27 @@ export function SideNavbar({
         patient_unique_id: patientAtRequest,
         tcm_id: tcmId,
       });
-      if (response?.status && response?.data) {
+      const responseData = response?.data;
+      if ((response?.status || responseData?.status) && responseData) {
         if (patientAtRequest !== activePatientRef.current) return;
-        const printPayload = await fetchPastVisitPrintPayload(response.data.print_url, response.data);
+        const detailPayload = normalizePastVisitDetailPayload(responseData);
+        const printUrl = detailPayload?.print_url ||
+          detailPayload?.print_rx_url ||
+          detailPayload?.caseManagerData?.print_url ||
+          detailPayload?.caseManagerData?.print_rx_url ||
+          "";
+        const printPayload = await fetchPastVisitPrintPayload(printUrl, detailPayload);
         if (patientAtRequest !== activePatientRef.current) return;
+        const normalizedPrintPayload = normalizePastVisitDetailPayload(printPayload);
         const enrichedDetail = {
-          ...response.data,
-          printPayload,
-          smartDigitizeRxData: response.data.smartDigitizeRxData || printPayload?.smartDigitizeRxData,
+          ...(normalizedPrintPayload || {}),
+          ...(detailPayload || {}),
+          printPayload: normalizedPrintPayload || printPayload,
+          smartDigitizeRxData: detailPayload?.smartDigitizeRxData ||
+            normalizedPrintPayload?.smartDigitizeRxData ||
+            printPayload?.smartDigitizeRxData ||
+            printPayload?.data?.smartDigitizeRxData ||
+            printPayload?.data?.data?.smartDigitizeRxData,
         };
         setPastVisitDetails((prev) => ({ ...prev, [tcmId]: enrichedDetail }));
       }
