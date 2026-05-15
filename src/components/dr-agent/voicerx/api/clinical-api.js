@@ -6,7 +6,7 @@ function normalizeBaseUrl(url) {
 
 export const CLINICAL_API_BASE_URL =
 	normalizeBaseUrl(process.env.REACT_APP_CLINICAL_API_BASE_URL) ||
-	'https://pm-digitise-transcription-prod.tatvacare.in';
+	'https://pm-digitise-transcription-uat.tatvacare.in';
 
 export const CLINICAL_API_BEARER_TOKEN =
 	(process.env.REACT_APP_CLINICAL_API_BEARER_TOKEN || '').trim() ||
@@ -14,7 +14,7 @@ export const CLINICAL_API_BEARER_TOKEN =
 
 export const AGENT_MODULE_API_BASE_URL =
 	normalizeBaseUrl(env?.agent_module_api_base_url) ||
-	'https://pm-digitise-transcription-prod.tatvacare.in';
+	'https://pm-digitise-transcription-uat.tatvacare.in';
 
 export function joinClinicalApiUrl(path) {
 	if (!CLINICAL_API_BASE_URL) {

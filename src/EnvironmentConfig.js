@@ -500,7 +500,7 @@ const prod = {
   ipd_portal_url: "https://pm-doctor-portal-ipd-prod.tatvacare.in",
   ipd_api_url: "https://pm-ipd-prod.tatvacare.in/api/v1",
   templates_api_url: "https://pm-ipd-prod.tatvacare.in",
-  agent_module_api_base_url: "https://pm-digitise-transcription-prod.tatvacare.in",
+  agent_module_api_base_url: "https://pm-digitise-transcription-uat.tatvacare.in",
   abha_api_url: "https://pm-abha.tatvacare.in",
   abha_records_api_url: "https://pm-abha.tatvacare.in",
   consultation_api_url: "https://pm-consultation-prod.tatvacare.in",
