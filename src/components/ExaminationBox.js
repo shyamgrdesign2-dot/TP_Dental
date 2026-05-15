@@ -94,10 +94,12 @@ function ExaminationBox({ showVoiceRxModule }) {
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   } = useVoiceRxModuleCapture({
     moduleName: "Examinations",
     onApply: applyVoiceExaminations,
     successMessage: "Examinations filled from voice dictation",
+    copyPayloadKeys: ["examinations"],
   });
 
   useEffect(() => {
@@ -783,7 +785,7 @@ function ExaminationBox({ showVoiceRxModule }) {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Examinationicon} alt="Examination" />

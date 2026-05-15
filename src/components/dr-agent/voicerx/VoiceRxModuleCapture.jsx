@@ -922,10 +922,14 @@ export function VoiceRxModuleButton({ active = false, disabled = false, onClick,
   );
 }
 
-export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage }) {
+export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage, copyPayloadKeys }) {
   const [voiceCaptureOpen, setVoiceCaptureOpen] = useState(false);
   const [voiceUpdated, setVoiceUpdated] = useState(false);
   const voiceUpdatedTimerRef = useRef(null);
+  const sectionRef = useRef(null);
+  const handledCopyIdRef = useRef(null);
+  const copyPayloadKeysRef = useRef(copyPayloadKeys);
+  const { lastCopyRequest } = useRxPadSync();
 
   useEffect(() => {
     return () => {
@@ -935,6 +939,31 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage })
     };
   }, []);
 
+  const triggerHighlight = useCallback((scroll = true) => {
+    setVoiceUpdated(true);
+    if (voiceUpdatedTimerRef.current) {
+      window.clearTimeout(voiceUpdatedTimerRef.current);
+    }
+    voiceUpdatedTimerRef.current = window.setTimeout(() => setVoiceUpdated(false), 2400);
+    if (scroll && sectionRef.current) {
+      scrollModuleCaptureIntoView(sectionRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!lastCopyRequest || !copyPayloadKeysRef.current?.length) return;
+    if (handledCopyIdRef.current === lastCopyRequest.id) return;
+    handledCopyIdRef.current = lastCopyRequest.id;
+    if (lastCopyRequest.isBulk) return;
+    const payload = lastCopyRequest.payload || {};
+    const digitization = payload.digitization || {};
+    const nonEmpty = (v) => Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== "";
+    const hasData = copyPayloadKeysRef.current.some(
+      (key) => nonEmpty(payload[key]) || nonEmpty(digitization[key])
+    );
+    if (hasData) triggerHighlight();
+  }, [lastCopyRequest, triggerHighlight]);
+
   const handleVoiceCaptureComplete = useCallback((digitisedData) => {
     const nextItems = Array.isArray(digitisedData)
       ? digitisedData.map((item) => ({ ...item }))
@@ -943,19 +972,16 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage })
       onApply?.(nextItems);
     }
     setVoiceCaptureOpen(false);
-    setVoiceUpdated(true);
+    triggerHighlight(false);
     toast.success(successMessage || `${moduleName} filled from voice dictation`);
-    if (voiceUpdatedTimerRef.current) {
-      window.clearTimeout(voiceUpdatedTimerRef.current);
-    }
-    voiceUpdatedTimerRef.current = window.setTimeout(() => setVoiceUpdated(false), 2400);
-  }, [moduleName, onApply, successMessage]);
+  }, [moduleName, onApply, successMessage, triggerHighlight]);
 
   return {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   };
 }
 

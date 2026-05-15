@@ -15,11 +15,13 @@ export function DrAgentRuntime({
   const {
     collapsedVoiceSession,
     activeVoiceModule,
+    copyOverlayActive,
     requestVoicePauseToggle,
     requestVoiceSubmit
   } = useRxPadSync();
 
   const collapsedVoiceActive = !isOpen && !!collapsedVoiceSession.active;
+  const showPageAura = collapsedVoiceActive || copyOverlayActive;
   const showIdleFab = !isOpen && !collapsedVoiceSession.active;
   const handleActiveVoiceSubmit = () => {
     onOpen?.();
@@ -28,9 +30,12 @@ export function DrAgentRuntime({
 
   return (
     <>
-      {collapsedVoiceActive && (
+      {showPageAura && (
         <div
-          className={styles.activeBackdrop}
+          className={[
+            styles.activeBackdrop,
+            copyOverlayActive && !collapsedVoiceActive ? styles.copyBackdrop : ""
+          ].filter(Boolean).join(" ")}
           data-dr-agent="true"
           aria-hidden="true"
         />

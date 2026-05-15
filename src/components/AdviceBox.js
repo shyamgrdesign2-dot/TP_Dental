@@ -73,10 +73,12 @@ function AdviceBox({ showVoiceRxModule }) {
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   } = useVoiceRxModuleCapture({
     moduleName: "Advices",
     onApply: applyVoiceAdvice,
     successMessage: "Advices filled from voice dictation",
+    copyPayloadKeys: ["advice"],
   });
 
   //PopOver1
@@ -730,7 +732,7 @@ function AdviceBox({ showVoiceRxModule }) {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Adviceicon} alt="Advice" />

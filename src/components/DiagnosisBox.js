@@ -131,10 +131,12 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   } = useVoiceRxModuleCapture({
     moduleName: "Diagnosis",
     onApply: applyVoiceDiagnosis,
     successMessage: "Diagnosis filled from voice dictation",
+    copyPayloadKeys: ["diagnosis", "diagnoses"],
   });
 
   useEffect(() => {
@@ -943,7 +945,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Diagnosisicon} alt="Diagnosis" />

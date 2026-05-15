@@ -1738,7 +1738,9 @@ function DateCard({ title, expanded, onToggle, onCopy, children, fresh }) {
         <button type="button" className="snv-date-toggle-btn" onClick={onToggle}>
           <span>{title}</span>
         </button>
-        <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} visit to RxPad`} />
+        {onCopy ? (
+          <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} visit to RxPad`} />
+        ) : null}
         <button type="button" className="snv-date-arrow-btn" onClick={onToggle} aria-label={expanded ? "Collapse visit" : "Expand visit"}>
           {expanded ? <ArrowSquareUp size={18} variant="Linear" /> : <ArrowSquareDown size={18} variant="Linear" />}
         </button>
@@ -1798,8 +1800,10 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
 
   const handleCopyPayload = useCallback((payload, successMessage, opts) => {
     if (!payload) return;
-    onCopyPayload?.(payload, opts);
-    toast.success(successMessage);
+    onCopyPayload?.(payload, {
+      ...opts,
+      onAfterCopy: () => toast.success(successMessage),
+    });
   }, [onCopyPayload]);
 
   const handleCopyVisit = useCallback((visitItem) => {
@@ -1836,6 +1840,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
         const expanded = Boolean(expandedById[visitItem.id]);
         const mode = modeByVisit[visitItem.id] || "digital";
         const rx = visitItem.digitalRx;
+        const canCopyVisit = Boolean(visitItem.detailLoaded && buildPastVisitAllPayload(visitItem));
 
         return (
           <div
@@ -1850,7 +1855,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
               expanded={expanded}
               fresh={visitItem.fresh}
               onToggle={() => handleVisitToggle(visitItem, expanded)}
-              onCopy={() => handleCopyVisit(visitItem)}
+              onCopy={canCopyVisit ? () => handleCopyVisit(visitItem) : undefined}
             >
               <div className="snv-segmented">
                 <button

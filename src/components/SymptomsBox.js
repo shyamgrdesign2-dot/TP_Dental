@@ -135,10 +135,12 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   } = useVoiceRxModuleCapture({
     moduleName: "Symptoms",
     onApply: applyVoiceSymptoms,
     successMessage: "Symptoms filled from voice dictation",
+    copyPayloadKeys: ["symptoms"],
   });
 
   useEffect(() => {
@@ -1014,7 +1016,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Symptomsicon} alt="Symptoms" />

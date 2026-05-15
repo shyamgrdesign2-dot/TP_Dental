@@ -195,10 +195,6 @@ export function RxPadSyncProvider({ children }) {
   const runCopyWithAura = useCallback((payload, opts) => {
     const delayMs = opts?.delayMs ?? 2000;
     const bulk = !!opts?.bulk;
-    if (bulk) {
-      setCopyOverlayActive(true);
-      setCopyAllAuraActive(true);
-    }
     if (copyOverlayTimerRef.current) clearTimeout(copyOverlayTimerRef.current);
     if (copyAllAuraTimerRef.current) clearTimeout(copyAllAuraTimerRef.current);
     const fillAt = Math.max(200, Math.round(delayMs * 0.45));
@@ -207,15 +203,20 @@ export function RxPadSyncProvider({ children }) {
       for (const p of payloads) {
         setCopySequence((prev) => {
           const next = prev + 1;
-          setLastCopyRequest({ id: next, payload: p });
+          setLastCopyRequest({ id: next, payload: p, isBulk: bulk });
           return next;
         });
       }
+      window.setTimeout(() => {
+        if (bulk) {
+          setCopyOverlayActive(true);
+          setCopyAllAuraActive(true);
+          copyOverlayTimerRef.current = setTimeout(() => setCopyOverlayActive(false), delayMs);
+          copyAllAuraTimerRef.current = setTimeout(() => setCopyAllAuraActive(false), delayMs);
+        }
+        opts?.onAfterCopy?.();
+      }, 80);
     }, fillAt);
-    if (bulk) {
-      copyOverlayTimerRef.current = setTimeout(() => setCopyOverlayActive(false), delayMs);
-      copyAllAuraTimerRef.current = setTimeout(() => setCopyAllAuraActive(false), delayMs);
-    }
   }, []);
 
   const publishSignal = useCallback((signal) => {

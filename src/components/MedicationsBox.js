@@ -175,10 +175,12 @@ function MedicationsBox({ showVoiceRxModule }) {
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   } = useVoiceRxModuleCapture({
     moduleName: "Medication (Rx)",
     onApply: applyVoiceMedication,
     successMessage: "Medication (Rx) filled from voice dictation",
+    copyPayloadKeys: ["medications"],
   });
 
   //PopOver1
@@ -2311,7 +2313,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />

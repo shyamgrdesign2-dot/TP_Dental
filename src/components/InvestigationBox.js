@@ -88,10 +88,12 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   } = useVoiceRxModuleCapture({
     moduleName: INVESTIGATION_TITLE,
     onApply: applyVoiceInvestigation,
     successMessage: `${INVESTIGATION_TITLE} filled from voice dictation`,
+    copyPayloadKeys: ["labInvestigations", "investigations", "lab_investigation", "labInvestigation"],
   });
 
   const [ddxInvestigationOptionsList, setDdxInvestigationOptionsList] =
@@ -987,7 +989,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   return (
     <>
-      <div className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
