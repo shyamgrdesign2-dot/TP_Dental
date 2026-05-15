@@ -783,18 +783,37 @@
   width: 100%;
   min-height: 42px;
   margin-top: 8px;
-  border: 1px solid var(--tp-blue-500);
+  border: 0;
   border-radius: 10px;
-  background: #ffffff;
+  background: transparent;
   color: var(--tp-blue-500) !important;
   font-size: 14px;
   font-weight: 500;
   line-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .snv-load-more-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.snv-load-more-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.snv-load-more-content svg {
+  flex: 0 0 auto;
+}
+
+.snv-load-more-arrow {
+  background: rgba(153, 146, 210, 0.475);
 }
 
 .snv-date-card,

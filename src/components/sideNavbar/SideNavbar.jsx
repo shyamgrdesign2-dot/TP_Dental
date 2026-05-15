@@ -77,6 +77,7 @@ const NAV_ITEM_BY_ID = NAV_ITEMS.reduce((acc, item) => {
   return acc;
 }, {});
 const SIDE_NAV_BATCH_SIZE = 3;
+const PAST_VISITS_BATCH_SIZE = 5;
 
 function getCustomizedPadNavId(item, access = {}) {
   if (!item || item.tmdpm_status !== 0) return null;
@@ -483,6 +484,11 @@ function firstLegacyText(item, keys) {
   return key ? String(item[key]) : "";
 }
 
+function firstTextValue(...values) {
+  const value = values.find(hasValue);
+  return value === undefined ? "" : String(value).trim();
+}
+
 function legacyDetail(item, keys) {
   if (!item || typeof item === "string") return "";
   return keys
@@ -544,6 +550,17 @@ function legacyAdviceText(value) {
     .map((item) => firstLegacyText(item, ["advice", "notes", "name", "label", "title"]))
     .filter(Boolean)
     .join(" ");
+}
+
+function getPastVisitLookupList(source, key) {
+  return legacyArray(
+    source?.[key] ||
+      source?.data?.[key] ||
+      source?.data?.data?.[key] ||
+      source?.printPayload?.[key] ||
+      source?.printPayload?.data?.[key] ||
+      source?.printPayload?.data?.data?.[key]
+  );
 }
 
 function isValidMongoId(value) {
@@ -673,12 +690,26 @@ function buildPastVisitDigitalRx(consultation) {
     consultation
   );
 
+  const legacyMedicationPayload = legacyArray(legacyConsultation.medicine);
+  const medicationLookups = {
+    frequencyList: getPastVisitLookupList(consultation, "frequencyList"),
+    timingList: getPastVisitLookupList(consultation, "timingList"),
+  };
+  const legacyMedicationRows = buildPastVisitMedicationRows(legacyMedicationPayload, {
+    frequencyList: medicationLookups.frequencyList,
+    timingList: medicationLookups.timingList,
+  });
+  const legacySymptomsPayload = legacyArray(legacyConsultation.symptoms);
+  const legacySymptomRows = legacyVisitRows(
+    legacySymptomsPayload,
+    ["symptom_name", "name", "title", "label"],
+    ["since", "duration", "severity", "note", "notes"]
+  );
   const digitalRx = {
-    symptoms: legacyVisitRows(
-      legacyConsultation.symptoms,
-      ["symptom_name", "name", "title", "label"],
-      ["since", "duration", "severity", "note", "notes"]
-    ),
+    symptoms: legacySymptomRows,
+    symptomsPayload: legacySymptomsPayload.length
+      ? legacySymptomsPayload
+      : legacySymptomRows,
     examinations: legacyVisitRows(
       legacyConsultation.examination,
       ["examination_name", "name", "title", "label"],
@@ -689,11 +720,11 @@ function buildPastVisitDigitalRx(consultation) {
       ["tds_name", "diagnosis_name", "name", "title", "label"],
       ["since", "status", "note", "notes"]
     ),
-    medications: legacyVisitRows(
-      legacyConsultation.medicine,
-      ["tmm_medicine_name", "medicine_name", "name", "title", "label"],
-      ["tmm_dosage_unit_name", "dosage", "tmm_freq_type_name", "frequency", "tmm_time_name", "schedule", "tmm_days_duration_type", "duration", "tmm_remarks", "notes", "quantity"]
-    ),
+    medications: legacyMedicationRows,
+    medicationsPayload: legacyMedicationPayload.length
+      ? legacyMedicationPayload
+      : legacyMedicationRows,
+    medicationLookups,
     medicalHistory: buildPastVisitMedicalHistoryRows(legacyConsultation.medical_history || legacyConsultation.medicalHistory),
     surgeries: legacyVisitRows(
       legacyConsultation.surgeries,
@@ -792,6 +823,158 @@ function pastVisitRows(items) {
     .filter((item) => item.label || item.detail);
 }
 
+function buildPastVisitSymptomPayloadRows(items) {
+  return toArray(items)
+    .map((item) => {
+      if (typeof item === "string" || typeof item === "number") {
+        const symptomName = String(item).trim();
+        return symptomName ? { symptom_name: symptomName } : null;
+      }
+      const raw = firstObject(item?.payload, item?.raw, item);
+      const symptomName = firstTextValue(raw?.symptom_name, raw?.name, raw?.title, raw?.label);
+      if (!symptomName) return null;
+      return {
+        ...raw,
+        symptom_name: symptomName,
+        since: firstTextValue(raw?.since, raw?.duration),
+        severity: firstTextValue(raw?.severity),
+        note: firstTextValue(raw?.note, raw?.notes),
+      };
+    })
+    .filter(Boolean);
+}
+
+function pastVisitMedicationName(item) {
+  return firstTextValue(
+    item?.tmm_medicine_name,
+    item?.tm_medicine_name,
+    item?.medicine_name,
+    item?.groundedMedicineName,
+    item?.groundingMedicineName,
+    item?.refinedName,
+    item?.name,
+    item?.title,
+    item?.label
+  );
+}
+
+function findMedicineUnitTitle(item) {
+  const unitId = firstTextValue(item?.tmm_unit, item?.tmu_id);
+  const units = legacyArray(item?.medicineUnit);
+  const matchedUnit = units.find((unit) => String(unit?.tmu_id) === String(unitId));
+  return firstTextValue(item?.tmm_unit_name, matchedUnit?.tmu_title);
+}
+
+function buildPastVisitDoseText(item) {
+  const dosage = firstTextValue(item?.dosage, item?.tmm_dosage);
+  if (!dosage) return "";
+  return [dosage, findMedicineUnitTitle(item)].filter(Boolean).join(" ");
+}
+
+function hasFrequencySlotValue(item) {
+  return [
+    item?.tcm_tmm_freq_morning,
+    item?.tcm_tmm_freq_afternoon,
+    item?.tcm_tmm_freq_evening,
+    item?.tcm_tmm_freq_night,
+  ].some((value) => value !== undefined && value !== null && String(value).trim() !== "" && String(value).trim() !== "0");
+}
+
+function frequencySlotText(value) {
+  if (value === undefined || value === null || String(value).trim() === "") return "0";
+  return String(value).trim();
+}
+
+function buildPastVisitFrequencyText(item, frequencyList = []) {
+  if (firstTextValue(item?.frequency, item?.frequencyText, item?.frequency_text)) {
+    return firstTextValue(item?.frequency, item?.frequencyText, item?.frequency_text);
+  }
+
+  if (String(item?.tmf_block ?? "").trim() === "0") {
+    return hasFrequencySlotValue(item)
+      ? [
+          frequencySlotText(item?.tcm_tmm_freq_morning),
+          frequencySlotText(item?.tcm_tmm_freq_afternoon),
+          frequencySlotText(item?.tcm_tmm_freq_evening),
+          frequencySlotText(item?.tcm_tmm_freq_night),
+        ].join(" - ")
+      : "";
+  }
+
+  const frequency = frequencyList.find((entry) => String(entry?.tmf_id) === String(item?.tmm_freq_type));
+  return firstTextValue(item?.tmm_freq_type_name, frequency?.tmf_title);
+}
+
+function buildPastVisitScheduleText(item, timingList = []) {
+  const timing = timingList.find((entry) => String(entry?.tmt_id) === String(item?.tmm_time));
+  const title = firstTextValue(item?.schedule, item?.tmm_time_name, timing?.tmt_title);
+  return title === "None" ? "" : title;
+}
+
+function buildPastVisitDurationText(item) {
+  const duration = firstTextValue(item?.duration, item?.tmm_days_duration_type);
+  if (duration) return duration;
+  const days = firstTextValue(item?.tmm_days);
+  const type = firstTextValue(item?.tmm_duration_type);
+  if (days && type) return `${days} ${type}`;
+  if (type && !["Day(s)", "Week(s)", "Month(s)", "Year(s)"].includes(type)) return type;
+  return "";
+}
+
+function buildPastVisitQuantityText(item) {
+  const quantity = firstTextValue(item?.display_qty, item?.quantity);
+  return quantity && quantity !== "0" ? quantity : "";
+}
+
+function normalizePastVisitMedicationRow(item, lookups = {}) {
+  if (typeof item === "string" || typeof item === "number") {
+    const medicineName = String(item).trim();
+    return medicineName ? { tmm_medicine_name: medicineName, name: medicineName } : null;
+  }
+  const raw = firstObject(item?.payload, item?.raw, item);
+  const medicineName = pastVisitMedicationName(raw) || pastVisitMedicationName(item);
+  if (!medicineName) return null;
+  const dosage = buildPastVisitDoseText(raw);
+  const frequency = buildPastVisitFrequencyText(raw, lookups.frequencyList);
+  const schedule = buildPastVisitScheduleText(raw, lookups.timingList);
+  const duration = buildPastVisitDurationText(raw);
+  const displayQuantity = buildPastVisitQuantityText(raw);
+  const notes = firstTextValue(raw?.notes, raw?.note, raw?.tmm_remarks);
+
+  return {
+    ...raw,
+    tmm_medicine_name: medicineName,
+    medicine_name: raw?.medicine_name || medicineName,
+    name: raw?.name || medicineName,
+    dosage,
+    frequency,
+    schedule,
+    duration,
+    quantity: raw?.quantity ?? raw?.display_qty ?? "",
+    displayQuantity,
+    notes,
+    note: notes,
+  };
+}
+
+function buildPastVisitMedicationRows(items, lookups = {}) {
+  return toArray(items)
+    .map((item) => normalizePastVisitMedicationRow(item, lookups))
+    .filter(Boolean)
+    .map((item) => ({
+      ...item,
+      payload: item,
+      label: item.tmm_medicine_name || item.name,
+      detail: valueText([item.dosage, item.frequency, item.schedule, item.duration, item.notes, item.displayQuantity]),
+    }));
+}
+
+function buildPastVisitMedicationPayloadRows(items, lookups = {}) {
+  return toArray(items)
+    .map((item) => normalizePastVisitMedicationRow(item, lookups))
+    .filter(Boolean);
+}
+
 function pastVisitMedicalHistoryType(detail) {
   const text = String(detail || "").trim();
   if (!text) return "Medical Condition";
@@ -809,10 +992,7 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
 
   switch (sectionKey) {
     case "symptoms": {
-      const rows = pastVisitRows(rx.symptoms).map((item) => ({
-        symptom_name: item.label,
-        note: item.detail,
-      }));
+      const rows = buildPastVisitSymptomPayloadRows(rx.symptomsPayload || rx.symptoms);
       return rows.length ? { ...base, digitization: { symptoms: rows } } : null;
     }
     case "examinations": {
@@ -830,10 +1010,7 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
       return rows.length ? { ...base, digitization: { diagnosis: rows } } : null;
     }
     case "medications": {
-      const rows = pastVisitRows(rx.medications).map((item) => ({
-        tmm_medicine_name: item.label,
-        notes: item.detail,
-      }));
+      const rows = buildPastVisitMedicationPayloadRows(rx.medicationsPayload || rx.medications, rx.medicationLookups);
       return rows.length ? { ...base, digitization: { medications: rows } } : null;
     }
     case "medicalHistory": {
@@ -1147,6 +1324,7 @@ function buildSmartVaccineData(vaccinations) {
 
 function buildDigitalRx(payload) {
   const p = firstObject(payload?.payload, payload);
+  const medicationPayload = toArray(p.medications || p.medicine);
   const vitalsPayload = firstObject(p.vitalsAndBodyComposition, p.vitals);
   const gynecPayload = firstObject(p.gyneacHistory, p.gynecHistory);
   const obstetricPayload = firstObject(p.obstetricHistory);
@@ -1176,10 +1354,13 @@ function buildDigitalRx(payload) {
 
   return {
     symptoms: toArray(p.symptoms).map((item) => ({
+      ...(isObject(item) ? item : {}),
+      payload: item,
       label: item?.name || item?.symptom_name || item?.lineItem || item?.label || String(item || ""),
       detail: valueText([item?.since, item?.duration, item?.severity, item?.notes, item?.note, item?.detail]),
       fresh: true,
     })),
+    symptomsPayload: toArray(p.symptoms),
     examinations: toArray(p.examinations || p.examination).map((item) => ({
       label: item?.name || item?.examination_name || item?.lineItem || item?.label || String(item || ""),
       detail: valueText([item?.notes, item?.note, item?.detail]),
@@ -1190,11 +1371,17 @@ function buildDigitalRx(payload) {
       detail: valueText([item?.since, item?.status, item?.notes, item?.note, item?.detail]),
       fresh: true,
     })),
-    medications: toArray(p.medications || p.medicine).map((item) => ({
-      label: item?.name || item?.medicine_name || item?.tmm_medicine_name || item?.lineItem || item?.label || String(item || ""),
-      detail: valueText([item?.dosage, item?.tmm_dosage_unit_name, item?.frequency, item?.tmm_freq_type_name, item?.schedule, item?.tmm_time_name, item?.duration, item?.tmm_days_duration_type, item?.notes, item?.note, item?.quantity, item?.detail]),
-      fresh: true,
-    })),
+    medications: medicationPayload.map((item) => {
+      const itemObject = isObject(item) ? item : {};
+      return {
+        ...itemObject,
+        payload: item,
+        label: itemObject.name || itemObject.medicine_name || itemObject.tmm_medicine_name || itemObject.groundedMedicineName || itemObject.refinedName || itemObject.lineItem || itemObject.label || String(item || ""),
+        detail: valueText([itemObject.dosage, itemObject.tmm_dosage_unit_name, itemObject.frequency, itemObject.tmm_freq_type_name, itemObject.schedule, itemObject.tmm_time_name, itemObject.duration, itemObject.tmm_days_duration_type, itemObject.notes, itemObject.note, itemObject.quantity, itemObject.detail]),
+        fresh: true,
+      };
+    }),
+    medicationsPayload: medicationPayload,
     advice: toArray(p.advice).map((item) => (typeof item === "string" ? item : item?.advice_name || item?.notes || item?.note || item?.name || item?.lineItem || item?.label || "")).filter(Boolean).join(" "),
     labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).map((item) => (typeof item === "string" ? item : item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label)).filter(Boolean),
     medicalHistory: legacyVisitRows(
@@ -2118,11 +2305,11 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
   const firstVisitId = visits[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstVisitId));
   const [modeByVisit, setModeByVisit] = useState({});
-  const [visibleCount, setVisibleCount] = useState(SIDE_NAV_BATCH_SIZE);
+  const [visibleCount, setVisibleCount] = useState(PAST_VISITS_BATCH_SIZE);
 
   useEffect(() => {
     setExpandedById(defaultExpandedMap(firstVisitId));
-    setVisibleCount(SIDE_NAV_BATCH_SIZE);
+    setVisibleCount(PAST_VISITS_BATCH_SIZE);
     pendingLoadMoreRef.current = false;
   }, [firstVisitId]);
 
@@ -2138,7 +2325,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
 
   useEffect(() => {
     if (!pendingLoadMoreRef.current || loading || visibleCount >= visits.length) return;
-    setVisibleCount((current) => Math.min(current + SIDE_NAV_BATCH_SIZE, visits.length));
+    setVisibleCount((current) => Math.min(current + PAST_VISITS_BATCH_SIZE, visits.length));
     pendingLoadMoreRef.current = false;
   }, [loading, visibleCount, visits.length]);
 
@@ -2147,7 +2334,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
 
   const handleLoadMore = useCallback(() => {
     if (visibleCount < visits.length) {
-      setVisibleCount((current) => Math.min(current + SIDE_NAV_BATCH_SIZE, visits.length));
+      setVisibleCount((current) => Math.min(current + PAST_VISITS_BATCH_SIZE, visits.length));
       return;
     }
     if (hasMore && !loading) {
@@ -2251,7 +2438,14 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
       {loading ? <div className="snv-loading-state">Loading visits...</div> : null}
       {canLoadMore ? (
         <button type="button" className="snv-load-more-btn" onClick={handleLoadMore} disabled={loading}>
-          {loading ? "Loading..." : "Load more"}
+          <span className="snv-load-more-content">
+            <span>{loading ? "Loading..." : "Load more"}</span>
+            {!loading ? (
+              <span className="snv-scroll-hint-dot snv-load-more-arrow" aria-hidden="true">
+                <ArrowDown2 color="#202124" size={16} strokeWidth={1.5} variant="Linear" />
+              </span>
+            ) : null}
+          </span>
         </button>
       ) : null}
     </div>
@@ -3965,7 +4159,7 @@ export function SideNavbar({
     try {
       const response = await ApiCaseManager.listConsultations({
         patient_unique_id: patientId,
-        limit: SIDE_NAV_BATCH_SIZE,
+        limit: PAST_VISITS_BATCH_SIZE,
         page,
       });
       if (pastVisitsRequestRef.current !== requestId) return;
