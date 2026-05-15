@@ -758,6 +758,14 @@
   display: none;
 }
 
+.snv-past-visits-scroll {
+  padding-top: 0;
+}
+
+.snv-past-visits-scroll > .snv-date-card:first-of-type {
+  margin-top: 14px;
+}
+
 .snv-virtual-list {
   position: relative;
   width: 100%;
@@ -815,6 +823,18 @@
   font-weight: 500;
   line-height: 18px;
   text-align: left;
+}
+
+.snv-date-card-sticky {
+  overflow: visible;
+}
+
+.snv-date-card-header-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  border-radius: 9px 9px 0 0;
+  box-shadow: 0 1px 0 rgba(226, 226, 234, 0.85);
 }
 
 .snv-date-toggle-btn {

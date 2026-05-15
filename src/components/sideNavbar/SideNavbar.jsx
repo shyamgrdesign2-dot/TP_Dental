@@ -1788,10 +1788,10 @@ function hasListData(items) {
   return Array.isArray(items) && items.length > 0;
 }
 
-function DateCard({ title, expanded, onToggle, onCopy, children, fresh }) {
+function DateCard({ title, expanded, onToggle, onCopy, children, fresh, stickyHeader = false }) {
   return (
-    <article className={`snv-date-card ${fresh ? "snv-fresh-card" : ""}`}>
-      <div className="snv-date-card-header">
+    <article className={`snv-date-card ${fresh ? "snv-fresh-card" : ""} ${stickyHeader ? "snv-date-card-sticky" : ""}`}>
+      <div className={`snv-date-card-header ${stickyHeader ? "snv-date-card-header-sticky" : ""}`}>
         <button type="button" className="snv-date-toggle-btn" onClick={onToggle}>
           <span>{title}</span>
         </button>
@@ -1812,7 +1812,6 @@ function defaultExpandedMap(firstId) {
 }
 
 function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload }) {
-  const scrollRef = useRef(null);
   const pendingLoadMoreRef = useRef(false);
   const firstVisitId = visits[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstVisitId));
@@ -1878,39 +1877,24 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
     );
   }, [handleCopyPayload]);
 
-  const rowVirtualizer = useVirtualizer({
-    count: visibleVisits.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => expandedById[visibleVisits[index]?.id] ? 520 : 78,
-    overscan: 4,
-  });
-  const virtualRows = rowVirtualizer.getVirtualItems();
-
   return (
-    <div ref={scrollRef} className="snv-content-scroll" data-snv-scroll-root="true">
+    <div className="snv-content-scroll snv-past-visits-scroll" data-snv-scroll-root="true">
       {visits.length === 0 && !loading ? (
         <div className="snv-empty-state">No past visits recorded.</div>
       ) : (
-        <div className="snv-virtual-list" style={{ height: rowVirtualizer.getTotalSize() }}>
-          {virtualRows.map((virtualRow) => {
-        const visitItem = visibleVisits[virtualRow.index];
-        const expanded = Boolean(expandedById[visitItem.id]);
-        const mode = modeByVisit[visitItem.id] || "digital";
-        const rx = visitItem.digitalRx;
-        const canCopyVisit = Boolean(visitItem.detailLoaded && buildPastVisitAllPayload(visitItem));
+        visibleVisits.map((visitItem) => {
+          const expanded = Boolean(expandedById[visitItem.id]);
+          const mode = modeByVisit[visitItem.id] || "digital";
+          const rx = visitItem.digitalRx;
+          const canCopyVisit = Boolean(visitItem.detailLoaded && buildPastVisitAllPayload(visitItem));
 
-        return (
-          <div
-            key={visitItem.id}
-            ref={rowVirtualizer.measureElement}
-            data-index={virtualRow.index}
-            className="snv-virtual-row"
-            style={{ transform: `translateY(${virtualRow.start}px)` }}
-          >
+          return (
             <DateCard
+              key={visitItem.id}
               title={visitItem.dateLabel}
               expanded={expanded}
               fresh={visitItem.fresh}
+              stickyHeader
               onToggle={() => handleVisitToggle(visitItem, expanded)}
               onCopy={canCopyVisit ? () => handleCopyVisit(visitItem) : undefined}
             >
@@ -1958,10 +1942,8 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                 <div className="snv-empty-state">No digital Rx available for this visit.</div>
               )}
             </DateCard>
-          </div>
-        );
-          })}
-        </div>
+          );
+        })
       )}
       {loading ? <div className="snv-loading-state">Loading visits...</div> : null}
       {canLoadMore ? (
@@ -2105,7 +2087,62 @@ function KeyValueRows({ rows }) {
   );
 }
 
+function DateEntryCard({ entry, expanded, onToggle }) {
+  return (
+    <DateCard
+      title={entry.dateLabel}
+      expanded={expanded}
+      fresh={entry.fresh}
+      onToggle={onToggle}
+    >
+      <KeyValueRows rows={entry.rows} />
+    </DateCard>
+  );
+}
+
 function DateRowsContent({ entries = [] }) {
+  const firstEntryId = entries[0]?.id;
+  const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstEntryId));
+  const [visibleCount, setVisibleCount] = useState(SIDE_NAV_BATCH_SIZE);
+
+  useEffect(() => {
+    setExpandedById(defaultExpandedMap(firstEntryId));
+    setVisibleCount(SIDE_NAV_BATCH_SIZE);
+  }, [firstEntryId]);
+
+  const visibleEntries = useMemo(() => entries.slice(0, visibleCount), [entries, visibleCount]);
+
+  return (
+    <div className="snv-content-scroll" data-snv-scroll-root="true">
+      {entries.length === 0 ? (
+        <div className="snv-empty-state">No data recorded.</div>
+      ) : (
+        visibleEntries.map((entry) => {
+          const expanded = Boolean(expandedById[entry.id]);
+          return (
+            <DateEntryCard
+              key={entry.id}
+              entry={entry}
+              expanded={expanded}
+              onToggle={() => setExpandedById((prev) => ({ ...prev, [entry.id]: !expanded }))}
+            />
+          );
+        })
+      )}
+      {visibleCount < entries.length ? (
+        <button
+          type="button"
+          className="snv-load-more-btn"
+          onClick={() => setVisibleCount((current) => Math.min(current + SIDE_NAV_BATCH_SIZE, entries.length))}
+        >
+          Load more
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function VirtualDateRowsContent({ entries = [] }) {
   const scrollRef = useRef(null);
   const firstEntryId = entries[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstEntryId));
@@ -2143,14 +2180,11 @@ function DateRowsContent({ entries = [] }) {
                 className="snv-virtual-row"
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
-                <DateCard
-                  title={entry.dateLabel}
+                <DateEntryCard
+                  entry={entry}
                   expanded={expanded}
-                  fresh={entry.fresh}
                   onToggle={() => setExpandedById((prev) => ({ ...prev, [entry.id]: !expanded }))}
-                >
-                  <KeyValueRows rows={entry.rows} />
-                </DateCard>
+                />
               </div>
             );
           })}
@@ -3261,7 +3295,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
     case "history":
       return <HistoryContent sections={viewData.history} />;
     case "labResults":
-      return <DateRowsContent entries={viewData.labResults} />;
+      return <VirtualDateRowsContent entries={viewData.labResults} />;
     case "medicalRecords":
       return <RecordsContent records={viewData.medicalRecords} rawDocs={viewData.medicalRecordsRawDocs} uploadDocCategories={viewData.medicalRecordsCategories} />;
     case "gynec":
