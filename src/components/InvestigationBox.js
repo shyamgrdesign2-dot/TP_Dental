@@ -636,14 +636,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                                 onSelect={(data, e) => onSelectChild(data, e, index)}
                               />
                             </div>
-                            {(item?.hm_type === 1 && item?.um_id === 0) && (
-                              <span
-                                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0"
-                                style={{ width: 18, height: 18, background: "#c44ea2" }}
-                              >
-                                Z
-                              </span>
-                            )}
                             {supplementaryIndicator && (
                               <span
                                 className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
