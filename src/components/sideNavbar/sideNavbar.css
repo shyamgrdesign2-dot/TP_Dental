@@ -1222,6 +1222,51 @@
   text-align: center;
 }
 
+.snv-shimmer-block,
+.snv-written-rx-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #f1f1f5;
+}
+
+.snv-shimmer-block::after,
+.snv-written-rx-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: -60% auto -60% -40%;
+  width: 42%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.88), transparent);
+  animation: snv-processing-shine 1.35s ease-in-out infinite;
+}
+
+.snv-digital-rx-shimmer {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 4px 0 2px;
+}
+
+.snv-digital-rx-shimmer-title {
+  width: 92px;
+  height: 16px;
+  border-radius: 999px;
+}
+
+.snv-digital-rx-shimmer-row {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.snv-written-rx-shimmer {
+  width: 304px;
+  max-width: 100%;
+  height: 236px;
+  border-radius: 10px;
+  background: #f1f1f5;
+}
+
 .snv-empty-line {
   height: 14px;
   width: 78%;

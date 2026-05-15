@@ -1811,6 +1811,22 @@ function defaultExpandedMap(firstId) {
   return firstId ? { [firstId]: true } : {};
 }
 
+function DigitalRxShimmer() {
+  return (
+    <div className="snv-digital-rx-shimmer" aria-label="Loading digital Rx" role="status">
+      <span className="snv-shimmer-block snv-digital-rx-shimmer-title" />
+      <span className="snv-shimmer-block snv-digital-rx-shimmer-row" />
+      <span className="snv-shimmer-block snv-digital-rx-shimmer-row" />
+    </div>
+  );
+}
+
+function WrittenRxShimmer() {
+  return (
+    <div className="snv-written-rx-shimmer" aria-label="Loading written Rx" role="status" />
+  );
+}
+
 function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onCopyPayload }) {
   const pendingLoadMoreRef = useRef(false);
   const firstVisitId = visits[0]?.id;
@@ -1916,14 +1932,14 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
               </div>
               {mode === "written" ? (
                 visitItem.detailLoading ? (
-                  <div className="snv-loading-state">Loading {visitItem.hasTranscript ? "transcript" : "written Rx"}...</div>
+                  <WrittenRxShimmer />
                 ) : visitItem.hasTranscript ? (
                   <TranscriptContent blocks={visitItem.transcriptBlocks || []} />
                 ) : (
                   <WrittenRxContent docs={visitItem.writtenRx || []} />
                 )
               ) : visitItem.detailLoading ? (
-                <div className="snv-loading-state">Loading visit details...</div>
+                <DigitalRxShimmer />
               ) : rx ? (
                 <>
                   {hasListData(rx.symptoms) ? <RxSection title="Symptoms" icon={<RxSectionIcon src={RX_SECTION_ICONS.symptoms} />} onCopy={() => handleCopySection(visitItem, "symptoms", "Symptoms")}><BulletList items={rx.symptoms} /></RxSection> : null}
@@ -1988,7 +2004,7 @@ function WrittenRxPreview({ doc }) {
     window.setTimeout(() => URL.revokeObjectURL(nextUrl), 30000);
   }, [printBlob]);
 
-  if (isGenerating) return <div className="snv-loading-state">Loading written Rx...</div>;
+  if (isGenerating) return <WrittenRxShimmer />;
   if (error || !blobUrl) return <div className="snv-empty-state">No written Rx available.</div>;
 
   return (
