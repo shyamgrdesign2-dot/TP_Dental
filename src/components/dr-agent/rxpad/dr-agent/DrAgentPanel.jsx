@@ -292,7 +292,10 @@ export function DrAgentPanel({
               }
               : voiceRxResult.structured?.copyAllPayload;
             if (!copyAllPayload) return;
-            runCopyWithAura(copyAllPayload, { bulk: true });
+            runCopyWithAura(copyAllPayload, {
+              bulk: true,
+              onAfterCopy: () => toast.success("Copied All Fields to RxPad")
+            });
             if (voiceRxResult.pendingSidebarBatch) {
               pushHistoricalUpdates(voiceRxResult.pendingSidebarBatch);
               setVoiceRxResult((prev) => prev ? { ...prev, pendingSidebarBatch: undefined } : prev);
