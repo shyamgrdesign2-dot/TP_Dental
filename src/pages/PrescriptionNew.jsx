@@ -92,11 +92,11 @@ import { getCarePlanNames, getCarePlanAssignments } from "./smartSync/services/c
 
 import TatvaAiKnowMore from "../components/TatvaAiKnowMore";
 import GenRxBox from "../components/GenRxBox";
-import ConsultationDrawer from "../components/ConsultationDrawer";
+// import ConsultationDrawer from "../components/ConsultationDrawer";
 import ExpiredSubModal from "./monetization/components/ExpiredSubModal";
 import { checkCredits } from "../redux/monetizationSlice";
 import { services, setCustomizedPadLists } from "../redux/doctorsSlice";
-import { fetchSymptomsCollectorData } from "../api/services/ApiGenRx";
+import { fetchSymptomsCollectorData, getGenRx } from "../api/services/ApiGenRx";
 import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
 import ZydusLabParams from "../components/ZydusLabParams";
@@ -142,6 +142,7 @@ import {
   useRxPadSync,
 } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { normalizeModuleRows } from "../components/dr-agent/voicerx/VoiceRxModuleCapture";
+import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
 import { SideNavbar } from "../components/sideNavbar";
@@ -383,7 +384,7 @@ function PrescriptionNew() {
   const tokenData = decodedToken?.result;
 
   const { state } = useLocation();
-  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx, fromRepeatRx } = state || {};
+  const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx, fromRepeatRx, isVoiceRxNewUiFlow } = state || {};
   
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
@@ -563,6 +564,7 @@ function PrescriptionNew() {
       : moment().format("YYYY-MM-DD HH:mm:ss");
 
   const { profile } = useSelector((state) => state.doctors);
+  const voiceDigitization = useSelector((state) => state.voiceDigitization);
 
   const [symptomsData, setSymptomsData] = useState([]);
   const [examinationData, setExaminationData] = useState([]);
@@ -583,12 +585,12 @@ function PrescriptionNew() {
   const startTime = moment().format("YYYY-MM-DD HH:mm:ss");
   const [customModuleContents, setCustomModuleContents] = useState([]);
   const [isAddCustomModuleDrawerVisible, setIsAddCustomModuleDrawerVisible] = useState(false);
-  const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
-    caseManagerData?.smart_prescription_filename || 
-    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
-    (fromVoiceRecording && audioBlob) ||
-    false
-  );
+  // const [isGenRxDrawerVisible, setIsGenRxDrawerVisible] = useState(
+  //   (!isVoiceRxNewUiFlow && caseManagerData?.smart_prescription_filename) ||
+  //   (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+  //   (fromVoiceRecording && audioBlob) ||
+  //   false
+  // );
   const isVideoConsultAccessible = useFeatureIsOn(GB_VIDEO_CONSULT);
   const isTeleConsultEnabled = useFeatureIsOn(GB_TELE_CONSULT);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
@@ -765,6 +767,38 @@ function PrescriptionNew() {
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isVoiceRxAccessible = isFreeVoiceRxUser || tp_monetization_enable;
   const canUseVoiceRxModuleUi = isVoiceRxNewFromGB && isVoiceRxAccessible;
+  const [voiceHydrationStatus, setVoiceHydrationStatus] = useState("idle");
+  const [symptomCollectorStatus, setSymptomCollectorStatus] = useState("idle");
+  const symptomCollectorRequestRef = useRef(0);
+
+  const hasMeaningfulVoicePayload = (payload) => {
+    if (!payload || typeof payload !== "object") return false;
+    const hasHistory = Array.isArray(payload.history) && payload.history.length > 0;
+    const hasObjectData = (value) =>
+      value && typeof value === "object" && Object.keys(value).length > 0;
+    return (
+      hasHistory ||
+      hasObjectData(payload.digitizeData) ||
+      hasObjectData(payload.editedData) ||
+      hasObjectData(payload.clinicNotes)
+    );
+  };
+
+  const hasDisplayableSymptomCollectorPayload = (payload) => {
+    if (!payload || typeof payload !== "object") return false;
+    return Boolean(
+      payload.symptoms?.length ||
+      payload.medicalHistory?.length ||
+      payload.allergies?.length ||
+      payload.currentMedications?.length ||
+      payload.medications?.length ||
+      payload.questionsToDoctor?.length ||
+      payload.questions?.length ||
+      payload.notes ||
+      payload.others
+    );
+  };
+
   useEffect(() => {
     if (canUseVoiceRxModuleUi) {
       setDrAgentOpen(true);
@@ -775,6 +809,53 @@ function PrescriptionNew() {
       setDrAgentOpen(false);
     }
   }, [canUseVoiceRxModuleUi, drAgentOpen]);
+  useEffect(() => {
+    const voiceSessionId = voiceDigitization?.sessionId;
+    if (!voiceSessionId) return;
+    window.__TATVA_VOICE_SESSION_ID = voiceSessionId;
+    return () => {
+      if (window.__TATVA_VOICE_SESSION_ID === voiceSessionId) {
+        delete window.__TATVA_VOICE_SESSION_ID;
+      }
+    };
+  }, [voiceDigitization?.sessionId]);
+  useEffect(() => {
+    const recordId = caseManagerData?.smart_prescription_filename;
+    if (!canUseVoiceRxModuleUi) {
+      setVoiceHydrationStatus("idle");
+      return;
+    }
+    if (!recordId) {
+      dispatch(resetVoiceDigitization());
+      setVoiceHydrationStatus("empty");
+      return;
+    }
+    let cancelled = false;
+    dispatch(resetVoiceDigitization());
+    setVoiceHydrationStatus("loading");
+    (async () => {
+      try {
+        const response = await getGenRx(recordId);
+        if (cancelled) return;
+        const payload = response?.data?.data || response?.data || response;
+        if (hasMeaningfulVoicePayload(payload)) {
+          dispatch(hydrateVoiceDigitization(payload));
+          setVoiceHydrationStatus("hydrated");
+        } else {
+          dispatch(resetVoiceDigitization());
+          setVoiceHydrationStatus("empty");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          dispatch(resetVoiceDigitization());
+          setVoiceHydrationStatus("empty");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canUseVoiceRxModuleUi, caseManagerData?.smart_prescription_filename, dispatch]);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
   const isGroundingAccessableForZydus =
@@ -1499,9 +1580,20 @@ function PrescriptionNew() {
 
   useEffect(() => {
     getSymptomsCollectorData();
-  }, []);
+  }, [
+    userId,
+    patient_data?.patient_unique_id,
+    patient_data?.pam_id,
+    caseManagerData?.pam_id,
+    decodedToken?.result?.clinic_id,
+  ]);
 
   const getSymptomsCollectorData = async () => {
+    const requestId = symptomCollectorRequestRef.current + 1;
+    symptomCollectorRequestRef.current = requestId;
+    setSymptomCollectorStatus("loading");
+    setShowSCBanner(false);
+    dispatch(setSymptomCollector({}));
     const payload = {
       um_id: String(userId),
       patient_unique_id: String(patient_data?.patient_unique_id),
@@ -1513,18 +1605,28 @@ function PrescriptionNew() {
           ? String(caseManagerData.pam_id)
           : 0,
     };
-    const response = await fetchSymptomsCollectorData(payload);
-    if (response && Object.keys(response)?.length > 0) {
-      dispatch(
-        setSymptomCollector({
-          ...response?.summary_json_doctor,
-          _id: response?._id,
-        })
-      );
-      setShowSCBanner(true);
-      if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
-        dispatch(setShowSCPopup(true));
+    try {
+      const response = await fetchSymptomsCollectorData(payload);
+      if (symptomCollectorRequestRef.current !== requestId) return;
+      const nextSymptomCollector = {
+        ...response?.summary_json_doctor,
+        _id: response?._id,
+      };
+      if (response && Object.keys(response)?.length > 0 && hasDisplayableSymptomCollectorPayload(nextSymptomCollector)) {
+        dispatch(setSymptomCollector(nextSymptomCollector));
+        setShowSCBanner(true);
+        setSymptomCollectorStatus("found");
+        if (patient_data?.pam_status === "0" && caseManagerData === undefined) {
+          dispatch(setShowSCPopup(true));
+        }
+      } else {
+        setShowSCBanner(false);
+        setSymptomCollectorStatus("empty");
       }
+    } catch (error) {
+      if (symptomCollectorRequestRef.current !== requestId) return;
+      setShowSCBanner(false);
+      setSymptomCollectorStatus("empty");
     }
   };
 
@@ -2210,45 +2312,46 @@ function PrescriptionNew() {
     fetchZydusLabParamsForDisplay();
   }, [labReportID, patient_data?.patient_unique_id]);
 
-  // Auto-open ConsultationDrawer when coming from Voice Recording page
-  useEffect(() => {
-    if (fromVoiceRecording && audioBlob) {
-      setIsGenRxDrawerVisible(true);
-      const clinic_name = getClinicName(profile?.hospital_data);
-      trackEvent("TP_VoiceRx_Start", {
-        patient_contact: patient_data?.pm_contact_no || "",
-        patient_id: patient_data?.patient_unique_id || "",
-        doctor_speciality: profile?.dp_name,
-        doctor_unique_id: profile?.doctor_unique_id,
-        clinic_name,
-      });
-    }
-  }, [fromVoiceRecording, audioBlob]);
+  // // Auto-open ConsultationDrawer when coming from Voice Recording page
+  // useEffect(() => {
+  //   if (fromVoiceRecording && audioBlob) {
+  //     setIsGenRxDrawerVisible(true);
+  //     const clinic_name = getClinicName(profile?.hospital_data);
+  //     trackEvent("TP_VoiceRx_Start", {
+  //       patient_contact: patient_data?.pm_contact_no || "",
+  //       patient_id: patient_data?.patient_unique_id || "",
+  //       doctor_speciality: profile?.dp_name,
+  //       doctor_unique_id: profile?.doctor_unique_id,
+  //       clinic_name,
+  //     });
+  //   }
+  // }, [fromVoiceRecording, audioBlob]);
 
-  // Auto-open ConsultationDrawer when coming from typed input (text Voice Rx)
-  useEffect(() => {
-    if (inputText && typeof inputText === 'string' && inputText.trim().length > 0) {
-      setIsGenRxDrawerVisible(true);
-      const clinic_name = getClinicName(profile?.hospital_data);
-      trackEvent("TP_VoiceRx_Start", {
-        patient_contact: patient_data?.pm_contact_no || "",
-        patient_id: patient_data?.patient_unique_id || "",
-        doctor_speciality: profile?.dp_name,
-        doctor_unique_id: profile?.doctor_unique_id,
-        clinic_name,
-      });
-    }
-  }, [inputText]);
+  // // Auto-open ConsultationDrawer when coming from typed input (text Voice Rx)
+  // useEffect(() => {
+  //   if (inputText && typeof inputText === 'string' && inputText.trim().length > 0) {
+  //     setIsGenRxDrawerVisible(true);
+  //     const clinic_name = getClinicName(profile?.hospital_data);
+  //     trackEvent("TP_VoiceRx_Start", {
+  //       patient_contact: patient_data?.pm_contact_no || "",
+  //       patient_id: patient_data?.patient_unique_id || "",
+  //       doctor_speciality: profile?.dp_name,
+  //       doctor_unique_id: profile?.doctor_unique_id,
+  //       clinic_name,
+  //     });
+  //   }
+  // }, [inputText]);
 
-  // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
-  const showOnlyDrawer = isGenRxDrawerVisible && (
-    // Typed input from Voice Rx
-    (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
-    // Audio recording from Voice Rx (dictation or ambient mode)
-    (fromVoiceRecording && audioBlob) ||
-    // Coming from edit prescription (print view)
-    caseManagerData?.smart_prescription_filename
-  );
+  // // Check if we should show only ConsultationDrawer (coming from Voice Rx - typed input, dictation, or ambient)
+  // const showOnlyDrawer = isGenRxDrawerVisible && (
+  //   // Typed input from Voice Rx
+  //   (inputText && typeof inputText === 'string' && inputText.trim().length > 0) ||
+  //   // Audio recording from Voice Rx (dictation or ambient mode)
+  //   (fromVoiceRecording && audioBlob) ||
+  //   // Coming from edit prescription (print view) — not the new VoiceRx UI flow
+  //   (!isVoiceRxNewUiFlow && caseManagerData?.smart_prescription_filename)
+  // );
+  const showOnlyDrawer = false;
 
   const handleSideNavbarSectionAction = useCallback((sectionId) => {
     switch (sectionId) {
@@ -2321,7 +2424,7 @@ function PrescriptionNew() {
           accept="image/png, image/jpeg, image/jpg, image/gif, application/pdf, video/mp4, video/quicktime, video/x-msvideo"
           style={{ display: "none" }}
         />
-        {showOnlyDrawer && (
+        {/* {showOnlyDrawer && (
           <ConsultationDrawer
             visible={isGenRxDrawerVisible}
             onClose={() => setIsGenRxDrawerVisible(false)}
@@ -2330,7 +2433,7 @@ function PrescriptionNew() {
             typedInputText={inputText}
             mode={mode}
           />
-        )}
+        )} */}
         {!showOnlyDrawer && (
           <>
             <HeaderPrescription
@@ -2781,7 +2884,7 @@ function PrescriptionNew() {
           isSubModalOpen={isSubModalOpen}
           showHideSubModal={showHideSubModal} />
 
-        {showSCPopup && !caseManagerData?.smart_prescription_filename && <SCPopup handlePopup={() => dispatch(setShowSCPopup(false))} handleGenRx={handleGenRx} />}
+        {/* {showSCPopup && !caseManagerData?.smart_prescription_filename && <SCPopup handlePopup={() => dispatch(setShowSCPopup(false))} handleGenRx={handleGenRx} />} */}
         {zydusTestReportDrawer && (
           <Drawer
             closeIcon={false}
@@ -2833,6 +2936,9 @@ function PrescriptionNew() {
               overlayClassName={drAgentOverlayClassName}
               patientId={patient_data?.patient_unique_id}
               doctorId={profile?.doctor_unique_id}
+              patientData={patient_data}
+              voiceHydrationStatus={voiceHydrationStatus}
+              symptomCollectorStatus={symptomCollectorStatus}
               onClose={() => setDrAgentOpen(false)}
               onOpen={() => setDrAgentOpen(true)}
             />

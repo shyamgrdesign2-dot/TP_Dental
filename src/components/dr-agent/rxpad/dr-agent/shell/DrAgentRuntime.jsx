@@ -10,7 +10,10 @@ export function DrAgentRuntime({
   onClose,
   overlayClassName,
   patientId,
-  doctorId
+  doctorId,
+  patientData,
+  voiceHydrationStatus,
+  symptomCollectorStatus
 }) {
   const {
     collapsedVoiceSession,
@@ -53,6 +56,9 @@ export function DrAgentRuntime({
           voiceRxMode
           patientId={patientId}
           doctorId={doctorId}
+          patientData={patientData}
+          voiceHydrationStatus={voiceHydrationStatus}
+          symptomCollectorStatus={symptomCollectorStatus}
           onClose={onClose}
           onOpen={onOpen}
         />

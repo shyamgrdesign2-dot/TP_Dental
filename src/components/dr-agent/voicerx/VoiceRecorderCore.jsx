@@ -277,17 +277,19 @@ function OverlayProcessingView({ processingTranscript, processingLabel }) {
             shineColor={["#D565EA", "#673AAC", "#1A1994"]}
             baseColor="rgba(226,226,234,0.95)" />
           <div className={canvasStyles.overlayTranscriptScroll}>
-            {hasTranscript ? (
-              isDiarized ? (
-                <ConversationTranscript raw={processingTranscript} />
+            <div className={canvasStyles.overlayTranscriptSafeArea}>
+              {hasTranscript ? (
+                isDiarized ? (
+                  <ConversationTranscript raw={processingTranscript} shimmer />
+                ) : (
+                  <DictationTranscript raw={processingTranscript} animate />
+                )
               ) : (
-                <DictationTranscript raw={processingTranscript} animate />
-              )
-            ) : (
-              <p className={canvasStyles.overlayTranscriptPlaceholder}>
-                {processingLabel || "Refining your captured consultation..."}
-              </p>
-            )}
+                <p className={canvasStyles.overlayTranscriptPlaceholder}>
+                  {processingLabel || "Refining your captured consultation..."}
+                </p>
+              )}
+            </div>
           </div>
         </div>
         {hasTranscript ? <CaptionCarousel /> : null}
@@ -641,17 +643,19 @@ export function VoiceRecorderCore({
     if (submitProcessing || (isFullscreen && isAwaitingResponse) || !canSubmit) return;
     if (isFullscreen) playSubmitSound();
     setSubmitProcessing(true);
+    const submitClickedAtMs = Date.now();
+    const submitClickedAt = new Date(submitClickedAtMs).toISOString();
     let audioBlob = null;
     try { audioBlob = await getBlob(); } catch (e) { console.error("Failed to capture audio blob", e); }
     const transcript = isFullscreen ? externalTranscript : liveDisplayText;
     try {
-      await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs });
+      await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs, submitClickedAt, submitClickedAtMs, micBeingUsed: activeDevice?.label || "" });
     } catch (e) {
       console.error("Voice submit failed", e);
     } finally {
       setSubmitProcessing(false);
     }
-  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, onSubmit, externalTranscript, liveDisplayText, elapsedMs]);
+  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, onSubmit, externalTranscript, liveDisplayText, elapsedMs, activeDevice?.label]);
 
   const submitRequestSeenRef = useRef(voiceSubmitRequest);
   useEffect(() => {

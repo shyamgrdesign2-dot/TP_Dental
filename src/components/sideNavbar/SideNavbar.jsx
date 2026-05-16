@@ -119,9 +119,9 @@ const SECTION_TITLES = {
 };
 
 const SIDE_NAV_MODULE_NAMES = {
-  vitals: "vitals_body",
+  // vitals: "vitals_body",
   history: "medical_history",
-  labResults: "lab_investigations",
+  // labResults: "lab_investigations",
 };
 
 const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NAMES));

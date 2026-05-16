@@ -52,7 +52,8 @@ import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
-import { setAddToRx } from '../api/services/ApiGenRx';
+import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
+import { updateVoiceEditedData } from '../redux/voiceDigitizationSlice';
 import { setSelectAutofill } from '../redux/ddxSlice';
 import VideoConsultButton from '../components/VideoConsultButton';
 
@@ -89,6 +90,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const { isObstetricDetailsUpdated } = useSelector(
         (state) => state.obstetric
     );
+    const voiceDigitization = useSelector((state) => state.voiceDigitization);
     const {
         templates,
         loading,
@@ -1709,6 +1711,47 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             }
             if (action.meta.requestStatus === "fulfilled") {
                 const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
+                if (voiceDigitization?.history?.length > 0) {
+                    const voiceEditedData = {
+                        patientDetails: {},
+                        vitalsAndBodyComposition: vitalsData,
+                        symptoms: symptomsData,
+                        examinations: examinationData,
+                        diagnosis: diagnosisData,
+                        medications: medicinePayload,
+                        vaccinations: givenVaccines,
+                        surgeries: surgeriesData,
+                        labResults: [],
+                        medicalHistory: medicalHistoryData,
+                        advice: adviceData,
+                        labInvestigation: investigationData,
+                        followUp: followUpDate,
+                        others: customModuleContents,
+                    };
+                    dispatch(updateVoiceEditedData(voiceEditedData));
+                    try {
+                        await storeVoicePrescription({
+                            patientId: patient_data?.patient_unique_id,
+                            doctorId: profile?.doctor_unique_id,
+                            tcmId: generatedTcmId,
+                            appointmentId: patient_data?.pam_id ?? pamId,
+                            sessionId: voiceDigitization.sessionId,
+                            payload: {
+                                history: voiceDigitization.history,
+                                digitizeData: voiceDigitization.digitizeData || {},
+                                editedData: voiceEditedData,
+                                clinicNotes: voiceDigitization.clinicNotes || {},
+                                version: "v3",
+                                consent: {
+                                    timestamp: Date.now(),
+                                    given: true,
+                                },
+                            },
+                        });
+                    } catch (error) {
+                        console.error("[voice-rx-2/store-prescription] Failed", error?.message || error);
+                    }
+                }
                 syncOrderMedicineAndInvestigation(generatedTcmId);
                 if (
                     opthalModuleAutoAdded &&

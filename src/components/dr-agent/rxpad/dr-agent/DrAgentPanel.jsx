@@ -27,7 +27,10 @@ export function DrAgentPanel({
   headerBrandTitle,
   autoOpenBottomSheet = false,
   patientId,
-  doctorId
+  doctorId,
+  patientData,
+  voiceHydrationStatus,
+  symptomCollectorStatus
 }) {
   const {
     // State
@@ -111,7 +114,20 @@ export function DrAgentPanel({
     // RxPad sync
     runCopyWithAura,
     pushHistoricalUpdates
-  } = useDrAgentPanel({ voiceRxMode, onVoiceCaptureModeChange, initialPatientId, isPanelVisible, autoOpenBottomSheet, onClose, onOpen, patientId, doctorId });
+  } = useDrAgentPanel({
+    voiceRxMode,
+    onVoiceCaptureModeChange,
+    initialPatientId,
+    isPanelVisible,
+    autoOpenBottomSheet,
+    onClose,
+    onOpen,
+    patientId,
+    doctorId,
+    patientData,
+    voiceHydrationStatus,
+    symptomCollectorStatus,
+  });
 
   const { activeVoiceModule } = useRxPadSync();
   const voiceLocked = !!activeVoiceModule;

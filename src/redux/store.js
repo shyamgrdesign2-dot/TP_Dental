@@ -40,6 +40,7 @@ import fundusTemplateSlice from "./fundusTemplateSlice";
 import teleconsultNotificationReducer from "./teleconsultNotificationSlice";
 import healthCheckupReportSlice from "./healthCheckupReportSlice";
 import dentalRxSlice from "./dentalRxSlice";
+import voiceDigitizationReducer from "./voiceDigitizationSlice";
 
 const persistConfig = {
   key: "root",
@@ -85,6 +86,7 @@ const rootReducer = combineReducers({
   teleconsultNotification: teleconsultNotificationReducer,
   healthCheckupReport: healthCheckupReportSlice,
   dentalRx: dentalRxSlice,
+  voiceDigitization: voiceDigitizationReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

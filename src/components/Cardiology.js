@@ -1137,7 +1137,7 @@ function Cardiology(props) {
               if (isTextOnly) {
                 return { type: "text", text };
               }
-              return { type: "conversation", conversations: h.conversation || [] };
+              return { type: "conversation", conversations: Array.isArray(h.conversation) ? h.conversation : [] };
             }).filter((b) => b.type === "text" ? (b.text && b.text.trim()) : b.conversations.length > 0);
 
             setAmbientTranscriptBlocks(blocks);
@@ -1750,6 +1750,32 @@ function Cardiology(props) {
         },
       });
     }
+
+    if (isVoiceRxNewFromGB) {
+      let videoConsultData;
+      try {
+        const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
+        if (tcmId) {
+          const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
+          const statusType = response?.data?.pam_status_type_appointment;
+          const pamId = response?.data?.pam_id;
+          if (statusType === 2 && pamId) {
+            videoConsultData = { pam_id: pamId, pam_status_type_appointment: statusType };
+          }
+        }
+      } catch (error) {}
+      return navigate("/prescription", {
+        state: {
+          patient_data: patient_data,
+          send_path: "patient_details",
+          caseManagerData: viewCaseManagerData,
+          isEditRx: true,
+          isVoiceRxNewUiFlow: true,
+          ...(videoConsultData ? { videoConsultData } : {}),
+        },
+      });
+    }
+
     if (isSmartRxFile) {
       navigate("/smart-prescription", {
         state: {
@@ -1757,45 +1783,36 @@ function Cardiology(props) {
           caseManagerData: viewCaseManagerData,
           smartRxFilesData: smartRxFile,
         },
-        });
-      } else {
-
-        let videoConsultData;
-        try {
-          const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
-          if (tcmId) {
-            const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
-            const statusType = response?.data?.pam_status_type_appointment;
-            const pamId = response?.data?.pam_id;
-
-            if (statusType === 2 && pamId) {
-              videoConsultData = {
-                pam_id: pamId,
-                pam_status_type_appointment: statusType,
-              };
-            } else {
-            }
-          } else {
+      });
+    } else {
+      let videoConsultData;
+      try {
+        const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
+        if (tcmId) {
+          const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
+          const statusType = response?.data?.pam_status_type_appointment;
+          const pamId = response?.data?.pam_id;
+          if (statusType === 2 && pamId) {
+            videoConsultData = { pam_id: pamId, pam_status_type_appointment: statusType };
           }
-        } catch (error) {
         }
+      } catch (error) {}
 
-        if (isAmbientRx) {
-          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
-        } else {
-          window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
-        }
+      if (isAmbientRx) {
+        window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+      } else {
+        window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+      }
 
-        const prescriptionState = {
+      navigate("/prescription", {
+        state: {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
           isEditRx: true,
           ...(videoConsultData ? { videoConsultData } : {}),
-        };
-        navigate("/prescription", {
-          state: prescriptionState,
-        });
+        },
+      });
     }
   };
 
@@ -2053,10 +2070,10 @@ function Cardiology(props) {
                   <span>
                     {/* Render dynamically based on type; support canonical name + lineItem */}
                     {type === "advice"
-                      ? item
+                      ? (typeof item === "string" ? item : (item?.advice_name || item?.name || ""))
                       : type === "symptoms"
                       ? (() => {
-                          const name = (item?.name || "").trim();
+                          const name = (item?.name || item?.symptom_name || "").trim();
                           const lineItem = (item?.lineItem || "").trim();
                           if (name) {
                             if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
@@ -2075,7 +2092,7 @@ function Cardiology(props) {
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
                           ? (item?.metadata?.tmm_medicine_name || item?.groundedMedicineName || item?.groundingMedicineName || item?.refinedName || item?.name || item?.lineItem)
-                          : (item?.refinedName || item?.name))
+                          : (item?.refinedName || item?.name || item?.investigation_name))
                       : type === "labResults"
                       ? (() => {
                           const lineItem =
@@ -2097,7 +2114,7 @@ function Cardiology(props) {
                         })()
                       : type === "diagnosis" || type === "examination" || type === "examinations"
                       ? (() => {
-                          const name = (item?.name || "").trim();
+                          const name = (item?.name || item?.tds_name || item?.examination_name || "").trim();
                           const lineItem = (item?.lineItem || "").trim();
                           if (name) {
                             if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
@@ -2110,7 +2127,7 @@ function Cardiology(props) {
                       : type === "dynamicFields"
                       ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
-                      ? item
+                      ? (typeof item === "string" ? item : (item?.name || item?.lineItem || ""))
                       : item?.name}
                   </span>
 
@@ -3125,17 +3142,18 @@ function Cardiology(props) {
       // For object types, check if any relevant fields have content
       const relevantFields = {
         medications: ["refinedName", "name", "groundedMedicineName", "groundingMedicineName", "lineItem"],
-        symptoms: ["name", "lineItem"],
+        symptoms: ["name", "lineItem", "symptom_name"],
         surgeries: ["name", "notes"],
-        examination: ["name", "findings", "notes", "lineItem"],
-        examinations: ["name", "findings", "notes", "lineItem"],
-        diagnosis: ["name", "notes", "lineItem"],
+        examination: ["name", "findings", "notes", "lineItem", "examination_name"],
+        examinations: ["name", "findings", "notes", "lineItem", "examination_name"],
+        diagnosis: ["name", "notes", "lineItem", "tds_name"],
         medicalHistory: ["name", "lineItem"],
         vaccinations: ["name", "lineItem"],
-        tests: ["refinedName", "name", "lineItem"],
-        labInvestigation: ["name", "lineItem"],
+        tests: ["refinedName", "name", "lineItem", "investigation_name"],
+        labInvestigation: ["name", "lineItem", "investigation_name"],
         labResults: ["testname", "value", "notes", "lineItem"],
         dynamicFields: ["title", "notes", "lineItem"],
+        advice: ["advice_name", "name"],
         others: ["name"],
       };
 
