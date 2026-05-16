@@ -1074,16 +1074,12 @@ function buildPastVisitAllPayload(visitItem) {
     "examinations",
     "diagnosis",
     "medications",
-    "medicalHistory",
     "surgeries",
     "advice",
     "investigations",
     "additionalNotes",
     "followUp",
     "moduleContents",
-    "vitals",
-    "gynec",
-    "obstetric",
     "vaccinations",
   ].map((sectionKey) => buildPastVisitSectionPayload(visitItem, sectionKey)).filter(Boolean);
   if (!payloads.length) return null;
@@ -2167,7 +2163,7 @@ function RxSection({ title, icon, children, onCopy }) {
       <div className="snv-rx-section-title">
         <span className="snv-rx-section-icon">{icon}</span>
         <span>{title}</span>
-        <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} to RxPad`} />
+        {onCopy && <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} to RxPad`} />}
       </div>
       {children}
     </div>
@@ -2451,7 +2447,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                   {hasListData(rx.examinations) ? <RxSection title="Examination" icon={<RxSectionIcon src={RX_SECTION_ICONS.examination} />} onCopy={() => handleCopySection(visitItem, "examinations", "Examination")}><BulletList items={rx.examinations} /></RxSection> : null}
                   {hasListData(rx.diagnoses) ? <RxSection title="Diagnosis" icon={<RxSectionIcon src={RX_SECTION_ICONS.diagnosis} />} onCopy={() => handleCopySection(visitItem, "diagnosis", "Diagnosis")}><BulletList items={rx.diagnoses} /></RxSection> : null}
                   {hasListData(rx.medications) ? <RxSection title="Med (Rx)" icon={<RxSectionIcon src={RX_SECTION_ICONS.medications} />} onCopy={() => handleCopySection(visitItem, "medications", "Med (Rx)")}><BulletList items={rx.medications} /></RxSection> : null}
-                  {hasListData(rx.medicalHistory) ? <RxSection title="Medical History" icon={<RxSectionIcon src={RX_SECTION_ICONS.medicalHistory} />} onCopy={() => handleCopySection(visitItem, "medicalHistory", "Medical History")}><BulletList items={rx.medicalHistory} /></RxSection> : null}
+                  {hasListData(rx.medicalHistory) ? <RxSection title="Medical History" icon={<RxSectionIcon src={RX_SECTION_ICONS.medicalHistory} />}><BulletList items={rx.medicalHistory} /></RxSection> : null}
                   {hasListData(rx.surgeries) ? <RxSection title="Surgeries" icon={<RxSectionIcon src={RX_SECTION_ICONS.surgeries} />} onCopy={() => handleCopySection(visitItem, "surgeries", "Surgeries")}><BulletList items={rx.surgeries} /></RxSection> : null}
                   {hasListData(rx.moduleContents) ? <RxSection title="Custom Modules" icon={<RxSectionIcon src={RX_SECTION_ICONS.customModules} />} onCopy={() => handleCopySection(visitItem, "moduleContents", "Custom Modules")}><BulletList items={rx.moduleContents} /></RxSection> : null}
                   {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
