@@ -334,23 +334,39 @@ export function useDrAgentPanel({
       createdAt: entry.createdAt || new Date().toISOString(),
     }));
     const transcript = transcriptSegments.map((segment) => clinicalTranscriptToText(segment.body)).filter(Boolean).join("\n\n");
+    const structuredStub = {
+      sections: resultSections.map((s) => ({
+        sectionId: s.id,
+        title: s.title,
+        tpIconName: s.tpIconName,
+        items: s.items.map(toStructuredVoiceItem),
+      })),
+      copyAllPayload: digitization ? { digitization } : undefined,
+    };
     setVoiceRxResult({
       transcript,
       transcriptSegments,
       sections: resultSections,
       digitization,
       durationMs: transcriptSegments.reduce((total, item) => total + (item.durationMs || 0), 0),
-      structured: {
-        sections: resultSections.map((s) => ({
-          sectionId: s.id,
-          title: s.title,
-          tpIconName: s.tpIconName,
-          items: s.items.map(toStructuredVoiceItem),
-        })),
-        copyAllPayload: digitization ? { digitization } : undefined,
-      },
+      structured: structuredStub,
       modeLabel: "Conversation Mode",
       pendingSidebarBatch: undefined,
+    });
+    // Inject a card message so the front face shows the CTA when Back is tapped
+    const hydratedCardMsg = {
+      id: uid(),
+      role: "assistant",
+      text: "Your clinical notes are ready — view your clinical notes to review, fine-tune, and copy them to the RxPad.",
+      createdAt: new Date().toISOString(),
+      rxOutput: { kind: "voice_structured_rx", data: structuredStub },
+      feedbackGiven: null,
+    };
+    setMessagesByPatient((prev) => {
+      const existing = prev[selectedPatientId] || [];
+      const alreadyHasCard = existing.some((m) => m.rxOutput?.kind === "voice_structured_rx");
+      if (alreadyHasCard) return prev;
+      return { ...prev, [selectedPatientId]: [...existing, hydratedCardMsg] };
     });
     setVoiceRxResultMinimized(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
