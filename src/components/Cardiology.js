@@ -1913,6 +1913,12 @@ function Cardiology(props) {
     const type = viewCaseManagerData?.isCustomSSRX === "1" ? 1 : 0;
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
+    const resolvedAppointmentId =
+      viewCaseManagerData?.pam_id ??
+      tcmData?.pam_id ??
+      patient_data?.pam_id ??
+      viewCaseManagerData?.appointmentId ??
+      tcmData?.appointmentId;
     window.Moengage.track_event("TP_DigitizeSSRx", {
     patient_id: patient_data?.patient_unique_id || "",
     patient_name: patient_data?.pm_fullname || "",
@@ -1932,7 +1938,7 @@ function Cardiology(props) {
         smartRxFilesData: smartRxFile,
         tcm_id: viewCaseManagerData?.tcm_id,
         print_url: viewCaseManagerData?.print_rx_url,
-        pam_id: patient_data?.pam_id,
+        pam_id: resolvedAppointmentId,
         digitisedData: rxDigitisedData,
         page: "patient-summary",
         type: "new",
