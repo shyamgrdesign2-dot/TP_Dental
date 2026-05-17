@@ -164,10 +164,31 @@ function hasPreviousContext(value) {
 	return String(value).trim() !== '';
 }
 
+function withoutArtifactType(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+	const { artifact_type, ...rest } = value;
+	return rest;
+}
+
+function normalizeDigitizationPreviousContext(previousContext) {
+	if (!hasPreviousContext(previousContext)) return undefined;
+
+	if (previousContext && typeof previousContext === 'object' && !Array.isArray(previousContext)) {
+		if (Object.prototype.hasOwnProperty.call(previousContext, 'digitise_data')) {
+			return { digitise_data: withoutArtifactType(previousContext.digitise_data) };
+		}
+
+		return { digitise_data: withoutArtifactType(previousContext) };
+	}
+
+	return { digitise_data: previousContext };
+}
+
 function buildDigitizationPayload(context, previousContext) {
 	const payload = buildIdentityPayload(context);
-	if (hasPreviousContext(previousContext)) {
-		payload.previous_context = previousContext;
+	const normalizedPreviousContext = normalizeDigitizationPreviousContext(previousContext);
+	if (normalizedPreviousContext) {
+		payload.previous_context = normalizedPreviousContext;
 	}
 	return payload;
 }

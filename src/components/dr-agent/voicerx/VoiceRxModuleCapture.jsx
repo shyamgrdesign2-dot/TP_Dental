@@ -15,6 +15,7 @@ import { VoiceRxIcon } from "./voice-consult-icons";
 import { HoverTooltip } from "../atoms/Tooltip";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import CashManagerContext from "../../../context/CashManagerContext";
+import { convertAgentMedicalHistoryRowsToSections } from "../../../utils/medicalHistoryConverters";
 import { useRxPadSync } from "../rxpad/dr-agent/RxPadSyncContext";
 import {
   addVoiceHistoryEntry,
@@ -434,6 +435,25 @@ function hasModulePreviousContext(value) {
   return String(value).trim() !== "";
 }
 
+function normalizeModulePreviousContext(previousContext, moduleApiName) {
+  if (!hasModulePreviousContext(previousContext)) return undefined;
+
+  const artifactName = moduleApiName || "other_clinical_info";
+  if (Array.isArray(previousContext)) {
+    return { [artifactName]: previousContext };
+  }
+
+  if (
+    previousContext &&
+    typeof previousContext === "object" &&
+    !Object.prototype.hasOwnProperty.call(previousContext, artifactName)
+  ) {
+    return { [artifactName]: previousContext };
+  }
+
+  return previousContext;
+}
+
 function extractModulePayload(responseJson) {
   return responseJson?.payload?.data?.rxDigitizationHistory?.[0]?.response ??
     responseJson?.data?.rxDigitizationHistory?.[0]?.response ??
@@ -456,13 +476,100 @@ function extractModuleConversation(responseJson) {
 }
 
 function firstPresentArray(payload, keys, { allowObjectRow = false } = {}) {
-  if (Array.isArray(payload)) return payload;
+  const parseMaybeJson = (value) => {
+    if (typeof value !== "string") return value;
+    const text = value.trim();
+    if (!text || (!text.startsWith("[") && !text.startsWith("{"))) return value;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return value;
+    }
+  };
+
+  const findNestedArray = (value, depth = 3) => {
+    const parsedValue = parseMaybeJson(value);
+    if (Array.isArray(parsedValue)) return parsedValue;
+    if (!parsedValue || typeof parsedValue !== "object" || depth <= 0) return null;
+
+    const containerKeys = [
+      ...keys,
+      "response",
+      "result",
+      "results",
+      "output",
+      "outputs",
+      "items",
+      "rows",
+      "entries",
+      "records",
+      "content",
+      "digitized_data",
+      "digitised_data",
+      "digitizedData",
+      "digitisedData",
+      "module_response",
+      "moduleResponse",
+      "data",
+    ];
+
+    for (const key of containerKeys) {
+      if (!(key in parsedValue)) continue;
+      const nested = findNestedArray(parsedValue[key], depth - 1);
+      if (nested) return nested;
+    }
+
+    return null;
+  };
+
+  const hasRowLikeShape = (row) => {
+    if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+    return [
+      "name",
+      "title",
+      "type",
+      "tags",
+      "lineItem",
+      "symptom_name",
+      "examination_name",
+      "tds_name",
+      "tmm_medicine_name",
+      "investigation_name",
+      "advice_name",
+      "surgery_name",
+      "procedure_name",
+    ].some((key) => row[key] !== undefined);
+  };
+
+  const findNestedRowArray = (value, depth = 3) => {
+    const parsedValue = parseMaybeJson(value);
+    if (Array.isArray(parsedValue)) {
+      return parsedValue.some(hasRowLikeShape) ? parsedValue : null;
+    }
+    if (!parsedValue || typeof parsedValue !== "object" || depth <= 0) return null;
+    for (const nestedValue of Object.values(parsedValue)) {
+      const nested = findNestedRowArray(nestedValue, depth - 1);
+      if (nested) return nested;
+    }
+    return null;
+  };
+
+  const parsedPayload = parseMaybeJson(payload);
+  if (Array.isArray(parsedPayload)) return parsedPayload;
+  const nestedPayloadArray = findNestedArray(parsedPayload);
+  if (nestedPayloadArray) return nestedPayloadArray;
+  const nestedRowArray = findNestedRowArray(parsedPayload);
+  if (nestedRowArray) return nestedRowArray;
   for (const key of keys) {
-    const value = payload?.[key];
+    const value = parseMaybeJson(parsedPayload?.[key]);
     if (Array.isArray(value)) return value;
+    const nestedArray = findNestedArray(value);
+    if (nestedArray) return nestedArray;
+    const nestedRows = findNestedRowArray(value);
+    if (nestedRows) return nestedRows;
     if (allowObjectRow && value && typeof value === "object") return [value];
   }
-  if (allowObjectRow && payload && typeof payload === "object") return [payload];
+  if (allowObjectRow && parsedPayload && typeof parsedPayload === "object") return [parsedPayload];
   return [];
 }
 
@@ -622,8 +729,7 @@ function compactModuleContextRow(row) {
   return Object.fromEntries(
     Object.entries(row).filter(([, value]) => (
       value !== undefined &&
-      value !== null &&
-      String(value).trim() !== ""
+      value !== null
     ))
   );
 }
@@ -638,46 +744,46 @@ export function moduleRowsToPreviousContext(rows = [], moduleApiName) {
       switch (moduleApiName) {
         case "symptoms":
           return compactModuleContextRow({
-            name: row.symptom_name,
-            duration: row.since,
-            severity: row.severity,
-            notes: row.note,
+            name: row.symptom_name ?? "",
+            duration: row.since ?? "",
+            severity: row.severity ?? "",
+            notes: row.note ?? "",
           });
         case "examinations":
           return compactModuleContextRow({
-            name: row.examination_name,
-            notes: row.note,
+            name: row.examination_name ?? "",
+            notes: row.note ?? "",
           });
         case "diagnosis":
           return compactModuleContextRow({
-            name: row.tds_name,
-            icd_code: row.icd_code,
-            duration: row.since,
-            status: row.status,
-            notes: row.note,
+            name: row.tds_name ?? "",
+            icd_code: row.icd_code ?? "",
+            duration: row.since ?? "",
+            status: row.status ?? "",
+            notes: row.note ?? "",
           });
         case "medications":
           return compactModuleContextRow({
-            name: row.tmm_medicine_name || row.tm_medicine_name || row.medicine_name,
-            dosage: row.tmm_dosage_unit_name || row.tmm_dosage,
-            frequency: row.tmm_freq_type_name,
+            name: row.tmm_medicine_name || row.tm_medicine_name || row.medicine_name || "",
+            dosage: row.tmm_dosage_unit_name || row.tmm_dosage || "",
+            frequency: row.tmm_freq_type_name ?? "",
             duration: row.tmm_days_duration_type || [row.tmm_days, row.tmm_duration_type].filter(Boolean).join(" "),
-            schedule: row.tmm_time_name,
-            notes: row.tmm_remarks || row.note,
+            schedule: row.tmm_time_name ?? "",
+            notes: row.tmm_remarks || row.note || "",
           });
         case "advice":
           return compactModuleContextRow({
-            name: row.advice_name,
+            name: row.advice_name ?? "",
           });
         case "lab_investigations":
           return compactModuleContextRow({
-            name: row.investigation_name,
-            notes: row.note,
+            name: row.investigation_name ?? "",
+            notes: row.note ?? "",
           });
         case "surgery":
           return compactModuleContextRow({
-            name: row.name || row.surgery_name || row.procedure_name,
-            notes: row.notes || row.note,
+            name: row.name || row.surgery_name || row.procedure_name || "",
+            notes: row.notes || row.note || "",
           });
         default:
           return compactModuleContextRow(row);
@@ -685,7 +791,7 @@ export function moduleRowsToPreviousContext(rows = [], moduleApiName) {
     })
     .filter((row) => row && Object.keys(row).length > 0);
 
-  return contextRows.length ? contextRows : undefined;
+  return contextRows.length ? { [moduleApiName || "other_clinical_info"]: contextRows } : undefined;
 }
 
 export function normalizeModuleRows(responseJson, moduleApiName) {
@@ -696,13 +802,21 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
     : moduleApiName === "lab_investigations"
       ? [moduleApiName, artifactType, "lab_investigation", "lab_investigations", "items", "data"]
       : moduleApiName === "medical_history"
-        ? [moduleApiName, artifactType, "medical_history", "medicalHistory", "pastMedicalHistory", "history", "response", "items", "data"]
+        ? [moduleApiName, artifactType, "medical_history", "medicalHistory", "pastMedicalHistory", "history", "response", "result", "results", "output", "items", "rows", "records", "data"]
       : [moduleApiName, artifactType, "items", "data"];
   const rows = firstPresentArray(payload, moduleKeys, { allowObjectRow: moduleApiName === "custom_module" || moduleApiName === "medical_history" })
     .filter((row) => Object.values(row || {}).some((value) => value !== undefined && value !== null && String(value).trim() !== ""));
 
   if (moduleApiName === "medical_history") {
-    return rows.filter((section) => section?.no_know_history || section?.tags?.length);
+    const convertedRows = convertAgentMedicalHistoryRowsToSections(rows);
+    console.groupCollapsed("[VoiceRx MedicalHistory] normalizeModuleRows");
+    console.log("raw responseJson", responseJson);
+    console.log("extracted payload", payload);
+    console.log("moduleKeys", moduleKeys);
+    console.log("firstPresentArray rows", rows);
+    console.log("converted section rows", convertedRows);
+    console.groupEnd();
+    return convertedRows;
   }
 
   return rows.map((row) => {
@@ -862,7 +976,7 @@ async function requestTranscribeAndDigitise({
     formData.append("custom_module_name", String(customModuleName));
   }
   appendJsonFormField(formData, "required_fields", requiredFields);
-  appendJsonFormField(formData, "previous_context", previousContext);
+  appendJsonFormField(formData, "previous_context", normalizeModulePreviousContext(previousContext, moduleApiName));
   formData.append("audio", audioBlob, "audio.webm");
 
   const abortController = new AbortController();
@@ -889,8 +1003,16 @@ async function requestTranscribeAndDigitise({
   }
 
   const responseJson = await response.json();
+  const rows = normalizeModuleRows(responseJson, moduleApiName);
+  if (moduleApiName === "medical_history") {
+    console.groupCollapsed("[VoiceRx MedicalHistory] requestTranscribeAndDigitise result");
+    console.log("moduleApiName", moduleApiName);
+    console.log("raw responseJson", responseJson);
+    console.log("normalized rows returned to onComplete", rows);
+    console.groupEnd();
+  }
   return {
-    rows: normalizeModuleRows(responseJson, moduleApiName),
+    rows,
     rawResponse: responseJson,
     conversation: extractModuleConversation(responseJson),
     moduleApiName,
@@ -991,6 +1113,13 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage, c
     const nextItems = Array.isArray(digitisedData)
       ? digitisedData.map((item) => ({ ...item }))
       : [];
+    if (moduleName === "Medical History") {
+      console.groupCollapsed("[VoiceRx MedicalHistory] useVoiceRxModuleCapture handleVoiceCaptureComplete");
+      console.log("digitisedData from VoiceRxModuleCapture", digitisedData);
+      console.log("nextItems passed to onApply", nextItems);
+      console.log("has onApply", typeof onApply === "function");
+      console.groupEnd();
+    }
     if (nextItems.length > 0) {
       onApply?.(nextItems);
     }
@@ -1097,6 +1226,13 @@ export function VoiceRxModuleCapture({
           buttonTimerRef.current = null;
         }
         const rows = Array.isArray(digitisedResult) ? digitisedResult : digitisedResult?.rows || [];
+        if ((digitisedResult?.moduleApiName || moduleApiName || resolveModuleApiName(moduleName)) === "medical_history") {
+          console.groupCollapsed("[VoiceRx MedicalHistory] handleSubmit before onComplete");
+          console.log("digitisedResult", digitisedResult);
+          console.log("rows passed to onComplete", rows);
+          console.log("has onComplete", typeof onComplete === "function");
+          console.groupEnd();
+        }
         const clinicalCompletedAtMs = Date.now();
         onComplete?.(rows, { audioBlob, transcript: nextTranscript, durationMs, moduleName });
         uploadAndLogVoiceRx2({

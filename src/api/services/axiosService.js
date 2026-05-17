@@ -78,7 +78,7 @@ instance.interceptors.request.use(
     (config) => {
         if (!window.navigator.onLine) {
             const error = 'Internet connection not available';
-            notification.error({ key: "notification_key", message: error });
+            // notification.error({ key: "notification_key", message: error });
             return Promise.reject(new Error(error));
         }
         // You can modify the request config here (e.g., add headers)
@@ -102,7 +102,7 @@ instance.interceptors.request.use(
     },
     (error) => {
         // Do something with request error here
-        notification.error({ key: "notification_key", message: error.response.data.error })
+        // notification.error({ key: "notification_key", message: error.response.data.error })
         return Promise.reject(error);
     }
 );
@@ -157,7 +157,7 @@ instance.interceptors.response.use(
             // Handle network errors, CORS errors, or other non-HTTP errors
             notificationParam.message = error.message || 'Network Error'
             notificationParam.key = "notification_key"
-            notification.error(notificationParam)
+            // notification.error(notificationParam)
             return Promise.reject(error);
         }
 
@@ -203,7 +203,7 @@ instance.interceptors.response.use(
 
         notificationParam.key = "notification_key"
         if (error.response.status !== 404 && error.response.status !== 400 && error.response.status !== 401 && error.response.status !== 429) {
-            notification.error(notificationParam)
+            // notification.error(notificationParam)
         }
         return Promise.reject(error);
     }

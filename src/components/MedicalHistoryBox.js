@@ -32,6 +32,7 @@ import {
     mergeMedicalHistoryTagsBySection,
     tagsAreDuplicateForHistoryMerge,
 } from "../utils/medicalHistoryUtils";
+import { convertAgentMedicalHistoryRowsToSections } from "../utils/medicalHistoryConverters";
 import VideoModal from "../common/VideoModal";
 import TextArea from "antd/es/input/TextArea";
 import { ASSETS } from "../assets";
@@ -282,13 +283,44 @@ function MedicalHistoryBox(props) {
     const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
 
     const applyVoiceMedicalHistory = useCallback((nextMedicalHistory) => {
-        const mappedMedicalHistory = mapMedicalHistoryIdsFromDefaultList(nextMedicalHistory, defaultList);
-        if (!mappedMedicalHistory.length) return;
+        const sectionedMedicalHistory = convertAgentMedicalHistoryRowsToSections(nextMedicalHistory);
+        const mappedMedicalHistory = mapMedicalHistoryIdsFromDefaultList(sectionedMedicalHistory, defaultList);
+        console.groupCollapsed("[VoiceRx MedicalHistory] MedicalHistoryBox applyVoiceMedicalHistory");
+        console.log("incoming nextMedicalHistory", nextMedicalHistory);
+        console.log("sectionedMedicalHistory", sectionedMedicalHistory);
+        console.log("defaultList length", defaultList?.length || 0);
+        console.log("defaultList section titles", defaultList?.map((section) => ({ tmmhs_id: section?.tmmhs_id, title: section?.title, tags: section?.tags?.length })) || []);
+        console.log("mappedMedicalHistory", mappedMedicalHistory);
+        console.groupEnd();
+        if (!mappedMedicalHistory.length) {
+            console.warn("[VoiceRx MedicalHistory] applyVoiceMedicalHistory no-op: mappedMedicalHistory is empty", {
+                nextMedicalHistory,
+                sectionedMedicalHistory,
+                defaultListLength: defaultList?.length || 0,
+            });
+            return;
+        }
 
         if (typeof setMedicalHistoryData === "function") {
-            setMedicalHistoryData((prev = []) => mergeMedicalHistorySections(prev, mappedMedicalHistory));
+            setMedicalHistoryData((prev = []) => {
+                const next = mergeMedicalHistorySections(prev, mappedMedicalHistory);
+                console.groupCollapsed("[VoiceRx MedicalHistory] setMedicalHistoryData merge");
+                console.log("prev medicalHistoryData", prev);
+                console.log("incoming mappedMedicalHistory", mappedMedicalHistory);
+                console.log("next medicalHistoryData", next);
+                console.groupEnd();
+                return next;
+            });
         }
-        setCloneMedicalHistoryData((prev = []) => mergeMedicalHistorySections(prev, mappedMedicalHistory));
+        setCloneMedicalHistoryData((prev = []) => {
+            const next = mergeMedicalHistorySections(prev, mappedMedicalHistory);
+            console.groupCollapsed("[VoiceRx MedicalHistory] setCloneMedicalHistoryData merge");
+            console.log("prev cloneMedicalHistoryData", prev);
+            console.log("incoming mappedMedicalHistory", mappedMedicalHistory);
+            console.log("next cloneMedicalHistoryData", next);
+            console.groupEnd();
+            return next;
+        });
         const nextRemarks = mappedMedicalHistory.find((section) => section?.medical_history_remarks)?.medical_history_remarks;
         if (nextRemarks) setRemarks(nextRemarks);
     }, [defaultList, setMedicalHistoryData]);
@@ -566,6 +598,13 @@ function MedicalHistoryBox(props) {
             if (defaultList?.length > 0) {
                 const data1 = defaultList ? JSON.parse(JSON.stringify(defaultList)) : [];
                 const mergedArray = buildMergedArray(data1);
+                console.groupCollapsed("[VoiceRx MedicalHistory] MedicalHistoryBox sync effect");
+                console.log("reason", "defaultList/medicalHistoryData sync");
+                console.log("defaultList length", defaultList?.length || 0);
+                console.log("medicalHistoryData source", medicalHistoryData);
+                console.log("data2 source used for merge", data2);
+                console.log("mergedArray for cloneMedicalHistoryData", mergedArray);
+                console.groupEnd();
                 setCloneMedicalHistoryData(mergedArray ? JSON.parse(JSON.stringify(mergedArray)) : []);
             } else if (isPrescriptionOnly && Array.isArray(data2) && data2.length > 0) {
                 setCloneMedicalHistoryData(JSON.parse(JSON.stringify(ensureFiveSections(data2))));

@@ -42,6 +42,7 @@ import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../../assets";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
+import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
@@ -50,7 +51,8 @@ import {
   mergeMedicalHistoryTagsBySection,
   tagsAreDuplicateForHistoryMerge,
 } from "../../utils/medicalHistoryUtils";
-import { listSectionwithTag } from "../../redux/medicalhistorySlice";
+import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
+import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import "./sideNavbar.css";
 
@@ -125,9 +127,15 @@ const SIDE_NAV_MODULE_NAMES = {
 };
 
 const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NAMES));
+const SIDE_NAV_SIGNAL_SECTIONS = new Set(["history", "gynec", "obstetric"]);
+const SIDE_NAV_PRIVATE_NOTES_SECTION = "personalNotes";
 const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
 const SIDE_NAV_SHINER_DELAY_MS = 5000;
 const SIDE_NAV_MODULE_TIMEOUT_MS = 120000;
+
+function isSideNavVoiceSupported(sectionId) {
+  return sectionId === SIDE_NAV_PRIVATE_NOTES_SECTION || SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(sectionId);
+}
 
 const VITAL_DISPLAY_FIELDS = [
   { key: "temperature", label: "Temperature", unit: "Frh" },
@@ -1203,6 +1211,67 @@ function hasValue(value) {
   return Boolean(text) && text !== "0";
 }
 
+function hasSideNavPreviousContext(value) {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === "object") return Object.keys(value).length > 0;
+  return String(value).trim() !== "";
+}
+
+function appendSideNavJsonFormField(formData, key, value) {
+  if (!hasSideNavPreviousContext(value)) return;
+  formData.append(key, JSON.stringify(value));
+}
+
+function medicalHistoryTagHasContextValue(tag = {}) {
+  const enable = String(tag?.enable || "").trim();
+  if (enable === "Y" || enable === "N") return true;
+  return [
+    tag?.since,
+    tag?.status,
+    tag?.medication,
+    tag?.relationship,
+    tag?.note,
+    tag?.notes,
+    tag?.date,
+  ].some(hasValue);
+}
+
+function buildSideNavMedicalHistoryPreviousContext(medicalHistoryData = []) {
+  if (!Array.isArray(medicalHistoryData)) return undefined;
+
+  const sections = medicalHistoryData
+    .map((section) => {
+      const tags = Array.isArray(section?.tags)
+        ? section.tags.filter(medicalHistoryTagHasContextValue)
+        : [];
+      const hasSectionData = Boolean(section?.no_know_history) ||
+        tags.length > 0 ||
+        hasValue(section?.medical_history_remarks);
+
+      return hasSectionData ? { ...section, tags } : null;
+    })
+    .filter(Boolean);
+
+  return sections.length ? { medical_history: sections } : undefined;
+}
+
+function copyPayloadHasMedicalHistory(payload = {}) {
+  const digitization = payload?.digitization || {};
+  return hasSideNavPreviousContext(digitization.medical_history) ||
+    hasSideNavPreviousContext(digitization.medicalHistory) ||
+    hasSideNavPreviousContext(payload?.medicalHistory);
+}
+
+function getSideNavSignalTargetFromCopyRequest(copyRequest) {
+  const payload = copyRequest?.payload || {};
+  const explicitTarget = payload.sideNavSignalTarget;
+  if (SIDE_NAV_SIGNAL_SECTIONS.has(explicitTarget) && copyPayloadHasMedicalHistory(payload)) {
+    return explicitTarget;
+  }
+  return copyPayloadHasMedicalHistory(payload) ? "history" : null;
+}
+
 function valueText(values) {
   return values.filter(hasValue).map((value) => String(value).trim()).join(", ");
 }
@@ -1799,12 +1868,64 @@ function extractSideNavModulePayload(responseJson) {
     responseJson;
 }
 
-function firstSideNavArray(payload, keys) {
-  if (Array.isArray(payload)) return payload;
-  for (const key of keys) {
-    const value = payload?.[key];
-    if (Array.isArray(value)) return value;
+function parseSideNavMaybeJson(value) {
+  if (typeof value !== "string") return value;
+  const text = value.trim();
+  if (!text || (!text.startsWith("[") && !text.startsWith("{"))) return value;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return value;
   }
+}
+
+function sideNavObjectLooksLikeArrayRow(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return [
+    "name",
+    "title",
+    "type",
+    "tags",
+    "lineItem",
+    "no_know_history",
+    "medical_history_remarks",
+    "investigation_name",
+    "test_name",
+  ].some((key) => value[key] !== undefined);
+}
+
+function firstSideNavArray(payload, keys, { allowObjectRow = false } = {}) {
+  const containerKeys = [
+    ...keys,
+    "response",
+    "result",
+    "results",
+    "output",
+    "items",
+    "rows",
+    "records",
+    "data",
+  ];
+
+  const findArray = (value, depth = 3) => {
+    const parsedValue = parseSideNavMaybeJson(value);
+    if (Array.isArray(parsedValue)) return parsedValue;
+    if (!parsedValue || typeof parsedValue !== "object" || depth <= 0) return [];
+    if (allowObjectRow && sideNavObjectLooksLikeArrayRow(parsedValue)) return [parsedValue];
+
+    for (const key of containerKeys) {
+      if (!(key in parsedValue)) continue;
+      const nested = findArray(parsedValue[key], depth - 1);
+      if (nested.length) return nested;
+    }
+
+    return [];
+  };
+
+  const parsedPayload = parseSideNavMaybeJson(payload);
+  const rows = findArray(parsedPayload);
+  if (rows.length) return rows;
+  if (allowObjectRow && sideNavObjectLooksLikeArrayRow(parsedPayload)) return [parsedPayload];
   return [];
 }
 
@@ -1843,8 +1964,9 @@ function normalizeSideNavVitals(payload) {
 }
 
 function normalizeSideNavHistorySections(payload) {
-  const rows = firstSideNavArray(payload, ["medical_history", "medicalHistory", "history"]);
-  return rows.filter((section) => section?.no_know_history || section?.tags?.length);
+  const rows = firstSideNavArray(payload, ["medical_history", "medicalHistory", "history"], { allowObjectRow: true });
+  return convertAgentMedicalHistoryRowsToSections(rows)
+    .filter((section) => section?.no_know_history || section?.tags?.length || hasValue(section?.medical_history_remarks));
 }
 
 function normalizeSideNavMedicalHistoryMatch(value) {
@@ -1899,7 +2021,7 @@ function mapSideNavMedicalHistoryIdsFromDefaultList(data = [], defaultList = [])
         tags: mappedTags,
       };
     })
-    .filter((section) => section.no_know_history || section.tags.length);
+    .filter((section) => section.no_know_history || section.tags.length || hasValue(section?.medical_history_remarks));
 }
 
 function mergeSideNavMedicalHistorySections(base = [], incoming = []) {
@@ -1972,7 +2094,14 @@ function sideNavObjectHasContent(object, ignoredKeys = []) {
   return Object.entries(object || {}).some(([key, value]) => !ignored.has(key) && hasValue(value));
 }
 
-async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, doctorId, sessionId }) {
+function appendPrivateNotesTranscript(existingNotes, transcript) {
+  const current = String(existingNotes || "").trimEnd();
+  const next = String(transcript || "").trim();
+  if (!next) return current;
+  return current ? `${current}\n${next}` : next;
+}
+
+async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, doctorId, sessionId, previousContext }) {
   const moduleName = SIDE_NAV_MODULE_NAMES[sectionId];
   if (!moduleName) {
     throw new Error("Voice input is not available for this section.");
@@ -1989,6 +2118,7 @@ async function requestSideNavModuleDigitise({ sectionId, audioBlob, patientId, d
   formData.append("doctor_id", String(doctorId));
   formData.append("session_id", String(sessionId));
   formData.append("module_name", moduleName);
+  appendSideNavJsonFormField(formData, "previous_context", previousContext);
   formData.append("audio", audioBlob, "audio.webm");
 
   const abortController = new AbortController();
@@ -2031,7 +2161,7 @@ function MedicalMaskIcon({ name, active }) {
   );
 }
 
-function IconPill({ item, active }) {
+function IconPill({ item, active, signalUnread = false }) {
   const isMedical = item.icon.kind === "medical";
   const Icon = item.icon.Icon;
 
@@ -2047,20 +2177,23 @@ function IconPill({ item, active }) {
           color={active ? "var(--tp-blue-500)" : "#ffffff"}
         />
       )}
+      {signalUnread ? <span className="snv-nav-signal-dot" aria-hidden="true" /> : null}
     </span>
   );
 }
 
-function NavItem({ item, active, onClick }) {
+function NavItem({ item, active, onClick, signal }) {
+  const signalUnread = Boolean(signal?.unread) && !active;
+  const signalAnimating = Boolean(signal?.animating) && !active;
   return (
     <button
       type="button"
-      className={`snv-nav-item ${active ? "snv-nav-item-active" : ""}`}
+      className={`snv-nav-item ${active ? "snv-nav-item-active" : ""} ${signalAnimating ? "snv-nav-item-jiggle" : ""}`}
       onClick={() => onClick(item.id)}
       aria-current={active ? "page" : undefined}
     >
       <span className="snv-nav-item-inner">
-        <IconPill item={item} active={active} />
+        <IconPill item={item} active={active} signalUnread={signalUnread} />
         <span className="snv-nav-label">{item.label}</span>
       </span>
       {active ? <span className="snv-active-bar" aria-hidden="true" /> : null}
@@ -2069,7 +2202,7 @@ function NavItem({ item, active, onClick }) {
   );
 }
 
-function NavPanel({ activeId, onSelect, items = NAV_ITEMS }) {
+function NavPanel({ activeId, onSelect, items = NAV_ITEMS, signals = {} }) {
   const scrollRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
 
@@ -2109,6 +2242,7 @@ function NavPanel({ activeId, onSelect, items = NAV_ITEMS }) {
             item={item}
             active={activeId === item.id}
             onClick={onSelect}
+            signal={signals[item.id]}
           />
         ))}
       </div>
@@ -3823,7 +3957,7 @@ function GrowthContent({ data }) {
   );
 }
 
-function PrivateNotesContent({ value, onChange, showVoiceRx }) {
+function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voiceDisabled }) {
   return (
     <div className="snv-content-scroll snv-private-notes-content" data-snv-scroll-root="true">
       <div className="snv-private-note-wrap">
@@ -3834,9 +3968,16 @@ function PrivateNotesContent({ value, onChange, showVoiceRx }) {
           onChange={(event) => onChange(event.target.value)}
         />
         {showVoiceRx ? (
-          <span className="snv-private-note-voice" aria-hidden="true">
+          <button
+            type="button"
+            className="snv-private-note-voice"
+            onClick={voiceDisabled ? undefined : onVoiceClick}
+            disabled={voiceDisabled}
+            aria-label="Use Voice AI for private notes"
+            title="Use Voice AI for private notes"
+          >
             <VoiceRxIcon size={22} color="#8B3FD1" />
-          </span>
+          </button>
         ) : null}
       </div>
       <div className="snv-private-note-hint">
@@ -3847,7 +3988,7 @@ function PrivateNotesContent({ value, onChange, showVoiceRx }) {
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onCopyPayload, showVoiceRx }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx }) {
   switch (activeId) {
     case "pastVisits":
       return (
@@ -3879,7 +4020,15 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
     case "optal":
       return <OptalContent entries={viewData.optal} />;
     case "personalNotes":
-      return <PrivateNotesContent value={privateNotesValue} onChange={onPrivateNotesChange} showVoiceRx={showVoiceRx} />;
+      return (
+        <PrivateNotesContent
+          value={privateNotesValue}
+          onChange={onPrivateNotesChange}
+          showVoiceRx={showVoiceRx}
+          onVoiceClick={onPrivateNotesVoiceClick}
+          voiceDisabled={privateNotesVoiceDisabled}
+        />
+      );
     default:
       return <div className="snv-empty-state">No data recorded.</div>;
   }
@@ -3937,7 +4086,10 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
   const overlayActive = voiceState && !["idle", "done"].includes(voiceStatus);
   const voiceRecorderVisible = overlayActive;
   const isAwaitingResponse = voiceStatus === "transcribing" || voiceStatus === "digitizing";
-  const processingLabel = voiceStatus === "transcribing" ? "Refining your captured consultation..." : voiceStatus === "digitizing" ? "Filling section…" : undefined;
+  const processingLabel = voiceStatus === "transcribing"
+    ? (activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Transcribing private notes..." : "Refining your captured consultation...")
+    : voiceStatus === "digitizing" ? "Filling section…" : undefined;
+  const privateNotesVoiceDisabled = voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus);
 
   useEdgeSwipeNavigation({
     containerRef,
@@ -3978,6 +4130,8 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           pastVisitsState={pastVisitsState}
           privateNotesValue={privateNotesValue}
           onPrivateNotesChange={onPrivateNotesChange}
+          onPrivateNotesVoiceClick={onVoiceClick}
+          privateNotesVoiceDisabled={privateNotesVoiceDisabled}
           onCopyPayload={onCopyPayload}
           showVoiceRx={showVoiceRx}
         />
@@ -4030,7 +4184,8 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
-  const { activeVoiceModule, runCopyWithAura } = useRxPadSync();
+  const { activeVoiceModule, runCopyWithAura, lastCopyRequest } = useRxPadSync();
+  const [sideNavSignals, setSideNavSignals] = useState({});
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
   const [pastVisitRows, setPastVisitRows] = useState([]);
   const [pastVisitDetails, setPastVisitDetails] = useState({});
@@ -4045,6 +4200,7 @@ export function SideNavbar({
   const [growthChartRows, setGrowthChartRows] = useState([]);
   const [growthParentalDetails, setGrowthParentalDetails] = useState(null);
   const vaccineRequestRef = useRef(0);
+  const handledSideNavSignalCopyRef = useRef(null);
   const opthalRequestRef = useRef(0);
   const growthRequestRef = useRef(0);
   const pastVisitsRequestRef = useRef(0);
@@ -4349,6 +4505,32 @@ export function SideNavbar({
       notes,
     });
   }, [privateNotesData, setPrivateNotesData]);
+  const savePrivateNotesFromVoice = useCallback(async (notes) => {
+    const cleanNotes = String(notes || "").trim();
+    if (!cleanNotes) {
+      handlePrivateNotesChange("");
+      return null;
+    }
+
+    const sendData = {
+      id: privateNotesData?.id !== undefined ? privateNotesData.id : 0,
+      patient_unique_id: patientData?.patient_unique_id || patientId || 0,
+      notes: cleanNotes,
+    };
+
+    const action = await dispatch(addEditPrivateNotes(sendData));
+    if (action.meta.requestStatus !== "fulfilled") {
+      throw new Error(action.error?.message || "Private notes save failed.");
+    }
+
+    const savedNote = {
+      ...(typeof privateNotesData === "object" && privateNotesData ? privateNotesData : {}),
+      ...action.payload,
+      notes: action.payload?.notes ?? cleanNotes,
+    };
+    setPrivateNotesData?.(savedNote);
+    return savedNote;
+  }, [dispatch, handlePrivateNotesChange, patientData?.patient_unique_id, patientId, privateNotesData, setPrivateNotesData]);
   const viewData = useMemo(() => buildViewData(digitizedOverrides, {
     pastVisits: legacyPastVisitEntries,
     vitals: legacyVitalsEntries,
@@ -4454,6 +4636,52 @@ export function SideNavbar({
     if (onSectionSelect) onSectionSelect(id);
   }, [onSectionSelect]);
 
+  const clearSideNavSignal = useCallback((sectionId) => {
+    if (!SIDE_NAV_SIGNAL_SECTIONS.has(sectionId)) return;
+    setSideNavSignals((prev) => {
+      if (!prev[sectionId]) return prev;
+      return {
+        ...prev,
+        [sectionId]: { ...prev[sectionId], unread: false, animating: false },
+      };
+    });
+  }, []);
+
+  const triggerSideNavSignal = useCallback((sectionId) => {
+    if (!SIDE_NAV_SIGNAL_SECTIONS.has(sectionId)) return;
+    setSideNavSignals((prev) => ({
+      ...prev,
+      [sectionId]: { unread: true, animating: true },
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!lastCopyRequest || handledSideNavSignalCopyRef.current === lastCopyRequest.id) return;
+    handledSideNavSignalCopyRef.current = lastCopyRequest.id;
+
+    const signalTarget = getSideNavSignalTargetFromCopyRequest(lastCopyRequest);
+    if (!signalTarget) return;
+
+    triggerSideNavSignal(signalTarget);
+    if (signalTarget === activeId) {
+      clearSideNavSignal(signalTarget);
+      return;
+    }
+    const payload = lastCopyRequest.payload || {};
+    const shouldAutoOpen = !lastCopyRequest.isBulk &&
+      payload.sideNavSignalTarget === signalTarget &&
+      payload.sideNavSignalMode === "focused";
+    if (shouldAutoOpen) {
+      setActiveSection(signalTarget, null);
+    }
+  }, [activeId, clearSideNavSignal, lastCopyRequest, setActiveSection, triggerSideNavSignal]);
+
+  useEffect(() => {
+    if (SIDE_NAV_SIGNAL_SECTIONS.has(activeId)) {
+      clearSideNavSignal(activeId);
+    }
+  }, [activeId, clearSideNavSignal]);
+
   useEffect(() => {
     if (!activeId || navSequence.includes(activeId)) return;
     setActiveSection(firstCustomizedNavId || "pastVisits", null);
@@ -4474,6 +4702,7 @@ export function SideNavbar({
   ]);
 
   const handleSelect = (id) => {
+    clearSideNavSignal(id);
     const next = activeId === id ? null : id;
     setActiveSection(next, null);
   };
@@ -4509,7 +4738,14 @@ export function SideNavbar({
       setMedicalHistoryData?.((prev = []) => {
         const defaultSource = medicalHistoryDefaultList?.length ? medicalHistoryDefaultList : prev;
         const mappedHistory = mapSideNavMedicalHistoryIdsFromDefaultList(result.history, defaultSource);
-        return mergeSideNavMedicalHistorySections(prev, mappedHistory);
+        const finalMedicalHistoryData = mergeSideNavMedicalHistorySections(prev, mappedHistory);
+        console.groupCollapsed("[SideNav MedicalHistory] agents/module mapped result");
+        console.log("raw normalized result.history", result.history);
+        console.log("default source used for id mapping", defaultSource);
+        console.log("mapped history after default-list conversion", mappedHistory);
+        console.log("final data passed to setMedicalHistoryData", finalMedicalHistoryData);
+        console.groupEnd();
+        return finalMedicalHistoryData;
       });
       return;
     }
@@ -4530,34 +4766,48 @@ export function SideNavbar({
   }, [medicalHistoryDefaultList, setLabParamsData, setMedicalHistoryData, setVitalsData]);
 
   const transcribeSectionAudio = useCallback(async (sectionId, audioBlob) => {
-    if (!SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(sectionId)) {
+    if (!isSideNavVoiceSupported(sectionId)) {
       return;
     }
+    const isPrivateNotesVoice = sectionId === SIDE_NAV_PRIVATE_NOTES_SECTION;
     updateVoiceState(sectionId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
     if (voiceDelayTimerRef.current) {
       window.clearTimeout(voiceDelayTimerRef.current);
     }
     voiceDelayTimerRef.current = window.setTimeout(() => {
-      updateVoiceState(sectionId, { status: "digitizing", error: "", transcript: "", digitizedSummary: "" });
+      updateVoiceState(sectionId, { status: isPrivateNotesVoice ? "transcribing" : "digitizing", error: "", transcript: "", digitizedSummary: "" });
     }, SIDE_NAV_SHINER_DELAY_MS);
 
     try {
-      const result = await requestSideNavModuleDigitise({
-        sectionId,
-        audioBlob,
-        patientId,
-        doctorId,
-        sessionId: tcmId && Number(tcmId) !== 0 ? tcmId : pamId || createSessionId(),
-      });
+      const result = isPrivateNotesVoice
+        ? await transcribeAnyAudio({
+          audioBlob,
+          prompt: PRIVATE_NOTES_TRANSCRIPTION_PROMPT,
+        })
+        : await requestSideNavModuleDigitise({
+          sectionId,
+          audioBlob,
+          patientId,
+          doctorId,
+          sessionId: tcmId && Number(tcmId) !== 0 ? tcmId : pamId || createSessionId(),
+          previousContext: sectionId === "history"
+            ? buildSideNavMedicalHistoryPreviousContext(medicalHistoryData)
+            : undefined,
+        });
       if (voiceDelayTimerRef.current) {
         window.clearTimeout(voiceDelayTimerRef.current);
         voiceDelayTimerRef.current = null;
       }
-      applySideNavVoiceResult(sectionId, result);
+      if (isPrivateNotesVoice) {
+        await savePrivateNotesFromVoice(appendPrivateNotesTranscript(privateNotesValue, result.transcript));
+        toast.success("Private notes updated from voice.");
+      } else {
+        applySideNavVoiceResult(sectionId, result);
+      }
       updateVoiceState(sectionId, {
         status: "done",
-        transcript: "",
-        digitizedSummary: JSON.stringify(result, null, 2),
+        transcript: isPrivateNotesVoice ? result.transcript : "",
+        digitizedSummary: isPrivateNotesVoice ? result.transcript : JSON.stringify(result, null, 2),
         error: "",
       });
     } catch (error) {
@@ -4569,11 +4819,11 @@ export function SideNavbar({
       toast.error(error?.message || "Voice processing failed.");
       updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
     }
-  }, [applySideNavVoiceResult, doctorId, pamId, patientId, tcmId, updateVoiceState]);
+  }, [applySideNavVoiceResult, doctorId, medicalHistoryData, pamId, patientId, privateNotesValue, savePrivateNotesFromVoice, tcmId, updateVoiceState]);
 
   const handleVoiceClick = useCallback(() => {
     if (!activeId) return;
-    if (!SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)) return;
+    if (!isSideNavVoiceSupported(activeId)) return;
     if (activeVoiceModule) return;
     const existing = voiceBySection[activeId]?.status;
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
@@ -4605,7 +4855,7 @@ export function SideNavbar({
 
   return (
     <aside className="snv-root" data-side-navbar="true">
-      <NavPanel activeId={activeId} onSelect={handleSelect} items={navItems} />
+      <NavPanel activeId={activeId} onSelect={handleSelect} items={navItems} signals={sideNavSignals} />
       {activeId ? (
         <SectionPanel
           activeId={activeId}

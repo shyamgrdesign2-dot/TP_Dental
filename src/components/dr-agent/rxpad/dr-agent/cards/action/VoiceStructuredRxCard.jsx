@@ -32,6 +32,10 @@ function sectionDigitizationKey(sectionId) {
     case "medication":
     case "medications":
       return "medications";
+    case "medicalHistory":
+    case "medical_history":
+    case "medical-history":
+      return "medical_history";
     case "investigation":
     case "investigations":
     case "lab":
@@ -49,6 +53,10 @@ function sectionDigitizationKey(sectionId) {
   }
 }
 
+function isMedicalHistorySection(sectionId) {
+  return ["medicalHistory", "medical_history", "medical-history"].includes(sectionId);
+}
+
 function getSectionDigitizationRows(digitization, sectionId) {
   const key = sectionDigitizationKey(sectionId);
   if (!digitization || !key) return null;
@@ -59,6 +67,9 @@ function getSectionDigitizationRows(digitization, sectionId) {
     const followUp = field(digitization, "followUp", "follow_up");
     return followUp == null || String(followUp).trim() === "" ? null : [followUp];
   }
+  if (key === "medical_history") {
+    return field(digitization, "medicalHistory", "medical_history") ?? null;
+  }
   return digitization[key] ?? null;
 }
 
@@ -68,10 +79,14 @@ function getSectionDigitizationRows(digitization, sectionId) {
  */
 function buildSectionPayload(sectionId, items, rawRows) {
   const digitizationKey = sectionDigitizationKey(sectionId);
+  const sideNavSignal = isMedicalHistorySection(sectionId)
+    ? { sideNavSignalTarget: "history", sideNavSignalMode: "focused" }
+    : {};
   if (digitizationKey && rawRows?.length) {
     return {
       sourceDateLabel: "Voice consult",
       targetSection: "rxpad",
+      ...sideNavSignal,
       digitization: {
         [digitizationKey]: rawRows,
       },
@@ -104,7 +119,20 @@ function buildSectionPayload(sectionId, items, rawRows) {
     case "follow_up":
     case "follow-up":
       return { ...base, followUp: labels.join("; ") };
+    case "medicalHistory":
+    case "medical_history":
+    case "medical-history":
+      return {
+        ...base,
+        ...sideNavSignal,
+        medicalHistory: labels.map((label) => ({
+          type: "medical_history",
+          name: label,
+          lineItem: label,
+        })),
+      };
     case "history":
+    case "historyChangeSummaries":
       return { ...base, historyChangeSummaries: labels };
     case "medication":
     case "medications":

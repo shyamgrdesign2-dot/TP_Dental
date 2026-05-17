@@ -125,6 +125,23 @@
   transition: background-color 180ms ease, transform 160ms ease;
 }
 
+.snv-nav-signal-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  z-index: 3;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #ff3b30;
+  box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.16);
+  pointer-events: none;
+}
+
+.snv-nav-item-jiggle .snv-icon-pill {
+  animation: snv-nav-jiggle 1.5s ease-in-out infinite;
+}
+
 /* Force white strokes/fills for Linear-variant iconsax icons in inactive pills */
 .snv-icon-pill:not(.snv-icon-pill-active) svg {
   color: #ffffff !important;
@@ -1426,6 +1443,33 @@
   }
 }
 
+@keyframes snv-nav-jiggle {
+  0%, 23%, 100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  6% {
+    transform: translateX(-1.1px) rotate(-1.8deg);
+  }
+  12% {
+    transform: translateX(1.1px) rotate(1.8deg);
+  }
+  18% {
+    transform: translateX(-0.6px) rotate(-1.2deg);
+  }
+  34% {
+    transform: translateX(0.6px) rotate(1.2deg);
+  }
+  50% {
+    transform: translateX(0.6px) rotate(1.2deg);
+  }
+  66% {
+    transform: translateX(-0.6px) rotate(-1.2deg);
+  }
+  82% {
+    transform: translateX(0.6px) rotate(1.2deg);
+  }
+}
+
 @keyframes snv-processing-shine {
   0% {
     left: -45%;
@@ -2067,10 +2111,28 @@
   position: absolute;
   right: 14px;
   bottom: 14px;
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(103, 58, 172, 0.12);
+  transition: transform 150ms ease, opacity 150ms ease, box-shadow 150ms ease;
+}
+
+.snv-private-note-voice:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow: 0 3px 12px rgba(103, 58, 172, 0.18);
+}
+
+.snv-private-note-voice:disabled {
+  cursor: wait;
+  opacity: 0.45;
 }
 
 .snv-private-note-hint {
