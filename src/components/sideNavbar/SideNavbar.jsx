@@ -690,7 +690,8 @@ function buildPastVisitDigitalRx(consultation) {
   if (!consultation) return null;
   const smartPayload = getPastVisitSmartDigitalPayload(consultation);
   const smartRx = buildDigitalRx(smartPayload);
-  if (smartRx) return smartRx;
+  const doctorAttribution = getPastVisitDoctorAttribution(consultation);
+  if (smartRx) return doctorAttribution ? { ...smartRx, doctorAttribution } : smartRx;
   const legacyConsultation = firstObject(
     consultation?.caseManagerData,
     consultation?.data?.caseManagerData,
@@ -748,6 +749,7 @@ function buildPastVisitDigitalRx(consultation) {
     ).map((item) => (item.detail ? { label: item.label, detail: item.detail } : item.label)),
     followUp: legacyConsultation.follow_up_date ? `On ${formatPastVisitDate(legacyConsultation.follow_up_date)}` : "",
     additionalNotes: legacyConsultation.additional_notes || legacyConsultation.additionalNotes || legacyConsultation.notes || "",
+    doctorAttribution,
   };
   const hasDigitalRx = digitalRx.symptoms.length ||
     digitalRx.examinations.length ||
@@ -790,10 +792,57 @@ function getPastVisitDate(consultation, detail) {
     detail?.date;
 }
 
+function normalizePastVisitDoctorName(name) {
+  const doctorName = String(name || "").trim();
+  if (!doctorName) return "";
+  return /^dr\.?\s/i.test(doctorName) ? doctorName : `Dr. ${doctorName}`;
+}
+
+function getPastVisitDoctorAttribution(...sources) {
+  const sourceList = sources.filter(Boolean);
+  const doctorSources = sourceList.flatMap((source) => {
+    const caseManagerData = firstObject(
+      source?.caseManagerData,
+      source?.data?.caseManagerData,
+      source?.data?.data?.caseManagerData,
+      source?.printPayload?.caseManagerData,
+      source?.printPayload?.data?.caseManagerData,
+      source?.printPayload?.data?.data?.caseManagerData
+    );
+    return [
+      caseManagerData?.doctor_data,
+      caseManagerData?.doctorData,
+      source?.doctor_data,
+      source?.doctorData,
+      source?.data?.doctor_data,
+      source?.data?.doctorData,
+      source,
+    ].filter(Boolean);
+  });
+
+  const doctorName = doctorSources
+    .map((source) => source?.doctor_name || source?.doctorName)
+    .find(hasValue);
+  if (!hasValue(doctorName)) return null;
+
+  const dpName = doctorSources
+    .map((source) => source?.dp_name || source?.dpName || source?.speciality || source?.specialty)
+    .find(hasValue);
+  const displayDoctorName = normalizePastVisitDoctorName(doctorName);
+  const speciality = hasValue(dpName) ? String(dpName).trim() : "";
+
+  return {
+    doctorName: displayDoctorName,
+    speciality,
+    text: speciality ? `Rx by: ${displayDoctorName} (${speciality})` : `Rx by: ${displayDoctorName}`,
+  };
+}
+
 function buildPastVisitEntry(consultation, detail) {
   const tcmId = consultation?.tcm_id || consultation?.tcmId || detail?.tcm_id;
   const consultationDate = getPastVisitDate(consultation, detail);
   const detailRx = buildPastVisitDigitalRx(detail || consultation);
+  const doctorAttribution = getPastVisitDoctorAttribution(detail, consultation);
   const printUrl = detail?.print_url ||
     detail?.caseManagerData?.print_url ||
     detail?.data?.caseManagerData?.print_url ||
@@ -809,6 +858,7 @@ function buildPastVisitEntry(consultation, detail) {
     tcmId,
     dateLabel: formatPastVisitDate(consultationDate),
     digitalRx: detailRx,
+    doctorAttribution,
     hasTranscript: showTranscript,
     transcriptBlocks,
     writtenRx: printUrl ? [{ id: `written-rx-${tcmId || consultationDate}`, printUrl, doctorName: detail?.doctor_data?.doctor_name || consultation?.doctor_name || "", speciality: detail?.doctor_data?.dp_name || consultation?.dp_name || "" }] : [],
@@ -2334,12 +2384,15 @@ function hasListData(items) {
   return Array.isArray(items) && items.length > 0;
 }
 
-function DateCard({ title, expanded, onToggle, onCopy, children, fresh, stickyHeader = false }) {
+function DateCard({ title, subtitle, expanded, onToggle, onCopy, children, fresh, stickyHeader = false }) {
   return (
     <article className={`snv-date-card ${fresh ? "snv-fresh-card" : ""} ${stickyHeader ? "snv-date-card-sticky" : ""}`}>
       <div className={`snv-date-card-header ${stickyHeader ? "snv-date-card-header-sticky" : ""}`}>
         <button type="button" className="snv-date-toggle-btn" onClick={onToggle}>
-          <span>{title}</span>
+          <span className="snv-date-title-wrap">
+            <span className="snv-date-title">{title}</span>
+            {subtitle ? <span className="snv-date-subtitle">{subtitle}</span> : null}
+          </span>
         </button>
         {onCopy ? (
           <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} visit to RxPad`} />
@@ -2402,6 +2455,11 @@ function LoadMoreFooter({ loading = false, onClick, shimmerLabel }) {
       {loading ? <LoadMoreRowsShimmer label={shimmerLabel} /> : <LoadMoreButton onClick={onClick} />}
     </div>
   );
+}
+
+function PastVisitRxByLine({ attribution }) {
+  if (!attribution?.text) return null;
+  return <p className="snv-rx-by-line">{attribution.text}</p>;
 }
 
 function PastVisitInnerSectionCard({ title, children }) {
@@ -2537,12 +2595,14 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
           const expanded = Boolean(expandedById[visitItem.id]);
           const mode = modeByVisit[visitItem.id] || "digital";
           const rx = visitItem.digitalRx;
+          const rxByAttribution = rx?.doctorAttribution || visitItem.doctorAttribution;
           const canCopyVisit = Boolean(visitItem.detailLoaded && buildPastVisitAllPayload(visitItem));
 
           return (
             <DateCard
               key={visitItem.id}
               title={visitItem.dateLabel}
+              subtitle={rxByAttribution?.text}
               expanded={expanded}
               fresh={visitItem.fresh}
               stickyHeader
@@ -2589,6 +2649,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                   {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
                   {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />} onCopy={() => handleCopySection(visitItem, "followUp", "Follow Up")}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
                   <PastVisitNativeSections rx={rx} />
+                  <PastVisitRxByLine attribution={rxByAttribution} />
                 </>
               ) : (
                 <div className="snv-empty-state">No digital Rx available for this visit.</div>
