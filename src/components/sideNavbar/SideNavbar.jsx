@@ -163,6 +163,23 @@ function formatLegacyVitalDate(date) {
   return parsed.isValid() ? parsed.format(LEGACY_VITALS_DATE_FORMAT) : String(date);
 }
 
+function normalizeSideNavDateKey(date) {
+  if (!date) return "";
+  const parsed = moment(date, [
+    moment.ISO_8601,
+    "YYYY-MM-DD",
+    "YYYY/MM/DD",
+    "DD-MM-YYYY",
+    "DD/MM/YYYY",
+    "DD MMM YYYY",
+    "DD MMM, YYYY",
+    "DD MMM, YY",
+    "DD MMM'YY",
+  ], true);
+  const fallback = parsed.isValid() ? parsed : moment(date);
+  return fallback.isValid() ? fallback.format("YYYY-MM-DD") : String(date).trim().toLowerCase();
+}
+
 function formatOpthalDate(date) {
   if (!date) return "Consultation";
   const parsed = moment(date);
@@ -266,6 +283,37 @@ function buildLegacyVitalRows(item, isPediatricAccessable) {
   return rows;
 }
 
+function getLegacyVitalItemDate(item) {
+  return item?.date || item?.createdAt || item?.created_at || item?.bodyCreatedAt;
+}
+
+function mergeLegacyVitalItems(current = {}, next = {}) {
+  const merged = { ...current };
+  Object.entries(next || {}).forEach(([key, value]) => {
+    if (key === "tcv_id" || key === "tcbc_id" || key === "dev_unique_id") {
+      if (legacyVitalHasValue(value) && (!legacyVitalHasValue(merged[key]) || String(merged[key]) === "0")) {
+        merged[key] = value;
+      }
+      return;
+    }
+    if (!legacyVitalHasValue(merged[key]) && legacyVitalHasValue(value)) {
+      merged[key] = value;
+    }
+  });
+  return merged;
+}
+
+function sortLegacyVitalEntriesByDate(entries = []) {
+  return [...entries].sort((a, b) => {
+    const aDate = moment(a.sortDate);
+    const bDate = moment(b.sortDate);
+    if (aDate.isValid() && bDate.isValid()) return bDate.valueOf() - aDate.valueOf();
+    if (aDate.isValid()) return -1;
+    if (bDate.isValid()) return 1;
+    return 0;
+  });
+}
+
 function buildLegacyVitalsEntries({
   vitalsData = [],
   vitalsPastList = [],
@@ -274,7 +322,25 @@ function buildLegacyVitalsEntries({
   isPediatricAccessable,
 }) {
   const entries = [];
+  const groupedVitals = new Map();
   const birthWeight = vitalsData?.[0]?.patient_birth_weight || patientBirthWeight;
+
+  const collectVitalItem = (item, index, source) => {
+    const rows = buildLegacyVitalRows(item, isPediatricAccessable);
+    if (!rows.length) return;
+    const itemDate = getLegacyVitalItemDate(item);
+    const dateKey = normalizeSideNavDateKey(itemDate);
+    const entryKey = dateKey
+      ? `date:${dateKey}`
+      : `id:${item?.tcv_id || item?.tcbc_id || item?.dev_unique_id || item?.pam_id || `${source}-${index}`}`;
+    const current = groupedVitals.get(entryKey);
+    groupedVitals.set(entryKey, {
+      source,
+      index,
+      item: mergeLegacyVitalItems(current?.item, item),
+      sortDate: current?.sortDate || itemDate,
+    });
+  };
 
   if (
     patientData?.ageMonths <= 12 &&
@@ -289,21 +355,19 @@ function buildLegacyVitalsEntries({
   }
 
   vitalsData.forEach((item, index) => {
-    const rows = buildLegacyVitalRows(item, isPediatricAccessable);
-    if (!rows.length) return;
-    entries.push({
-      id: `legacy-vitals-today-${item?.tcv_id || item?.tcbc_id || item?.dev_unique_id || item?.date || index}`,
-      dateLabel: formatLegacyVitalDate(item?.date),
-      rows,
-    });
+    collectVitalItem(item, index, "today");
   });
 
   vitalsPastList.forEach((item, index) => {
+    collectVitalItem(item, index, "past");
+  });
+
+  sortLegacyVitalEntriesByDate(Array.from(groupedVitals.values())).forEach(({ item, index, source, sortDate }) => {
     const rows = buildLegacyVitalRows(item, isPediatricAccessable);
     if (!rows.length) return;
     entries.push({
-      id: `legacy-vitals-past-${item?.tcv_id || item?.tcbc_id || item?.dev_unique_id || item?.date || index}`,
-      dateLabel: formatLegacyVitalDate(item?.date),
+      id: `legacy-vitals-${source}-${item?.tcv_id || item?.tcbc_id || item?.dev_unique_id || sortDate || index}`,
+      dateLabel: formatLegacyVitalDate(sortDate),
       rows,
     });
   });
@@ -1304,7 +1368,18 @@ function normalizePastVisitTcmId(value) {
 }
 
 function getPastVisitTcmId(visit) {
-  return visit?.tcm_id || visit?.tcmId;
+  return visit?.tcm_id ||
+    visit?.tcmId ||
+    visit?.caseManagerData?.tcm_id ||
+    visit?.caseManagerData?.tcmId ||
+    visit?.data?.tcm_id ||
+    visit?.data?.tcmId ||
+    visit?.data?.caseManagerData?.tcm_id ||
+    visit?.data?.caseManagerData?.tcmId ||
+    visit?.data?.data?.tcm_id ||
+    visit?.data?.data?.tcmId ||
+    visit?.data?.data?.caseManagerData?.tcm_id ||
+    visit?.data?.data?.caseManagerData?.tcmId;
 }
 
 function filterCurrentPastVisit(visits, currentTcmId) {
@@ -1312,6 +1387,49 @@ function filterCurrentPastVisit(visits, currentTcmId) {
   const activeTcmId = normalizePastVisitTcmId(currentTcmId);
   if (!activeTcmId) return visitRows;
   return visitRows.filter((visit) => normalizePastVisitTcmId(getPastVisitTcmId(visit)) !== activeTcmId);
+}
+
+function getPastVisitUniqueKey(visit) {
+  const tcmId = normalizePastVisitTcmId(getPastVisitTcmId(visit));
+  if (tcmId) return `tcm:${tcmId}`;
+
+  const smartFile = firstTextValue(
+    visit?.smart_prescription_filename,
+    visit?.smartPrescriptionFilename,
+    visit?.caseManagerData?.smart_prescription_filename,
+    visit?.data?.caseManagerData?.smart_prescription_filename
+  );
+  if (smartFile) return `smart:${smartFile}`;
+
+  const printUrl = firstTextValue(
+    visit?.print_url,
+    visit?.print_rx_url,
+    visit?.caseManagerData?.print_url,
+    visit?.data?.caseManagerData?.print_url
+  );
+  if (printUrl) return `print:${printUrl}`;
+
+  const dateKey = normalizeSideNavDateKey(getPastVisitDate(visit));
+  if (!dateKey) return "";
+  const doctorKey = firstTextValue(
+    visit?.doctor_name,
+    visit?.doctorName,
+    visit?.doctor_data?.doctor_name,
+    visit?.caseManagerData?.doctor_data?.doctor_name,
+    visit?.data?.caseManagerData?.doctor_data?.doctor_name
+  ).toLowerCase();
+  return `date:${dateKey}|doctor:${doctorKey}`;
+}
+
+function dedupePastVisitRows(rows = []) {
+  const seen = new Set();
+  return rows.filter((row) => {
+    const key = getPastVisitUniqueKey(row);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function hasSideNavPreviousContext(value) {
@@ -4333,7 +4451,7 @@ export function SideNavbar({
   const [pastVisitDetails, setPastVisitDetails] = useState({});
   const [pastVisitLoadingIds, setPastVisitLoadingIds] = useState({});
   const [pastVisitsPage, setPastVisitsPage] = useState(1);
-  const [pastVisitsTotalPages, setPastVisitsTotalPages] = useState(1);
+  const [pastVisitsHasMore, setPastVisitsHasMore] = useState(false);
   const [isPastVisitsLoading, setIsPastVisitsLoading] = useState(false);
   const [hasPastVisitsLoaded, setHasPastVisitsLoaded] = useState(false);
   const [patientVaccineRows, setPatientVaccineRows] = useState([]);
@@ -4346,6 +4464,7 @@ export function SideNavbar({
   const opthalRequestRef = useRef(0);
   const growthRequestRef = useRef(0);
   const pastVisitsRequestRef = useRef(0);
+  const pastVisitRowsRef = useRef([]);
   const voiceDelayTimerRef = useRef(null);
   const medicalHistoryDefaultListRequestedRef = useRef(false);
   const emptyPastVisitsAutoSelectRef = useRef(false);
@@ -4370,6 +4489,10 @@ export function SideNavbar({
   useEffect(() => {
     activePatientRef.current = patientId;
   }, [patientId]);
+
+  useEffect(() => {
+    pastVisitRowsRef.current = pastVisitRows;
+  }, [pastVisitRows]);
 
   useEffect(() => {
     if (medicalHistoryDefaultList?.length || medicalHistoryLoading || medicalHistoryDefaultListRequestedRef.current) return;
@@ -4501,18 +4624,20 @@ export function SideNavbar({
       const consultations = Array.isArray(payload?.consultations) ? payload.consultations : [];
       const visibleConsultations = filterCurrentPastVisit(consultations, tcmId);
       const pagination = payload?.pagination || {};
-      setPastVisitRows((prev) => {
-        if (page === 1) return visibleConsultations;
-        const existingIds = new Set(
-          prev.map((item) => normalizePastVisitTcmId(getPastVisitTcmId(item))).filter(Boolean)
-        );
-        const nextRows = visibleConsultations.filter((item) => (
-          !existingIds.has(normalizePastVisitTcmId(getPastVisitTcmId(item)))
-        ));
-        return [...prev, ...nextRows];
+      const currentPage = pagination.currentPage || page;
+      const totalPages = pagination.totalPages || page;
+      const previousRows = page === 1 ? [] : pastVisitRowsRef.current;
+      const existingKeys = new Set(previousRows.map(getPastVisitUniqueKey).filter(Boolean));
+      const uniqueVisibleConsultations = dedupePastVisitRows(visibleConsultations);
+      const nextRows = uniqueVisibleConsultations.filter((item) => {
+        const key = getPastVisitUniqueKey(item);
+        return !key || !existingKeys.has(key);
       });
-      setPastVisitsPage(pagination.currentPage || page);
-      setPastVisitsTotalPages(pagination.totalPages || page);
+      const mergedRows = page === 1 ? nextRows : [...previousRows, ...nextRows];
+      pastVisitRowsRef.current = mergedRows;
+      setPastVisitRows(mergedRows);
+      setPastVisitsPage(currentPage);
+      setPastVisitsHasMore(currentPage < totalPages && (page === 1 || nextRows.length > 0));
     } catch (error) {
       console.error("[SideNavbar][PastVisits] failed to fetch consultations:", error);
     } finally {
@@ -4528,8 +4653,9 @@ export function SideNavbar({
     setPastVisitDetails({});
     setPastVisitLoadingIds({});
     setPastVisitsPage(1);
-    setPastVisitsTotalPages(1);
+    setPastVisitsHasMore(false);
     setHasPastVisitsLoaded(false);
+    pastVisitRowsRef.current = [];
     emptyPastVisitsAutoSelectRef.current = false;
     pastVisitsRequestRef.current += 1;
     if (patientId) {
@@ -4695,14 +4821,14 @@ export function SideNavbar({
 
   const pastVisitsState = useMemo(() => ({
     loading: isPastVisitsLoading,
-    hasMore: pastVisitsPage < pastVisitsTotalPages,
+    hasMore: pastVisitsHasMore,
     onLoadMore: () => {
-      if (!isPastVisitsLoading && pastVisitsPage < pastVisitsTotalPages) {
+      if (!isPastVisitsLoading && pastVisitsHasMore) {
         fetchPastVisitsPage(pastVisitsPage + 1);
       }
     },
     onExpand: fetchPastVisitDetail,
-  }), [fetchPastVisitDetail, fetchPastVisitsPage, isPastVisitsLoading, pastVisitsPage, pastVisitsTotalPages]);
+  }), [fetchPastVisitDetail, fetchPastVisitsPage, isPastVisitsLoading, pastVisitsHasMore, pastVisitsPage]);
 
   const handlePastVisitCopyPayload = useCallback((payload, opts) => {
     runCopyWithAura(payload, opts);
