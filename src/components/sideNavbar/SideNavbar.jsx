@@ -2585,10 +2585,10 @@ function BulletList({ items }) {
   );
 }
 
-function RxSection({ title, icon, children, onCopy }) {
+function RxSection({ title, icon, children, onCopy, stickyTitle = false }) {
   return (
-    <div className="snv-rx-section">
-      <div className="snv-rx-section-title">
+    <div className={`snv-rx-section ${stickyTitle ? "snv-rx-section-sticky-title" : ""}`}>
+      <div className={`snv-rx-section-title ${stickyTitle ? "snv-rx-section-title-sticky" : ""}`}>
         <span className="snv-rx-section-icon">{icon}</span>
         <span>{title}</span>
         {onCopy && <PastVisitCopyAffordance onClick={onCopy} label={`Copy ${title} to RxPad`} />}
@@ -2631,6 +2631,7 @@ function PastVisitCustomModulesSection({ sections = [], onCopyAll, onCopyModule,
       title="Custom Modules"
       icon={<RxSectionIcon src={RX_SECTION_ICONS.customModules} />}
       onCopy={onCopyAll}
+      stickyTitle
     >
       <div className="snv-past-custom-module-sections">
         {sections.map((section, sectionIndex) => (
@@ -2694,9 +2695,41 @@ function hasListData(items) {
 }
 
 function DateCard({ title, subtitle, expanded, onToggle, onCopy, children, fresh, stickyHeader = false }) {
+  const cardRef = useRef(null);
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    if (!stickyHeader || !cardRef.current || !headerRef.current) return undefined;
+
+    const cardEl = cardRef.current;
+    const headerEl = headerRef.current;
+    const updateStickyOffset = () => {
+      cardEl.style.setProperty(
+        "--snv-date-card-sticky-offset",
+        `${Math.ceil(headerEl.getBoundingClientRect().height)}px`
+      );
+    };
+
+    updateStickyOffset();
+
+    let observer;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(updateStickyOffset);
+      observer.observe(headerEl);
+    }
+
+    window.addEventListener("resize", updateStickyOffset);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateStickyOffset);
+      cardEl.style.removeProperty("--snv-date-card-sticky-offset");
+    };
+  }, [stickyHeader, title, subtitle]);
+
   return (
-    <article className={`snv-date-card ${fresh ? "snv-fresh-card" : ""} ${stickyHeader ? "snv-date-card-sticky" : ""}`}>
-      <div className={`snv-date-card-header ${stickyHeader ? "snv-date-card-header-sticky" : ""}`}>
+    <article ref={cardRef} className={`snv-date-card ${fresh ? "snv-fresh-card" : ""} ${stickyHeader ? "snv-date-card-sticky" : ""}`}>
+      <div ref={headerRef} className={`snv-date-card-header ${stickyHeader ? "snv-date-card-header-sticky" : ""}`}>
         <button type="button" className="snv-date-toggle-btn" onClick={onToggle}>
           <span className="snv-date-title-wrap">
             <span className="snv-date-title">{title}</span>
