@@ -26,6 +26,7 @@ import {
   buildVoiceHistoryEntry,
   uploadAndLogVoiceRx2,
 } from "./voiceRx2Logging";
+import { transcribeAnyAudio } from "./api/agent-audio-service";
 import { toast } from "./toast";
 import styles from "./VoiceRxModuleCapture.module.scss";
 
@@ -353,46 +354,6 @@ export const VOICE_MODULE_DUMMY_DIGITISED_DATA = {
     },
   ],
 };
-
-export function buildCustomModuleDummyDigitisedData({
-  moduleName = "Custom Module",
-  namedFields,
-  createId,
-} = {}) {
-  const safeCreateId = typeof createId === "function"
-    ? createId
-    : () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-  if (Array.isArray(namedFields) && namedFields.length > 0) {
-    return [0, 1].map((rowIndex) => {
-      const row = { id: safeCreateId() };
-      namedFields.forEach((field) => {
-        const fieldName = field?.fieldName;
-        if (!fieldName) return;
-        const fieldLabel = field?.fieldLabel || fieldName;
-        row[fieldName] = rowIndex === 0
-          ? `${fieldLabel} from voice input`
-          : `Additional ${String(fieldLabel).toLowerCase()} detail`;
-      });
-      return row;
-    });
-  }
-
-  return [
-    {
-      title: `${moduleName} voice entry`,
-      notes: "Captured from module voice input.",
-      unique_id: safeCreateId(),
-      change: 1,
-    },
-    {
-      title: `${moduleName} follow-up detail`,
-      notes: "Added through module VoiceRx.",
-      unique_id: safeCreateId(),
-      change: 1,
-    },
-  ];
-}
 
 function createModuleVoiceId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -804,7 +765,7 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
       : moduleApiName === "medical_history"
         ? [moduleApiName, artifactType, "medical_history", "medicalHistory", "pastMedicalHistory", "history", "response", "result", "results", "output", "items", "rows", "records", "data"]
       : [moduleApiName, artifactType, "items", "data"];
-  const rows = firstPresentArray(payload, moduleKeys, { allowObjectRow: moduleApiName === "custom_module" || moduleApiName === "medical_history" })
+  const rows = firstPresentArray(payload, moduleKeys, { allowObjectRow: moduleApiName === "medical_history" })
     .filter((row) => Object.values(row || {}).some((value) => value !== undefined && value !== null && String(value).trim() !== ""));
 
   if (moduleApiName === "medical_history") {
@@ -1067,7 +1028,7 @@ export function VoiceRxModuleButton({ active = false, disabled = false, onClick,
   );
 }
 
-export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage, copyPayloadKeys }) {
+export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionApply, successMessage, transcriptionSuccessMessage, copyPayloadKeys }) {
   const [voiceCaptureOpen, setVoiceCaptureOpen] = useState(false);
   const [voiceUpdated, setVoiceUpdated] = useState(false);
   const voiceUpdatedTimerRef = useRef(null);
@@ -1110,6 +1071,17 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage, c
   }, [lastCopyRequest, triggerHighlight]);
 
   const handleVoiceCaptureComplete = useCallback((digitisedData) => {
+    if (digitisedData?.transcript !== undefined) {
+      const transcript = String(digitisedData.transcript || "").trim();
+      if (transcript) {
+        onTranscriptionApply?.(transcript, digitisedData);
+      }
+      setVoiceCaptureOpen(false);
+      triggerHighlight(false);
+      toast.success(transcriptionSuccessMessage || successMessage || "Transcript added from voice dictation");
+      return;
+    }
+
     const nextItems = Array.isArray(digitisedData)
       ? digitisedData.map((item) => ({ ...item }))
       : [];
@@ -1126,7 +1098,7 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage, c
     setVoiceCaptureOpen(false);
     triggerHighlight(false);
     toast.success(successMessage || `${moduleName} filled from voice dictation`);
-  }, [moduleName, onApply, successMessage, triggerHighlight]);
+  }, [moduleName, onApply, onTranscriptionApply, successMessage, transcriptionSuccessMessage, triggerHighlight]);
 
   return {
     voiceCaptureOpen,
@@ -1138,12 +1110,14 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, successMessage, c
 }
 
 export function VoiceRxModuleCapture({
+  mode = "digitise",
   moduleName,
   moduleApiName,
   customModuleName,
   requiredFields,
   previousContext,
   dummyDigitisedData = [],
+  hideCaptions = false,
   onCancel,
   onComplete,
 }) {
@@ -1159,6 +1133,7 @@ export function VoiceRxModuleCapture({
   const buttonTimerRef = useRef(null);
   const moduleSessionIdRef = useRef(null);
   const submitInFlightRef = useRef(false);
+  const isTranscribeMode = mode === "transcribe";
 
   const getModuleSessionId = useCallback(() => {
     if (!moduleSessionIdRef.current) {
@@ -1184,6 +1159,10 @@ export function VoiceRxModuleCapture({
   }, []);
 
   const getDigitisedData = useCallback(async ({ audioBlob }) => {
+    if (isTranscribeMode) {
+      return transcribeAnyAudio({ audioBlob });
+    }
+
     return ENABLE_REAL_MODULE_DIGITISE_API
       ? await requestTranscribeAndDigitise({
         audioBlob,
@@ -1197,7 +1176,7 @@ export function VoiceRxModuleCapture({
         sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
       })
       : { rows: dummyDigitisedData, rawResponse: null, conversation: [], moduleApiName: moduleApiName || resolveModuleApiName(moduleName) };
-  }, [customModuleName, dummyDigitisedData, getModuleSessionId, moduleApiName, moduleName, patient_data?.patient_unique_id, previousContext, profile?.doctor_unique_id, requiredFields, voiceDigitization?.sessionId]);
+  }, [customModuleName, dummyDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, patient_data?.patient_unique_id, previousContext, profile?.doctor_unique_id, requiredFields, voiceDigitization?.sessionId]);
 
   const handleSubmit = useCallback(({ audioBlob, transcript, durationMs, submitClickedAt, submitClickedAtMs, micBeingUsed }) => {
     if (submitInFlightRef.current) return;
@@ -1207,7 +1186,7 @@ export function VoiceRxModuleCapture({
     const submitId = `voice-rx-2-module-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const requestId = submitId;
     const clinicalStartedAtMs = Date.now();
-    const nextTranscript = "Refining your captured consultation...";
+    const nextTranscript = isTranscribeMode ? "Transcribing your audio..." : "Refining your captured consultation...";
     setCapturedTranscript(nextTranscript);
 
     buttonTimerRef.current = window.setTimeout(() => {
@@ -1225,8 +1204,11 @@ export function VoiceRxModuleCapture({
           window.clearTimeout(buttonTimerRef.current);
           buttonTimerRef.current = null;
         }
-        const rows = Array.isArray(digitisedResult) ? digitisedResult : digitisedResult?.rows || [];
-        if ((digitisedResult?.moduleApiName || moduleApiName || resolveModuleApiName(moduleName)) === "medical_history") {
+        if (isTranscribeMode) {
+          setCapturedTranscript(digitisedResult?.transcript || nextTranscript);
+        }
+        const rows = isTranscribeMode ? [] : (Array.isArray(digitisedResult) ? digitisedResult : digitisedResult?.rows || []);
+        if (!isTranscribeMode && (digitisedResult?.moduleApiName || moduleApiName || resolveModuleApiName(moduleName)) === "medical_history") {
           console.groupCollapsed("[VoiceRx MedicalHistory] handleSubmit before onComplete");
           console.log("digitisedResult", digitisedResult);
           console.log("rows passed to onComplete", rows);
@@ -1234,7 +1216,12 @@ export function VoiceRxModuleCapture({
           console.groupEnd();
         }
         const clinicalCompletedAtMs = Date.now();
-        onComplete?.(rows, { audioBlob, transcript: nextTranscript, durationMs, moduleName });
+        onComplete?.(isTranscribeMode ? digitisedResult : rows, {
+          audioBlob,
+          transcript: isTranscribeMode ? digitisedResult?.transcript || "" : nextTranscript,
+          durationMs,
+          moduleName,
+        });
         uploadAndLogVoiceRx2({
           audioBlob,
           patientData: patient_data,
@@ -1257,11 +1244,11 @@ export function VoiceRxModuleCapture({
           clinicalCompletedAtMs,
         }).then(({ source }) => {
           dispatch(addVoiceHistoryEntry(buildVoiceHistoryEntry({
-            type: hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
+            type: !isTranscribeMode && hasModulePreviousContext(previousContext) ? "AUDIO_WITH_CONTEXT" : "AUDIO_NO_CONTEXT",
             source,
             durationMs,
             timeRequiredInMs: clinicalCompletedAtMs - clinicalStartedAtMs,
-            conversation: digitisedResult?.conversation || nextTranscript,
+            conversation: isTranscribeMode ? digitisedResult?.transcript || "" : digitisedResult?.conversation || nextTranscript,
             digitize: rows,
             isDoctorAgent: false,
             moduleName,
@@ -1286,8 +1273,8 @@ export function VoiceRxModuleCapture({
           submitClickedAtMs,
           durationMs,
           clinicalStatus: "failed",
-          failedPhase: "agents-module",
-          errorMessage: error?.message || "Module voice digitisation failed",
+          failedPhase: isTranscribeMode ? "agents-transcribe-any-audio" : "agents-module",
+          errorMessage: error?.message || (isTranscribeMode ? "Module voice transcription failed" : "Module voice digitisation failed"),
           mode: "module",
           voicecall,
           moduleName,
@@ -1298,13 +1285,13 @@ export function VoiceRxModuleCapture({
           markVoiceLogCreated: () => dispatch(markVoiceLogCreated()),
           clinicalCompletedAtMs: Date.now(),
         });
-        toast.error(error.message || "Module voice digitisation failed");
+        toast.error(error.message || (isTranscribeMode ? "Module voice transcription failed" : "Module voice digitisation failed"));
         onCancel?.();
       })
       .finally(() => {
         submitInFlightRef.current = false;
       });
-  }, [dispatch, getDigitisedData, getModuleSessionId, moduleName, onCancel, onComplete, patient_data, previousContext, profile, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated]);
+  }, [dispatch, getDigitisedData, getModuleSessionId, isTranscribeMode, moduleApiName, moduleName, onCancel, onComplete, patient_data, previousContext, profile, voiceDigitization?.sessionId, voiceDigitization?.voiceCallCount, voiceDigitization?.voiceLogCreated]);
 
   const hasTranscript = hasTranscriptContent(capturedTranscript);
   const isDiarized = hasDiarizedTranscript(capturedTranscript);
@@ -1345,6 +1332,7 @@ export function VoiceRxModuleCapture({
             sectionLabel={moduleName}
             showSectionInStatus
             radiusClassName=""
+            hideCaptions={hideCaptions}
             onCancel={onCancel}
             onCancelRequest={() => setConfirmOpen(true)}
             onSubmit={handleSubmit} />

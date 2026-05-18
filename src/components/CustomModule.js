@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useMemo,
   useContext,
+  useRef,
 } from "react";
 import {
   AutoComplete,
@@ -29,6 +30,7 @@ import {
   PlusOutlined,
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from "uuid";
 import "./CustomModule.scss";
 
@@ -50,7 +52,7 @@ import { customizedPad, savePrintsettings } from "../redux/doctorsSlice";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 import TextArea from "antd/es/input/TextArea";
-import { MESSAGE_KEY } from "../utils/constants";
+import { GB_VOICE_RX_NEW_UI, MESSAGE_KEY } from "../utils/constants";
 
 import { getDecodedToken } from "../utils/localStorage";
 import config from "../config";
@@ -60,7 +62,6 @@ import {
   VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
-  buildCustomModuleDummyDigitisedData,
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
@@ -73,8 +74,26 @@ const {
   closeVisit: imgCloseVisit,
 } = ASSETS.images;
 
+function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selectionEnd) {
+  const currentValue = String(value || "");
+  const nextTranscript = String(transcript || "").trim();
+  if (!nextTranscript) return currentValue;
+
+  const hasStart = Number.isInteger(selectionStart);
+  const hasEnd = Number.isInteger(selectionEnd);
+  const start = hasStart ? Math.max(0, Math.min(selectionStart, currentValue.length)) : currentValue.length;
+  const end = hasEnd ? Math.max(start, Math.min(selectionEnd, currentValue.length)) : start;
+
+  if (end > start || start < currentValue.length) {
+    return `${currentValue.slice(0, start)}${nextTranscript}${currentValue.slice(end)}`;
+  }
+
+  return currentValue.trim() ? `${currentValue.trimEnd()}\n${nextTranscript}` : nextTranscript;
+}
+
 function CustomModule({ module, showVoiceRxModule }) {
-  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const { customModules, searchModuleResults, loading, hospitalSearchResults } = useSelector(
     (state) => state.customModules
   );
@@ -128,6 +147,8 @@ function CustomModule({ module, showVoiceRxModule }) {
   const [canEditName, setCanEditName] = useState(false);
   const [newModuleName, setNewModuleName] = useState(module?.name || "");
   const [isDeleteModuleModalOpen, setIsDeleteModuleModalOpen] = useState(false);
+  const [voiceTargetHighlight, setVoiceTargetHighlight] = useState(null);
+  const lastVoiceTargetRef = useRef(null);
   const moduleData =
     customModuleContents
       .filter((content) => content.module_id === module.module_id)
@@ -234,32 +255,72 @@ function CustomModule({ module, showVoiceRxModule }) {
     });
   };
 
-  const customVoiceDummyData = useMemo(() => (
-    buildCustomModuleDummyDigitisedData({
-      moduleName: module?.name,
-      createId: uuidv4,
-    })
-  ), [module?.name]);
-  const customVoiceRequiredFields = useMemo(() => ["title", "notes"], []);
-  const customVoicePreviousContext = useMemo(
-    () => moduleData?.filter((row) => row.title || row.notes) || [],
-    [moduleData]
-  );
+  const rememberVoiceTarget = useCallback((rowIndex, field, event) => {
+    const row = moduleData[rowIndex] || {};
+    const value = String(row[field] || "");
+    const target = event?.target;
+    const selectionStart = Number.isInteger(target?.selectionStart) ? target.selectionStart : value.length;
+    const selectionEnd = Number.isInteger(target?.selectionEnd) ? target.selectionEnd : selectionStart;
 
-  const applyVoiceCustomModule = useCallback((nextRows) => {
-    const normalizedRows = nextRows
-      .map((row) => ({
-        title: row.title || "",
-        notes: row.notes || "",
-        unique_id: row.unique_id || uuidv4(),
-        change: row.change ?? 1,
-      }))
-      .filter((row) => row.title || row.notes);
+    lastVoiceTargetRef.current = {
+      rowIndex,
+      field,
+      selectionStart,
+      selectionEnd,
+    };
+    setVoiceTargetHighlight({ rowIndex, field });
+  }, [moduleData]);
 
-    if (normalizedRows.length === 0) return;
+  const resolveVoiceTarget = useCallback((rows) => {
+    const lastTarget = lastVoiceTargetRef.current;
+    if (
+      lastTarget &&
+      rows[lastTarget.rowIndex] &&
+      (lastTarget.field === "title" || lastTarget.field === "notes")
+    ) {
+      return lastTarget;
+    }
 
-    updateCustomModuleContents(normalizedRows);
-  }, [updateCustomModuleContents]);
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+      for (const field of ["title", "notes"]) {
+        if (!String(rows[rowIndex]?.[field] || "").trim()) {
+          return { rowIndex, field, selectionStart: 0, selectionEnd: 0 };
+        }
+      }
+    }
+
+    const rowIndex = Math.max(0, rows.length - 1);
+    return {
+      rowIndex,
+      field: "title",
+      selectionStart: String(rows[rowIndex]?.title || "").length,
+      selectionEnd: String(rows[rowIndex]?.title || "").length,
+    };
+  }, []);
+
+  const applyVoiceTranscriptToFocusedField = useCallback((transcript) => {
+    const cleanTranscript = String(transcript || "").trim();
+    if (!cleanTranscript) return;
+
+    const nextModuleData = moduleData.length ? moduleData.map((row) => ({ ...row })) : [{ title: "", notes: "" }];
+    const target = resolveVoiceTarget(nextModuleData);
+    if (!nextModuleData[target.rowIndex]) {
+      nextModuleData[target.rowIndex] = { title: "", notes: "" };
+    }
+
+    const field = target.field === "notes" ? "notes" : "title";
+    nextModuleData[target.rowIndex] = {
+      ...nextModuleData[target.rowIndex],
+      [field]: insertTranscriptIntoFieldValue(
+        nextModuleData[target.rowIndex]?.[field],
+        cleanTranscript,
+        target.selectionStart,
+        target.selectionEnd
+      ),
+      change: 1,
+    };
+    updateCustomModuleContents(nextModuleData);
+  }, [moduleData, resolveVoiceTarget, updateCustomModuleContents]);
 
   const {
     voiceCaptureOpen,
@@ -268,13 +329,27 @@ function CustomModule({ module, showVoiceRxModule }) {
     handleVoiceCaptureComplete,
   } = useVoiceRxModuleCapture({
     moduleName: module?.name || "Custom Module",
-    onApply: applyVoiceCustomModule,
-    successMessage: `${module?.name || "Custom Module"} filled from voice dictation`,
+    onTranscriptionApply: applyVoiceTranscriptToFocusedField,
+    transcriptionSuccessMessage: "Transcript added from voice dictation",
   });
 
+  const isVoiceTargetHighlighted = useCallback((rowIndex, field) => (
+    voiceCaptureOpen &&
+    voiceTargetHighlight?.rowIndex === rowIndex &&
+    voiceTargetHighlight?.field === field
+  ), [voiceCaptureOpen, voiceTargetHighlight]);
+
   const onFocusChid = (i) => {
+    const value = String(moduleData[i]?.title || "");
+    lastVoiceTargetRef.current = {
+      rowIndex: i,
+      field: "title",
+      selectionStart: value.length,
+      selectionEnd: value.length,
+    };
+    setVoiceTargetHighlight({ rowIndex: i, field: "title" });
     setSearchChildQuery({
-      query: moduleData[i].title,
+      query: moduleData[i]?.title || "",
       index: i,
     });
   };
@@ -290,6 +365,13 @@ function CustomModule({ module, showVoiceRxModule }) {
       };
       updateCustomModuleContents(updatedModuleData);
       setSearchChildQuery({ query: updatedQuery, index: i });
+      lastVoiceTargetRef.current = {
+        rowIndex: i,
+        field: "title",
+        selectionStart: updatedQuery.length,
+        selectionEnd: updatedQuery.length,
+      };
+      setVoiceTargetHighlight({ rowIndex: i, field: "title" });
     },
     [moduleData]
   );
@@ -362,8 +444,9 @@ function CustomModule({ module, showVoiceRxModule }) {
 
       updatedModuleData[i] = { ...updatedModuleData[i], notes: e.target.value };
       updateCustomModuleContents(updatedModuleData);
+      rememberVoiceTarget(i, "notes", e);
     },
-    [moduleData]
+    [moduleData, rememberVoiceTarget]
   );
 
   const onRemoveRow = (index) => {
@@ -838,7 +921,13 @@ function CustomModule({ module, showVoiceRxModule }) {
                           style={{ cursor: "grab" }}
                         ></MenuOutlined>
                       </Col>
-                      <Col lg={8} md={8} sm={8} xs={8}>
+                      <Col
+                        lg={8}
+                        md={8}
+                        sm={8}
+                        xs={8}
+                        className={isVoiceTargetHighlighted(index, "title") ? "custom-module-voice-target-cell" : ""}
+                      >
                         <div className="fontroboto fw-medium">
                           <AutoComplete
                             defaultValue={item.title}
@@ -847,7 +936,13 @@ function CustomModule({ module, showVoiceRxModule }) {
                             bordered={false}
                             defaultOpen={false}
                             onSearch={(query) => onSearchChild(query, index)}
-                            onFocus={() => onFocusChid(index)}
+                            onFocus={(event) => {
+                              onFocusChid(index);
+                              rememberVoiceTarget(index, "title", event);
+                            }}
+                            onClick={(event) => rememberVoiceTarget(index, "title", event)}
+                            onKeyUp={(event) => rememberVoiceTarget(index, "title", event)}
+                            onMouseUp={(event) => rememberVoiceTarget(index, "title", event)}
                             options={childSearchOptions}
                             className="autocomplete-custom w-100 inputborder"
                             defaultActiveFirstOption={true}
@@ -868,13 +963,21 @@ function CustomModule({ module, showVoiceRxModule }) {
                         md={14}
                         sm={13}
                         xs={13}
-                        className="border-end"
+                        className={[
+                          "border-end",
+                          isVoiceTargetHighlighted(index, "notes") ? "custom-module-voice-target-cell" : "",
+                        ].filter(Boolean).join(" ")}
                       >
                         <TextArea
                           className="customnotesinput"
                           placeholder="Notes"
                           value={item.notes}
                           onChange={(e) => onChangeNoteChild(e, index)}
+                          onFocus={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onClick={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onKeyUp={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onMouseUp={(event) => rememberVoiceTarget(index, "notes", event)}
+                          onSelect={(event) => rememberVoiceTarget(index, "notes", event)}
                           autoSize={{ minRows: 1, maxRows: 10 }} // Dynamically resizes between 1 and 10 rows
                         />
                       </Col>
@@ -1308,7 +1411,14 @@ function CustomModule({ module, showVoiceRxModule }) {
   };
 
   return (
-    <div className={["prescription-box-sm", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+    <div
+      className={[
+        "prescription-box-sm",
+        voiceModuleStyles.moduleRoot,
+        isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+        isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+      ].filter(Boolean).join(" ")}
+    >
       <div className="d-flex align-items-center justify-content-between p-14-pb0">
         {canEditName ? (
           <div className="d-flex w-100">
@@ -1477,15 +1587,17 @@ function CustomModule({ module, showVoiceRxModule }) {
       {TABLE_CUSTOM_MODULE}
       {DELETE_MODULE_MODAL}
 
-      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+      <div
+        className={
+          isVoiceRxModuleEnabled && voiceCaptureOpen
+            ? [voiceModuleStyles.moduleSlot, voiceModuleStyles.moduleCaptureActiveSlot].filter(Boolean).join(" ")
+            : "p-14"
+        }
+      >
         {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
+            mode="transcribe"
             moduleName={module?.name || "Custom Module"}
-            moduleApiName="custom_module"
-            customModuleName={module?.name || "Custom Module"}
-            requiredFields={customVoiceRequiredFields}
-            previousContext={customVoicePreviousContext}
-            dummyDigitisedData={customVoiceDummyData}
             onCancel={() => setVoiceCaptureOpen(false)}
             onComplete={handleVoiceCaptureComplete} />
         ) : (

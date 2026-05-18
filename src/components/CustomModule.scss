@@ -200,3 +200,54 @@
     --antd-arrow-background-color: #FFF9E6 !important;
   }
 }
+
+@keyframes customModuleVoiceTargetShimmer {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+
+.custom-module-voice-target-cell {
+  position: relative;
+}
+
+.custom-module-voice-target-cell::before {
+  content: "";
+  position: absolute;
+  inset: 8px 12px;
+  min-height: 32px;
+  border-radius: 4px !important;
+  background-color: #F3F4F6 !important;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.custom-module-voice-target-cell::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 12px;
+  width: 42%;
+  min-height: 32px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.88), transparent);
+  pointer-events: none;
+  z-index: 1;
+  animation: customModuleVoiceTargetShimmer 1.5s infinite;
+}
+
+.custom-module-voice-target-cell > * {
+  position: relative;
+  z-index: 2;
+}
+
+.custom-module-voice-target-cell textarea,
+.custom-module-voice-target-cell .ant-input,
+.custom-module-voice-target-cell .ant-select-selector,
+.custom-module-voice-target-cell .ant-select-selection-search-input {
+  background: transparent !important;
+}

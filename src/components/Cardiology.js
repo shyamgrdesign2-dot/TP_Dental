@@ -1974,6 +1974,115 @@ function Cardiology(props) {
     return cleanedNote || rawNote;
   };
 
+  const hasDisplayableValue = (value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      return trimmed !== "" && trimmed.toLowerCase() !== "null";
+    }
+    return typeof value !== "object";
+  };
+
+  const formatDisplayValue = (value, formatter) => {
+    if (!hasDisplayableValue(value)) return "";
+    if (typeof formatter === "function") return formatter(value);
+    return String(value).trim();
+  };
+
+  const formatFixedVitalValue = (value) => {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue.toFixed(2) : String(value).trim();
+  };
+
+  const getBloodPressureValue = (item) => {
+    const bloodPress = String(item?.blood_press || "").trim();
+    if (bloodPress && bloodPress !== "/") {
+      return bloodPress.endsWith("/") ? bloodPress.slice(0, -1) : bloodPress;
+    }
+
+    const systolic = String(item?.systolic || "").trim();
+    const diastolic = String(item?.diastolic || "").trim();
+    return systolic && diastolic ? `${systolic}/${diastolic}` : "";
+  };
+
+  const VITALS_DISPLAY_FIELDS = [
+    { key: "temp", label: "Temperature", unit: "Frh" },
+    { key: "pres", label: "Pulse", unit: "/min" },
+    { key: "resp_rate", label: "Resp. Rate", unit: "/min" },
+    { key: "blood_press", label: "Blood Pressure", unit: "mmHg", getValue: getBloodPressureValue },
+    { key: "spo2", label: "SPO2", unit: "%" },
+    { key: "general_rbs", label: "General RBS", unit: "mg/dl" },
+    { key: "fib4", label: "FIB4" },
+    { key: "waist_circumference", label: "Waist Circumference", unit: "cms" },
+    { key: "ofc", label: "OFC", unit: "cms" },
+    { key: "height", label: "Height", unit: "cms" },
+    { key: "weight", label: "Weight", unit: "kgs" },
+    { key: "patient_birth_weight", label: "Patient Birth Weight", unit: "kgs" },
+    { key: "bmi", label: "BMI", unit: "kg/m²", formatter: formatFixedVitalValue },
+    { key: "bmr", label: "BMR", unit: "kcals", formatter: formatFixedVitalValue },
+    { key: "bsa", label: "BSA", unit: "m²", formatter: formatFixedVitalValue },
+  ];
+
+  const VITALS_METADATA_KEYS = new Set([
+    "date",
+    "dev_unique_id",
+    "tcv_id",
+    "tcbc_id",
+    "pam_id",
+    "systolic",
+    "diastolic",
+    "blood_press",
+  ]);
+
+  const formatVitalEntryLabel = (label, dateLabel, includeDate) =>
+    includeDate && dateLabel ? `${label} (${dateLabel})` : label;
+
+  const buildVitalsDisplayEntries = (vitalsSource) => {
+    if (!vitalsSource) return [];
+
+    if (hasDisplayableValue(vitalsSource)) {
+      return [{ key: "vitals", label: "Vitals", value: formatDisplayValue(vitalsSource) }];
+    }
+
+    const sourceList = Array.isArray(vitalsSource) ? vitalsSource : [vitalsSource];
+    const includeDate = sourceList.length > 1;
+
+    return sourceList.flatMap((item, itemIndex) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+
+      const dateLabel = item?.date ? moment(item.date).format("DD MMM, YY") : "";
+      const handledKeys = new Set();
+      const entries = [];
+
+      VITALS_DISPLAY_FIELDS.forEach((field) => {
+        handledKeys.add(field.key);
+        const rawValue = field.getValue ? field.getValue(item) : item?.[field.key];
+        const value = formatDisplayValue(rawValue, field.formatter);
+        if (!value) return;
+
+        entries.push({
+          key: `${itemIndex}-${field.key}`,
+          label: formatVitalEntryLabel(field.label, dateLabel, includeDate),
+          value: field.unit ? `${value} ${field.unit}` : value,
+        });
+      });
+
+      Object.entries(item).forEach(([key, rawValue]) => {
+        if (handledKeys.has(key) || VITALS_METADATA_KEYS.has(key) || !hasDisplayableValue(rawValue)) {
+          return;
+        }
+
+        entries.push({
+          key: `${itemIndex}-${key}`,
+          label: formatVitalEntryLabel(camelCaseToTitle(key), dateLabel, includeDate),
+          value: formatDisplayValue(rawValue),
+        });
+      });
+
+      return entries;
+    });
+  };
+
   // Render items for each type (medications, tests, etc.)
   // Supports both old (vitals, examination, tests) and new (vitalsAndBodyComposition, examinations, labInvestigation) structure
   // When dataOverride is provided (voice/ambient/snap/smart unified view), use it; else use snap vs smart source
@@ -2007,20 +2116,12 @@ function Cardiology(props) {
       );
     }
 
-    const hasVitalsContent = (obj) => {
-      if (!obj || typeof obj !== "object") return false;
-      if (Array.isArray(obj)) {
-        return obj.some(reading => 
-          reading && typeof reading === "object" && 
-          Object.values(reading).some(val => formatVitalDisplayForUi(val) !== "")
-        );
-      }
-      return Object.values(obj).some(val => formatVitalDisplayForUi(val) !== "");
-    };
+    const hasVitalsContent = (obj) => buildVitalsDisplayEntries(obj).length > 0;
     const vitalsObj =
       type === "vitals"
         ? (data?.vitalsAndBodyComposition ?? data?.vitals ?? {})
         : data?.vitals || data?.vitalsAndBodyComposition || {};
+    const vitalsEntries = type === "vitals" ? buildVitalsDisplayEntries(vitalsObj) : [];
     const arrayForType =
       type === "examination" || type === "examinations"
         ? (data?.examinations || data?.examination || [])
@@ -2040,32 +2141,15 @@ function Cardiology(props) {
           )}
           {/* Handle vitals: old (vitals) or new (vitalsAndBodyComposition) */}
           {type === "vitals" &&
-            (Array.isArray(vitalsObj)
-              ? vitalsObj.flatMap((reading, index) =>
-                  Object.entries(reading || {})
-                    .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
-                    .map(([key, value]) => (
-                      <li key={`${index}-${key}`}>
-                        <div className="medicine-item">
-                          <span>{key}</span>
-                          <span className="separator">:</span>
-                          <span>{formatVitalDisplayForUi(value)}</span>
-                        </div>
-                      </li>
-                    ))
-                )
-              : Object.entries(vitalsObj)
-                  .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
-                  .map(([key, value]) => (
-                    <li key={key}>
-                      <div className="medicine-item">
-                        <span>{key}</span>
-                        <span className="separator">:</span>
-                        <span>{formatVitalDisplayForUi(value)}</span>
-                      </div>
-                    </li>
-                  ))
-            )}
+            vitalsEntries.map((entry) => (
+              <li key={entry.key}>
+                <div className="medicine-item">
+                  <span>{entry.label}</span>
+                  <span className="separator">:</span>
+                  <span>{entry.value}</span>
+                </div>
+              </li>
+            ))}
 
           {/* Handle array types: support old (examination, tests) and new (examinations, labInvestigation) */}
           {type !== "vitals" &&
@@ -2522,14 +2606,13 @@ function Cardiology(props) {
         )}
         {/* Handle vitals type separately */}
         {type === "vitalsAndBodyComposition" &&
-          Object.entries(genRxData?.vitalsAndBodyComposition || {})
-            .filter(([, value]) => formatVitalDisplayForUi(value) !== "")
-            .map(([key, value]) => (
-              <li key={key}>
+          buildVitalsDisplayEntries(genRxData?.vitalsAndBodyComposition)
+            .map((entry) => (
+              <li key={entry.key}>
                 <div className="medicine-item">
-                  <span>{key}</span>
+                  <span>{entry.label}</span>
                   <span className="separator">:</span>
-                  <span>{formatVitalDisplayForUi(value)}</span>
+                  <span>{entry.value}</span>
                 </div>
               </li>
             ))}
@@ -3171,9 +3254,8 @@ function Cardiology(props) {
   const hasVitalsContent = (data) =>
     data &&
     typeof data === "object" &&
-    ((data.vitals && Object.values(data.vitals).some((v) => v != null && String(v).trim() !== "")) ||
-      (data.vitalsAndBodyComposition &&
-        hasVitalsAndBodyCompositionData(data.vitalsAndBodyComposition)));
+    (buildVitalsDisplayEntries(data.vitals).length > 0 ||
+      buildVitalsDisplayEntries(data.vitalsAndBodyComposition).length > 0);
 
   // Medical history grouped by type (Medical condition, Family History, Lifestyle, Surgical History, etc.); uses name, duration, relation, enable, notes in parentheses (no lineItem). Each type stacked one after another. No partition lines; same text style as rest of digitised sections.
   const renderMedicalHistoryGroupedByType = (data) => {

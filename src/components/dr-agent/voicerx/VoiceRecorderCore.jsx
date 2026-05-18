@@ -319,6 +319,7 @@ export function VoiceRecorderCore({
   fillHeight = false,
   radiusClassName = "rounded-b-[16px]",
   enableCollapsedVoiceSession = false,
+  hideCaptions = false,
 
   // Fullscreen-only
   mode,
@@ -1179,9 +1180,11 @@ export function VoiceRecorderCore({
             <div className={["tp-voice-blob tp-voice-blob--reactive h-[120px] w-[280px]", osStyles.blobMargin].join(" ")} />
           </div>
           <div className={[osStyles.stackContent, fillHeight ? osStyles.stackContentFill : ""].join(" ")}>
-            <div className={osStyles.stackTranscriptArea}>
-              <div className={osStyles.stackTranscriptInner}>{overlayTranscriptBlock}</div>
-            </div>
+            {!hideCaptions ? (
+              <div className={osStyles.stackTranscriptArea}>
+                <div className={osStyles.stackTranscriptInner}>{overlayTranscriptBlock}</div>
+              </div>
+            ) : null}
             <div className={osStyles.stackWaveArea}>{waveStrip}</div>
             <div className={osStyles.stackCtaArea}>{overlayCTARow}</div>
           </div>
@@ -1199,8 +1202,12 @@ export function VoiceRecorderCore({
             ].join(" ")} />
           </div>
           <div className={[osStyles.rowContent, isUltraCompact ? osStyles.rowContentUltra : osStyles.rowContentNormal].join(" ")}>
-            <div className={osStyles.rowTranscriptCol}>{overlayTranscriptBlock}</div>
-            <div aria-hidden className={osStyles.rowDivider} />
+            {!hideCaptions ? (
+              <>
+                <div className={osStyles.rowTranscriptCol}>{overlayTranscriptBlock}</div>
+                <div aria-hidden className={osStyles.rowDivider} />
+              </>
+            ) : null}
             <div className={osStyles.rowActionsCol}>
               {waveStrip}
               {overlayCTARow}

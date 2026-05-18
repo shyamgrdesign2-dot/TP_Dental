@@ -279,6 +279,7 @@ function MedicalHistoryBox(props) {
     const [remarks,setRemarks] = useState(medicalHistoryData?.[0]?.medical_history_remarks || "");
     const [surgicalDateType, setSurgicalDateType] = useState('year');
     const [surgicalDate, setSurgicalDate] = useState(null);
+    const selectedHistoryNoteVoiceTargetRef = useRef(null);
     const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB && !gynecOnly;
 
@@ -335,6 +336,87 @@ function MedicalHistoryBox(props) {
         onApply: applyVoiceMedicalHistory,
         successMessage: "Medical history filled from voice dictation",
     });
+
+    const applyAdditionalHistoryTranscript = useCallback((transcript) => {
+        const cleanTranscript = String(transcript || "").trim();
+        if (!cleanTranscript) return;
+
+        setRemarks((prev = "") => {
+            const base = String(prev || "").trimEnd();
+            const separator = base ? "\n" : "";
+            return `${base}${separator}${cleanTranscript}`.slice(0, 5000);
+        });
+    }, []);
+
+    const {
+        voiceCaptureOpen: additionalHistoryVoiceCaptureOpen,
+        setVoiceCaptureOpen: setAdditionalHistoryVoiceCaptureOpen,
+        voiceUpdated: additionalHistoryVoiceUpdated,
+        handleVoiceCaptureComplete: handleAdditionalHistoryVoiceCaptureComplete,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Additional History",
+        onTranscriptionApply: applyAdditionalHistoryTranscript,
+        transcriptionSuccessMessage: "Additional history transcript appended",
+    });
+
+    const applySelectedHistoryNoteTranscript = useCallback((transcript) => {
+        const cleanTranscript = String(transcript || "").trim();
+        const target = selectedHistoryNoteVoiceTargetRef.current || selectData;
+        if (!cleanTranscript || target?.section_index === undefined || target?.tag_index === undefined) return;
+
+        setCloneMedicalHistoryData((prev = []) => {
+            const section = prev[target.section_index];
+            const tag = section?.tags?.[target.tag_index];
+            if (!tag) return prev;
+
+            const currentNote = String(tag.note || "").trimEnd();
+            const separator = currentNote ? "\n" : "";
+            const nextData = [...prev];
+            const nextTags = [...(section.tags || [])];
+            nextTags[target.tag_index] = {
+                ...tag,
+                note: `${currentNote}${separator}${cleanTranscript}`,
+            };
+            nextData[target.section_index] = {
+                ...section,
+                tags: nextTags,
+            };
+            return nextData;
+        });
+    }, [selectData]);
+
+    const {
+        voiceCaptureOpen: selectedHistoryNoteVoiceCaptureOpen,
+        setVoiceCaptureOpen: setSelectedHistoryNoteVoiceCaptureOpen,
+        voiceUpdated: selectedHistoryNoteVoiceUpdated,
+        handleVoiceCaptureComplete: handleSelectedHistoryNoteVoiceCaptureComplete,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Medical History Note",
+        onTranscriptionApply: applySelectedHistoryNoteTranscript,
+        transcriptionSuccessMessage: "Medical history note transcript appended",
+    });
+
+    const openMedicalHistoryVoiceCapture = useCallback(() => {
+        setAdditionalHistoryVoiceCaptureOpen(false);
+        setSelectedHistoryNoteVoiceCaptureOpen(false);
+        setVoiceCaptureOpen(true);
+    }, [setAdditionalHistoryVoiceCaptureOpen, setSelectedHistoryNoteVoiceCaptureOpen, setVoiceCaptureOpen]);
+
+    const openAdditionalHistoryVoiceCapture = useCallback(() => {
+        setVoiceCaptureOpen(false);
+        setSelectedHistoryNoteVoiceCaptureOpen(false);
+        setExpandRemarks(true);
+        setAdditionalHistoryVoiceCaptureOpen(true);
+    }, [setAdditionalHistoryVoiceCaptureOpen, setSelectedHistoryNoteVoiceCaptureOpen, setVoiceCaptureOpen]);
+
+    const openSelectedHistoryNoteVoiceCapture = useCallback(() => {
+        if (!selectData) return;
+        selectedHistoryNoteVoiceTargetRef.current = selectData;
+        setVoiceCaptureOpen(false);
+        setAdditionalHistoryVoiceCaptureOpen(false);
+        setSelectedHistoryNoteVoiceCaptureOpen(true);
+    }, [selectData, setAdditionalHistoryVoiceCaptureOpen, setSelectedHistoryNoteVoiceCaptureOpen, setVoiceCaptureOpen]);
+
     const medicalHistoryPreviousContext = useMemo(() => (
         getDisplayableMedicalHistoryContext(medicalHistoryData) ||
         getDisplayableMedicalHistoryContext(cloneMedicalHistoryData)
@@ -1549,7 +1631,7 @@ function MedicalHistoryBox(props) {
             <Card bordered={false} className={[
                 "search-modalCard",
                 isVoiceRxModuleEnabled ? voiceModuleStyles.moduleRoot : "",
-                isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+                isVoiceRxModuleEnabled && (voiceUpdated || additionalHistoryVoiceUpdated || selectedHistoryNoteVoiceUpdated) ? voiceModuleStyles.moduleUpdated : "",
             ].filter(Boolean).join(" ")}>
                 <div className='modalCard-header h-60 align-items-center justify-content-between d-flex'>
                     <div className='align-items-center d-flex h-100'>
@@ -1581,13 +1663,13 @@ function MedicalHistoryBox(props) {
                                 </button>
                             </Popover>
                         )}
-                        {isVoiceRxModuleEnabled && (
+                        {/* {isVoiceRxModuleEnabled && (
                             <VoiceRxModuleButton
                                 active={voiceCaptureOpen}
                                 label="Start Medical History voice input"
-                                onClick={() => setVoiceCaptureOpen(true)}
+                                onClick={openMedicalHistoryVoiceCapture}
                             />
-                        )}
+                        )} */}
                         <Button className='btn btn-primary3 btn-41 px-4 me-20' onClick={onSaveClicked}>
                             Save
                         </Button>
@@ -2089,10 +2171,29 @@ function MedicalHistoryBox(props) {
                                                                         <Button className="btn border rounded-3 px-1 ms-3 collapseButton" onClick={onExpandCollapseRemarks}>
                                                                             <i style={{ transitionDuration: '0.5s' }} className={`icon-right d-block fs-18 ${!expandRemarks ? 'iconrotate270' : 'iconrotatehistory90'}`}></i>
                                                                         </Button>
+                                                                        {isVoiceRxModuleEnabled && (
+                                                                            <span className="d-inline-flex ms-2">
+                                                                                <VoiceRxModuleButton
+                                                                                    active={additionalHistoryVoiceCaptureOpen}
+                                                                                    label="Start Additional History voice input"
+                                                                                    onClick={openAdditionalHistoryVoiceCapture}
+                                                                                />
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                                 {expandRemarks &&
                                                                     <div style={{ position: "relative", width: "100%" }}>
+                                                                        {isVoiceRxModuleEnabled && additionalHistoryVoiceCaptureOpen ? (
+                                                                            <div className={voiceModuleStyles.moduleSlot}>
+                                                                                <VoiceRxModuleCapture
+                                                                                    mode="transcribe"
+                                                                                    moduleName="Additional History"
+                                                                                    onCancel={() => setAdditionalHistoryVoiceCaptureOpen(false)}
+                                                                                    onComplete={handleAdditionalHistoryVoiceCaptureComplete}
+                                                                                />
+                                                                            </div>
+                                                                        ) : null}
                                                                         <TextArea
                                                                             value={remarks}
                                                                             placeholder="Write your additional history"
@@ -2369,9 +2470,31 @@ function MedicalHistoryBox(props) {
                                                                 </div>
                                                             )}
                                                             <div className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
-                                                                <label className="title-common mb-1">
-                                                                    {selectData?.tmmhs_id == 5 ? "Surgical History Remarks" : "Note"}
-                                                                </label>
+                                                                <div className="d-flex align-items-center mb-1">
+                                                                    <label className="title-common mb-0">
+                                                                        {selectData?.tmmhs_id == 5 ? "Surgical History Remarks" : "Note"}
+                                                                    </label>
+                                                                    {isVoiceRxModuleEnabled && (
+                                                                        <span className="d-inline-flex ms-2">
+                                                                            <VoiceRxModuleButton
+                                                                                active={selectedHistoryNoteVoiceCaptureOpen}
+                                                                                label="Start Medical History note voice input"
+                                                                                onClick={openSelectedHistoryNoteVoiceCapture}
+                                                                            />
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {isVoiceRxModuleEnabled && selectedHistoryNoteVoiceCaptureOpen ? (
+                                                                    <div className={voiceModuleStyles.moduleSlot}>
+                                                                        <VoiceRxModuleCapture
+                                                                            mode="transcribe"
+                                                                            moduleName="Medical History Note"
+                                                                            hideCaptions={true}
+                                                                            onCancel={() => setSelectedHistoryNoteVoiceCaptureOpen(false)}
+                                                                            onComplete={handleSelectedHistoryNoteVoiceCaptureComplete}
+                                                                        />
+                                                                    </div>
+                                                                ) : null}
                                                                 <Input.TextArea 
                                                                     value={cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.note !== undefined && cloneMedicalHistoryData[selectData?.section_index]?.tags[selectData?.tag_index]?.note} 
                                                                     placeholder={selectData?.tmmhs_id == 5 ? "Enter surgical history remarks here" : "Enter any specific notes here"} 

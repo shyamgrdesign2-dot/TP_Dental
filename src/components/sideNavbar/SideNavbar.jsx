@@ -515,26 +515,59 @@ function legacyVisitRows(items, labelKeys, detailKeys) {
     .filter((item) => item.label);
 }
 
+function buildPastVisitMedicalHistorySections(items) {
+  const rows = legacyArray(items);
+  if (!rows.length) return [];
+
+  const hasSectionShape = rows.some((section) => (
+    Array.isArray(section?.tags) ||
+    section?.no_know_history !== undefined ||
+    section?.tmmhs_id !== undefined ||
+    hasValue(section?.medical_history_remarks)
+  ));
+
+  if (hasSectionShape) {
+    return buildLegacyMedicalHistorySections(rows);
+  }
+
+  const convertedSections = buildLegacyMedicalHistorySections(convertAgentMedicalHistoryRowsToSections(rows));
+  if (convertedSections.length) return convertedSections;
+
+  const fallbackRows = legacyVisitRows(
+    rows,
+    ["name", "title", "label"],
+    ["relationship", "since", "duration", "status", "medication", "notes", "note", "detail"]
+  );
+  return fallbackRows.length ? [{
+    id: "past-visit-medical-history",
+    title: "Medical History",
+    items: fallbackRows.map((item, index) => ({
+      id: `past-visit-medical-history-${index}`,
+      name: item.label,
+      detail: item.detail,
+    })),
+  }] : [];
+}
+
 function buildPastVisitMedicalHistoryRows(items) {
-  return legacyArray(items).flatMap((section) => {
-    const sectionTitle = firstLegacyText(section, ["title", "name", "label"]);
-    return legacyArray(section?.tags)
-      .filter((tag) => tag?.enable !== "N")
-      .map((tag) => {
-        const detail = [
-          tag?.since,
-          tag?.MonthYear,
-          tag?.relationship && `Relationship: ${tag.relationship}`,
-          tag?.status,
-          tag?.medication,
-          tag?.note,
-        ].filter(hasValue).join(" | ");
+  return buildPastVisitMedicalHistorySections(items).flatMap((section, sectionIndex) => (
+    legacyArray(section?.items).map((item, itemIndex) => {
+      if (section?.title === "Additional History") {
         return {
-          label: tag?.title || tag?.name || sectionTitle,
-          detail: [sectionTitle, detail].filter(Boolean).join(" - "),
+          label: "Additional History",
+          detail: item?.name || item?.detail || "",
         };
-      });
-  }).filter((item) => item.label);
+      }
+
+      const label = item?.name || section?.title || "";
+      const sectionDetail = section?.title && section.title !== label ? section.title : "";
+      return {
+        label,
+        detail: [sectionDetail, item?.detail].filter(hasValue).join(" | "),
+        id: item?.id || `past-visit-history-${sectionIndex}-${itemIndex}`,
+      };
+    })
+  )).filter((item) => item.label || item.detail);
 }
 
 function buildPastVisitModuleRows(items) {
@@ -735,6 +768,7 @@ function buildPastVisitDigitalRx(consultation) {
       : legacyMedicationRows,
     medicationLookups,
     medicalHistory: buildPastVisitMedicalHistoryRows(legacyConsultation.medical_history || legacyConsultation.medicalHistory),
+    medicalHistorySections: buildPastVisitMedicalHistorySections(legacyConsultation.medical_history || legacyConsultation.medicalHistory),
     surgeries: legacyVisitRows(
       legacyConsultation.surgeries,
       ["surgery_name", "name", "title", "label"],
@@ -1261,6 +1295,25 @@ function hasValue(value) {
   return Boolean(text) && text !== "0";
 }
 
+function normalizePastVisitTcmId(value) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).trim();
+  if (!text || text === "0") return "";
+  const numericId = Number(text);
+  return Number.isFinite(numericId) ? String(numericId) : text;
+}
+
+function getPastVisitTcmId(visit) {
+  return visit?.tcm_id || visit?.tcmId;
+}
+
+function filterCurrentPastVisit(visits, currentTcmId) {
+  const visitRows = Array.isArray(visits) ? visits : [];
+  const activeTcmId = normalizePastVisitTcmId(currentTcmId);
+  if (!activeTcmId) return visitRows;
+  return visitRows.filter((visit) => normalizePastVisitTcmId(getPastVisitTcmId(visit)) !== activeTcmId);
+}
+
 function hasSideNavPreviousContext(value) {
   if (value === undefined || value === null) return false;
   if (Array.isArray(value)) return value.length > 0;
@@ -1499,11 +1552,8 @@ function buildDigitalRx(payload) {
     medicationsPayload: medicationPayload,
     advice: toArray(p.advice).map((item) => (typeof item === "string" ? item : item?.advice_name || item?.notes || item?.note || item?.name || item?.lineItem || item?.label || "")).filter(Boolean).join(" "),
     labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).map((item) => (typeof item === "string" ? item : item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label)).filter(Boolean),
-    medicalHistory: legacyVisitRows(
-      p.medicalHistory || p.medical_history,
-      ["name", "title", "label"],
-      ["relationship", "since", "duration", "status", "medication", "notes", "note", "detail"]
-    ),
+    medicalHistory: buildPastVisitMedicalHistoryRows(p.medicalHistory || p.medical_history),
+    medicalHistorySections: buildPastVisitMedicalHistorySections(p.medicalHistory || p.medical_history),
     surgeries: legacyVisitRows(
       p.surgeries,
       ["surgery_name", "name", "title", "label"],
@@ -2354,6 +2404,31 @@ function RxSection({ title, icon, children, onCopy }) {
   );
 }
 
+function PastVisitMedicalHistorySections({ sections = [], fallbackItems = [] }) {
+  if (sections.length) {
+    return (
+      <div className="snv-past-medical-history-sections">
+        {sections.map((section, index) => (
+          <div key={section.id || `${section.title}-${index}`} className="snv-past-medical-history-section">
+            <div className="snv-past-medical-history-title">{section.title || "Medical History"}</div>
+            {section.items?.length ? (
+              <BulletList items={section.items.map((item) => ({
+                label: item.name,
+                detail: item.detail,
+                fresh: item.fresh,
+              }))} />
+            ) : (
+              <div className="snv-empty-state">No data recorded.</div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return <BulletList items={fallbackItems} />;
+}
+
 const RX_SECTION_ICONS = {
   symptoms: ASSETS.images.symptoms,
   examination: ASSETS.images.examination,
@@ -2593,7 +2668,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
       ) : (
         visibleVisits.map((visitItem) => {
           const expanded = Boolean(expandedById[visitItem.id]);
-          const mode = modeByVisit[visitItem.id] || "digital";
+          const mode = visitItem.hasTranscript ? "digital" : modeByVisit[visitItem.id] || "digital";
           const rx = visitItem.digitalRx;
           const rxByAttribution = rx?.doctorAttribution || visitItem.doctorAttribution;
           const canCopyVisit = Boolean(visitItem.detailLoaded && buildPastVisitAllPayload(visitItem));
@@ -2609,22 +2684,24 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
               onToggle={() => handleVisitToggle(visitItem, expanded)}
               onCopy={canCopyVisit ? () => handleCopyVisit(visitItem) : undefined}
             >
-              <div className="snv-segmented">
-                <button
-                  type="button"
-                  className={mode === "digital" ? "snv-segmented-active" : ""}
-                  onClick={() => setModeByVisit((prev) => ({ ...prev, [visitItem.id]: "digital" }))}
-                >
-                  Digital Rx
-                </button>
-                <button
-                  type="button"
-                  className={mode === "written" ? "snv-segmented-active" : ""}
-                  onClick={() => setModeByVisit((prev) => ({ ...prev, [visitItem.id]: "written" }))}
-                >
-                  {visitItem.hasTranscript ? "Transcript" : "Written Rx"}
-                </button>
-              </div>
+              {!visitItem.hasTranscript ? (
+                <div className="snv-segmented">
+                  <button
+                    type="button"
+                    className={mode === "digital" ? "snv-segmented-active" : ""}
+                    onClick={() => setModeByVisit((prev) => ({ ...prev, [visitItem.id]: "digital" }))}
+                  >
+                    Digital Rx
+                  </button>
+                  <button
+                    type="button"
+                    className={mode === "written" ? "snv-segmented-active" : ""}
+                    onClick={() => setModeByVisit((prev) => ({ ...prev, [visitItem.id]: "written" }))}
+                  >
+                    Written Rx
+                  </button>
+                </div>
+              ) : null}
               {mode === "written" ? (
                 visitItem.detailLoading ? (
                   <WrittenRxShimmer />
@@ -2641,7 +2718,11 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                   {hasListData(rx.examinations) ? <RxSection title="Examination" icon={<RxSectionIcon src={RX_SECTION_ICONS.examination} />} onCopy={() => handleCopySection(visitItem, "examinations", "Examination")}><BulletList items={rx.examinations} /></RxSection> : null}
                   {hasListData(rx.diagnoses) ? <RxSection title="Diagnosis" icon={<RxSectionIcon src={RX_SECTION_ICONS.diagnosis} />} onCopy={() => handleCopySection(visitItem, "diagnosis", "Diagnosis")}><BulletList items={rx.diagnoses} /></RxSection> : null}
                   {hasListData(rx.medications) ? <RxSection title="Med (Rx)" icon={<RxSectionIcon src={RX_SECTION_ICONS.medications} />} onCopy={() => handleCopySection(visitItem, "medications", "Med (Rx)")}><BulletList items={rx.medications} /></RxSection> : null}
-                  {hasListData(rx.medicalHistory) ? <RxSection title="Medical History" icon={<RxSectionIcon src={RX_SECTION_ICONS.medicalHistory} />}><BulletList items={rx.medicalHistory} /></RxSection> : null}
+                  {(hasListData(rx.medicalHistorySections) || hasListData(rx.medicalHistory)) ? (
+                    <RxSection title="Medical History" icon={<RxSectionIcon src={RX_SECTION_ICONS.medicalHistory} />}>
+                      <PastVisitMedicalHistorySections sections={rx.medicalHistorySections || []} fallbackItems={rx.medicalHistory || []} />
+                    </RxSection>
+                  ) : null}
                   {hasListData(rx.surgeries) ? <RxSection title="Surgeries" icon={<RxSectionIcon src={RX_SECTION_ICONS.surgeries} />} onCopy={() => handleCopySection(visitItem, "surgeries", "Surgeries")}><BulletList items={rx.surgeries} /></RxSection> : null}
                   {hasListData(rx.moduleContents) ? <RxSection title="Custom Modules" icon={<RxSectionIcon src={RX_SECTION_ICONS.customModules} />} onCopy={() => handleCopySection(visitItem, "moduleContents", "Custom Modules")}><BulletList items={rx.moduleContents} /></RxSection> : null}
                   {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
@@ -4418,11 +4499,16 @@ export function SideNavbar({
       if (pastVisitsRequestRef.current !== requestId) return;
       const payload = response?.status ? response?.data : {};
       const consultations = Array.isArray(payload?.consultations) ? payload.consultations : [];
+      const visibleConsultations = filterCurrentPastVisit(consultations, tcmId);
       const pagination = payload?.pagination || {};
       setPastVisitRows((prev) => {
-        if (page === 1) return consultations;
-        const existingIds = new Set(prev.map((item) => item?.tcm_id || item?.tcmId));
-        const nextRows = consultations.filter((item) => !existingIds.has(item?.tcm_id || item?.tcmId));
+        if (page === 1) return visibleConsultations;
+        const existingIds = new Set(
+          prev.map((item) => normalizePastVisitTcmId(getPastVisitTcmId(item))).filter(Boolean)
+        );
+        const nextRows = visibleConsultations.filter((item) => (
+          !existingIds.has(normalizePastVisitTcmId(getPastVisitTcmId(item)))
+        ));
         return [...prev, ...nextRows];
       });
       setPastVisitsPage(pagination.currentPage || page);
@@ -4435,7 +4521,7 @@ export function SideNavbar({
         if (page === 1) setHasPastVisitsLoaded(true);
       }
     }
-  }, [patientId]);
+  }, [patientId, tcmId]);
 
   useEffect(() => {
     setPastVisitRows([]);
@@ -4495,18 +4581,18 @@ export function SideNavbar({
   }, [pastVisitDetails, pastVisitLoadingIds, patientId]);
 
   const legacyPastVisitEntries = useMemo(
-    () => pastVisitRows.map((row) => {
-      const tcmId = row?.tcm_id || row?.tcmId;
-      const entry = buildPastVisitEntry(row, pastVisitDetails[tcmId]);
+    () => filterCurrentPastVisit(pastVisitRows, tcmId).map((row) => {
+      const visitTcmId = getPastVisitTcmId(row);
+      const entry = buildPastVisitEntry(row, pastVisitDetails[visitTcmId]);
       const hasRenderableData = entry.digitalRx ||
         entry.writtenRx?.length ||
         entry.transcriptBlocks?.length;
       return {
         ...entry,
-        detailLoading: Boolean(pastVisitLoadingIds[tcmId]) && !hasRenderableData,
+        detailLoading: Boolean(pastVisitLoadingIds[visitTcmId]) && !hasRenderableData,
       };
     }),
-    [pastVisitRows, pastVisitDetails, pastVisitLoadingIds]
+    [pastVisitRows, pastVisitDetails, pastVisitLoadingIds, tcmId]
   );
   const legacyVitalsEntries = useMemo(() => buildLegacyVitalsEntries({
     vitalsData,

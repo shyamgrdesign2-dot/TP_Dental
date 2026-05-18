@@ -194,6 +194,21 @@
   border-radius: 20px;
 }
 
+.moduleCaptureLocked::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 8990;
+  background: transparent;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.moduleCaptureActiveSlot {
+  position: relative;
+  z-index: 8991;
+}
+
 .moduleUpdated,
 .symptomsUpdated {
   outline: 1.5px solid rgba(103, 58, 172, 0.92);

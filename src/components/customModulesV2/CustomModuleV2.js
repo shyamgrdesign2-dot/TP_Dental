@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useRef,
 } from "react";
 import {
   Input,
@@ -29,6 +30,7 @@ import {
   CloseOutlined,
 } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../../context/CashManagerContext";
 
@@ -38,6 +40,7 @@ import { addModule, userPreModulesRX } from "../../redux/customModuleSlice";
 import { customizedPad, savePrintsettings } from "../../redux/doctorsSlice";
 import { removeBeforeWhiteSpace, errorMessage, getClinic } from "../../utils/utils";
 import { getDecodedToken } from "../../utils/localStorage";
+import { GB_VOICE_RX_NEW_UI } from "../../utils/constants";
 import "./CustomModuleV2.scss";
 import { isMobile } from "react-device-detect";
 import CustomModuleV2Drawer from "./CustomModuleV2Drawer";
@@ -49,7 +52,6 @@ import {
   VoiceRxModuleActionButton,
   VoiceRxModuleButton,
   VoiceRxModuleCapture,
-  buildCustomModuleDummyDigitisedData,
   useVoiceRxModuleCapture,
 } from "../dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
@@ -60,6 +62,23 @@ const {
   deleteIconBlue: deleteIcon,
   alerticon: alertIcon,
 } = ASSETS.images;
+
+function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selectionEnd) {
+  const currentValue = String(value || "");
+  const nextTranscript = String(transcript || "").trim();
+  if (!nextTranscript) return currentValue;
+
+  const hasStart = Number.isInteger(selectionStart);
+  const hasEnd = Number.isInteger(selectionEnd);
+  const start = hasStart ? Math.max(0, Math.min(selectionStart, currentValue.length)) : currentValue.length;
+  const end = hasEnd ? Math.max(start, Math.min(selectionEnd, currentValue.length)) : start;
+
+  if (end > start || start < currentValue.length) {
+    return `${currentValue.slice(0, start)}${nextTranscript}${currentValue.slice(end)}`;
+  }
+
+  return currentValue.trim() ? `${currentValue.trimEnd()}\n${nextTranscript}` : nextTranscript;
+}
 
 /**
  * CustomModuleV2 Component
@@ -73,7 +92,8 @@ const {
  * @param {Array} module.namedFields - Array of field configurations
  */
 const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
-  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
   const dispatch = useDispatch();
   const {
     userId,
@@ -95,6 +115,8 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
   const [activeRowId, setActiveRowId] = useState(null);
   const [drawerValues, setDrawerValues] = useState({});
   const [focusedFieldId, setFocusedFieldId] = useState(null); // Track which field is focused
+  const [voiceTargetHighlight, setVoiceTargetHighlight] = useState(null);
+  const lastVoiceTargetRef = useRef(null);
 
   // Templates List Popover (popOver1) / Drawer (templateDrawer)
   const [popOver1, setPopOver1] = useState(false);
@@ -247,47 +269,75 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
     [module, setCustomModuleContents]
   );
 
-  const customVoiceDummyData = useMemo(() => (
-    buildCustomModuleDummyDigitisedData({
-      moduleName: module?.name,
-      namedFields: module?.namedFields,
-      createId: uuidv4,
-    })
-  ), [module?.name, module?.namedFields]);
-  const customVoiceRequiredFields = useMemo(
-    () => module?.namedFields?.map((field) => field.fieldName).filter(Boolean) || [],
-    [module?.namedFields]
-  );
-  const customVoicePreviousContext = useMemo(
-    () => moduleData?.filter((row) => (
-      module?.namedFields?.some((field) => String(row[field.fieldName] || "").trim())
-    )) || [],
-    [module?.namedFields, moduleData]
-  );
+  const rememberVoiceTarget = useCallback((rowId, fieldName, selection = {}) => {
+    const row = moduleData.find((item) => item.id === rowId);
+    const value = String(row?.[fieldName] || "");
+    const selectionStart = Number.isInteger(selection.selectionStart) ? selection.selectionStart : value.length;
+    const selectionEnd = Number.isInteger(selection.selectionEnd) ? selection.selectionEnd : selectionStart;
 
-  const isCustomRowFilled = useCallback((row) => (
-    module.namedFields?.some(
-      (field) => row[field.fieldName]?.trim?.().length > 0
-    )
-  ), [module.namedFields]);
+    lastVoiceTargetRef.current = {
+      rowId,
+      fieldName,
+      selectionStart,
+      selectionEnd,
+    };
+    setVoiceTargetHighlight({ rowId, fieldName });
+  }, [moduleData]);
 
-  const applyVoiceCustomModule = useCallback((nextRows) => {
-    const normalizedRows = nextRows
-      .map((row) => {
-        const normalizedRow = { id: row.id || uuidv4() };
-        module.namedFields?.forEach((field) => {
-          normalizedRow[field.fieldName] = row[field.fieldName] || "";
-        });
-        return normalizedRow;
-      })
-      .filter(isCustomRowFilled);
+  const resolveVoiceTarget = useCallback((rows) => {
+    const fieldNames = module.namedFields?.map((field) => field.fieldName).filter(Boolean) || [];
+    const lastTarget = lastVoiceTargetRef.current;
+    if (
+      lastTarget &&
+      fieldNames.includes(lastTarget.fieldName) &&
+      rows.some((row) => row.id === lastTarget.rowId)
+    ) {
+      return lastTarget;
+    }
 
-    if (normalizedRows.length === 0) return;
+    for (const row of rows) {
+      for (const fieldName of fieldNames) {
+        if (!String(row?.[fieldName] || "").trim()) {
+          return { rowId: row.id, fieldName, selectionStart: 0, selectionEnd: 0 };
+        }
+      }
+    }
 
-    setModuleData(normalizedRows);
-    updateCustomModuleContents(normalizedRows);
+    const fallbackRow = rows[rows.length - 1];
+    const fallbackFieldName = fieldNames[0];
+    return {
+      rowId: fallbackRow?.id,
+      fieldName: fallbackFieldName,
+      selectionStart: String(fallbackRow?.[fallbackFieldName] || "").length,
+      selectionEnd: String(fallbackRow?.[fallbackFieldName] || "").length,
+    };
+  }, [module.namedFields]);
+
+  const applyVoiceTranscriptToFocusedField = useCallback((transcript) => {
+    const cleanTranscript = String(transcript || "").trim();
+    const fieldNames = module.namedFields?.map((field) => field.fieldName).filter(Boolean) || [];
+    if (!cleanTranscript || fieldNames.length === 0) return;
+
+    const nextModuleData = moduleData.length ? moduleData.map((row) => ({ ...row })) : [createEmptyRow()];
+    const target = resolveVoiceTarget(nextModuleData);
+    if (!target?.fieldName) return;
+
+    const targetRowIndex = nextModuleData.findIndex((row) => row.id === target.rowId);
+    const rowIndex = targetRowIndex >= 0 ? targetRowIndex : nextModuleData.length - 1;
+    nextModuleData[rowIndex] = {
+      ...nextModuleData[rowIndex],
+      [target.fieldName]: insertTranscriptIntoFieldValue(
+        nextModuleData[rowIndex]?.[target.fieldName],
+        cleanTranscript,
+        target.selectionStart,
+        target.selectionEnd
+      ),
+    };
+
+    setModuleData(nextModuleData);
+    updateCustomModuleContents(nextModuleData);
     setHasChanges(true);
-  }, [isCustomRowFilled, module.namedFields, updateCustomModuleContents]);
+  }, [createEmptyRow, module.namedFields, moduleData, resolveVoiceTarget, updateCustomModuleContents]);
 
   const {
     voiceCaptureOpen,
@@ -296,9 +346,15 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
     handleVoiceCaptureComplete,
   } = useVoiceRxModuleCapture({
     moduleName: module?.name || "Custom Module",
-    onApply: applyVoiceCustomModule,
-    successMessage: `${module?.name || "Custom Module"} filled from voice dictation`,
+    onTranscriptionApply: applyVoiceTranscriptToFocusedField,
+    transcriptionSuccessMessage: "Transcript added from voice dictation",
   });
+
+  const isVoiceTargetHighlighted = useCallback((rowId, fieldName) => (
+    voiceCaptureOpen &&
+    voiceTargetHighlight?.rowId === rowId &&
+    voiceTargetHighlight?.fieldName === fieldName
+  ), [voiceCaptureOpen, voiceTargetHighlight]);
 
   // Handle field value change
   const handleFieldChange = (rowId, fieldName, value) => {
@@ -1477,7 +1533,12 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
 
   return (
     <div
-      className={["prescription-box-sm", voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}
+      className={[
+        "prescription-box-sm",
+        voiceModuleStyles.moduleRoot,
+        isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
+        isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+      ].filter(Boolean).join(" ")}
       data-module-id={module?.module_id}
     >
       {/* Header */}
@@ -1728,11 +1789,17 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
               {module.namedFields?.map((field, fieldIndex) => (
                 <td
                   key={field.fieldName}
-                  className="custom-module-v2__table-cell"
+                  className={[
+                    "custom-module-v2__table-cell",
+                    isVoiceTargetHighlighted(row.id, field.fieldName) ? "custom-module-v2__voice-target-cell" : "",
+                  ].filter(Boolean).join(" ")}
                 >
                   {isMobile ? (
                     <div
-                      onClick={() => handleEditRow(row.id)}
+                      onClick={() => {
+                        rememberVoiceTarget(row.id, field.fieldName);
+                        handleEditRow(row.id);
+                      }}
                       style={{ cursor: "pointer", width: "100%", padding: "4px 12px" }}
                     >
                       <TextArea
@@ -1763,7 +1830,13 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
                       className="custom-module-v2__input w-100"
                       fieldId={`${row.id}-${field.fieldName}`}
                       focusedFieldId={focusedFieldId}
-                      onFocusChange={setFocusedFieldId}
+                      onFocusChange={(nextFocusedFieldId) => {
+                        setFocusedFieldId(nextFocusedFieldId);
+                        if (nextFocusedFieldId) {
+                          rememberVoiceTarget(row.id, field.fieldName);
+                        }
+                      }}
+                      onCursorChange={(selection) => rememberVoiceTarget(row.id, field.fieldName, selection)}
                     />
                   )}
                 </td>
@@ -1791,15 +1864,17 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
       </table>
 
       {/* Add New Line Button */}
-      <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+      <div
+        className={
+          isVoiceRxModuleEnabled && voiceCaptureOpen
+            ? [voiceModuleStyles.moduleSlot, voiceModuleStyles.moduleCaptureActiveSlot].filter(Boolean).join(" ")
+            : "p-14"
+        }
+      >
         {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
           <VoiceRxModuleCapture
+            mode="transcribe"
             moduleName={module?.name || "Custom Module"}
-            moduleApiName="custom_module"
-            customModuleName={module?.name || "Custom Module"}
-            requiredFields={customVoiceRequiredFields}
-            previousContext={customVoicePreviousContext}
-            dummyDigitisedData={customVoiceDummyData}
             onCancel={() => setVoiceCaptureOpen(false)}
             onComplete={handleVoiceCaptureComplete} />
         ) : (

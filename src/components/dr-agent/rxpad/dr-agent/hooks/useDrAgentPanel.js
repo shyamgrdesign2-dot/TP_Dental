@@ -332,6 +332,8 @@ export function useDrAgentPanel({
       mode: entry.type,
       durationMs: (entry.sourceDurationInSeconds || 0) * 1000,
       createdAt: entry.createdAt || new Date().toISOString(),
+      moduleName: entry.moduleName || "",
+      isDoctorAgent: Boolean(entry.isDoctorAgent),
     }));
     const transcript = transcriptSegments.map((segment) => clinicalTranscriptToText(segment.body)).filter(Boolean).join("\n\n");
     const structuredStub = {
@@ -669,7 +671,9 @@ export function useDrAgentPanel({
           body: finalTranscript,
           mode: voiceRxDialogChoice ?? "ambient_consultation",
           durationMs: meta?.durationMs ?? 0,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          moduleName: "Doctor Agent",
+          isDoctorAgent: true,
         };
         const transcriptSegments = prev.transcriptSegments
           ? [...prev.transcriptSegments, newSegment]
@@ -678,7 +682,9 @@ export function useDrAgentPanel({
               body: prev.transcript,
               mode: "ambient_consultation",
               durationMs: prev.durationMs ?? 0,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              moduleName: "Doctor Agent",
+              isDoctorAgent: true,
             }, newSegment];
         return {
           ...prev,
@@ -957,7 +963,9 @@ export function useDrAgentPanel({
           body: finalTranscript,
           mode: voiceRxDialogChoice ?? "ambient_consultation",
           durationMs: meta?.durationMs ?? 0,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          moduleName: "Doctor Agent",
+          isDoctorAgent: true,
         };
         const transcriptSegments = prior?.transcriptSegments
           ? [...prior.transcriptSegments, newSegment]

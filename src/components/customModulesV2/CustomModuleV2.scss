@@ -31,6 +31,55 @@
   }
 }
 
+@keyframes customModuleV2VoiceTargetShimmer {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+
+.custom-module-v2__voice-target-cell {
+  position: relative;
+}
+
+.custom-module-v2__voice-target-cell::before {
+  content: "";
+  position: absolute;
+  inset: 8px 12px;
+  min-height: 32px;
+  border-radius: 4px !important;
+  background-color: #F3F4F6 !important;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.custom-module-v2__voice-target-cell::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 12px;
+  width: 42%;
+  min-height: 32px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.88), transparent);
+  pointer-events: none;
+  z-index: 1;
+  animation: customModuleV2VoiceTargetShimmer 1.5s infinite;
+}
+
+.custom-module-v2__voice-target-cell > * {
+  position: relative;
+  z-index: 2;
+}
+
+.custom-module-v2__voice-target-cell textarea,
+.custom-module-v2__voice-target-cell .ant-input {
+  background: transparent !important;
+}
+
 .custom-module-v2__table-header-cell {
   font-size: 12px;
   font-weight: 600;

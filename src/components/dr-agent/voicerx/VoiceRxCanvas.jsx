@@ -50,6 +50,14 @@ function downloadTranscript({ heading, body, durationMs }) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function formatTranscriptSourceLabel(segment = {}) {
+  const rawModuleName = String(segment.moduleName || segment.sourceLabel || "").trim();
+  if (segment.isDoctorAgent || rawModuleName === "Doctor Agent") {
+    return "Clinical Notes";
+  }
+  return rawModuleName;
+}
+
 export function VoiceRxCanvas({
   modeLabel = "Conversation Mode",
   transcript = "",
@@ -239,7 +247,11 @@ export function VoiceRxCanvas({
             {Array.isArray(transcriptSegments) && transcriptSegments.length > 0 ? (
               transcriptSegments.map((seg, idx) => {
                 const baseTitle = seg.mode === "ambient_consultation" ? "Conversation Transcript" : "Dictation Transcript";
-                const heading = transcriptSegments.length > 1 ? `${baseTitle} ${idx + 1}` : baseTitle;
+                const sourceLabel = formatTranscriptSourceLabel(seg);
+                const numberedTitle = transcriptSegments.length > 1 || sourceLabel
+                  ? `${baseTitle} ${idx + 1}`
+                  : baseTitle;
+                const heading = sourceLabel ? `${numberedTitle} (${sourceLabel})` : numberedTitle;
                 const timeLabel = seg.createdAt
                   ? new Date(seg.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
                   : null;
@@ -413,7 +425,7 @@ function TranscriptCard({ heading, body, durationMs, timeLabel }) {
         <div className={styles.transcriptCardDivider} />
         <div className={styles.transcriptCardMeta}>
           <span>
-            Audio quality <span className={styles.transcriptCardDuration}>({formatDuration(durationMs)})</span>: Good
+            Audio <span className={styles.transcriptCardDuration}>({formatDuration(durationMs)})</span>
           </span>
           <HoverTooltip content="Audio was clear and easily processed by the AI models." side="top">
             <button type="button" className={styles.infoBtn}>
