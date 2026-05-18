@@ -22,7 +22,11 @@ import {
 } from "../../redux/followUpSlice";
 import { ASSETS } from "../../assets";
 import { GB_VOICE_RX_NEW_UI } from "../../utils/constants";
-import { VoiceRxModuleActionButton } from "../dr-agent/voicerx/VoiceRxModuleCapture";
+import {
+    VoiceRxModuleActionButton,
+    useVoiceRxModuleCapture,
+} from "../dr-agent/voicerx/VoiceRxModuleCapture";
+import voiceModuleStyles from "../dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 const {
   notes: Notes,
   followup: followUp,
@@ -44,6 +48,13 @@ function TabFollowUpBox() {
     const dispatch = useDispatch();
 
     const { followUpDate, setFollowUpDate, additionalNote, setAdditionalNote } = useContext(CashManagerContext);
+    const {
+        voiceUpdated,
+        sectionRef,
+    } = useVoiceRxModuleCapture({
+        moduleName: "Additional Notes",
+        copyPayloadKeys: ["others", "additionalNotes"],
+    });
     const [followUpInput, setFollowUpInput] = useState('');
     const [saveButton, setSaveButton] = useState(false);
     const [selectedDate, setSelectedDate] = useState(null); // New state for DatePicker value
@@ -608,7 +619,13 @@ function TabFollowUpBox() {
 
     return (
         <>
-            <div>
+            <div
+                ref={sectionRef}
+                className={[
+                    voiceModuleStyles.moduleRoot,
+                    isVoiceRxNewFromGB && voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+                ].filter(Boolean).join(" ")}
+            >
                 <div className="p-14-pb0">
                     <Row gutter={30}>
                         <Col md={8}>

@@ -37,6 +37,38 @@ import canvasStyles from "./VoiceRxCanvas.module.scss";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+const VOICE_RX_MIC_STORAGE_KEY = "voiceRxPreferredMicrophoneDeviceId";
+
+let sessionPreferredMicDeviceId = undefined;
+let sessionPreferredMicLoaded = false;
+
+function getSessionPreferredMicDeviceId() {
+  if (sessionPreferredMicLoaded) return sessionPreferredMicDeviceId;
+  sessionPreferredMicLoaded = true;
+  if (typeof window === "undefined") return undefined;
+  try {
+    sessionPreferredMicDeviceId = window.sessionStorage?.getItem(VOICE_RX_MIC_STORAGE_KEY) || undefined;
+  } catch {
+    sessionPreferredMicDeviceId = undefined;
+  }
+  return sessionPreferredMicDeviceId;
+}
+
+function setSessionPreferredMicDeviceId(deviceId) {
+  sessionPreferredMicLoaded = true;
+  sessionPreferredMicDeviceId = deviceId || undefined;
+  if (typeof window === "undefined") return;
+  try {
+    if (deviceId) {
+      window.sessionStorage?.setItem(VOICE_RX_MIC_STORAGE_KEY, deviceId);
+    } else {
+      window.sessionStorage?.removeItem(VOICE_RX_MIC_STORAGE_KEY);
+    }
+  } catch {
+    // Session memory still covers the current React runtime if storage is blocked.
+  }
+}
+
 function formatElapsed(ms) {
   const s = Math.floor(ms / 1000);
   const mm = String(Math.floor(s / 60)).padStart(2, "0");
@@ -76,9 +108,15 @@ function useMicStream(deviceId, enabled) {
     let acquired = null;
     (async () => {
       try {
-        const s = await navigator.mediaDevices.getUserMedia({
-          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-        });
+        let s;
+        try {
+          s = await navigator.mediaDevices.getUserMedia({
+            audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+          });
+        } catch (error) {
+          if (!deviceId) throw error;
+          s = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
         if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
         acquired = s;
         setStream(s);
@@ -194,7 +232,11 @@ function useActiveMic(stream, devices, selectedDeviceId) {
   useEffect(() => {
     const id = activeDevice?.deviceId;
     if (!id || !activeDevice?.label) return;
-    if (lastNotifiedRef.current === undefined) { lastNotifiedRef.current = id; return; }
+    if (lastNotifiedRef.current === undefined) {
+      lastNotifiedRef.current = id;
+      toast.success(`Connected microphone: ${activeDevice.label}`);
+      return;
+    }
     if (lastNotifiedRef.current !== id) {
       lastNotifiedRef.current = id;
       toast.success(`Microphone switched to ${activeDevice.label}`);
@@ -347,7 +389,7 @@ export function VoiceRecorderCore({
   const levelRef = useRef(0);
 
   const [manualMute, setManualMute] = useState(false);
-  const [selectedDeviceId, setSelectedDeviceId] = useState(undefined);
+  const [selectedDeviceId, setSelectedDeviceId] = useState(() => getSessionPreferredMicDeviceId());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [devicePopoverOpen, setDevicePopoverOpen] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(!isFullscreen && variant === "stack");
@@ -396,6 +438,22 @@ export function VoiceRecorderCore({
 
   // Active mic tracking
   const { activeDevice } = useActiveMic(stream, devices, selectedDeviceId);
+  const fallbackNoticeShownRef = useRef(false);
+
+  useEffect(() => {
+    if (!selectedDeviceId || devices.length === 0) return;
+    const selectedDeviceAvailable = devices.some((device) => device.deviceId === selectedDeviceId);
+    if (selectedDeviceAvailable) {
+      fallbackNoticeShownRef.current = false;
+      return;
+    }
+    setSessionPreferredMicDeviceId(undefined);
+    setSelectedDeviceId(undefined);
+    if (!fallbackNoticeShownRef.current) {
+      fallbackNoticeShownRef.current = true;
+      toast.warning("Selected microphone is unavailable. Using default microphone.");
+    }
+  }, [devices, selectedDeviceId]);
 
   // Live transcript (overlay only; fullscreen receives transcript from parent via externalTranscript)
   const { transcript: liveFinal, error: liveError } = useLiveTranscript({
@@ -667,7 +725,11 @@ export function VoiceRecorderCore({
     handleSubmitClick();
   }, [publishesCollapsedVoiceSession, voiceSubmitRequest, handleSubmitClick]);
 
-  const handleDeviceSelect = useCallback((id) => { setSelectedDeviceId(id); setDevicePopoverOpen(false); }, []);
+  const handleDeviceSelect = useCallback((id) => {
+    setSessionPreferredMicDeviceId(id);
+    setSelectedDeviceId(id);
+    setDevicePopoverOpen(false);
+  }, []);
   const handleCancelConfirm = useCallback(() => { setConfirmOpen(false); onCancel?.(); }, [onCancel]);
   const handleRequestCancel = useCallback(() => {
     if (onCancelRequest) {

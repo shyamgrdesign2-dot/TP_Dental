@@ -634,19 +634,50 @@ function buildPastVisitMedicalHistoryRows(items) {
   )).filter((item) => item.label || item.detail);
 }
 
-function buildPastVisitModuleRows(items) {
-  return legacyArray(items).flatMap((module) => (
-    legacyArray(module?.content).map((content, index) => {
-      const details = Object.entries(content || {})
-        .filter(([key, value]) => key !== "id" && hasValue(value))
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(" | ");
-      return {
-        label: module?.module_name || module?.name || `Module ${index + 1}`,
-        detail: details,
-      };
+function formatPastVisitModuleRow(content, module, index) {
+  const entries = Object.entries(content || {})
+    .filter(([key, value]) => key !== "id" && hasValue(value));
+  if (!entries.length) return null;
+
+  const preferredLabelKeys = ["title", "name", "label", "lineItem"];
+  const labelEntry = entries.find(([key]) => preferredLabelKeys.includes(key)) || entries[0];
+  const detailEntries = entries.filter(([key]) => key !== labelEntry[0]);
+  const detail = detailEntries
+    .map(([key, value]) => {
+      if (key === "notes" || key === "note") return value;
+      return `${key}: ${value}`;
     })
-  )).filter((item) => item.detail);
+    .join(" | ");
+
+  return {
+    label: String(labelEntry[1] || "").trim() || `${module?.module_name || module?.name || "Module"} row ${index + 1}`,
+    detail,
+    raw: content,
+  };
+}
+
+function buildPastVisitModuleSections(items) {
+  return legacyArray(items).map((module, moduleIndex) => {
+    const rows = legacyArray(module?.content)
+      .map((content, rowIndex) => formatPastVisitModuleRow(content, module, rowIndex))
+      .filter(Boolean);
+    if (!rows.length) return null;
+    return {
+      id: module?.module_id || module?.id || `module-${moduleIndex}`,
+      title: module?.module_name || module?.name || module?.title || `Module ${moduleIndex + 1}`,
+      raw: module,
+      rows,
+    };
+  }).filter(Boolean);
+}
+
+function buildPastVisitModuleRows(items) {
+  return buildPastVisitModuleSections(items).flatMap((moduleSection) => (
+    moduleSection.rows.map((row) => ({
+      label: moduleSection.title,
+      detail: [row.label, row.detail].filter(hasValue).join(" | "),
+    }))
+  ));
 }
 
 function isPastVisitModuleContentItem(item) {
@@ -853,6 +884,7 @@ function buildPastVisitDigitalRx(consultation) {
       ["notes", "note", "date", "since"]
     ),
     moduleContents: buildPastVisitModuleRows(legacyConsultation.moduleContents || legacyConsultation.module_contents),
+    moduleContentSections: buildPastVisitModuleSections(legacyConsultation.moduleContents || legacyConsultation.module_contents),
     moduleContentsPayload: legacyArray(legacyConsultation.moduleContents || legacyConsultation.module_contents),
     advice: legacyAdviceText(legacyConsultation.advice) || legacyConsultation.visit_advice || "",
     labInvestigations: legacyVisitRows(
@@ -1216,7 +1248,11 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
       const modules = legacyArray(rx.moduleContentsPayload).filter(
         (module) => module?.module_id && legacyArray(module?.content).length > 0
       );
-      return modules.length ? { ...base, digitization: { moduleContents: modules } } : null;
+      return modules.length ? {
+        ...base,
+        sideNavCustomModuleTargetId: modules[0].module_id,
+        digitization: { moduleContents: modules },
+      } : null;
     }
     case "vitals":
       return objectHasRenderableValue(rx.vitalsPayload)
@@ -1237,6 +1273,27 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     default:
       return null;
   }
+}
+
+function buildPastVisitCustomModulePayload(visitItem, moduleSection, row) {
+  const rawModule = moduleSection?.raw || {};
+  const content = row ? [row.raw].filter(Boolean) : legacyArray(rawModule.content);
+  const moduleId = rawModule.module_id || moduleSection?.id;
+  if (!moduleId || !content.length) return null;
+
+  return {
+    sourceDateLabel: visitItem?.dateLabel || "Past visit",
+    targetSection: "rxpad",
+    sideNavCustomModuleTargetId: moduleId,
+    digitization: {
+      moduleContents: [{
+        ...rawModule,
+        module_id: moduleId,
+        module_name: rawModule.module_name || rawModule.name || moduleSection?.title || String(moduleId),
+        content,
+      }],
+    },
+  };
 }
 
 function buildPastVisitAllPayload(visitItem) {
@@ -1695,6 +1752,7 @@ function buildDigitalRx(payload) {
       ["notes", "note", "date", "since"]
     ),
     moduleContents: buildPastVisitModuleRows(moduleContentPayload),
+    moduleContentSections: buildPastVisitModuleSections(moduleContentPayload),
     moduleContentsPayload: moduleContentPayload,
     followUp: hasValue(p.followUp) ? `After ${p.followUp}` : "",
     additionalNotes: additionalNotesPayload.map((item) => (typeof item === "string" ? item : item?.notes || item?.label || "")).filter(Boolean).join(" "),
@@ -2565,6 +2623,46 @@ function PastVisitMedicalHistorySections({ sections = [], fallbackItems = [] }) 
   return <BulletList items={fallbackItems} />;
 }
 
+function PastVisitCustomModulesSection({ sections = [], onCopyAll, onCopyModule, onCopyRow }) {
+  if (!sections.length) return null;
+
+  return (
+    <RxSection
+      title="Custom Modules"
+      icon={<RxSectionIcon src={RX_SECTION_ICONS.customModules} />}
+      onCopy={onCopyAll}
+    >
+      <div className="snv-past-custom-module-sections">
+        {sections.map((section, sectionIndex) => (
+          <div key={section.id || `${section.title}-${sectionIndex}`} className="snv-past-custom-module-section">
+            <div className="snv-past-custom-module-title">
+              <span>{section.title || "Custom Module"}</span>
+              <PastVisitCopyAffordance
+                onClick={() => onCopyModule?.(section)}
+                label={`Copy ${section.title || "custom module"} to RxPad`}
+              />
+            </div>
+            <ul className="snv-bullet-list snv-past-custom-module-list">
+              {section.rows.map((row, rowIndex) => (
+                <li key={`${row.label}-${rowIndex}`} className="snv-past-custom-module-row">
+                  <span className="snv-past-custom-module-row-text">
+                    <span className="snv-bullet-label">{row.label}</span>
+                    {row.detail ? <span className="snv-bullet-detail"> ({row.detail})</span> : null}
+                  </span>
+                  <PastVisitCopyAffordance
+                    onClick={() => onCopyRow?.(section, row)}
+                    label={`Copy ${row.label || "custom module row"} to RxPad`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </RxSection>
+  );
+}
+
 const RX_SECTION_ICONS = {
   symptoms: ASSETS.images.symptoms,
   examination: ASSETS.images.examination,
@@ -2797,6 +2895,20 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
     );
   }, [handleCopyPayload]);
 
+  const handleCopyCustomModule = useCallback((visitItem, moduleSection) => {
+    handleCopyPayload(
+      buildPastVisitCustomModulePayload(visitItem, moduleSection),
+      `${moduleSection?.title || "Custom module"} copied to RxPad`
+    );
+  }, [handleCopyPayload]);
+
+  const handleCopyCustomModuleRow = useCallback((visitItem, moduleSection, row) => {
+    handleCopyPayload(
+      buildPastVisitCustomModulePayload(visitItem, moduleSection, row),
+      `${row?.label || moduleSection?.title || "Custom module row"} copied to RxPad`
+    );
+  }, [handleCopyPayload]);
+
   return (
     <div className={`snv-content-scroll snv-past-visits-scroll ${showLoadMoreFooter ? "snv-content-scroll-has-load-more" : ""}`} data-snv-scroll-root="true">
       {visits.length === 0 && !loading ? (
@@ -2860,7 +2972,14 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                     </RxSection>
                   ) : null}
                   {hasListData(rx.surgeries) ? <RxSection title="Surgeries" icon={<RxSectionIcon src={RX_SECTION_ICONS.surgeries} />} onCopy={() => handleCopySection(visitItem, "surgeries", "Surgeries")}><BulletList items={rx.surgeries} /></RxSection> : null}
-                  {hasListData(rx.moduleContents) ? <RxSection title="Custom Modules" icon={<RxSectionIcon src={RX_SECTION_ICONS.customModules} />} onCopy={() => handleCopySection(visitItem, "moduleContents", "Custom Modules")}><BulletList items={rx.moduleContents} /></RxSection> : null}
+                  {hasListData(rx.moduleContentSections) ? (
+                    <PastVisitCustomModulesSection
+                      sections={rx.moduleContentSections}
+                      onCopyAll={() => handleCopySection(visitItem, "moduleContents", "Custom Modules")}
+                      onCopyModule={(moduleSection) => handleCopyCustomModule(visitItem, moduleSection)}
+                      onCopyRow={(moduleSection, row) => handleCopyCustomModuleRow(visitItem, moduleSection, row)}
+                    />
+                  ) : null}
                   {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
                   {hasListData(rx.labInvestigations) ? <RxSection title="Investigations" icon={<RxSectionIcon src={RX_SECTION_ICONS.investigations} />} onCopy={() => handleCopySection(visitItem, "investigations", "Investigations")}><BulletList items={rx.labInvestigations} /></RxSection> : null}
                   {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}

@@ -322,15 +322,34 @@ function CustomModule({ module, showVoiceRxModule }) {
     updateCustomModuleContents(nextModuleData);
   }, [moduleData, resolveVoiceTarget, updateCustomModuleContents]);
 
+  const copyPayloadMatchesThisModule = useCallback((payload = {}) => {
+    const targetedModuleId = payload.sideNavCustomModuleTargetId || payload.digitization?.sideNavCustomModuleTargetId;
+    if (targetedModuleId) {
+      return String(targetedModuleId) === String(module?.module_id);
+    }
+    const digitization = payload.digitization || {};
+    const copiedModules = [
+      ...(Array.isArray(payload.moduleContents) ? payload.moduleContents : []),
+      ...(Array.isArray(payload.module_contents) ? payload.module_contents : []),
+      ...(Array.isArray(digitization.moduleContents) ? digitization.moduleContents : []),
+      ...(Array.isArray(digitization.module_contents) ? digitization.module_contents : []),
+    ];
+    return copiedModules.some((copiedModule) => (
+      String(copiedModule?.module_id) === String(module?.module_id)
+    ));
+  }, [module?.module_id]);
+
   const {
     voiceCaptureOpen,
     setVoiceCaptureOpen,
     voiceUpdated,
     handleVoiceCaptureComplete,
+    sectionRef,
   } = useVoiceRxModuleCapture({
     moduleName: module?.name || "Custom Module",
     onTranscriptionApply: applyVoiceTranscriptToFocusedField,
     transcriptionSuccessMessage: "Transcript added from voice dictation",
+    copyPayloadMatcher: copyPayloadMatchesThisModule,
   });
 
   const isVoiceTargetHighlighted = useCallback((rowIndex, field) => (
@@ -1412,11 +1431,12 @@ function CustomModule({ module, showVoiceRxModule }) {
 
   return (
     <div
+      ref={sectionRef}
       className={[
         "prescription-box-sm",
         voiceModuleStyles.moduleRoot,
         isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
-        isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
+        voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
       ].filter(Boolean).join(" ")}
     >
       <div className="d-flex align-items-center justify-content-between p-14-pb0">

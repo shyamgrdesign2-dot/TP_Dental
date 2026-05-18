@@ -782,7 +782,7 @@ export function ChatBubble({
                     onClick={() => safeClipboardWrite(userDisplayText)}
                     className={styles.copyIconUser}
                   />
-                  {onEditMessage && (
+                  {/* {onEditMessage && (
                     <HoverTooltip content={message.voiceTranscript ? "Edit/VoiceRx" : "Edit message"} side="top">
                       <button
                         type="button"
@@ -801,7 +801,7 @@ export function ChatBubble({
                         )}
                       </button>
                     </HoverTooltip>
-                  )}
+                  )} */}
                 </div>
               )}
             </div>

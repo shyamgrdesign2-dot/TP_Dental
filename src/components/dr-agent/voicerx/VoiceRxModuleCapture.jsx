@@ -1028,14 +1028,23 @@ export function VoiceRxModuleButton({ active = false, disabled = false, onClick,
   );
 }
 
-export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionApply, successMessage, transcriptionSuccessMessage, copyPayloadKeys }) {
+export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionApply, successMessage, transcriptionSuccessMessage, copyPayloadKeys, copyPayloadMatcher }) {
   const [voiceCaptureOpen, setVoiceCaptureOpen] = useState(false);
   const [voiceUpdated, setVoiceUpdated] = useState(false);
   const voiceUpdatedTimerRef = useRef(null);
   const sectionRef = useRef(null);
   const handledCopyIdRef = useRef(null);
   const copyPayloadKeysRef = useRef(copyPayloadKeys);
+  const copyPayloadMatcherRef = useRef(copyPayloadMatcher);
   const { lastCopyRequest } = useRxPadSync();
+
+  useEffect(() => {
+    copyPayloadKeysRef.current = copyPayloadKeys;
+  }, [copyPayloadKeys]);
+
+  useEffect(() => {
+    copyPayloadMatcherRef.current = copyPayloadMatcher;
+  }, [copyPayloadMatcher]);
 
   useEffect(() => {
     return () => {
@@ -1057,12 +1066,17 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
   }, []);
 
   useEffect(() => {
-    if (!lastCopyRequest || !copyPayloadKeysRef.current?.length) return;
+    if (!lastCopyRequest) return;
     if (handledCopyIdRef.current === lastCopyRequest.id) return;
     handledCopyIdRef.current = lastCopyRequest.id;
     if (lastCopyRequest.isBulk) return;
     const payload = lastCopyRequest.payload || {};
     const digitization = payload.digitization || {};
+    if (copyPayloadMatcherRef.current?.(payload, lastCopyRequest)) {
+      triggerHighlight();
+      return;
+    }
+    if (!copyPayloadKeysRef.current?.length) return;
     const nonEmpty = (v) => Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== "";
     const hasData = copyPayloadKeysRef.current.some(
       (key) => nonEmpty(payload[key]) || nonEmpty(digitization[key])
