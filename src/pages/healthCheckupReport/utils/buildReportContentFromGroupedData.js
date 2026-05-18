@@ -119,7 +119,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
         .join(", ");
       return extra ? `${name} (${extra})` : name;
     });
-    parts.push("Symptoms:\n" + lines.join(", "));
+    parts.push("SYMPTOMS:\n" + lines.join(", "));
   }
   const exams = consultation.examination ?? [];
   if (exams.length > 0) {
@@ -128,7 +128,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
       const note = item.note ?? "";
       return note ? `${name} (${note})` : name;
     });
-    parts.push("Examinations:\n" + lines.join(", "));
+    parts.push("EXAMINATIONS:\n" + lines.join(", "));
   }
   const diag = consultation.diagnosis ?? [];
   if (diag.length > 0) {
@@ -140,7 +140,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
         ? `${name} (${code})${note ? ` - ${note}` : ""}`
         : name + (note ? ` - ${note}` : "");
     });
-    parts.push("Diagnosis:\n" + lines.join(", "));
+    parts.push("DIAGNOSIS:\n" + lines.join(", "));
   }
   const meds = consultation.medicine ?? [];
   if (meds.length > 0) {
@@ -178,7 +178,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
       ].filter(Boolean);
       return bits.join(", ");
     });
-    parts.push("Medicines:\n" + lines.join("\n"));
+    parts.push("MEDICINES:\n" + lines.join("\n"));
   }
   const adv = consultation.advice ?? [];
   if (adv.length > 0) {
@@ -187,7 +187,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
         typeof a === "string" ? a : a?.value ?? a?.advice ?? a?.text ?? ""
       )
       .filter(Boolean);
-    if (lines.length) parts.push("Advice:\n" + lines.join("\n"));
+    if (lines.length) parts.push("ADVICE:\n" + lines.join("\n"));
   }
   const visitAdvice = consultation.visit_advice;
   if (
@@ -195,7 +195,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
     typeof visitAdvice === "string" &&
     visitAdvice.trim()
   ) {
-    parts.push("Visit Advice:\n" + visitAdvice.trim());
+    parts.push("VISIT ADVICE:\n" + visitAdvice.trim());
   }
 
   const moduleContents = consultation.moduleContents ?? [];
