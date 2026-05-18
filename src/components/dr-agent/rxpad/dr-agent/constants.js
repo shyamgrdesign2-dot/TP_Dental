@@ -218,3 +218,14 @@ export const SIDEBAR_CTA_MAP = {
   med_history: { text: "View full medical history →", tab: "history" },
   patient_summary: { text: "View full medical history →", tab: "history" }
 };
+
+
+export const VOICE_RX_CONSULT_OPTIONS = [
+{
+  value: "ambient_consultation",
+  description: "Capture live doctor–patient conversation in the room."
+},
+{
+  value: "dictation_consultation",
+  description: "You dictate clinical content; optimized for solo narration."
+}];

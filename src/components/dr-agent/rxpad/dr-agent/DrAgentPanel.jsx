@@ -4,6 +4,7 @@ import { cn } from "../../utils";
 import styles from "./DrAgentPanel.module.scss";
 
 import { useRxPadSync } from "./RxPadSyncContext";
+import { VoiceRxBottomSheet } from "../../voicerx/VoiceRxBottomSheet";
 import { toast } from "../../voicerx/toast";
 import { AgentHeader } from "./shell/AgentHeader";
 import { SessionHistoryDrawer } from "./shell/SessionHistoryDrawer";
@@ -13,9 +14,8 @@ import { VoiceEmptyState } from "./shell/VoiceEmptyState";
 import { BackFace } from "./shell/BackFace";
 import { FooterBar } from "./shell/FooterBar";
 
+import { VOICE_RX_CONSULT_OPTIONS } from "./constants";
 import { useDrAgentPanel } from "./hooks/useDrAgentPanel";
-
-const DEFAULT_VOICE_RX_CONSULT_MODE = "dictation_consultation";
 
 export function DrAgentPanel({
   onClose,
@@ -52,7 +52,10 @@ export function DrAgentPanel({
     setShowAttachPanel,
     showDocBottomSheet,
     setShowDocBottomSheet,
+    voiceRxDialogOpen,
+    setVoiceRxDialogOpen,
     voiceRxDialogChoice,
+    setVoiceRxDialogChoice,
     voiceRxRecording,
     setVoiceRxRecording,
     beginVoiceAddOn,
@@ -128,7 +131,6 @@ export function DrAgentPanel({
 
   const { activeVoiceModule } = useRxPadSync();
   const voiceLocked = !!activeVoiceModule;
-  const startVoiceRxDictation = () => confirmVoiceRxConsult(DEFAULT_VOICE_RX_CONSULT_MODE);
 
   useEffect(() => {
     toast.setHandler(({ type, msg }) => {
@@ -192,7 +194,7 @@ export function DrAgentPanel({
 
                 {voiceEmptyState ? (
                   <VoiceEmptyState
-                    onStartVoice={startVoiceRxDictation}
+                    onStartVoice={() => setVoiceRxDialogOpen(true)}
                     onViewPatientDetails={handleViewPatientDetails}
                     hasSymptomCollectorData={!!summary.symptomCollectorData}
                     voiceLocked={voiceLocked}
@@ -234,7 +236,7 @@ export function DrAgentPanel({
               onPillTap={handlePillTap}
               onAttachSelect={handleAttachSelect}
               onAttachClose={() => setShowAttachPanel(false)}
-              onStartVoice={startVoiceRxDictation}
+              onStartVoice={() => setVoiceRxDialogOpen(true)}
               onInputChange={(v) => { setInputValue(v); if (isPrefilled) setIsPrefilled(false); }}
               onSend={() => { setIsPrefilled(false); handleSend(); }}
               onAttach={handleAttach}
@@ -260,6 +262,17 @@ export function DrAgentPanel({
               patientName={patient.label}
               patientMeta={[patient.gender, patient.age ? `${patient.age}y` : null].filter(Boolean).join(" · ")}
             />
+
+            {voiceRxMode && (
+              <VoiceRxBottomSheet
+                isOpen={voiceRxDialogOpen}
+                onClose={() => setVoiceRxDialogOpen(false)}
+                consultOptions={VOICE_RX_CONSULT_OPTIONS}
+                selectedOption={voiceRxDialogChoice}
+                onSelectOption={setVoiceRxDialogChoice}
+                onConfirm={confirmVoiceRxConsult}
+              />
+            )}
 
           </div>
         </div>

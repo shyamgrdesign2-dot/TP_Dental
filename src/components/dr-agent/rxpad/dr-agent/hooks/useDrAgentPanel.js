@@ -51,7 +51,6 @@ import { buildVoiceConsultSidebarBatch } from "../utils/voiceHistoryUtils";
 import { buildIntroMessages } from "../engines/intro-engine";
 
 const VOICE_RX_SUBMIT_BUTTON_MIN_MS = 5000;
-const DEFAULT_VOICE_RX_CONSULT_MODE = "dictation_consultation";
 
 const cleanText = (value) => {
   if (value === undefined || value === null) return "";
@@ -257,9 +256,17 @@ export function useDrAgentPanel({
   const [chipShaking, setChipShaking] = useState(false);
   const fileInputRef = useRef(null);
 
-  const autoStartedRef = useRef(false);
+  const [voiceRxDialogOpen, setVoiceRxDialogOpen] = useState(false);
+  const autoOpenedRef = useRef(false);
   const scFlowStartedRef = useRef(new Set());
-  const [voiceRxDialogChoice, setVoiceRxDialogChoice] = useState(DEFAULT_VOICE_RX_CONSULT_MODE);
+  useEffect(() => {
+    if (autoOpenBottomSheet && isPanelVisible && voiceRxMode && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      const timer = setTimeout(() => setVoiceRxDialogOpen(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [autoOpenBottomSheet, isPanelVisible, voiceRxMode]);
+  const [voiceRxDialogChoice, setVoiceRxDialogChoice] = useState("ambient_consultation");
   const [voiceRxRecording, setVoiceRxRecording] = useState(false);
   /** Scripted-demo transcript — used only as a fallback when the browser has no Web Speech API. */
   const [voiceRxScriptedTranscript, setVoiceRxScriptedTranscript] = useState("");
@@ -465,8 +472,7 @@ export function useDrAgentPanel({
   // first instead of silently ignoring the click.
   const [blockedVoiceToast, setBlockedVoiceToast] = useState(null);
 
-  const confirmVoiceRxConsult = useCallback((mode = DEFAULT_VOICE_RX_CONSULT_MODE) => {
-    const nextMode = mode || DEFAULT_VOICE_RX_CONSULT_MODE;
+  const confirmVoiceRxConsult = useCallback(() => {
     // Guard against starting a full-panel consultation while an inline
     // per-module / per-sidebar recorder is already running. Shared state
     // lives in the rxpad-sync context; the tooltip on hover uses the
@@ -479,10 +485,11 @@ export function useDrAgentPanel({
       toast.warning(
         `VoiceRx is already active in ${activeVoiceModule}. Close that dictation first.`
       );
+      setVoiceRxDialogOpen(false);
       return;
     }
-    setVoiceRxDialogChoice(nextMode);
-    onVoiceCaptureModeChange?.(nextMode);
+    onVoiceCaptureModeChange?.(voiceRxDialogChoice);
+    setVoiceRxDialogOpen(false);
     // Starting a fresh consultation clears any previously generated
     // structured Rx — the doctor explicitly chose dictate/ambient again,
     // so we should drop them straight into the recorder, not flip back
@@ -508,15 +515,7 @@ export function useDrAgentPanel({
         return true;
       })
     }));
-  }, [onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, resetLiveTranscript]);
-
-  useEffect(() => {
-    if (autoOpenBottomSheet && isPanelVisible && voiceRxMode && !autoStartedRef.current) {
-      autoStartedRef.current = true;
-      const timer = setTimeout(() => confirmVoiceRxConsult(DEFAULT_VOICE_RX_CONSULT_MODE), 800);
-      return () => clearTimeout(timer);
-    }
-  }, [autoOpenBottomSheet, confirmVoiceRxConsult, isPanelVisible, voiceRxMode]);
+  }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, resetLiveTranscript]);
 
   // Listen for the "VoiceRx" CTA on a chat clinical-notes card —
   // fires "voicerx:begin-addon". Routes through the same beginVoiceAddOn
@@ -1830,7 +1829,10 @@ export function useDrAgentPanel({
     setShowAttachPanel,
     showDocBottomSheet,
     setShowDocBottomSheet,
+    voiceRxDialogOpen,
+    setVoiceRxDialogOpen,
     voiceRxDialogChoice,
+    setVoiceRxDialogChoice,
     voiceRxRecording,
     setVoiceRxRecording,
     beginVoiceAddOn,
