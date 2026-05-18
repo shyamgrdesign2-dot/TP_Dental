@@ -36,10 +36,9 @@ function useInView(threshold = 0.2) {
 }
 
 const CAPTION_PHRASES = [
-  "Structuring your transcript",
-  "Capturing the clinical data",
-  "Drafting the TP EMR",
-  "Generating clinical notes"
+  "Analysing your dictated content…",
+  "Structuring your transcript…",
+  "Preparing entries for review…"
 ];
 
 // ─── Transcript renderer ─────────────────────────────────────────────────────
