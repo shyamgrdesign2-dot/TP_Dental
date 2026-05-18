@@ -8,7 +8,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
 
-import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
+import { clearListVitalsToday, getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
   getPatientLastHistory,
   listPrivateNotes,
@@ -76,6 +76,7 @@ import DDxKnowMore from "../components/DDxKnowMore";
 import TabPane from "antd/es/tabs/TabPane";
 import DifferentialDiagnosisDrawer from "../components/DifferentialDiagnosisDrawer";
 import {
+  resetDDxState,
   setIsDDxReadyToGenerate,
   setShowSCPopup,
   setSymptomCollector,
@@ -125,7 +126,13 @@ import {
   AddCustomModuleV2,
   CustomModuleV2,
 } from "../components/customModulesV2";
-import { getModules, searchModulesByHospital } from "../redux/customModuleSlice";
+import {
+  clearHospitalSearchResults,
+  clearMigrationResult,
+  clearSearchResults,
+  getModules,
+  searchModulesByHospital,
+} from "../redux/customModuleSlice";
 import { ASSETS } from "../assets";
 import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import {
@@ -133,6 +140,9 @@ import {
   setLastOpthalPrescriptionData,
   setOpthalPrescriptionId,
 } from "../redux/ophthalmologyExamSlice";
+import { resetGrowthChartState } from "../redux/growthChartSlice";
+import { resetVaccineState } from "../redux/vaccineSlice";
+import { resetLabParamsState } from "../redux/labParamsSlice";
 
 // ── Dr Agent Panel ──
 import "../components/dr-agent/dr-agent-globals.css";
@@ -196,6 +206,82 @@ function appendFollowUpNote(setAdditionalNote, value) {
   });
 }
 
+function hasCopiedCustomModuleValue(value) {
+  return value !== null && value !== undefined && String(value).trim().length > 0;
+}
+
+function customModuleRowHasValue(row) {
+  return Object.entries(row || {}).some(
+    ([key, value]) => key !== "id" && hasCopiedCustomModuleValue(value)
+  );
+}
+
+function normalizeCopiedCustomModule(module) {
+  if (!module?.module_id) return null;
+  const content = toArray(module.content)
+    .filter(customModuleRowHasValue)
+    .map((row) => ({
+      ...row,
+      id: row?.id || uuidv4(),
+    }));
+
+  if (!content.length) return null;
+
+  return {
+    ...module,
+    module_id: module.module_id,
+    module_name: module.module_name || module.name || module.title || String(module.module_id),
+    module_version: module.module_version || module.version || "v2",
+    content,
+  };
+}
+
+function customModuleRowSignature(row) {
+  return JSON.stringify(
+    Object.entries(row || {})
+      .filter(([key, value]) => key !== "id" && hasCopiedCustomModuleValue(value))
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+  );
+}
+
+function mergeCopiedCustomModules(prevContents = [], copiedModules = []) {
+  const nextContents = [...prevContents];
+
+  copiedModules.forEach((module) => {
+    const existingIndex = nextContents.findIndex(
+      (item) => String(item?.module_id) === String(module.module_id)
+    );
+
+    if (existingIndex === -1) {
+      nextContents.push(module);
+      return;
+    }
+
+    const existing = nextContents[existingIndex];
+    const mergedRows = [];
+    const seenRows = new Set();
+    [...toArray(existing.content), ...toArray(module.content)]
+      .filter(customModuleRowHasValue)
+      .forEach((row) => {
+        const signature = customModuleRowSignature(row);
+        if (!signature || seenRows.has(signature)) return;
+        seenRows.add(signature);
+        mergedRows.push(row);
+      });
+
+    nextContents[existingIndex] = {
+      ...existing,
+      ...module,
+      module_name: existing.module_name || module.module_name,
+      module_version: existing.module_version || module.module_version,
+      namedFields: existing.namedFields || module.namedFields,
+      content: mergedRows,
+    };
+  });
+
+  return nextContents;
+}
+
 function PrescriptionNewRxPadCopyListener() {
   const { lastCopyRequest } = useRxPadSync();
   const {
@@ -209,6 +295,7 @@ function PrescriptionNewRxPadCopyListener() {
     setSurgeriesData,
     setFollowUpDate,
     setAdditionalNote,
+    copyCustomModuleContentsToRxPad,
   } = React.useContext(CashManagerContext);
   const handledRequestIdRef = useRef(null);
 
@@ -296,7 +383,18 @@ function PrescriptionNewRxPadCopyListener() {
       payload.additionalNotes
     );
     toArray(additionalNotes).forEach((item) => appendFollowUpNote(setAdditionalNote, item));
+
+    const copiedModuleContents = firstNonEmpty(
+      digitization.moduleContents,
+      digitization.module_contents,
+      payload.moduleContents,
+      payload.module_contents
+    );
+    if (copiedModuleContents && typeof copyCustomModuleContentsToRxPad === "function") {
+      copyCustomModuleContentsToRxPad(toArray(copiedModuleContents));
+    }
   }, [
+    copyCustomModuleContentsToRxPad,
     lastCopyRequest,
     setAdditionalNote,
     setAdviceData,
@@ -412,7 +510,26 @@ function PrescriptionNew() {
 
   useEffect(() => {
     dispatch(resetVitalsState());
-  }, []);
+
+    return () => {
+      dispatch(resetVitalsState());
+      dispatch(clearListVitalsToday());
+      dispatch(resetVoiceDigitization());
+      dispatch(resetOpthalForm());
+      dispatch(setLastOpthalPrescriptionData(null));
+      dispatch(setOpthalPrescriptionId(null));
+      dispatch(resetObstetricState());
+      dispatch(resetGrowthChartState());
+      dispatch(resetVaccineState());
+      dispatch(resetLabParamsState());
+      dispatch(resetDDxState());
+      dispatch(setAllUploadedDocs([]));
+      dispatch(setPatientUploadedDocs([]));
+      dispatch(clearSearchResults());
+      dispatch(clearHospitalSearchResults());
+      dispatch(clearMigrationResult());
+    };
+  }, [dispatch]);
 
   // Clear removedModuleIds for modules that are explicitly added back via Redux
   // This handles the case when a user adds a module back via "Add to Rx"
@@ -650,6 +767,51 @@ function PrescriptionNew() {
 
   const isVideoConsultAvailable = isVideoConsultAccessible && videoConsultData?.pam_status_type_appointment === 1;
   const isVideoConsultAvailableType2 = isTeleConsultEnabled && videoConsultData?.pam_status_type_appointment === 2;
+  const copyCustomModuleContentsToRxPad = useCallback((modules) => {
+    const copiedModules = toArray(modules)
+      .map(normalizeCopiedCustomModule)
+      .filter(Boolean);
+
+    if (!copiedModules.length) return;
+
+    const copiedModuleIds = new Set(copiedModules.map((module) => String(module.module_id)));
+
+    setCustomModuleContents((prevContents) =>
+      mergeCopiedCustomModules(prevContents, copiedModules)
+    );
+    setRemovedModuleIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      copiedModuleIds.forEach((moduleId) => {
+        if (next.delete(moduleId)) changed = true;
+      });
+      return changed ? next : prev;
+    });
+    setCustomizedPadRightList((prevList = []) => {
+      const existingModuleIds = new Set(
+        prevList
+          .filter((item) => item?.is_custom_module)
+          .map((item) => String(item.tmdpm_id))
+      );
+      const additions = copiedModules
+        .filter((module) => !existingModuleIds.has(String(module.module_id)))
+        .map((module) => {
+          const moduleDefinition = allAvailableModules.find(
+            (availableModule) => String(availableModule.module_id) === String(module.module_id)
+          );
+          return {
+            tmdpm_id: module.module_id,
+            tmdpm_name: moduleDefinition?.name || module.module_name || String(module.module_id),
+            tmdpm_type: "custom_module",
+            tmdpm_status: 0,
+            is_custom_module: true,
+          };
+        });
+
+      return additions.length ? [...prevList, ...additions] : prevList;
+    });
+  }, [allAvailableModules]);
+
   const contextApi = {
     patient_data,
     send_path,
@@ -685,6 +847,7 @@ function PrescriptionNew() {
     startTime,
     customModuleContents,
     setCustomModuleContents,
+    copyCustomModuleContentsToRxPad,
     pillupSwitch,
     setPillupSwitch,
     markModuleAsRemoved: (moduleId) => {

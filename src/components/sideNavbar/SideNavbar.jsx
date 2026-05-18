@@ -638,7 +638,7 @@ function buildPastVisitModuleRows(items) {
   return legacyArray(items).flatMap((module) => (
     legacyArray(module?.content).map((content, index) => {
       const details = Object.entries(content || {})
-        .filter(([, value]) => hasValue(value))
+        .filter(([key, value]) => key !== "id" && hasValue(value))
         .map(([key, value]) => `${key}: ${value}`)
         .join(" | ");
       return {
@@ -646,7 +646,21 @@ function buildPastVisitModuleRows(items) {
         detail: details,
       };
     })
-  )).filter((item) => item.label || item.detail);
+  )).filter((item) => item.detail);
+}
+
+function isPastVisitModuleContentItem(item) {
+  return Boolean(item?.module_id && Array.isArray(item?.content));
+}
+
+function getPastVisitModuleContentSource(payload = {}) {
+  const directModules = legacyArray(payload.moduleContents || payload.module_contents);
+  if (directModules.length) return directModules;
+  return legacyArray(payload.others).filter(isPastVisitModuleContentItem);
+}
+
+function getPastVisitAdditionalNotesSource(payload = {}) {
+  return legacyArray(payload.others).filter((item) => !isPastVisitModuleContentItem(item));
 }
 
 function legacyAdviceText(value) {
@@ -839,6 +853,7 @@ function buildPastVisitDigitalRx(consultation) {
       ["notes", "note", "date", "since"]
     ),
     moduleContents: buildPastVisitModuleRows(legacyConsultation.moduleContents || legacyConsultation.module_contents),
+    moduleContentsPayload: legacyArray(legacyConsultation.moduleContents || legacyConsultation.module_contents),
     advice: legacyAdviceText(legacyConsultation.advice) || legacyConsultation.visit_advice || "",
     labInvestigations: legacyVisitRows(
       legacyConsultation.investigation || legacyConsultation.investigations,
@@ -1198,10 +1213,10 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
     case "followUp":
       return rx.followUp ? { ...base, digitization: { follow_up: [rx.followUp] } } : null;
     case "moduleContents": {
-      const notes = pastVisitRows(rx.moduleContents)
-        .map((item) => [item.label, item.detail ? `(${item.detail})` : ""].filter(Boolean).join(" "))
-        .filter(Boolean);
-      return notes.length ? { ...base, digitization: { others: notes } } : null;
+      const modules = legacyArray(rx.moduleContentsPayload).filter(
+        (module) => module?.module_id && legacyArray(module?.content).length > 0
+      );
+      return modules.length ? { ...base, digitization: { moduleContents: modules } } : null;
     }
     case "vitals":
       return objectHasRenderableValue(rx.vitalsPayload)
@@ -1234,7 +1249,6 @@ function buildPastVisitAllPayload(visitItem) {
     "advice",
     "investigations",
     "additionalNotes",
-    "followUp",
     "moduleContents",
     "vaccinations",
   ].map((sectionKey) => buildPastVisitSectionPayload(visitItem, sectionKey)).filter(Boolean);
@@ -1611,6 +1625,8 @@ function buildSmartVaccineData(vaccinations) {
 function buildDigitalRx(payload) {
   const p = firstObject(payload?.payload, payload);
   const medicationPayload = toArray(p.medications || p.medicine);
+  const moduleContentPayload = getPastVisitModuleContentSource(p);
+  const additionalNotesPayload = getPastVisitAdditionalNotesSource(p);
   const vitalsPayload = firstObject(p.vitalsAndBodyComposition, p.vitals);
   const gynecPayload = firstObject(p.gyneacHistory, p.gynecHistory);
   const obstetricPayload = firstObject(p.obstetricHistory);
@@ -1632,8 +1648,9 @@ function buildDigitalRx(payload) {
     toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).length ||
     toArray(p.medicalHistory || p.medical_history).length ||
     toArray(p.surgeries).length ||
-    toArray(p.moduleContents || p.module_contents).length ||
+    moduleContentPayload.length ||
     hasValue(p.followUp) ||
+    additionalNotesPayload.length ||
     hasNativeContent;
 
   if (!hasContent) return null;
@@ -1677,9 +1694,10 @@ function buildDigitalRx(payload) {
       ["surgery_name", "name", "title", "label"],
       ["notes", "note", "date", "since"]
     ),
-    moduleContents: buildPastVisitModuleRows(p.moduleContents || p.module_contents),
+    moduleContents: buildPastVisitModuleRows(moduleContentPayload),
+    moduleContentsPayload: moduleContentPayload,
     followUp: hasValue(p.followUp) ? `After ${p.followUp}` : "",
-    additionalNotes: toArray(p.others).map((item) => (typeof item === "string" ? item : item?.notes || item?.label || "")).filter(Boolean).join(" "),
+    additionalNotes: additionalNotesPayload.map((item) => (typeof item === "string" ? item : item?.notes || item?.label || "")).filter(Boolean).join(" "),
     vitals,
     gynec,
     obstetric,
@@ -2846,7 +2864,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                   {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
                   {hasListData(rx.labInvestigations) ? <RxSection title="Investigations" icon={<RxSectionIcon src={RX_SECTION_ICONS.investigations} />} onCopy={() => handleCopySection(visitItem, "investigations", "Investigations")}><BulletList items={rx.labInvestigations} /></RxSection> : null}
                   {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
-                  {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />} onCopy={() => handleCopySection(visitItem, "followUp", "Follow Up")}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
+                  {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
                   <PastVisitNativeSections rx={rx} />
                   <PastVisitRxByLine attribution={rxByAttribution} />
                 </>
