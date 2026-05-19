@@ -3,6 +3,9 @@ import { cn } from "../../../utils";
 import { VoiceRxCanvas } from "../../../voicerx/VoiceRxCanvas";
 import { VoiceRxActiveAgent } from "../../../voicerx/VoiceRxActiveAgent";
 import { VoiceStructuredRxCard } from "../cards/action/VoiceStructuredRxCard";
+import { SoapNoteCard } from "../../../voicerx/SoapNoteCard";
+import { useDispatch } from "react-redux";
+import { updateVoiceSoap } from "../../../../../redux/voiceDigitizationSlice";
 
 class VoiceErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -48,6 +51,7 @@ export function BackFace({
   onCopyResult,
   onCopyAll,
 }) {
+  const dispatch = useDispatch();
   return (
     <div
       className={cn(
@@ -79,6 +83,15 @@ export function BackFace({
                 hideHeader={true}
               />
             }
+            soapCard={
+              <SoapNoteCard
+                status={voiceRxResult.soapStatus}
+                html={voiceRxResult.soapHtml}
+                error={voiceRxResult.soapError}
+                onChange={(html) => dispatch(updateVoiceSoap(html))}
+              />
+            }
+            soapStatus={voiceRxResult.soapStatus}
             onCopyToRx={onCopyAll}
             onBack={onBack}
             onMinimize={onMinimize}

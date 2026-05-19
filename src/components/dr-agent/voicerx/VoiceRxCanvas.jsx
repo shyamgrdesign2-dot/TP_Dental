@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download as DownloadIcon, X } from "../atoms/icons/lucide";
-import { Copy as CopyGlyph, DocumentText, InfoCircle, Microphone2 } from "iconsax-reactjs";
+import { Copy as CopyGlyph, DocumentText, InfoCircle, Microphone2, Note1 } from "iconsax-reactjs";
 import { HoverTooltip } from "../atoms/Tooltip";
 import {
   CaptionCarousel,
@@ -63,6 +63,8 @@ export function VoiceRxCanvas({
   transcript = "",
   transcriptSegments,
   emrCard,
+  soapCard,
+  soapStatus,
   inlineRecorderSlot,
   onCopyToRx,
   onBack,
@@ -73,7 +75,14 @@ export function VoiceRxCanvas({
   const canvasTitle = "Back";
   void modeLabel;
 
-  const [activeTab, setActiveTab] = useState("emr");
+  const emrReady = Boolean(emrCard);
+  const soapReady = soapStatus === "fulfilled";
+  const initialTab = useMemo(() => {
+    if (emrReady) return "emr";
+    if (soapReady) return "soap";
+    return "emr";
+  }, [emrReady, soapReady]);
+  const [activeTab, setActiveTab] = useState(initialTab);
   const transcriptCount = Array.isArray(transcriptSegments) ? transcriptSegments.length : 0;
 
   const [feedback, setFeedback] = useState({ emr: null });
@@ -235,6 +244,18 @@ export function VoiceRxCanvas({
             <DocumentText size={15} variant={activeTab === "emr" ? "Bulk" : "Linear"} color="currentColor" />
             Clinical Notes
           </button>
+          {soapCard ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab("soap")}
+              className={[
+                styles.tabBtn,
+                activeTab === "soap" ? styles.tabBtnActive : styles.tabBtnInactive
+              ].join(" ")}>
+              <Note1 size={15} variant={activeTab === "soap" ? "Bulk" : "Linear"} color="currentColor" />
+              SOAP
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -275,6 +296,12 @@ export function VoiceRxCanvas({
                 <p className={styles.transcriptEmptyText}>No transcript captured.</p>
               </div>
             )}
+          </div>
+        ) : activeTab === "soap" ? (
+          <div className={styles.emrTabContent}>
+            <div className={["vrx-cn-emr-shell relative w-full overflow-hidden rounded-[14px] bg-white", styles.emrShell].join(" ")}>
+              <div className={styles.emrShellInner}>{soapCard}</div>
+            </div>
           </div>
         ) : (
           <div className={styles.emrTabContent}>

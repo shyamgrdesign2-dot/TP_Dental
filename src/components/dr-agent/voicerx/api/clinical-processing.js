@@ -1,7 +1,7 @@
 import { buildClinicalApiHeaders, joinClinicalApiUrl } from './clinical-api';
 
 const TRANSCRIPT_TIMEOUT_MS = 10 * 60 * 1000;
-const MODULE_TIMEOUT_MS = 30 * 1000;
+export const MODULE_TIMEOUT_MS = 30 * 1000;
 const MAX_RETRIES = 3;
 
 const MODULES = {
@@ -55,7 +55,7 @@ async function fetchWithTimeout(url, options, timeoutMs) {
 	}
 }
 
-async function withRetry(operation, { retries = MAX_RETRIES, delayMs = 800 } = {}) {
+export async function withRetry(operation, { retries = MAX_RETRIES, delayMs = 800 } = {}) {
 	let lastError;
 	for (let attempt = 0; attempt <= retries; attempt += 1) {
 		try {
@@ -74,7 +74,7 @@ async function withRetry(operation, { retries = MAX_RETRIES, delayMs = 800 } = {
 	throw lastError;
 }
 
-async function postJson(path, payload, name, { timeoutMs = MODULE_TIMEOUT_MS, signal } = {}) {
+export async function postJson(path, payload, name, { timeoutMs = MODULE_TIMEOUT_MS, signal } = {}) {
 	const response = await fetchWithTimeout(joinClinicalApiUrl(path), {
 		method: 'POST',
 		headers: buildClinicalApiHeaders(),
@@ -142,14 +142,14 @@ async function getJson(path, name, { timeoutMs = MODULE_TIMEOUT_MS, signal } = {
 	return response.json();
 }
 
-function extractResultData(responseJson) {
+export function extractResultData(responseJson) {
 	return responseJson?.data?.documents?.[0]?.data ??
 		responseJson?.data?.document?.data ??
 		responseJson?.data ??
 		responseJson;
 }
 
-function buildIdentityPayload(context) {
+export function buildIdentityPayload(context) {
 	return {
 		patient_id: context.patientId,
 		doctor_id: context.doctorId,
@@ -358,4 +358,35 @@ export async function digitiseClinicalData({ context, previousContext, signal, o
 export function retryDigitization({ context, previousContext, signal, onResult }) {
 	onResult?.('digitization', { name: 'digitization', status: 'pending' });
 	return runDigitizeModule({ context, previousContext, signal, onResult });
+}
+
+function runSoapModule({ context, signal, onResult }) {
+	const cfg = MODULES.soap;
+	return withRetry(() => postJson(cfg.path, buildIdentityPayload(context), cfg.name, { timeoutMs: MODULE_TIMEOUT_MS, signal }))
+		.then((responseJson) => {
+			const result = {
+				name: cfg.tab,
+				status: 'fulfilled',
+				data: extractResultData(responseJson)
+			};
+			onResult?.(cfg.tab, result);
+			return result;
+		})
+		.catch((error) => {
+			const result = { name: cfg.tab, status: 'rejected', error: error.message };
+			onResult?.(cfg.tab, result);
+			return result;
+		});
+}
+
+export async function generateSoapNote({ context, signal, onResult }) {
+	if (!context?.patientId || !context?.doctorId || !context?.sessionId) {
+		throw new Error('Missing patient, doctor, or session id for SOAP generation.');
+	}
+	return runSoapModule({ context, signal, onResult });
+}
+
+export function retrySoap({ context, signal, onResult }) {
+	onResult?.('soap', { name: 'soap', status: 'pending' });
+	return runSoapModule({ context, signal, onResult });
 }

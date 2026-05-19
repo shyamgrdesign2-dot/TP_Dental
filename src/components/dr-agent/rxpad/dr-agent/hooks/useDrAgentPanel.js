@@ -32,12 +32,15 @@ import {
   transcriptToText as clinicalTranscriptToText,
   hasTranscriptContent as clinicalHasTranscriptContent
 } from "../../../voicerx/api/clinical-processing";
+import { generateSoapNote } from "../../../voicerx/api/soap-service";
 import { digitizationToSections } from "../../../voicerx/utils/result-formatters";
+import { soapToHtml } from "../../../voicerx/utils/soap-formatter";
 import {
   addVoiceHistoryEntry,
   beginVoiceAttempt,
   markVoiceLogCreated,
   updateVoiceClinicNotes,
+  updateVoiceSoap,
   updateVoiceDigitizeData,
 } from "../../../../../redux/voiceDigitizationSlice";
 import {
@@ -612,13 +615,20 @@ export function useDrAgentPanel({
       const finalTranscriptText = clinicalTranscriptToText(finalTranscript);
       progress?.onPhase?.("transcript_ready", { transcript: finalTranscript });
 
-      console.log("[voice-rx] quick-edit phase:", "digitising");
+      console.log("[voice-rx] quick-edit phase:", "digitising+soap (parallel)");
       progress?.onPhase?.("structuring_notes", { transcript: finalTranscript });
-      const digitizeResult = await digitiseClinicalData({
-        context,
-        previousContext: voiceRxResult?.digitization,
-        signal: abortController.signal
-      });
+      const [digitizeResult, soapResult] = await Promise.all([
+        digitiseClinicalData({
+          context,
+          previousContext: voiceRxResult?.digitization,
+          signal: abortController.signal
+        }),
+        generateSoapNote({
+          context,
+          previousContext: voiceDigitization?.soap || voiceRxResult?.soapHtml || "",
+          signal: abortController.signal
+        })
+      ]);
       digitizeCompletedAtMs = Date.now();
       if (digitizeResult?.status === "rejected") {
         const error = new Error(digitizeResult.error || "Digitisation failed.");
@@ -627,6 +637,9 @@ export function useDrAgentPanel({
       }
 
       const digitization = digitizeResult?.data ?? null;
+      const soap = soapResult?.status === "fulfilled" ? soapResult.data : null;
+      const soapError = soapResult?.status === "rejected" ? soapResult.error : null;
+      const soapHtml = soap ? soapToHtml(soap) : "";
       if (!digitization) {
         const error = new Error("Digitisation API returned no response.");
         error.phase = "digitise-data";
@@ -692,6 +705,10 @@ export function useDrAgentPanel({
           transcriptSegments,
           sections: resultSections,
           digitization,
+          soap,
+          soapHtml,
+          soapStatus: soap ? "fulfilled" : "rejected",
+          soapError,
           durationMs: (prev.durationMs ?? 0) + (meta?.durationMs ?? 0),
           structured: structuredStub,
           pendingSidebarBatch: undefined
@@ -699,6 +716,7 @@ export function useDrAgentPanel({
       });
       dispatch(updateVoiceDigitizeData(digitization));
       dispatch(updateVoiceClinicNotes(digitization));
+      if (soapHtml) dispatch(updateVoiceSoap(soapHtml));
       const clinicalCompletedAtMs = Date.now();
       uploadAndLogVoiceRx2({
         audioBlob,
@@ -895,7 +913,12 @@ export function useDrAgentPanel({
 
         await waitForButtonLoaderWindow();
 
-        console.log("[voice-rx] phase:", "digitising");
+        console.log("[voice-rx] phase:", "digitising+soap (parallel)");
+        const soapPromise = generateSoapNote({
+          context,
+          previousContext: voiceDigitization?.soap || priorVoiceResultRef.current?.soapHtml || "",
+          signal: abortController.signal
+        });
         let digitizeResult;
         try {
           digitizeResult = await digitiseClinicalData({
@@ -978,10 +1001,25 @@ export function useDrAgentPanel({
           transcriptSegments,
           sections: resultSections,
           digitization,
+          soap: null,
+          soapHtml: "",
+          soapStatus: "pending",
+          soapError: null,
           durationMs: (meta?.durationMs ?? 0) + (prior?.durationMs ?? 0),
           structured: structuredStub,
           modeLabel: voiceRxDialogChoice === "dictation_consultation" ? "Dictation Mode" : "Conversation Mode",
           pendingSidebarBatch: undefined
+        });
+        soapPromise.then((soapResult) => {
+          if (soapResult?.status === "fulfilled") {
+            const soapHtml = soapToHtml(soapResult.data);
+            setVoiceRxResult((prev) => prev ? { ...prev, soap: soapResult.data, soapHtml, soapStatus: "fulfilled", soapError: null } : prev);
+            if (soapHtml) dispatch(updateVoiceSoap(soapHtml));
+          } else {
+            setVoiceRxResult((prev) => prev ? { ...prev, soap: null, soapHtml: "", soapStatus: "rejected", soapError: soapResult?.error || "SOAP generation failed." } : prev);
+          }
+        }).catch((err) => {
+          setVoiceRxResult((prev) => prev ? { ...prev, soap: null, soapHtml: "", soapStatus: "rejected", soapError: err?.message || "SOAP generation failed." } : prev);
         });
         dispatch(updateVoiceDigitizeData(digitization));
         dispatch(updateVoiceClinicNotes(digitization));

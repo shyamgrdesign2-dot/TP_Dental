@@ -11,6 +11,7 @@ const initialState = {
   digitizeData: null,
   editedData: null,
   clinicNotes: {},
+  soap: "",
   recordId: null,
 };
 
@@ -36,12 +37,16 @@ const voiceDigitizationSlice = createSlice({
     updateVoiceClinicNotes: (state, action) => {
       state.clinicNotes = action.payload || {};
     },
+    updateVoiceSoap: (state, action) => {
+      state.soap = typeof action.payload === "string" ? action.payload : "";
+    },
     hydrateVoiceDigitization: (state, action) => {
       const payload = action.payload || {};
       state.history = Array.isArray(payload.history) ? payload.history : [];
       state.digitizeData = payload.digitizeData ?? null;
       state.editedData = payload.editedData ?? null;
       state.clinicNotes = payload.clinicNotes || {};
+      state.soap = typeof payload.soap === "string" ? payload.soap : "";
       state.recordId = payload._id || payload.id || state.recordId;
       state.voiceLogCreated = state.history.length > 0;
     },
@@ -60,6 +65,7 @@ export const {
   updateVoiceDigitizeData,
   updateVoiceEditedData,
   updateVoiceClinicNotes,
+  updateVoiceSoap,
   hydrateVoiceDigitization,
   resetVoiceDigitization,
 } = voiceDigitizationSlice.actions;
