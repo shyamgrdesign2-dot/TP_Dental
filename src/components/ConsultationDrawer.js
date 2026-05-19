@@ -3824,6 +3824,12 @@ const ConsultationDrawer = ({
           getInvestigationAndMedicine(sendInvestigationAndMedicine)
         );
         if (actionIM.meta.requestStatus === "fulfilled") {
+          const cmInvestigations = actionIM?.payload?.investigation ?? [];
+          const investigationList = cmInvestigations.map((item) => ({
+            serviceName: String(item?.investigation_name ?? "").trim(),
+            serviceCode: String(item?.service_code ?? "").trim(),
+          }));
+
           let zydusSendData = {
             action: tcmId == 0 ? "add" : "edit",
             tcmId: action?.payload?.tcm_id,
@@ -3835,9 +3841,7 @@ const ConsultationDrawer = ({
             doctorCode: patient_data?.employeeId,
             storeCode: storeCode,
             duplicateCheck: 1,
-            investigationList:
-              prescriptionData?.labInvestigation?.map((item) => item.name) ||
-              [],
+            investigationList,
             medicineList:
               sanitizedMedications.map(({ name, notes }, index) => {
                 const quantityValue =

@@ -2043,6 +2043,14 @@ function TabRxHeader({
             getInvestigationAndMedicine(sendInvestigationAndMedicine),
           );
           if (actionIM.meta.requestStatus === "fulfilled") {
+            const cmInvestigations = actionIM?.payload?.investigation ?? [];
+            const investigationList = (investigationData.length > 0 ? cmInvestigations : []).map(
+              (item) => ({
+                serviceName: String(item?.investigation_name ?? "").trim(),
+                serviceCode: String(item?.service_code ?? "").trim(),
+              })
+            );
+
             window.Moengage.track_event(
               "Z_getInvestigationAndMedicine_API_Response",
               {
@@ -2082,12 +2090,7 @@ function TabRxHeader({
               doctorCode: patient_data?.employeeId,
               storeCode: storeCode, // hardcoded value
               duplicateCheck: 1, // hardcoded value
-              investigationList:
-                investigationData.length > 0
-                  ? actionIM?.payload?.investigation.map(
-                      (item) => item.investigation_name,
-                    )
-                  : [],
+              investigationList,
               medicineList:
                 medicationData.length > 0
                   ? actionIM?.payload?.medicine.map(

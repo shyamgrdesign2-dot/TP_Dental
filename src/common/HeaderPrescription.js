@@ -1768,6 +1768,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     }
                     const actionIM = await dispatch(getInvestigationAndMedicine(sendInvestigationAndMedicine))
                     if (actionIM.meta.requestStatus === "fulfilled") {
+                        const cmInvestigations = actionIM?.payload?.investigation ?? [];
+                        const investigationList = (investigationData.length > 0 ? cmInvestigations : []).map(
+                            (item) => ({
+                                serviceName: String(item?.investigation_name ?? "").trim(),
+                                serviceCode: String(item?.service_code ?? "").trim(),
+                            })
+                        );
 
                         window.Moengage.track_event("Z_getInvestigationAndMedicine_API_Response", {
                             clinic_name,
@@ -1788,7 +1795,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             "doctorCode": patient_data?.employeeId,
                             "storeCode": storeCode, // hardcoded value
                             "duplicateCheck": 1, // hardcoded value
-                            "investigationList": investigationData.length > 0 ? actionIM?.payload?.investigation.map(item => item.investigation_name) : [],
+                            "investigationList": investigationList,
                             "medicineList": medicationData.length > 0 ? actionIM?.payload?.medicine.map(({ tmm_medicine_name, display_qty, tmm_remarks }) => ({ name: tmm_medicine_name, quantity:display_qty, instruction: tmm_remarks })) : [],
                             "pillupSwitch": isPillUpAccessableFromGB && pillupSwitch ? 1 : 0
                         }
