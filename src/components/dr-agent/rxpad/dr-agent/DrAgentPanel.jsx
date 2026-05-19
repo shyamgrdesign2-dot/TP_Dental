@@ -17,6 +17,18 @@ import { FooterBar } from "./shell/FooterBar";
 import { VOICE_RX_CONSULT_OPTIONS } from "./constants";
 import { useDrAgentPanel } from "./hooks/useDrAgentPanel";
 
+function isVitalsCopyPayload(payload) {
+  const digitization = payload?.digitization;
+  return Boolean(
+    digitization?.vitals_and_body_composition ||
+    digitization?.vitalsAndBodyComposition ||
+    digitization?.vitals ||
+    payload?.vitals_and_body_composition ||
+    payload?.vitalsAndBodyComposition ||
+    payload?.vitals
+  );
+}
+
 export function DrAgentPanel({
   onClose,
   onOpen,
@@ -298,7 +310,7 @@ export function DrAgentPanel({
           onAddDetailsByVoice={beginVoiceAddOn}
           onQuickEditSubmit={submitQuickEdit}
           onCopyResult={(payload) => runCopyWithAura(payload, {
-            onAfterCopy: () => toast.success("Copied to RxPad")
+            onAfterCopy: isVitalsCopyPayload(payload) ? undefined : () => toast.success("Copied to RxPad")
           })}
           onCopyAll={() => {
             if (!voiceRxResult) return;

@@ -8,7 +8,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_OPTHAL_MODULE } from "../utils/constants";
 
-import { clearListVitalsToday, getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
+import { addUpdateVitals, clearListVitalsToday, getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
   getPatientLastHistory,
   listPrivateNotes,
@@ -46,6 +46,16 @@ import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails, resetObstetricState } from "../redux/obstetricSlice";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
+import {
+  findLatestVitalsRowIndexForDate,
+  getCopiedVitalsObject,
+  getVitalsRowDate,
+  hasMatchingVitalsRow,
+  moveCopiedVitalsRowToEnd,
+  normalizeCopiedVitalsRow,
+  normalizeVitalsInputRow,
+  vitalsRowHasCapturedData,
+} from "../utils/vitalsHelpers";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import {
@@ -152,6 +162,7 @@ import {
   useRxPadSync,
 } from "../components/dr-agent/rxpad/dr-agent/RxPadSyncContext";
 import { normalizeModuleRows } from "../components/dr-agent/voicerx/VoiceRxModuleCapture";
+import { toast } from "../components/dr-agent/voicerx/toast";
 import { hydrateVoiceDigitization, resetVoiceDigitization } from "../redux/voiceDigitizationSlice";
 import { convertMedicalHistoryToContextFormat } from "../utils/medicalHistoryConverters";
 import drAgentStyles from "../components/dr-agent/rxpad/dr-agent/PrescriptionNew.module.scss";
@@ -188,13 +199,30 @@ function toArray(value) {
   return [value];
 }
 
-function parseFollowUpDate(value) {
+function parseFollowUpDate(value, baseDate) {
   const text = String(value ?? "").trim();
   if (!text) return "";
   const iso = moment(text, moment.ISO_8601, true);
   if (iso.isValid()) return iso.format("YYYY-MM-DD");
   const parsed = moment(text, FOLLOW_UP_DATE_FORMATS, true);
-  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
+  if (parsed.isValid()) return parsed.format("YYYY-MM-DD");
+
+  const relativeDateMatch = text.match(/(\d+)\s*(day|days|week|weeks|month|months|year|years)/i);
+  if (!relativeDateMatch) return "";
+
+  const amount = parseInt(relativeDateMatch[1], 10);
+  if (!Number.isFinite(amount)) return "";
+
+  const unitText = relativeDateMatch[2].toLowerCase();
+  const unit = unitText.includes("year")
+    ? "years"
+    : unitText.includes("month")
+      ? "months"
+      : unitText.includes("week")
+        ? "weeks"
+        : "days";
+  const base = moment(baseDate).isValid() ? moment(baseDate) : moment();
+  return base.clone().add(amount, unit).format("YYYY-MM-DD");
 }
 
 function appendFollowUpNote(setAdditionalNote, value) {
@@ -283,8 +311,15 @@ function mergeCopiedCustomModules(prevContents = [], copiedModules = []) {
 }
 
 function PrescriptionNewRxPadCopyListener() {
-  const { lastCopyRequest } = useRxPadSync();
+  const { lastCopyRequest, publishSignal } = useRxPadSync();
+  const dispatch = useDispatch();
+  const { selectedVitalsList, patientBirthWeight } = useSelector((state) => state.vitals);
   const {
+    patient_data,
+    pamId,
+    consultationDate,
+    vitalsData,
+    setVitalsData,
     setSymptomsData,
     setExaminationData,
     setDiagnosisData,
@@ -351,6 +386,93 @@ function PrescriptionNewRxPadCopyListener() {
       normalizeModuleRows({ advice: toArray(advice) }, "advice")
     );
 
+    const copiedVitals = firstNonEmpty(
+      digitization.vitals_and_body_composition,
+      digitization.vitalsAndBodyComposition,
+      digitization.vitals,
+      payload.vitals_and_body_composition,
+      payload.vitalsAndBodyComposition,
+      payload.vitals
+    );
+    const copiedVitalsObject = getCopiedVitalsObject(copiedVitals);
+    if (copiedVitalsObject && patient_data?.patient_unique_id) {
+      const today = moment().format("YYYY-MM-DD");
+      const isIndividualVitalsCopy = payload.vitalsCopyMode === "item" && !lastCopyRequest.isBulk;
+      const modalRows = Array.isArray(vitalsData) ? vitalsData : [];
+      const normalizedModalRows = modalRows.map((row) => normalizeVitalsInputRow(row, patient_data));
+      const modalHasVitalsData = normalizedModalRows.some(vitalsRowHasCapturedData);
+      const existingRows = Array.isArray(selectedVitalsList) && selectedVitalsList.length
+        ? selectedVitalsList
+        : modalRows;
+      const normalizedExistingRows = existingRows.map((row) => normalizeVitalsInputRow(row, patient_data));
+      const editTargetIndex = isIndividualVitalsCopy && modalHasVitalsData
+        ? findLatestVitalsRowIndexForDate(normalizedExistingRows, today)
+        : -1;
+      const editTargetRow = editTargetIndex >= 0 ? normalizedExistingRows[editTargetIndex] : {};
+      const copiedVitalsRow = editTargetIndex >= 0
+        ? normalizeCopiedVitalsRow(
+          { ...copiedVitalsObject, date: getVitalsRowDate(editTargetRow) || today },
+          editTargetRow,
+          patient_data
+        )
+        : normalizeCopiedVitalsRow(
+          { ...copiedVitalsObject, date: today, tcv_id: 0, tcbc_id: 0, dev_unique_id: 0 },
+          {},
+          patient_data
+        );
+
+      if (copiedVitalsRow) {
+        const shouldCreateNewVitalsRow = editTargetIndex < 0;
+        const isDuplicateVitalsRow = shouldCreateNewVitalsRow &&
+          hasMatchingVitalsRow(normalizedExistingRows, copiedVitalsRow);
+
+        if (isDuplicateVitalsRow) {
+          if (!lastCopyRequest.isBulk) {
+            toast.success("Copied to RxPad");
+          }
+        } else {
+          const nextVitalsRows = shouldCreateNewVitalsRow
+            ? [...normalizedExistingRows, copiedVitalsRow]
+            : normalizedExistingRows.map((row, index) => (index === editTargetIndex ? copiedVitalsRow : row));
+
+          publishSignal?.({ type: "vitals_copy_status", status: "pending" });
+          const saveCopiedVitals = async () => {
+            const action = await dispatch(addUpdateVitals({
+              patient_unique_id: patient_data.patient_unique_id,
+              pm_pid: patient_data.pm_pid ?? 0,
+              pm_id: patient_data.pm_id ?? 0,
+              pam_id: patient_data.pam_id ?? pamId ?? 0,
+              patient_birth_weight: patientBirthWeight || vitalsData?.[0]?.patient_birth_weight || "",
+              data: nextVitalsRows,
+            }));
+
+            if (action.meta.requestStatus === "fulfilled") {
+              const savedVitalsRows = Array.isArray(action.payload) && action.payload.length
+                ? action.payload
+                : nextVitalsRows;
+              const normalizedSavedVitalsRows = savedVitalsRows.map((row) => normalizeVitalsInputRow(row, patient_data));
+              const displayVitalsRows = shouldCreateNewVitalsRow
+                ? moveCopiedVitalsRowToEnd(normalizedSavedVitalsRows, copiedVitalsRow)
+                : normalizedSavedVitalsRows;
+              setVitalsData?.(displayVitalsRows);
+              publishSignal?.({ type: "vitals_copy_status", status: "done" });
+              if (!lastCopyRequest.isBulk) {
+                toast.success("Copied to RxPad");
+              }
+            } else {
+              publishSignal?.({ type: "vitals_copy_status", status: "error" });
+              errorMessage(action.error?.message || "Failed to save vitals");
+            }
+          };
+
+          saveCopiedVitals().catch((error) => {
+            publishSignal?.({ type: "vitals_copy_status", status: "error" });
+            errorMessage(error?.message || "Failed to save vitals");
+          });
+        }
+      }
+    }
+
     const medicalHistory = firstNonEmpty(
       digitization.medical_history,
       digitization.medicalHistory,
@@ -369,7 +491,7 @@ function PrescriptionNewRxPadCopyListener() {
 
     const followUp = firstNonEmpty(digitization.follow_up, digitization.followUp, payload.followUp);
     toArray(followUp).forEach((item) => {
-      const parsedDate = parseFollowUpDate(item);
+      const parsedDate = parseFollowUpDate(item, consultationDate);
       if (parsedDate) {
         setFollowUpDate(parsedDate);
       } else {
@@ -395,7 +517,14 @@ function PrescriptionNewRxPadCopyListener() {
     }
   }, [
     copyCustomModuleContentsToRxPad,
+    consultationDate,
+    dispatch,
     lastCopyRequest,
+    pamId,
+    patientBirthWeight,
+    patient_data,
+    publishSignal,
+    selectedVitalsList,
     setAdditionalNote,
     setAdviceData,
     setDiagnosisData,
@@ -406,6 +535,8 @@ function PrescriptionNewRxPadCopyListener() {
     setMedicationData,
     setSurgeriesData,
     setSymptomsData,
+    setVitalsData,
+    vitalsData,
   ]);
 
   return null;
@@ -1324,11 +1455,7 @@ function PrescriptionNew() {
       ) {
         if (tcmId !== 0) {
           const updatedData = caseManagerData.vitals.map((e, i) => {
-            return {
-              ...e,
-              systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-              diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-            };
+            return normalizeVitalsInputRow(e, patient_data);
           });
           setVitalsData(updatedData);
         }
@@ -1672,15 +1799,11 @@ function PrescriptionNew() {
   useEffect(() => {
     if (caseManagerData === undefined || tcmId === 0) {
       const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
+        return normalizeVitalsInputRow(e, patient_data);
       });
       setVitalsData(updatedData);
     }
-  }, [selectedVitalsList]);
+  }, [selectedVitalsList, patient_data]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {

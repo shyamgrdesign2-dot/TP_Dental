@@ -7,6 +7,7 @@ import { ActionableTooltip } from "../ActionableTooltip";
 import { SectionSummaryBar } from "../SectionSummaryBar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../../atoms/Tooltip";
 import { DocumentText } from "iconsax-reactjs";
+import { pickVitalsRowForLabel } from "../../../../../../utils/vitalsHelpers";
 import styles from "./VoiceStructuredRxCard.module.scss";
 
 /** Format a VoiceRxItem to a plain text string for clipboard copy */
@@ -21,6 +22,10 @@ function field(data, camelKey, snakeKey) {
 
 function sectionDigitizationKey(sectionId) {
   switch (sectionId) {
+    case "vitals":
+    case "vitalsAndBodyComposition":
+    case "vitals_and_body_composition":
+      return "vitals_and_body_composition";
     case "symptoms":
       return "symptoms";
     case "examination":
@@ -57,9 +62,22 @@ function isMedicalHistorySection(sectionId) {
   return ["medicalHistory", "medical_history", "medical-history"].includes(sectionId);
 }
 
+function isVitalsSection(sectionId) {
+  return ["vitals", "vitalsAndBodyComposition", "vitals_and_body_composition"].includes(sectionId);
+}
+
+function getVitalsItemLabel(item) {
+  const text = formatVoiceItem(item);
+  return String(text || "").split(":")[0]?.trim().toLowerCase() || "";
+}
+
 function getSectionDigitizationRows(digitization, sectionId) {
   const key = sectionDigitizationKey(sectionId);
   if (!digitization || !key) return null;
+  if (key === "vitals_and_body_composition") {
+    const vitals = field(digitization, "vitalsAndBodyComposition", "vitals_and_body_composition") ?? digitization.vitals;
+    return vitals && typeof vitals === "object" ? [vitals] : null;
+  }
   if (key === "lab_investigation") {
     return field(digitization, "labInvestigation", "lab_investigation") ?? null;
   }
@@ -77,18 +95,23 @@ function getSectionDigitizationRows(digitization, sectionId) {
  * Build a minimal RxPadCopyPayload for a single item (or list of items)
  * scoped to one section.
  */
-function buildSectionPayload(sectionId, items, rawRows) {
+function buildSectionPayload(sectionId, items, rawRows, options = {}) {
   const digitizationKey = sectionDigitizationKey(sectionId);
   const sideNavSignal = isMedicalHistorySection(sectionId)
     ? { sideNavSignalTarget: "history", sideNavSignalMode: "focused" }
-    : {};
+    : isVitalsSection(sectionId)
+      ? { sideNavSignalTarget: "vitals", sideNavSignalMode: "focused" }
+      : {};
   if (digitizationKey && rawRows?.length) {
     return {
       sourceDateLabel: "Voice consult",
       targetSection: "rxpad",
       ...sideNavSignal,
+      ...(digitizationKey === "vitals_and_body_composition" && options.vitalsCopyMode
+        ? { vitalsCopyMode: options.vitalsCopyMode }
+        : {}),
       digitization: {
-        [digitizationKey]: rawRows,
+        [digitizationKey]: digitizationKey === "vitals_and_body_composition" ? rawRows[0] : rawRows,
       },
     };
   }
@@ -160,7 +183,8 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
 
   const handleCopyItem = (sectionId, item, key, rawRow) => {
     safeClipboardWrite(formatVoiceItem(item));
-    onCopy?.(buildSectionPayload(sectionId, [item], rawRow ? [rawRow] : null));
+    const payloadRow = isVitalsSection(sectionId) ? pickVitalsRowForLabel(rawRow, getVitalsItemLabel(item)) : rawRow;
+    onCopy?.(buildSectionPayload(sectionId, [item], payloadRow ? [payloadRow] : null, { vitalsCopyMode: "item" }));
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 1500);
   };
@@ -168,7 +192,7 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
   const handleCopySection = (sectionId, items, rawRows) => {
     const text = items.map(formatVoiceItem).join("\n");
     safeClipboardWrite(text);
-    onCopy?.(buildSectionPayload(sectionId, items, rawRows));
+    onCopy?.(buildSectionPayload(sectionId, items, rawRows, { vitalsCopyMode: "section" }));
     setCopiedKey(`section-${sectionId}`);
     setTimeout(() => setCopiedKey(null), 1500);
   };
@@ -238,7 +262,9 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
             {section.items.map((item, idx) => {
               const itemKey = `${section.sectionId}-${idx}`;
               const rawRows = getSectionDigitizationRows(data.copyAllPayload?.digitization, section.sectionId);
-              const rawRow = Array.isArray(rawRows) ? rawRows[idx] : null;
+              const rawRow = sectionDigitizationKey(section.sectionId) === "vitals_and_body_composition"
+                ? rawRows?.[0]
+                : (Array.isArray(rawRows) ? rawRows[idx] : null);
               return (
                 <li key={idx} className={styles.item}>
                   <span className={styles.bullet}>•</span>

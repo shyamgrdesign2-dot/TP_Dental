@@ -52,6 +52,7 @@ import {
   tagsAreDuplicateForHistoryMerge,
 } from "../../utils/medicalHistoryUtils";
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
+import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import "./sideNavbar.css";
@@ -127,7 +128,7 @@ const SIDE_NAV_MODULE_NAMES = {
 };
 
 const SIDE_NAV_SUPPORTED_VOICE_SECTIONS = new Set(Object.keys(SIDE_NAV_MODULE_NAMES));
-const SIDE_NAV_SIGNAL_SECTIONS = new Set(["history", "gynec", "obstetric"]);
+const SIDE_NAV_SIGNAL_SECTIONS = new Set(["vitals", "history", "gynec", "obstetric"]);
 const SIDE_NAV_PRIVATE_NOTES_SECTION = "personalNotes";
 const SIDE_NAV_MODULE_ENDPOINT = "/agents/module";
 const SIDE_NAV_SHINER_DELAY_MS = 5000;
@@ -283,34 +284,22 @@ function buildLegacyVitalRows(item, isPediatricAccessable) {
   return rows;
 }
 
-function getLegacyVitalItemDate(item) {
-  return item?.date || item?.createdAt || item?.created_at || item?.bodyCreatedAt;
-}
-
-function mergeLegacyVitalItems(current = {}, next = {}) {
-  const merged = { ...current };
-  Object.entries(next || {}).forEach(([key, value]) => {
-    if (key === "tcv_id" || key === "tcbc_id" || key === "dev_unique_id") {
-      if (legacyVitalHasValue(value) && (!legacyVitalHasValue(merged[key]) || String(merged[key]) === "0")) {
-        merged[key] = value;
-      }
-      return;
-    }
-    if (!legacyVitalHasValue(merged[key]) && legacyVitalHasValue(value)) {
-      merged[key] = value;
-    }
-  });
-  return merged;
-}
-
 function sortLegacyVitalEntriesByDate(entries = []) {
   return [...entries].sort((a, b) => {
     const aDate = moment(a.sortDate);
     const bDate = moment(b.sortDate);
-    if (aDate.isValid() && bDate.isValid()) return bDate.valueOf() - aDate.valueOf();
+    if (aDate.isValid() && bDate.isValid()) {
+      const dateDiff = bDate.valueOf() - aDate.valueOf();
+      if (dateDiff !== 0) return dateDiff;
+      const aSortId = getVitalsRowSortId(a.item);
+      const bSortId = getVitalsRowSortId(b.item);
+      const idDiff = bSortId - aSortId;
+      if (aSortId > 0 && bSortId > 0 && idDiff !== 0) return idDiff;
+      return (b.sourceIndex ?? b.index ?? 0) - (a.sourceIndex ?? a.index ?? 0);
+    }
     if (aDate.isValid()) return -1;
     if (bDate.isValid()) return 1;
-    return 0;
+    return (b.sourceIndex ?? b.index ?? 0) - (a.sourceIndex ?? a.index ?? 0);
   });
 }
 
@@ -322,23 +311,18 @@ function buildLegacyVitalsEntries({
   isPediatricAccessable,
 }) {
   const entries = [];
-  const groupedVitals = new Map();
   const birthWeight = vitalsData?.[0]?.patient_birth_weight || patientBirthWeight;
 
-  const collectVitalItem = (item, index, source) => {
+  const collectVitalItem = (item, index, source, sourceIndex) => {
     const rows = buildLegacyVitalRows(item, isPediatricAccessable);
     if (!rows.length) return;
-    const itemDate = getLegacyVitalItemDate(item);
-    const dateKey = normalizeSideNavDateKey(itemDate);
-    const entryKey = dateKey
-      ? `date:${dateKey}`
-      : `id:${item?.tcv_id || item?.tcbc_id || item?.dev_unique_id || item?.pam_id || `${source}-${index}`}`;
-    const current = groupedVitals.get(entryKey);
-    groupedVitals.set(entryKey, {
+    const itemDate = getVitalsRowDate(item);
+    entries.push({
       source,
       index,
-      item: mergeLegacyVitalItems(current?.item, item),
-      sortDate: current?.sortDate || itemDate,
+      sourceIndex,
+      item,
+      sortDate: itemDate,
     });
   };
 
@@ -355,24 +339,26 @@ function buildLegacyVitalsEntries({
   }
 
   vitalsData.forEach((item, index) => {
-    collectVitalItem(item, index, "today");
+    collectVitalItem(item, index, "today", index);
   });
 
   vitalsPastList.forEach((item, index) => {
-    collectVitalItem(item, index, "past");
+    collectVitalItem(item, index, "past", vitalsData.length + index);
   });
 
-  sortLegacyVitalEntriesByDate(Array.from(groupedVitals.values())).forEach(({ item, index, source, sortDate }) => {
-    const rows = buildLegacyVitalRows(item, isPediatricAccessable);
-    if (!rows.length) return;
-    entries.push({
-      id: `legacy-vitals-${source}-${item?.tcv_id || item?.tcbc_id || item?.dev_unique_id || sortDate || index}`,
-      dateLabel: formatLegacyVitalDate(sortDate),
-      rows,
-    });
-  });
-
-  return entries;
+  return [
+    ...entries.filter((entry) => entry.id === "legacy-vitals-birth-weight"),
+    ...sortLegacyVitalEntriesByDate(entries.filter((entry) => entry.id !== "legacy-vitals-birth-weight"))
+      .map(({ item, index, source, sortDate }) => {
+        const rows = buildLegacyVitalRows(item, isPediatricAccessable);
+        return {
+          id: `legacy-vitals-${source}-${item?.tcv_id || item?.tcbc_id || item?.dev_unique_id || item?.pam_id || sortDate || index}-${index}`,
+          dateLabel: formatLegacyVitalDate(sortDate),
+          rows,
+        };
+      })
+      .filter((entry) => entry.rows.length),
+  ];
 }
 
 function legacyHistoryHasValue(value) {
@@ -717,6 +703,41 @@ function isValidMongoId(value) {
   return typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
 }
 
+function getPastVisitSmartPrescriptionFilename(...sources) {
+  return firstTextValue(
+    ...sources.filter(Boolean).flatMap((source) => [
+      source?.smart_prescription_filename,
+      source?.caseManagerData?.smart_prescription_filename,
+      source?.data?.smart_prescription_filename,
+      source?.data?.caseManagerData?.smart_prescription_filename,
+      source?.data?.data?.smart_prescription_filename,
+      source?.data?.data?.caseManagerData?.smart_prescription_filename,
+      source?.printPayload?.smart_prescription_filename,
+      source?.printPayload?.caseManagerData?.smart_prescription_filename,
+      source?.printPayload?.data?.smart_prescription_filename,
+      source?.printPayload?.data?.caseManagerData?.smart_prescription_filename,
+      source?.printPayload?.data?.data?.smart_prescription_filename,
+      source?.printPayload?.data?.data?.caseManagerData?.smart_prescription_filename,
+    ])
+  );
+}
+
+function getPastVisitRxSourceType(...sources) {
+  const smartFile = getPastVisitSmartPrescriptionFilename(...sources);
+  if (!smartFile) return "normal";
+
+  const smartFileText = smartFile.toLowerCase();
+  if (smartFileText.includes("snap_rx")) return "snapRx";
+  if (smartFileText.includes("tab_rx")) return "tabRx";
+  if (smartFileText.includes(".jpeg")) return "smartRx";
+  if (isValidMongoId(smartFile)) return "voiceRx";
+  return "normal";
+}
+
+function shouldShowPastVisitRxModeTabs(rxSourceType) {
+  return rxSourceType === "smartRx" || rxSourceType === "snapRx" || rxSourceType === "tabRx";
+}
+
 function maybeParseJsonObject(value) {
   if (isObject(value)) return value;
   if (typeof value !== "string") return null;
@@ -988,6 +1009,7 @@ function buildPastVisitEntry(consultation, detail) {
   const consultationDate = getPastVisitDate(consultation, detail);
   const detailRx = buildPastVisitDigitalRx(detail || consultation);
   const doctorAttribution = getPastVisitDoctorAttribution(detail, consultation);
+  const rxSourceType = getPastVisitRxSourceType(detail, consultation);
   const printUrl = detail?.print_url ||
     detail?.caseManagerData?.print_url ||
     detail?.data?.caseManagerData?.print_url ||
@@ -1004,6 +1026,7 @@ function buildPastVisitEntry(consultation, detail) {
     dateLabel: formatPastVisitDate(consultationDate),
     digitalRx: detailRx,
     doctorAttribution,
+    rxSourceType,
     hasTranscript: showTranscript,
     transcriptBlocks,
     writtenRx: printUrl ? [{ id: `written-rx-${tcmId || consultationDate}`, printUrl, doctorName: detail?.doctor_data?.doctor_name || consultation?.doctor_name || "", speciality: detail?.doctor_data?.dp_name || consultation?.dp_name || "" }] : [],
@@ -1330,20 +1353,21 @@ function buildPastVisitAllPayload(visitItem) {
 }
 
 function shouldUseVoiceRxPrintPayload(detail) {
-  const smartFile = detail?.smart_prescription_filename || detail?.smartPrescriptionFilename;
+  const smartFile = getPastVisitSmartPrescriptionFilename(detail);
   return isValidMongoId(smartFile) &&
-    !String(smartFile).includes(".jpeg") &&
-    !String(smartFile).includes("snap_rx") &&
-    !String(smartFile).includes("tab_rx");
+    !String(smartFile).toLowerCase().includes(".jpeg") &&
+    !String(smartFile).toLowerCase().includes("snap_rx") &&
+    !String(smartFile).toLowerCase().includes("tab_rx");
 }
 
 function shouldUseRxDigitizePrintPayload(detail) {
-  const smartFile = String(detail?.smart_prescription_filename || detail?.smartPrescriptionFilename || "");
+  const smartFile = getPastVisitSmartPrescriptionFilename(detail);
+  const smartFileText = smartFile.toLowerCase();
   if (!smartFile) return Boolean(detail?.isRxDigitize || detail?.isRxDigitizeBool);
   if (shouldUseVoiceRxPrintPayload(detail)) return false;
-  return smartFile.includes(".jpeg") ||
-    smartFile.includes("snap_rx") ||
-    smartFile.includes("tab_rx") ||
+  return smartFileText.includes(".jpeg") ||
+    smartFileText.includes("snap_rx") ||
+    smartFileText.includes("tab_rx") ||
     Boolean(detail?.isRxDigitize || detail?.isRxDigitizeBool);
 }
 
@@ -1555,13 +1579,33 @@ function copyPayloadHasMedicalHistory(payload = {}) {
     hasSideNavPreviousContext(payload?.medicalHistory);
 }
 
-function getSideNavSignalTargetFromCopyRequest(copyRequest) {
+function copyPayloadHasVitals(payload = {}) {
+  const digitization = payload?.digitization || {};
+  return hasSideNavPreviousContext(digitization.vitals_and_body_composition) ||
+    hasSideNavPreviousContext(digitization.vitalsAndBodyComposition) ||
+    hasSideNavPreviousContext(digitization.vitals) ||
+    hasSideNavPreviousContext(payload?.vitals_and_body_composition) ||
+    hasSideNavPreviousContext(payload?.vitalsAndBodyComposition) ||
+    hasSideNavPreviousContext(payload?.vitals);
+}
+
+function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
   const payload = copyRequest?.payload || {};
   const explicitTarget = payload.sideNavSignalTarget;
-  if (SIDE_NAV_SIGNAL_SECTIONS.has(explicitTarget) && copyPayloadHasMedicalHistory(payload)) {
-    return explicitTarget;
+  const hasVitals = copyPayloadHasVitals(payload);
+  const hasMedicalHistory = copyPayloadHasMedicalHistory(payload);
+
+  if (explicitTarget === "vitals" && hasVitals) {
+    return [explicitTarget];
   }
-  return copyPayloadHasMedicalHistory(payload) ? "history" : null;
+  if (SIDE_NAV_SIGNAL_SECTIONS.has(explicitTarget) && hasMedicalHistory) {
+    return [explicitTarget];
+  }
+
+  const targets = [];
+  if (hasMedicalHistory) targets.push("history");
+  if (hasVitals) targets.push("vitals");
+  return targets;
 }
 
 function valueText(values) {
@@ -2557,6 +2601,7 @@ function PastVisitCopyAffordance({ onClick, label = "Copy to RxPad" }) {
       type="button"
       className="snv-copy-btn"
       aria-label={label}
+      title={label}
       onClick={(event) => {
         event.stopPropagation();
         onClick?.();
@@ -2778,6 +2823,16 @@ function LoadMoreRowsShimmer({ label = "Loading more" }) {
   );
 }
 
+function VitalsUpdatingShimmer() {
+  return (
+    <div className="snv-vitals-update-shimmer" aria-label="Updating vitals" role="status">
+      <span className="snv-shimmer-block snv-vitals-update-title" />
+      <span className="snv-shimmer-block snv-vitals-update-row" />
+      <span className="snv-shimmer-block snv-vitals-update-row snv-vitals-update-row-short" />
+    </div>
+  );
+}
+
 function LoadMoreButton({ onClick, disabled = false }) {
   return (
     <button type="button" className="snv-load-more-btn" onClick={onClick} disabled={disabled}>
@@ -2949,7 +3004,8 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
       ) : (
         visibleVisits.map((visitItem) => {
           const expanded = Boolean(expandedById[visitItem.id]);
-          const mode = visitItem.hasTranscript ? "digital" : modeByVisit[visitItem.id] || "digital";
+          const showRxModeTabs = shouldShowPastVisitRxModeTabs(visitItem.rxSourceType);
+          const mode = showRxModeTabs ? modeByVisit[visitItem.id] || "digital" : "digital";
           const rx = visitItem.digitalRx;
           const rxByAttribution = rx?.doctorAttribution || visitItem.doctorAttribution;
           const canCopyVisit = Boolean(visitItem.detailLoaded && buildPastVisitAllPayload(visitItem));
@@ -2965,7 +3021,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
               onToggle={() => handleVisitToggle(visitItem, expanded)}
               onCopy={canCopyVisit ? () => handleCopyVisit(visitItem) : undefined}
             >
-              {!visitItem.hasTranscript ? (
+              {showRxModeTabs ? (
                 <div className="snv-segmented">
                   <button
                     type="button"
@@ -2986,8 +3042,6 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
               {mode === "written" ? (
                 visitItem.detailLoading ? (
                   <WrittenRxShimmer />
-                ) : visitItem.hasTranscript ? (
-                  <TranscriptContent blocks={visitItem.transcriptBlocks || []} />
                 ) : (
                   <WrittenRxContent docs={visitItem.writtenRx || []} />
                 )
@@ -3116,28 +3170,6 @@ function WrittenRxContent({ docs = [] }) {
   );
 }
 
-function TranscriptContent({ blocks = [] }) {
-  if (!blocks.length) return <div className="snv-empty-state">No transcript available.</div>;
-  return (
-    <div className="snv-transcript-list">
-      {blocks.map((block) => (
-        <div key={block.id} className="snv-transcript-block">
-          {block.type === "conversation" ? (
-            block.items.map((item) => (
-              <div key={item.id} className="snv-transcript-line">
-                {item.speaker ? <span className="snv-transcript-speaker">{item.speaker}: </span> : null}
-                <span>{item.text}</span>
-              </div>
-            ))
-          ) : (
-            <div className="snv-transcript-text">{block.text}</div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function DirectionArrow({ direction }) {
   return (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={`snv-kv-arrow snv-kv-arrow-${direction}`}>
@@ -3179,7 +3211,7 @@ function DateEntryCard({ entry, expanded, onToggle }) {
   );
 }
 
-function DateRowsContent({ entries = [] }) {
+function DateRowsContent({ entries = [], updating = false }) {
   const firstEntryId = entries[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstEntryId));
   const [visibleCount, setVisibleCount] = useState(SIDE_NAV_BATCH_SIZE);
@@ -3217,7 +3249,8 @@ function DateRowsContent({ entries = [] }) {
 
   return (
     <div className={`snv-content-scroll ${showLoadMoreFooter ? "snv-content-scroll-has-load-more" : ""}`} data-snv-scroll-root="true">
-      {entries.length === 0 ? (
+      {updating ? <VitalsUpdatingShimmer /> : null}
+      {entries.length === 0 && !updating ? (
         <div className="snv-empty-state">No data recorded.</div>
       ) : (
         visibleEntries.map((entry) => {
@@ -4418,7 +4451,7 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating }) {
   switch (activeId) {
     case "pastVisits":
       return (
@@ -4432,7 +4465,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
         />
       );
     case "vitals":
-      return <DateRowsContent entries={viewData.vitals} />;
+      return <DateRowsContent entries={viewData.vitals} updating={vitalsUpdating} />;
     case "history":
       return <HistoryContent sections={viewData.history} />;
     case "labResults":
@@ -4509,7 +4542,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -4564,6 +4597,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           privateNotesVoiceDisabled={privateNotesVoiceDisabled}
           onCopyPayload={onCopyPayload}
           showVoiceRx={showVoiceRx}
+          vitalsUpdating={vitalsUpdating}
         />
       </div>
       {showVoiceRx && voiceRecorderVisible && (
@@ -4614,8 +4648,9 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
-  const { activeVoiceModule, runCopyWithAura, lastCopyRequest } = useRxPadSync();
+  const { activeVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
   const [sideNavSignals, setSideNavSignals] = useState({});
+  const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
   const [pastVisitRows, setPastVisitRows] = useState([]);
   const [pastVisitDetails, setPastVisitDetails] = useState({});
@@ -4631,6 +4666,7 @@ export function SideNavbar({
   const [growthParentalDetails, setGrowthParentalDetails] = useState(null);
   const vaccineRequestRef = useRef(0);
   const handledSideNavSignalCopyRef = useRef(null);
+  const handledVitalsCopySignalRef = useRef(null);
   const opthalRequestRef = useRef(0);
   const growthRequestRef = useRef(0);
   const pastVisitsRequestRef = useRef(0);
@@ -5007,17 +5043,14 @@ export function SideNavbar({
   const actionLabels = useMemo(() => ({
     vitals: "Add/Edit Details",
     history: "Add/Edit Details",
-    labResults: labParamsDataProp?.length > 0 ? "View All" : "Add/Edit Details",
-    medicalRecords: allUploadedDocs.length > 0 ? "View All" : "Add/Edit Details",
+    labResults: "Add/Edit Details",
+    medicalRecords: "Add/Edit Details",
     gynec: "Add/Edit Details",
     obstetric: "Add/Edit Details",
     vaccine: "Add/Edit Details",
     optal: "Add/Edit Details",
     growth: "Add/Edit Details",
-  }), [
-    allUploadedDocs.length,
-    labParamsDataProp?.length,
-  ]);
+  }), []);
 
   const actionHidePlusIcons = useMemo(() => ({
     labResults: labParamsDataProp?.length > 0,
@@ -5102,22 +5135,31 @@ export function SideNavbar({
     if (!lastCopyRequest || handledSideNavSignalCopyRef.current === lastCopyRequest.id) return;
     handledSideNavSignalCopyRef.current = lastCopyRequest.id;
 
-    const signalTarget = getSideNavSignalTargetFromCopyRequest(lastCopyRequest);
-    if (!signalTarget) return;
+    const signalTargets = getSideNavSignalTargetsFromCopyRequest(lastCopyRequest);
+    if (!signalTargets.length) return;
 
-    triggerSideNavSignal(signalTarget);
-    if (signalTarget === activeId) {
-      clearSideNavSignal(signalTarget);
-      return;
-    }
+    signalTargets.forEach(triggerSideNavSignal);
+    signalTargets.forEach((signalTarget) => {
+      if (signalTarget === activeId) {
+        clearSideNavSignal(signalTarget);
+      }
+    });
     const payload = lastCopyRequest.payload || {};
+    const focusedSignalTarget = signalTargets.find((signalTarget) => payload.sideNavSignalTarget === signalTarget);
     const shouldAutoOpen = !lastCopyRequest.isBulk &&
-      payload.sideNavSignalTarget === signalTarget &&
+      focusedSignalTarget &&
       payload.sideNavSignalMode === "focused";
     if (shouldAutoOpen) {
-      setActiveSection(signalTarget, null);
+      setActiveSection(focusedSignalTarget, null);
     }
   }, [activeId, clearSideNavSignal, lastCopyRequest, setActiveSection, triggerSideNavSignal]);
+
+  useEffect(() => {
+    if (!lastSignal || handledVitalsCopySignalRef.current === lastSignal.id) return;
+    handledVitalsCopySignalRef.current = lastSignal.id;
+    if (lastSignal.type !== "vitals_copy_status") return;
+    setVitalsCopyUpdating(lastSignal.status === "pending");
+  }, [lastSignal]);
 
   useEffect(() => {
     if (SIDE_NAV_SIGNAL_SECTIONS.has(activeId)) {
@@ -5321,6 +5363,7 @@ export function SideNavbar({
           voiceEnabled={showVoiceRx && SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
           voiceLocked={!!activeVoiceModule}
           showVoiceRx={showVoiceRx}
+          vitalsUpdating={vitalsCopyUpdating}
         />
       ) : null}
     </aside>
