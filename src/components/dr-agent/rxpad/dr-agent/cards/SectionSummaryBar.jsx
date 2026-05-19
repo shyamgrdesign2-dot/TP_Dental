@@ -4,6 +4,7 @@ import { ASSETS } from "../../../../../assets";
 import styles from "./SectionSummaryBar.module.scss";
 
 const SECTION_ICON_SRC = {
+  vitals: ASSETS.images.vitals,
   symptoms: ASSETS.images.symptoms,
   symptom: ASSETS.images.symptoms,
   examination: ASSETS.images.examination,

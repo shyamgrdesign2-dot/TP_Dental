@@ -68,7 +68,7 @@ export function digitizationToSections(data) {
 
 	const vitals = field(data, 'vitalsAndBodyComposition', 'vitals_and_body_composition');
 	const items1 = kvSectionItems(vitals);
-	if (items1.length) sections.push({ id: 'vitals', title: 'Vitals & Body Composition', items: items1 });
+	if (items1.length) sections.push({ id: 'vitals', title: 'Vitals & Body Composition', tpIconName: 'vitals', items: items1 });
 
 	const items2 = arraySectionItems(data.symptoms, (s) => {
 		if (typeof s === 'string') return sectionItem(s);
