@@ -131,6 +131,8 @@ const AllPatients = () => {
   const isNewIPDHosBusinessIdAccessableFromGB = useFeatureIsOn(
     GB_NEW_IPD_HOS_BUSINESS_ID
   );
+  const isZydusAccount =
+    tokenData?.hospital_business_id == env.zydus_business_id;
 
   const fileInputRef = useRef(null);
   const observer = useRef();
@@ -444,7 +446,6 @@ const AllPatients = () => {
   };
 
   const getMenuItems = (record) => {
-    const isZydusAccount = tokenData?.hospital_business_id == env.zydus_business_id;
     const menuItems = [
       {
         label: (
@@ -454,14 +455,18 @@ const AllPatients = () => {
         ),
         key: "patientdetails",
       },
-      {
-        label: (
-          <span onClick={() => onEditPatientClick(record)}>
-            Edit Patient Details
-          </span>
-        ),
-        key: "labparams",
-      },
+      ...(!isZydusAccount
+        ? [
+            {
+              label: (
+                <span onClick={() => onEditPatientClick(record)}>
+                  Edit Patient Details
+                </span>
+              ),
+              key: "labparams",
+            },
+          ]
+        : []),
       // This will be added later
       // {
       //   label: <span onClick={() => {}}>Book Appointment</span>,
@@ -1007,7 +1012,8 @@ const AllPatients = () => {
                   </>
                 </div>
                 <div className="d-flex gap-3 btn-manage-bill-all-patients">
-                  {dischargeSummery &&
+                  {!isZydusAccount &&
+                    dischargeSummery &&
                     Object.keys(dischargeSummery)?.length > 0 && (
                       <Button
                         className="btn-manage-bill"
@@ -1018,13 +1024,15 @@ const AllPatients = () => {
                         </span>
                       </Button>
                     )}
-                  <Button
-                    className="btn-create-bill gap-1"
-                    onClick={handleAddPatient}
-                    icon={<i className="icon-Add" style={{ fontSize: 20 }} />}
-                  >
-                    <span>Add New Patient</span>
-                  </Button>
+                  {!isZydusAccount && (
+                    <Button
+                      className="btn-create-bill gap-1"
+                      onClick={handleAddPatient}
+                      icon={<i className="icon-Add" style={{ fontSize: 20 }} />}
+                    >
+                      <span>Add New Patient</span>
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="pb-5">&nbsp;</div>
