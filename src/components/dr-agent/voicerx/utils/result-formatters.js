@@ -66,10 +66,6 @@ export function digitizationToSections(data) {
 	if (!data) return [];
 	const sections = [];
 
-	const patientDetails = field(data, 'patientDetails', 'patient_details');
-	const items0 = kvSectionItems(patientDetails, ['name', 'age', 'gender', 'blood_group', 'bloodGroup', 'notes']);
-	if (items0.length) sections.push({ id: 'patient-details', title: 'Patient Details', items: items0 });
-
 	const vitals = field(data, 'vitalsAndBodyComposition', 'vitals_and_body_composition');
 	const items1 = kvSectionItems(vitals);
 	if (items1.length) sections.push({ id: 'vitals', title: 'Vitals & Body Composition', items: items1 });

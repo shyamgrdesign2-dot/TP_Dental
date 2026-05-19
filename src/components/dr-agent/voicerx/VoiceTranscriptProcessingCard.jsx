@@ -36,9 +36,9 @@ function useInView(threshold = 0.2) {
 }
 
 const CAPTION_PHRASES = [
-  "Analysing your dictated content…",
-  "Structuring your transcript…",
-  "Preparing entries for review…"
+  "Analysing your dictated content",
+  "Structuring your transcript",
+  "Preparing entries for review"
 ];
 
 // ─── Transcript renderer ─────────────────────────────────────────────────────

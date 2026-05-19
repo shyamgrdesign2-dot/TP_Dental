@@ -53,7 +53,7 @@ function TabFollowUpBox() {
         sectionRef,
     } = useVoiceRxModuleCapture({
         moduleName: "Additional Notes",
-        copyPayloadKeys: ["others", "additionalNotes"],
+        copyPayloadKeys: ["follow_up", "followUp", "others", "additionalNotes", "additional_notes"],
     });
     const [followUpInput, setFollowUpInput] = useState('');
     const [saveButton, setSaveButton] = useState(false);
@@ -110,6 +110,17 @@ function TabFollowUpBox() {
         setMatchedTemplates(templates);
         setAllTemplates(templates);
     }, [templates]);
+
+    useEffect(() => {
+        if (!followUpDate) return;
+
+        const selectedFollowUpDate = moment(followUpDate);
+        if (!selectedFollowUpDate.isValid()) return;
+
+        setFollowUpInput(calculateFollowUpText(selectedFollowUpDate, moment().format(dateFormat)));
+        setSelectedDate(selectedFollowUpDate.toDate());
+        setDateOptions([]);
+    }, [followUpDate]);
 
     const onChangeFollowUp = useCallback(
         (e) => {

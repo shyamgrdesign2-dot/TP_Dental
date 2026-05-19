@@ -154,6 +154,34 @@ const VITAL_DISPLAY_FIELDS = [
   { key: "fib4", label: "FIB-4", unit: "" },
 ];
 
+const VITAL_SIGNAL_VALUE_KEYS = [
+  "temperature",
+  "temp",
+  "pulse",
+  "pres",
+  "respiratory_rate",
+  "respiratoryRate",
+  "resp_rate",
+  "blood_pressure",
+  "blood_press",
+  "systolic",
+  "diastolic",
+  "spo2",
+  "random_blood_sugar",
+  "randomBloodSugar",
+  "general_rbs",
+  "height",
+  "weight",
+  "head_circumference",
+  "ofc",
+  "waist_circumference",
+  "waistCircumference",
+  "bmi",
+  "bmr",
+  "bsa",
+  "fib4",
+];
+
 function legacyVitalHasValue(value) {
   return value !== undefined && value !== null && value !== "";
 }
@@ -1579,14 +1607,17 @@ function copyPayloadHasMedicalHistory(payload = {}) {
     hasSideNavPreviousContext(payload?.medicalHistory);
 }
 
+function hasVitalsSignalContext(value) {
+  if (Array.isArray(value)) return value.some(hasVitalsSignalContext);
+  if (!isObject(value)) return hasValue(value);
+
+  const vitals = firstObject(value.vitalsAndBodyComposition, value.vitals, value);
+  return VITAL_SIGNAL_VALUE_KEYS.some((key) => hasValue(vitals?.[key]));
+}
+
 function copyPayloadHasVitals(payload = {}) {
   const digitization = payload?.digitization || {};
-  return hasSideNavPreviousContext(digitization.vitals_and_body_composition) ||
-    hasSideNavPreviousContext(digitization.vitalsAndBodyComposition) ||
-    hasSideNavPreviousContext(digitization.vitals) ||
-    hasSideNavPreviousContext(payload?.vitals_and_body_composition) ||
-    hasSideNavPreviousContext(payload?.vitalsAndBodyComposition) ||
-    hasSideNavPreviousContext(payload?.vitals);
+  return hasVitalsSignalContext(digitization.vitals_and_body_composition);
 }
 
 function getSideNavSignalTargetsFromCopyRequest(copyRequest) {
@@ -2174,21 +2205,6 @@ function buildViewData(overrides = {}, sourceData = {}) {
   }
 
   return data;
-}
-
-function buildSectionOverrides(response, requestedSectionId) {
-  const clinical = extractClinicalPayload(response);
-  const updates = {};
-
-  if (requestedSectionId) updates[requestedSectionId] = clinical;
-  if (clinical.symptoms || clinical.examinations || clinical.diagnosis || clinical.medications || clinical.advice || clinical.labInvestigation || clinical.followUp) updates.pastVisits = clinical;
-  if (clinical.vitalsAndBodyComposition || VITAL_DISPLAY_FIELDS.some((field) => clinical[field.key] !== undefined)) updates.vitals = clinical;
-  if (clinical.medicalHistory || clinical.history) updates.history = clinical;
-  if (clinical.labResults || clinical.labs) updates.labResults = clinical;
-  if (clinical.gyneacHistory || clinical.gynecHistory || clinical.lastMenstrualPeriod || clinical.ageAtMenarche) updates.gynec = clinical;
-  if (clinical.obstetricHistory || clinical.gravidity !== undefined || clinical.antenatalExamination) updates.obstetric = clinical;
-
-  return updates;
 }
 
 function createSideNavVoiceId() {
@@ -3070,7 +3086,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                   {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
                   {hasListData(rx.labInvestigations) ? <RxSection title="Investigations" icon={<RxSectionIcon src={RX_SECTION_ICONS.investigations} />} onCopy={() => handleCopySection(visitItem, "investigations", "Investigations")}><BulletList items={rx.labInvestigations} /></RxSection> : null}
                   {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
-                  {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
+                  {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />} onCopy={() => handleCopySection(visitItem, "followUp", "Follow Up")}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
                   <PastVisitNativeSections rx={rx} />
                   <PastVisitRxByLine attribution={rxByAttribution} />
                 </>
