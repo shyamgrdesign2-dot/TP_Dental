@@ -1768,12 +1768,24 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     }
                     const actionIM = await dispatch(getInvestigationAndMedicine(sendInvestigationAndMedicine))
                     if (actionIM.meta.requestStatus === "fulfilled") {
+                        const cmInvestigations = actionIM?.payload?.investigation ?? [];
+                        const investigationList = (investigationData.length > 0 ? cmInvestigations : []).map(
+                            (item) => ({
+                                serviceName: String(item?.investigation_name ?? "").trim(),
+                                serviceCode: String(item?.service_code ?? "").trim(),
+                            })
+                        );
+                        const investigationsForMoengage = investigationData.length > 0
+                            ? cmInvestigations
+                                .map((item) => `${item.investigation_name}:${item.service_code ?? ""}`)
+                                .join(", ")
+                            : "";
 
                         window.Moengage.track_event("Z_getInvestigationAndMedicine_API_Response", {
                             clinic_name,
                             patient_id: patient_data?.patient_unique_id,
                             status: 'suceess',
-                            investigationList: investigationData.length > 0 ? actionIM?.payload?.investigation.map(item => item.investigation_name).join(', ') : [],
+                            investigationList: investigationsForMoengage,
                             medicineList: medicationData.length > 0 ? actionIM?.payload?.medicine.map(({ tmm_medicine_name, display_qty, tmm_remarks }) => JSON.stringify({ name: tmm_medicine_name, quantity:display_qty, instruction: tmm_remarks })).join(', ') : []
                         })
 
@@ -1788,7 +1800,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             "doctorCode": patient_data?.employeeId,
                             "storeCode": storeCode, // hardcoded value
                             "duplicateCheck": 1, // hardcoded value
-                            "investigationList": investigationData.length > 0 ? actionIM?.payload?.investigation.map(item => item.investigation_name) : [],
+                            "investigationList": investigationList,
                             "medicineList": medicationData.length > 0 ? actionIM?.payload?.medicine.map(({ tmm_medicine_name, display_qty, tmm_remarks }) => ({ name: tmm_medicine_name, quantity:display_qty, instruction: tmm_remarks })) : [],
                             "pillupSwitch": isPillUpAccessableFromGB && pillupSwitch ? 1 : 0
                         }
@@ -1804,7 +1816,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             "doctorCode": patient_data?.employeeId,
                             "storeCode": storeCode, // hardcoded value
                             "duplicateCheck": 1, // hardcoded value
-                            "investigationList": investigationData.length > 0 ? actionIM?.payload?.investigation.map(item => item.investigation_name).join(', ') : [],
+                            "investigationList": investigationsForMoengage,
                             "medicineList": medicationData.length > 0 ? actionIM?.payload?.medicine.map(({ tmm_medicine_name, display_qty, tmm_remarks }) => JSON.stringify({ name: tmm_medicine_name, quantity:display_qty, instruction: tmm_remarks })).join(', ') : [],
                             "pillupSwitch": isPillUpAccessableFromGB && pillupSwitch ? 1 : 0
                         })

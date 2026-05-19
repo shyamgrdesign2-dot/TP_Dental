@@ -2043,18 +2043,30 @@ function TabRxHeader({
             getInvestigationAndMedicine(sendInvestigationAndMedicine),
           );
           if (actionIM.meta.requestStatus === "fulfilled") {
+            const cmInvestigations = actionIM?.payload?.investigation ?? [];
+            const investigationList = (investigationData.length > 0 ? cmInvestigations : []).map(
+              (item) => ({
+                serviceName: String(item?.investigation_name ?? "").trim(),
+                serviceCode: String(item?.service_code ?? "").trim(),
+              })
+            );
+            const investigationsForMoengage =
+              investigationData.length > 0
+                ? cmInvestigations
+                    .map(
+                      (item) =>
+                        `${item.investigation_name}:${item.service_code ?? ""}`,
+                    )
+                    .join(", ")
+                : "";
+
             window.Moengage.track_event(
               "Z_getInvestigationAndMedicine_API_Response",
               {
                 clinic_name,
                 patient_id: patient_data?.patient_unique_id,
                 status: "suceess",
-                investigationList:
-                  investigationData.length > 0
-                    ? actionIM?.payload?.investigation
-                        .map((item) => item.investigation_name)
-                        .join(", ")
-                    : [],
+                investigationList: investigationsForMoengage,
                 medicineList:
                   medicationData.length > 0
                     ? actionIM?.payload?.medicine
@@ -2082,12 +2094,7 @@ function TabRxHeader({
               doctorCode: patient_data?.employeeId,
               storeCode: storeCode, // hardcoded value
               duplicateCheck: 1, // hardcoded value
-              investigationList:
-                investigationData.length > 0
-                  ? actionIM?.payload?.investigation.map(
-                      (item) => item.investigation_name,
-                    )
-                  : [],
+              investigationList,
               medicineList:
                 medicationData.length > 0
                   ? actionIM?.payload?.medicine.map(
@@ -2112,12 +2119,7 @@ function TabRxHeader({
               doctorCode: patient_data?.employeeId,
               storeCode: storeCode, // hardcoded value
               duplicateCheck: 1, // hardcoded value
-              investigationList:
-                investigationData.length > 0
-                  ? actionIM?.payload?.investigation
-                      .map((item) => item.investigation_name)
-                      .join(", ")
-                  : [],
+              investigationList: investigationsForMoengage,
               medicineList:
                 medicationData.length > 0
                   ? actionIM?.payload?.medicine
