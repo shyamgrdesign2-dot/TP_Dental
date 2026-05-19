@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useContext,
 } from "react";
+import { v4 as uuidv4 } from 'uuid';
 import {
   AutoComplete,
   Input,
@@ -17,7 +18,7 @@ import {
   Spin,
   Tooltip,
 } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
@@ -77,11 +78,18 @@ function SurgicalBox({ showVoiceRxModule }) {
   const { patient_data } = state;
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
+  const emptySurgeryRow = () => ({ masterId: uuidv4(), name: "", notes: "" });
   const applyVoiceSurgeries = useCallback((nextSurgeries) => {
     if (nextSurgeries.length > 0) {
-      setSurgeriesData(nextSurgeries);
+      if (isVoiceRxModuleEnabled) {
+        const last = nextSurgeries[nextSurgeries.length - 1];
+        const withTrailing = (!last || last.name !== "") ? [...nextSurgeries, emptySurgeryRow()] : nextSurgeries;
+        setSurgeriesData(withTrailing);
+      } else {
+        setSurgeriesData(nextSurgeries);
+      }
     }
-  }, [setSurgeriesData]);
+  }, [isVoiceRxModuleEnabled, setSurgeriesData]); // eslint-disable-line react-hooks/exhaustive-deps
   const surgeriesVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(surgeriesData, "surgery"),
     [surgeriesData]
@@ -101,6 +109,18 @@ function SurgicalBox({ showVoiceRxModule }) {
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+
+  useEffect(() => {
+    if (!isVoiceRxModuleEnabled) return;
+    setSurgeriesData(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.name !== "") return [...prev, emptySurgeryRow()];
+      return prev;
+    });
+  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleAddRow = useCallback(() => {
+    setSurgeriesData(prev => [...prev, emptySurgeryRow()]);
+  }, [setSurgeriesData]);
 
   //PopOver1
   const [popOver1, setPopOver1] = useState(false);
@@ -956,8 +976,15 @@ function SurgicalBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
+        {isVoiceRxModuleEnabled && (
+          <div className="p-4">
+            <Button type="link" icon={<PlusOutlined />} className="add-custom-module-link" onClick={handleAddRow}>
+              Add New Line
+            </Button>
+          </div>
+        )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
@@ -966,20 +993,21 @@ function SurgicalBox({ showVoiceRxModule }) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            <AutoComplete
-              // defaultValue={searchParentQuery}
-              value={searchParentQuery}
-              onSearch={onSearchParent}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              onSelect={onSelectParent}
-              defaultActiveFirstOption={true}
-            >
-              <Input
-                placeholder="Search Surgeries/Procedures"
-                prefix={<i className="icon-search"></i>}
-              />
-            </AutoComplete>
+            // <AutoComplete
+            //   // defaultValue={searchParentQuery}
+            //   value={searchParentQuery}
+            //   onSearch={onSearchParent}
+            //   options={parentSearchOptions}
+            //   className="autocomplete-custom w-100"
+            //   onSelect={onSelectParent}
+            //   defaultActiveFirstOption={true}
+            // >
+            //   <Input
+            //     placeholder="Search Surgeries/Procedures"
+            //     prefix={<i className="icon-search"></i>}
+            //   />
+            // </AutoComplete>
+            null
           )}
         </div>
       </div>

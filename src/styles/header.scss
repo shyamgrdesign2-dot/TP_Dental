@@ -112,3 +112,10 @@ body{
         }
     }
 }
+@keyframes headerVoicePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.4); }
+}
+.header-voice-transcribing {
+    padding: 0 12px !important;
+}

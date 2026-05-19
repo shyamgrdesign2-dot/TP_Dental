@@ -1772,7 +1772,8 @@ function Cardiology(props) {
       });
     }
 
-    if (isVoiceRxNewFromGB) {
+    const isVoiceRxEdit = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
+    if (isVoiceRxNewFromGB && isVoiceRxEdit) {
       let videoConsultData;
       try {
         const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
@@ -1785,6 +1786,11 @@ function Cardiology(props) {
           }
         }
       } catch (error) {}
+      if (isAmbientRx) {
+        window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+      } else {
+        window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+      }
       return navigate("/prescription", {
         state: {
           patient_data: patient_data,
@@ -2938,7 +2944,11 @@ function Cardiology(props) {
       );
 
       return (
-        <div className="d-flex align-items-start m-4" key={item.module_id || item.module_name}>
+        <div
+          className={`d-flex align-items-start ${shouldRenderModuleContentsInVoiceRx ? ' m-4' : ' mt-4'}`}
+          key={item.module_id || item.module_name}
+        >
+   
           <img
             className="me-2"
             src={customModuleIcon}

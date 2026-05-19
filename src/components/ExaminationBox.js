@@ -20,7 +20,7 @@ import CommonModal from '../common/CommonModal';
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
 
-import { MenuOutlined } from '@ant-design/icons';
+import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -87,10 +87,34 @@ function ExaminationBox({ showVoiceRxModule }) {
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+  const emptyExaminationRow = () => ({ examination_name: "", unique_id: uuidv4(), note: "", change: 1, pms_default: 0 });
+
   const applyVoiceExaminations = useCallback((nextExaminations) => {
     if (nextExaminations.length > 0) {
-      setExaminationData(nextExaminations);
+      if (isVoiceRxModuleEnabled) {
+        const last = nextExaminations[nextExaminations.length - 1];
+        const withTrailing = (!last || last.examination_name !== "") ? [...nextExaminations, emptyExaminationRow()] : nextExaminations;
+        setExaminationData(withTrailing);
+      } else {
+        setExaminationData(nextExaminations);
+      }
     }
+  }, [isVoiceRxModuleEnabled, setExaminationData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // add one trailing empty row on mount (only when flag is on)
+  useEffect(() => {
+    if (!isVoiceRxModuleEnabled) return;
+    setExaminationData(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.examination_name !== "") {
+        return [...prev, emptyExaminationRow()];
+      }
+      return prev;
+    });
+  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddRow = useCallback(() => {
+    setExaminationData(prev => [...prev, emptyExaminationRow()]);
   }, [setExaminationData]);
   const examinationsVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(examinationData, "examinations"),
@@ -873,8 +897,20 @@ function ExaminationBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
+        {isVoiceRxModuleEnabled && (
+          <div className="p-2">
+            <Button
+              type="link"
+              icon={<PlusOutlined />}
+              className="add-custom-module-link"
+              onClick={handleAddRow}
+            >
+              Add New Line
+            </Button>
+          </div>
+        )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Examinations"
@@ -883,21 +919,22 @@ function ExaminationBox({ showVoiceRxModule }) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            <AutoComplete
-              // defaultValue={searchParentQuery}
-              value={searchParentQuery}
-              onSearch={onSearchParent}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              onSelect={onSelectParent}
-              defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
-            >
-              <Input
-                placeholder="Search Examinations"
-                prefix={<i className="icon-search"></i>}
-              />
-            </AutoComplete>
+            // <AutoComplete
+            //   // defaultValue={searchParentQuery}
+            //   value={searchParentQuery}
+            //   onSearch={onSearchParent}
+            //   options={parentSearchOptions}
+            //   className="autocomplete-custom w-100"
+            //   onSelect={onSelectParent}
+            //   defaultActiveFirstOption={true}
+            //   popupClassName={!searchParentQuery && "boxpopup"}
+            // >
+            //   <Input
+            //     placeholder="Search Examinations"
+            //     prefix={<i className="icon-search"></i>}
+            //   />
+            // </AutoComplete>
+            null
           )}
         </div>
       </div>

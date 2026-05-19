@@ -26,7 +26,7 @@ import CommonModal from '../common/CommonModal';
 import CashManagerContext from "../context/CashManagerContext";
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence, shouldMonetizationDisabled } from "../utils/utils";
 
-import { MenuOutlined } from '@ant-design/icons';
+import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   addTemplate,
   updateTemplate,
@@ -124,10 +124,34 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     { key: TAB_UPDATE_TEMPLATE, label: "Update Template" },
   ];
   const [tabChange, setTabChange] = useState(TAB_ADD_TEMPLATE);
+  const emptyDiagnosisRow = () => ({ tds_name: "", tds_id: 0, unique_id: uuidv4(), change: 1, pms_default: 0, icd_code: "", since: "", status: "", note: "" });
+
   const applyVoiceDiagnosis = useCallback((nextDiagnosis) => {
     if (nextDiagnosis.length > 0) {
-      setDiagnosisData(nextDiagnosis);
+      if (isVoiceRxModuleEnabled) {
+        const last = nextDiagnosis[nextDiagnosis.length - 1];
+        const withTrailing = (!last || last.tds_name !== "") ? [...nextDiagnosis, emptyDiagnosisRow()] : nextDiagnosis;
+        setDiagnosisData(withTrailing);
+      } else {
+        setDiagnosisData(nextDiagnosis);
+      }
     }
+  }, [isVoiceRxModuleEnabled, setDiagnosisData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // add one trailing empty row on mount (only when flag is on)
+  useEffect(() => {
+    if (!isVoiceRxModuleEnabled) return;
+    setDiagnosisData(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.tds_name !== "") {
+        return [...prev, emptyDiagnosisRow()];
+      }
+      return prev;
+    });
+  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddRow = useCallback(() => {
+    setDiagnosisData(prev => [...prev, emptyDiagnosisRow()]);
   }, [setDiagnosisData]);
   const diagnosisVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(diagnosisData, "diagnosis"),
@@ -1046,6 +1070,18 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_DIAGNOSIS}
+        {isVoiceRxModuleEnabled && (
+          <div className="p-2">
+            <Button
+              type="link"
+              icon={<PlusOutlined />}
+              className="add-custom-module-link"
+              onClick={handleAddRow}
+            >
+              Add New Line
+            </Button>
+          </div>
+        )}
 
         {(isApexAIAccessable || tp_monetization_enable) && (
           <div style={{ padding: "0 14px" }}>
@@ -1066,7 +1102,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             />
           </div>
         )}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
@@ -1075,21 +1111,22 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            <AutoComplete
-              // defaultValue={searchParentQuery}
-              value={searchParentQuery}
-              onSearch={onSearchParent}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              onSelect={onSelectParent}
-              defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
-            >
-              <Input
-                placeholder="Search Diagnosis"
-                prefix={<i className="icon-search" />}
-              />
-            </AutoComplete>
+            // <AutoComplete
+            //   // defaultValue={searchParentQuery}
+            //   value={searchParentQuery}
+            //   onSearch={onSearchParent}
+            //   options={parentSearchOptions}
+            //   className="autocomplete-custom w-100"
+            //   onSelect={onSelectParent}
+            //   defaultActiveFirstOption={true}
+            //   popupClassName={!searchParentQuery && "boxpopup"}
+            // >
+            //   <Input
+            //     placeholder="Search Diagnosis"
+            //     prefix={<i className="icon-search" />}
+            //   />
+            // </AutoComplete>
+            null
           )}
         </div>
       </div>

@@ -11,7 +11,7 @@ import {
   Spin,
   Tooltip
 } from "antd";
-import { InfoCircleOutlined, LoadingOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { useSelector, useDispatch } from "react-redux";
 import { v4 as uuidv4 } from 'uuid';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
@@ -82,10 +82,35 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const { investigationData, setInvestigationData, diagnosisData } =
     useContext(CashManagerContext);
   // const [ investigationData, setInvestigationData] = useState([]);
+  const emptyInvestigationRow = () => ({ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 });
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+
   const applyVoiceInvestigation = useCallback((nextInvestigation) => {
     if (nextInvestigation.length > 0) {
-      setInvestigationData(nextInvestigation);
+      if (isVoiceRxModuleEnabled) {
+        const last = nextInvestigation[nextInvestigation.length - 1];
+        const withTrailing = (!last || last.investigation_name !== "") ? [...nextInvestigation, emptyInvestigationRow()] : nextInvestigation;
+        setInvestigationData(withTrailing);
+      } else {
+        setInvestigationData(nextInvestigation);
+      }
     }
+  }, [isVoiceRxModuleEnabled, setInvestigationData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // add one trailing empty row on mount (only when flag is on)
+  useEffect(() => {
+    if (!isVoiceRxModuleEnabled) return;
+    setInvestigationData(prev => {
+      const last = prev[prev.length - 1];
+      if (!last || last.investigation_name !== "") {
+        return [...prev, emptyInvestigationRow()];
+      }
+      return prev;
+    });
+  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAddRow = useCallback(() => {
+    setInvestigationData(prev => [...prev, emptyInvestigationRow()]);
   }, [setInvestigationData]);
   const investigationVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(investigationData, "lab_investigations"),
@@ -116,7 +141,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     );
 
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
-  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
 
@@ -1089,6 +1113,18 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_INVESTIGATION}
+        {isVoiceRxModuleEnabled && (
+          <div className="p-2">
+            <Button
+              type="link"
+              icon={<PlusOutlined />}
+              className="add-custom-module-link"
+              onClick={handleAddRow}
+            >
+              Add New Line
+            </Button>
+          </div>
+        )}
 
         {filteredDdxInvestigationOptionsList?.length > 0 && (
           <div style={{ padding: "0 14px" }}>
@@ -1100,7 +1136,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
@@ -1109,21 +1145,22 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            <AutoComplete
-              // defaultValue={searchParentQuery}
-              value={searchParentQuery}
-              onSearch={onSearchParent}
-              options={parentSearchOptions}
-              className="autocomplete-custom w-100"
-              onSelect={onSelectParent}
-              defaultActiveFirstOption={true}
-              popupClassName={!searchParentQuery && "boxpopup"}
-            >
-              <Input
-                placeholder="Search Investigation"
-                prefix={<i className="icon-search"></i>}
-              />
-            </AutoComplete>
+            // <AutoComplete
+            //   // defaultValue={searchParentQuery}
+            //   value={searchParentQuery}
+            //   onSearch={onSearchParent}
+            //   options={parentSearchOptions}
+            //   className="autocomplete-custom w-100"
+            //   onSelect={onSelectParent}
+            //   defaultActiveFirstOption={true}
+            //   popupClassName={!searchParentQuery && "boxpopup"}
+            // >
+            //   <Input
+            //     placeholder="Search Investigation"
+            //     prefix={<i className="icon-search"></i>}
+            //   />
+            // </AutoComplete>
+            null
           )}
         </div>
       </div>
