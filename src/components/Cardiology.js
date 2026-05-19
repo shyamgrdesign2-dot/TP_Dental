@@ -20,6 +20,10 @@ import {
   camelToSentence,
 } from "../utils/utils";
 import {
+  formatVitalDisplayForUi,
+  hasVitalsAndBodyCompositionData,
+} from "../utils/symptomCollectorVitalsMerge";
+import {
   EXTRA_OPTIONS,
   FETCH_SMART_RX,
   GB_ISCRIBE,
@@ -2471,13 +2475,13 @@ function Cardiology(props) {
         {/* Handle vitals type separately */}
         {type === "vitalsAndBodyComposition" &&
           Object.entries(genRxData?.vitalsAndBodyComposition || {})
-            .filter(([key, value]) => value != null && String(value).trim() !== "") // Filter out empty or falsy values
+            .filter(([, value]) => formatVitalDisplayForUi(value) !== "")
             .map(([key, value]) => (
               <li key={key}>
                 <div className="medicine-item">
                   <span>{key}</span>
                   <span className="separator">:</span>
-                  <span>{value}</span>
+                  <span>{formatVitalDisplayForUi(value)}</span>
                 </div>
               </li>
             ))}
@@ -3120,7 +3124,7 @@ function Cardiology(props) {
     typeof data === "object" &&
     ((data.vitals && Object.values(data.vitals).some((v) => v != null && String(v).trim() !== "")) ||
       (data.vitalsAndBodyComposition &&
-        Object.values(data.vitalsAndBodyComposition).some((v) => v != null && String(v).trim() !== "")));
+        hasVitalsAndBodyCompositionData(data.vitalsAndBodyComposition)));
 
   // Medical history grouped by type (Medical condition, Family History, Lifestyle, Surgical History, etc.); uses name, duration, relation, enable, notes in parentheses (no lineItem). Each type stacked one after another. No partition lines; same text style as rest of digitised sections.
   const renderMedicalHistoryGroupedByType = (data) => {

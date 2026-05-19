@@ -51,6 +51,7 @@ import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
 import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
+import { vitalScalarString } from "../utils/symptomCollectorVitalsMerge";
 import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
 
 import CommonModal from "../common/CommonModal";
@@ -1473,23 +1474,25 @@ const ConsultationDrawer = ({
       return false;
     }
 
-    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'fib4', 'waist_circumference'];
-    const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
-      if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
-      const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
-      const result = {};
-      CANONICAL_VITAL_KEYS.forEach((key) => {
-        const v = actual[key];
-        if (v !== undefined && v !== null && v !== '' && String(v).trim() !== '') {
-          result[key] = v;
+      const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'respiratoryRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'headCircumference', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'generalRBS', 'fib4', 'waist_circumference', 'waistCircumference', 'randomBloodSugar'];
+      const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
+        if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
+        const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
+        const result = {};
+        CANONICAL_VITAL_KEYS.forEach((key) => {
+          const v = actual[key];
+          const s = vitalScalarString(v);
+          if (s !== '') {
+            result[key] = s;
+          }
+        });
+        const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
+        const grbs = vitalScalarString(generalRBSVal);
+        if (grbs !== '') {
+          result.general_rbs = grbs;
         }
-      });
-      const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
-      if (generalRBSVal !== undefined && generalRBSVal !== null && String(generalRBSVal).trim() !== '') {
-        result.general_rbs = String(generalRBSVal).trim();
-      }
-      return result;
-    };
+        return result;
+      };
 
     const deepClean = (obj) => {
       if (obj === null || typeof obj !== 'object') {

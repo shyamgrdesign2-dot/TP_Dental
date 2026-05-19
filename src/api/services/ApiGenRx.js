@@ -140,6 +140,25 @@ export const fetchSymptomsCollectorData = async function (payload) {
   } catch (e) {
     console.error("Error while fetching symptoms collector data: ", e);
   }
+
+  // Remove `bloodPressure` from vitals payload (keep systolic/diastolic).
+  if (res && typeof res === "object") {
+    if (
+      res.vitalsAndBodyComposition &&
+      typeof res.vitalsAndBodyComposition === "object"
+    ) {
+      delete res.vitalsAndBodyComposition.bloodPressure;
+    }
+    if (
+      res.summary_json_doctor &&
+      typeof res.summary_json_doctor === "object" &&
+      res.summary_json_doctor.vitalsAndBodyComposition &&
+      typeof res.summary_json_doctor.vitalsAndBodyComposition === "object"
+    ) {
+      delete res.summary_json_doctor.vitalsAndBodyComposition.bloodPressure;
+    }
+  }
+
   return res;
 };
 

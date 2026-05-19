@@ -265,7 +265,17 @@ function VitalsBox(props) {
                 childVitalsData[i].systolic = updateValue;
             } else if (flag === 5) {
                 childVitalsData[i].diastolic = updateValue;
-            } else if (flag === 6) {
+            }
+            if (flag === 4 || flag === 5) {
+                const row = childVitalsData[i];
+                const s = String(row.systolic ?? "").trim();
+                const d = String(row.diastolic ?? "").trim();
+                if (s && d) row.blood_press = `${s}/${d}`;
+                else if (s) row.blood_press = `${s}/`;
+                else if (d) row.blood_press = `/${d}`;
+                else row.blood_press = "";
+            }
+            if (flag === 6) {
                 childVitalsData[i].spo2 = updateValue;
             } else if (flag === 7) {
                 childVitalsData[i].height = updateValue;
@@ -296,7 +306,12 @@ function VitalsBox(props) {
     const childVitalsDataToVitalsObject = useCallback((items) => {
         if (!items || items.length === 0) return {};
         const item = items[0];
-        const blood_press = (item.systolic && item.diastolic) ? `${item.systolic}/${item.diastolic}` : '';
+        const s = String(item.systolic ?? "").trim();
+        const d = String(item.diastolic ?? "").trim();
+        let blood_press = "";
+        if (s && d) blood_press = `${s}/${d}`;
+        else if (s) blood_press = `${s}/`;
+        else if (d) blood_press = `/${d}`;
         return {
             date: item.date || moment().format('YYYY-MM-DD'),
             temperature: item.temp,

@@ -134,6 +134,13 @@ import {
 } from "../redux/ophthalmologyExamSlice";
 import { GB_OPTHAL_MODULE } from "../utils/constants";
 import { ASSETS } from "../assets";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 
 function Prescription() {
   const {
@@ -621,8 +628,15 @@ function Prescription() {
     isGrowthChartAccessable,
     isGynaecHistoryAccessable,
   } = useAccess(patient_data?.ageYears);
-  const { isDDxReadyToGenerate, showSCPopup, isAutofillSelected } = useSelector(
-    (state) => state.ddx
+  const {
+    isDDxReadyToGenerate,
+    showSCPopup,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+  } = useSelector((state) => state.ddx);
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
   );
   const [shouldShowGroundingBanner, setShowGroundingBanner] = useState(false);
 
@@ -1208,17 +1222,37 @@ function Prescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {
@@ -1582,7 +1616,11 @@ function Prescription() {
           </div>
           {(vitalsData.length > 0 ||
             vitalsPastList.length > 0 ||
-            patientBirthWeight) && (
+            patientBirthWeight ||
+            (isAutofillSelected &&
+              hasVitalsAndBodyCompositionData(
+                selectedSymptomsCollector?.vitalsAndBodyComposition
+              ))) && (
             <VitalsList mode={caseManagerData !== undefined ? EDIT : ADD} />
           )}
         </div>
