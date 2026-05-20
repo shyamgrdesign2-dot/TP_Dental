@@ -1029,7 +1029,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   return (
     <>
-      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} data-voice-rx-dictation-target="investigation" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Investigationicon} alt="Investigation" />
@@ -1039,6 +1039,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
             {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
+                dictationTargetId="investigation"
                 label={`Start ${INVESTIGATION_TITLE} voice input`}
                 onClick={() => setVoiceCaptureOpen(true)} />
             )}

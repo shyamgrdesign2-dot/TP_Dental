@@ -2,6 +2,7 @@ import { buildClinicalApiHeaders, joinClinicalApiUrl } from './clinical-api';
 
 const TRANSCRIPT_TIMEOUT_MS = 10 * 60 * 1000;
 export const MODULE_TIMEOUT_MS = 30 * 1000;
+export const DIGITISE_DATA_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 3;
 
 const MODULES = {
@@ -331,7 +332,7 @@ export async function transcribeAudio({ audioBlob, context, signal }) {
 
 function runDigitizeModule({ context, previousContext, signal, onResult }) {
 	const cfg = MODULES.digitization;
-	return withRetry(() => postJson(cfg.path, buildDigitizationPayload(context, previousContext), cfg.name, { timeoutMs: MODULE_TIMEOUT_MS, signal }))
+	return withRetry(() => postJson(cfg.path, buildDigitizationPayload(context, previousContext), cfg.name, { timeoutMs: DIGITISE_DATA_TIMEOUT_MS, signal }))
 		.then((responseJson) => {
 			const result = {
 				name: cfg.tab,

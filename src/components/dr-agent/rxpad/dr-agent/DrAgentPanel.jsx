@@ -141,8 +141,9 @@ export function DrAgentPanel({
     symptomCollectorStatus,
   });
 
-  const { activeVoiceModule } = useRxPadSync();
-  const voiceLocked = !!activeVoiceModule;
+  const { activeVoiceModule, headerDictation } = useRxPadSync();
+  const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
+  const voiceLocked = !!activeVoiceModule || headerDictationBusy;
 
   useEffect(() => {
     toast.setHandler(({ type, msg }) => {
@@ -309,6 +310,7 @@ export function DrAgentPanel({
           onMinimize={onClose}
           onAddDetailsByVoice={beginVoiceAddOn}
           onQuickEditSubmit={submitQuickEdit}
+          voiceLocked={voiceLocked}
           onCopyResult={(payload) => runCopyWithAura(payload, {
             onAfterCopy: isVitalsCopyPayload(payload) ? undefined : () => toast.success("Copied to RxPad")
           })}

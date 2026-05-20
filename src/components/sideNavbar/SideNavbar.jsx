@@ -4664,7 +4664,9 @@ export function SideNavbar({
   const [activeId, setActiveId] = useState("pastVisits");
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
-  const { activeVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
+  const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
+  const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
+  const sideNavVoiceLockIdRef = useRef(`side-nav-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const [sideNavSignals, setSideNavSignals] = useState({});
   const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
@@ -4726,7 +4728,19 @@ export function SideNavbar({
     if (voiceDelayTimerRef.current) {
       window.clearTimeout(voiceDelayTimerRef.current);
     }
-  }, []);
+    releaseActiveVoiceModule(sideNavVoiceLockIdRef.current);
+  }, [releaseActiveVoiceModule]);
+
+  useEffect(() => {
+    const status = activeId ? voiceBySection[activeId]?.status : null;
+    const busy = status === "recording" || status === "transcribing" || status === "digitizing";
+    const lockId = sideNavVoiceLockIdRef.current;
+    if (busy && activeId) {
+      claimActiveVoiceModule(lockId, sectionVoiceLabel(activeId));
+      return () => releaseActiveVoiceModule(lockId);
+    }
+    releaseActiveVoiceModule(lockId);
+  }, [activeId, claimActiveVoiceModule, releaseActiveVoiceModule, voiceBySection]);
 
   useEffect(() => {
     const patientPid = patientData?.pm_pid || patientData?.vac_pid;
@@ -5325,11 +5339,11 @@ export function SideNavbar({
   const handleVoiceClick = useCallback(() => {
     if (!activeId) return;
     if (!isSideNavVoiceSupported(activeId)) return;
-    if (activeVoiceModule) return;
+    if (activeVoiceModule || headerDictationBusy) return;
     const existing = voiceBySection[activeId]?.status;
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, activeVoiceModule, voiceBySection, updateVoiceState]);
+  }, [activeId, activeVoiceModule, headerDictationBusy, voiceBySection, updateVoiceState]);
 
   const handleVoiceRecorderSubmit = useCallback(({ audioBlob } = {}) => {
     if (activeId) return transcribeSectionAudio(activeId, audioBlob);
@@ -5377,7 +5391,7 @@ export function SideNavbar({
           onPrivateNotesChange={handlePrivateNotesChange}
           onCopyPayload={handlePastVisitCopyPayload}
           voiceEnabled={showVoiceRx && SIDE_NAV_SUPPORTED_VOICE_SECTIONS.has(activeId)}
-          voiceLocked={!!activeVoiceModule}
+          voiceLocked={!!activeVoiceModule || headerDictationBusy}
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsCopyUpdating}
         />

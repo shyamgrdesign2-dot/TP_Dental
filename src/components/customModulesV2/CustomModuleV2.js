@@ -1550,9 +1550,12 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
     };
   }, [module?.module_id]);
 
+  const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "v2"}`;
+
   return (
     <div
       ref={sectionRef}
+      data-voice-rx-dictation-target={voiceDictationTargetId}
       className={[
         "prescription-box-sm",
         voiceModuleStyles.moduleRoot,
@@ -1606,6 +1609,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
               {isVoiceRxModuleEnabled && (
                 <VoiceRxModuleButton
                   active={voiceCaptureOpen}
+                  dictationTargetId={voiceDictationTargetId}
                   label={`Start ${module?.name || "Custom Module"} voice input`}
                   onClick={() => setVoiceCaptureOpen(true)} />
               )}

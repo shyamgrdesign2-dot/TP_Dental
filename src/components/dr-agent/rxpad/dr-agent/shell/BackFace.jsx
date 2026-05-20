@@ -50,6 +50,7 @@ export function BackFace({
   onQuickEditSubmit,
   onCopyResult,
   onCopyAll,
+  voiceLocked = false,
 }) {
   const dispatch = useDispatch();
   return (
@@ -97,6 +98,7 @@ export function BackFace({
             onMinimize={onMinimize}
             onAddDetailsByVoice={onAddDetailsByVoice}
             onQuickEditSubmit={onQuickEditSubmit}
+            voiceLocked={voiceLocked}
           />
         ) : isFlipped ? (
           <VoiceErrorBoundary onCancel={onCancel}>

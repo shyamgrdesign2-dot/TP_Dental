@@ -7,34 +7,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ShineBorder } from "./ShineBorder";
 import styles from "./VoiceTranscriptProcessingCard.module.scss";
 
-function useInView(threshold = 0.2) {
-  const ref = useRef(null);
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") {
-      setInView(true);
-      return;
-    }
-    const node = ref.current;
-    if (!node) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            setInView(true);
-            obs.disconnect();
-            return;
-          }
-        }
-      },
-      { threshold }
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return [ref, inView];
-}
-
 const CAPTION_PHRASES = [
   "Analysing your dictated content",
   "Structuring your transcript",
@@ -86,11 +58,11 @@ export function hasTranscriptContent(raw) {
   return transcriptToText(raw).trim().length > 0;
 }
 
-export function ConversationTranscript({ raw, shimmer = false }) {
+export function ConversationTranscript({ raw, shimmer = false, animate = shimmer }) {
   const turns = useMemo(() => getDiarizedTurns(raw), [raw]);
-  const [rootRef, inView] = useInView(0.15);
+  const shouldRevealWords = shimmer && animate;
   return (
-    <ul ref={rootRef} className={styles.conversationList}>
+    <ul className={styles.conversationList}>
       {turns.map((t, i) => {
         const normalizedSpeaker = t.speaker.toLowerCase();
         const label = t.speaker.charAt(0).toUpperCase() + t.speaker.slice(1);
@@ -100,18 +72,18 @@ export function ConversationTranscript({ raw, shimmer = false }) {
             className={[styles.turnRow, normalizedSpeaker === "doctor" ? styles.turnDoctor : styles.turnPatient].join(" ")}>
             <div
               className={[
-                "vrx-chat-turn",
+                animate && "vrx-chat-turn",
                 styles.turnBubble,
                 normalizedSpeaker === "doctor" ? "vrx-chat-turn--doctor" : "vrx-chat-turn--patient",
                 normalizedSpeaker === "doctor" ? styles.turnBubbleDoctor : styles.turnBubblePatient,
-                inView && "vrx-chat-turn--in"
+                animate && "vrx-chat-turn--in"
               ].filter(Boolean).join(" ")}
-              style={{ animationDelay: `${i * 180}ms` }}>
+              style={animate ? { animationDelay: `${i * 180}ms` } : undefined}>
               <span className={styles.turnSpeaker}>{label}:</span>{" "}
               {shimmer ? (() => {
                 const turnWords = t.text.split(/\s+/).filter(Boolean);
                 return turnWords.map((word, wi) => (
-                  <span key={wi} className={inView ? "da-shimmer-word" : undefined} style={inView ? { "--da-delay": `${i * 180 + wi * 70}ms` } : undefined}>{word}{wi < turnWords.length - 1 ? " " : ""}</span>
+                  <span key={wi} className={shouldRevealWords ? "da-shimmer-word" : undefined} style={shouldRevealWords ? { "--da-delay": `${i * 180 + wi * 70}ms` } : undefined}>{word}{wi < turnWords.length - 1 ? " " : ""}</span>
                 ));
               })() : <span>{t.text}</span>}
             </div>

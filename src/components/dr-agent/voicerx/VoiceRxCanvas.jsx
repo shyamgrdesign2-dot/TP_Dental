@@ -70,7 +70,8 @@ export function VoiceRxCanvas({
   onBack,
   onMinimize,
   onAddDetailsByVoice,
-  onQuickEditSubmit
+  onQuickEditSubmit,
+  voiceLocked = false
 }) {
   const canvasTitle = "Back";
   void modeLabel;
@@ -120,6 +121,7 @@ export function VoiceRxCanvas({
   };
 
   const handleVoiceEditOpen = () => {
+    if (voiceLocked) return;
     if (coachmarkVisible) dismissCoachmark();
     if (onQuickEditSubmit) {
       setVoiceEditOpen(true);
@@ -355,7 +357,7 @@ export function VoiceRxCanvas({
               <button
                 type="button"
                 onClick={handleVoiceEditOpen}
-                disabled={!onQuickEditSubmit && !onAddDetailsByVoice}
+                disabled={voiceLocked || (!onQuickEditSubmit && !onAddDetailsByVoice)}
                 aria-label="Edit clinical notes with voice"
                 className={["vrx-rt-voice-cta-outline", styles.footerVoiceCta].join(" ")}>
                 <VoiceRxIcon size={20} color="#673AAC" />

@@ -427,7 +427,8 @@ export function useDrAgentPanel({
   // ── Integration ──
   const { requestCopyToRxPad, lastSignal, publishSignal, 
     // setPatientAllergies,
-     setAiFillInProgress, pushHistoricalUpdates, activeVoiceModule, runCopyWithAura } = useRxPadSync();
+     setAiFillInProgress, pushHistoricalUpdates, activeVoiceModule, headerDictation, runCopyWithAura } = useRxPadSync();
+  const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const lastSignalIdRef = useRef(0);
 
   // Scripted fallback — only when the browser can't do real live transcription.
@@ -480,13 +481,15 @@ export function useDrAgentPanel({
     // per-module / per-sidebar recorder is already running. Shared state
     // lives in the rxpad-sync context; the tooltip on hover uses the
     // same signal so the click + hover paths agree.
-    if (activeVoiceModule) {
+    if (activeVoiceModule || headerDictationBusy) {
       // Global page-center toast (warning tone) — was previously a
       // TPSnackbar nested inside DrAgentPanel's transform ancestor,
       // which clamped it inside the panel instead of true viewport
       // top-center.
       toast.warning(
-        `VoiceRx is already active in ${activeVoiceModule}. Close that dictation first.`
+        activeVoiceModule
+          ? `VoiceRx is already active in ${activeVoiceModule}. Close that dictation first.`
+          : "Voice dictation is already active. Finish that dictation first."
       );
       setVoiceRxDialogOpen(false);
       return;
@@ -518,7 +521,7 @@ export function useDrAgentPanel({
         return true;
       })
     }));
-  }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, resetLiveTranscript]);
+  }, [voiceRxDialogChoice, onVoiceCaptureModeChange, selectedPatientId, setMessagesByPatient, activeVoiceModule, headerDictationBusy, resetLiveTranscript]);
 
   // Listen for the "VoiceRx" CTA on a chat clinical-notes card —
   // fires "voicerx:begin-addon". Routes through the same beginVoiceAddOn
@@ -536,6 +539,14 @@ export function useDrAgentPanel({
   // transcript will be merged onto the next submit so the transcript
   // pane stays cumulative across multiple re-records.
   const beginVoiceAddOn = useCallback(() => {
+    if (activeVoiceModule || headerDictationBusy) {
+      toast.warning(
+        activeVoiceModule
+          ? `VoiceRx is already active in ${activeVoiceModule}. Close that dictation first.`
+          : "Voice dictation is already active. Finish that dictation first."
+      );
+      return;
+    }
     priorVoiceResultRef.current = voiceRxResult;
     setVoiceRxResult(null);
     setVoiceRxResultMinimized(false);
@@ -546,7 +557,7 @@ export function useDrAgentPanel({
     setVoiceRxAwaitingResponse(false);
     setVoiceRxRecording(true);
     onVoiceCaptureModeChange?.(voiceRxDialogChoice);
-  }, [voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript]);
+  }, [activeVoiceModule, headerDictationBusy, voiceRxResult, voiceRxDialogChoice, onVoiceCaptureModeChange, resetLiveTranscript]);
   beginVoiceAddOnRef.current = beginVoiceAddOn;
 
   // Inline quick-edit submit (called by the canvas's bottom-overlay

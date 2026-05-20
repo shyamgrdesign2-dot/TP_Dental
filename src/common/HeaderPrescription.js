@@ -25,6 +25,7 @@ import {
 } from '../components/dr-agent/voicerx/VoiceRxModuleCapture';
 import voiceModuleStyles from '../components/dr-agent/voicerx/VoiceRxModuleCapture.module.scss';
 import { DictationIcon, VoiceRxIcon } from '../components/dr-agent/voicerx/voice-consult-icons';
+import { useRxPadSync } from '../components/dr-agent/rxpad/dr-agent/RxPadSyncContext';
 
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes, getSupportedMimeType } from "../utils/utils";
 import { transcribeAnyAudio } from '../components/dr-agent/voicerx/api/agent-audio-service';
@@ -81,6 +82,31 @@ const {
 } = ASSETS.images;
 
 var oneClickCosultationTemplateId = 0
+const HEADER_DICTATION_TARGET = "header";
+
+function getVoiceDictationTargetId(element) {
+    const targetNode = element?.closest?.("[data-voice-rx-dictation-target]");
+    return targetNode?.getAttribute("data-voice-rx-dictation-target") || HEADER_DICTATION_TARGET;
+}
+
+function getEditableSelection(element) {
+    if (!element || (element.tagName !== "INPUT" && element.tagName !== "TEXTAREA")) return null;
+    let selectionStart = null;
+    let selectionEnd = null;
+    try {
+        selectionStart = typeof element.selectionStart === "number" ? element.selectionStart : null;
+        selectionEnd = typeof element.selectionEnd === "number" ? element.selectionEnd : null;
+    } catch (_) {
+        selectionStart = null;
+        selectionEnd = null;
+    }
+    return {
+        element,
+        selectionStart,
+        selectionEnd,
+        targetId: getVoiceDictationTargetId(element),
+    };
+}
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule }) {
 
@@ -99,6 +125,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         loading,
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
+    const { activeVoiceModule, headerDictation, setHeaderDictation } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
 
@@ -152,7 +179,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceAudioChunksRef = useRef([]);
     const headerVoiceStreamRef = useRef(null);
     const headerVoiceLastShiftTimeRef = useRef(0);
-    const headerVoiceCursorRef = useRef(null); // { element, selectionStart, selectionEnd }
+    const headerVoiceCursorRef = useRef(null); // { element, selectionStart, selectionEnd, targetId }
+    const headerVoiceTargetIdRef = useRef(HEADER_DICTATION_TARGET);
     const headerVoiceRecordStartMsRef = useRef(0);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const hasUngroundedMedications = medicationData.some(
@@ -162,21 +190,83 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false} = useLocation().state || {};
     const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx;
+    const headerDictationTargetId = headerDictation?.targetId || HEADER_DICTATION_TARGET;
+    const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
+    const headerIconVoiceState = headerDictationTargetId === HEADER_DICTATION_TARGET ? headerVoiceState : "idle";
+    const headerVoiceDisabledByModule = !!activeVoiceModule;
+    const headerVoiceLockedByOtherSurface = headerDictationBusy && headerDictationTargetId !== HEADER_DICTATION_TARGET;
+    const headerVoiceSoftLocked = headerVoiceDisabledByModule || headerVoiceLockedByOtherSurface;
+
+    const publishHeaderDictation = useCallback((status, targetId) => {
+        const resolvedTargetId = status === "idle"
+            ? HEADER_DICTATION_TARGET
+            : targetId || headerVoiceTargetIdRef.current || HEADER_DICTATION_TARGET;
+        setHeaderDictation({ status, targetId: resolvedTargetId });
+    }, [setHeaderDictation]);
+
+    const insertTranscriptAtCursor = useCallback((transcript, cursor) => {
+        const text = String(transcript || "");
+        const el = cursor?.element;
+        if (!text || !el || !document.contains(el) || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return false;
+        const current = el.value || "";
+        const start = typeof cursor.selectionStart === "number" ? cursor.selectionStart : current.length;
+        const end = typeof cursor.selectionEnd === "number" ? cursor.selectionEnd : start;
+        const safeStart = Math.max(0, Math.min(start, current.length));
+        const safeEnd = Math.max(safeStart, Math.min(end, current.length));
+        const newValue = current.slice(0, safeStart) + text + current.slice(safeEnd);
+        const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        if (!nativeSetter) return false;
+        nativeSetter.call(el, newValue);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        const newPos = safeStart + text.length;
+        try {
+            el.setSelectionRange(newPos, newPos);
+        } catch (_) {}
+        el.focus();
+        return true;
+    }, []);
+
+    const copyTranscriptToClipboard = useCallback(async (transcript) => {
+        const text = String(transcript || "").trim();
+        if (!text) return;
+        try {
+            if (navigator?.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement("textarea");
+                textarea.value = text;
+                textarea.setAttribute("readonly", "");
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand("copy");
+                document.body.removeChild(textarea);
+            }
+            message.success("Transcript copied to clipboard.");
+        } catch (error) {
+            console.error("[HeaderTranscribe] clipboard copy failed", error);
+            message.warning("Transcript is ready, but it could not be copied to clipboard.");
+        }
+    }, []);
 
     // ── Header transcribe: cursor tracking ─────────────────────────────────
     useEffect(() => {
         if (!isVoiceRxNewFromGB) return;
         const onFocusIn = (e) => {
-            const el = e.target;
-            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                headerVoiceCursorRef.current = { element: el, selectionStart: el.selectionStart || 0, selectionEnd: el.selectionEnd || 0 };
-            }
+            const selection = getEditableSelection(e.target);
+            if (selection) headerVoiceCursorRef.current = selection;
         };
-        const onUpdateCursor = () => {
+        const onUpdateCursor = (event) => {
             const el = document.activeElement;
-            if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
-                headerVoiceCursorRef.current = { element: el, selectionStart: el.selectionStart || 0, selectionEnd: el.selectionEnd || 0 };
+            const selection = getEditableSelection(el);
+            if (selection) {
+                headerVoiceCursorRef.current = selection;
+                return;
             }
+            if (event?.target?.closest?.("[data-header-dictation-trigger]")) return;
+            headerVoiceCursorRef.current = null;
         };
         document.addEventListener('focusin', onFocusIn);
         document.addEventListener('click', onUpdateCursor);
@@ -192,7 +282,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const headerVoiceStopAndTranscribe = useCallback(async () => {
         const recorder = headerVoiceMediaRecorderRef.current;
         if (!recorder || recorder.state === 'inactive') return;
+        const targetId = headerVoiceTargetIdRef.current || headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
         setHeaderVoiceState("transcribing");
+        publishHeaderDictation("transcribing", targetId);
         const submitClickedAtMs = Date.now();
         const submitClickedAt = new Date(submitClickedAtMs).toISOString();
         const durationMs = submitClickedAtMs - (headerVoiceRecordStartMsRef.current || submitClickedAtMs);
@@ -210,19 +302,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         try {
             const { transcript } = await transcribeAnyAudio({ audioBlob });
             const clinicalCompletedAtMs = Date.now();
-            if (transcript && cursor?.element) {
-                const el = cursor.element;
-                const start = cursor.selectionStart;
-                const end = cursor.selectionEnd;
-                const current = el.value || "";
-                const newValue = current.slice(0, start) + transcript + current.slice(end);
-                const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-                const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-                nativeSetter.call(el, newValue);
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                const newPos = start + transcript.length;
-                el.setSelectionRange(newPos, newPos);
-                el.focus();
+            if (transcript) {
+                const inserted = insertTranscriptAtCursor(transcript, cursor);
+                if (!inserted) {
+                    await copyTranscriptToClipboard(transcript);
+                }
             }
             uploadAndLogVoiceRx2({
                 audioBlob,
@@ -281,10 +365,15 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             });
         }
         setHeaderVoiceState("idle");
-    }, [dispatch, patient_data, profile, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
+        headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+    }, [copyTranscriptToClipboard, dispatch, insertTranscriptAtCursor, patient_data, profile, publishHeaderDictation, setHeaderVoiceState, voiceDigitization]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const headerVoiceStartRecording = useCallback(async () => {
         if (headerVoiceStateRef.current !== "idle") return;
+        if (activeVoiceModule) return;
+        const targetId = headerVoiceCursorRef.current?.targetId || HEADER_DICTATION_TARGET;
+        headerVoiceTargetIdRef.current = targetId;
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             headerVoiceStreamRef.current = stream;
@@ -296,10 +385,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             recorder.start();
             headerVoiceRecordStartMsRef.current = Date.now();
             setHeaderVoiceState("recording");
+            publishHeaderDictation("recording", targetId);
         } catch (err) {
             console.error('[HeaderTranscribe] mic access failed', err);
+            headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+            publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
         }
-    }, [setHeaderVoiceState]);
+    }, [activeVoiceModule, publishHeaderDictation, setHeaderVoiceState]);
 
     const headerVoiceCancelRecording = useCallback(() => {
         const recorder = headerVoiceMediaRecorderRef.current;
@@ -312,7 +404,9 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         if (stream) { stream.getTracks().forEach(t => t.stop()); headerVoiceStreamRef.current = null; }
         headerVoiceAudioChunksRef.current = [];
         setHeaderVoiceState("idle");
-    }, [setHeaderVoiceState]);
+        headerVoiceTargetIdRef.current = HEADER_DICTATION_TARGET;
+        publishHeaderDictation("idle", HEADER_DICTATION_TARGET);
+    }, [publishHeaderDictation, setHeaderVoiceState]);
 
     // ── Header transcribe: keyboard triggers ───────────────────────────────
     // double-shift → start | single shift (while recording) → submit | Esc → cancel
@@ -2276,24 +2370,26 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                         {showVoiceRxModule && (
                                 <Tooltip
                                     placement="bottom"
-                                    title={headerVoiceState === "recording" ? "Recording… double-shift or click to stop" : headerVoiceState === "transcribing" ? "Transcribing…" : "Voice input (double-shift to start)"}
+                                    title={headerIconVoiceState === "recording" ? "Recording… double-shift or click to stop" : headerIconVoiceState === "transcribing" ? "Transcribing…" : "Voice input (double-shift to start)"}
                                     destroyTooltipOnHide
                                     trigger={["hover"]}
                                     mouseLeaveDelay={0}
                                 >
                                     <button
                                         type="button"
-                                        className={`btn align-items-center justify-content-center d-flex btn-41 me-2 ${headerVoiceState === "recording" ? " header-voice-recording" : headerVoiceState === "transcribing" ? " header-voice-transcribing" : ""}`}
+                                        data-header-dictation-trigger="true"
+                                        className={`btn align-items-center justify-content-center d-flex btn-41 me-2 ${headerIconVoiceState === "recording" ? " header-voice-recording" : headerIconVoiceState === "transcribing" ? " header-voice-transcribing" : ""} ${headerVoiceSoftLocked ? " header-voice-locked" : ""}`}
                                         style={{ position: "relative" }}
-                                        onClick={headerVoiceState === "recording" ? headerVoiceStopAndTranscribe : headerVoiceState === "transcribing" ? undefined : headerVoiceStartRecording}
-                                        disabled={headerVoiceState === "transcribing"}
+                                        onClick={headerVoiceSoftLocked ? undefined : headerVoiceState === "recording" ? headerVoiceStopAndTranscribe : headerVoiceState === "transcribing" ? undefined : headerVoiceStartRecording}
+                                        disabled={headerIconVoiceState === "transcribing"}
+                                        aria-disabled={headerVoiceSoftLocked || undefined}
                                     >
-                                        {headerVoiceState === "transcribing" ? (
+                                        {headerIconVoiceState === "transcribing" ? (
                                             <LoadingOutlined style={{ fontSize: 20 }} />
                                         ) : (
-                                            <VoiceRxIcon size={22} color={headerVoiceState === "recording" ? "#e53935" : "#673AAC"} />
+                                            <VoiceRxIcon size={22} color={headerIconVoiceState === "recording" ? "#e53935" : "#673AAC"} />
                                         )}
-                                        {headerVoiceState === "recording" && (
+                                        {headerIconVoiceState === "recording" && (
                                             <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#e53935", animation: "headerVoicePulse 1s infinite" }} />
                                         )}
                                     </button>

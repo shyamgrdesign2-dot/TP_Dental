@@ -892,7 +892,7 @@ function SurgicalBox({ showVoiceRxModule }) {
 
   return (
     <>
-      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} data-voice-rx-dictation-target="surgeries" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={surgeryIcon} alt="surgery-icon" />
@@ -902,6 +902,7 @@ function SurgicalBox({ showVoiceRxModule }) {
             {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
+                dictationTargetId="surgeries"
                 label="Start Surgeries Procedures voice input"
                 onClick={() => setVoiceCaptureOpen(true)} />
             )}

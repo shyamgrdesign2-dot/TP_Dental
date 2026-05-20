@@ -2320,7 +2320,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   return (
     <>
-      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} data-voice-rx-dictation-target="medications" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Medicationicon} alt="Medication" />
@@ -2351,6 +2351,7 @@ function MedicationsBox({ showVoiceRxModule }) {
             {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
+                dictationTargetId="medications"
                 label="Start Medication Rx voice input"
                 onClick={() => setVoiceCaptureOpen(true)} />
             )}

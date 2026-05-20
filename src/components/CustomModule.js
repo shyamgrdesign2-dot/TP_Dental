@@ -1428,10 +1428,12 @@ function CustomModule({ module, showVoiceRxModule }) {
   const handleAddRow = () => {
     updateCustomModuleContents([...moduleData, { title: "", notes: "" }]);
   };
+  const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "legacy"}`;
 
   return (
     <div
       ref={sectionRef}
+      data-voice-rx-dictation-target={voiceDictationTargetId}
       className={[
         "prescription-box-sm",
         voiceModuleStyles.moduleRoot,
@@ -1483,6 +1485,7 @@ function CustomModule({ module, showVoiceRxModule }) {
               {isVoiceRxModuleEnabled && (
                 <VoiceRxModuleButton
                   active={voiceCaptureOpen}
+                  dictationTargetId={voiceDictationTargetId}
                   label={`Start ${module?.name || "Custom Module"} voice input`}
                   onClick={() => setVoiceCaptureOpen(true)} />
               )}

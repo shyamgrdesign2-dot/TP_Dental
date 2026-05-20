@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { LoadingOutlined } from "@ant-design/icons";
 import { Eraser, Grid5, Ram, Refresh2, Setting2 } from "iconsax-reactjs";
 import { VoiceRecorderCore } from "./VoiceRecorderCore";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./api/clinical-api";
@@ -1009,20 +1010,42 @@ export const VoiceRxModuleActionButton = React.forwardRef(function VoiceRxModule
   );
 });
 
-export function VoiceRxModuleButton({ active = false, disabled = false, onClick, label = "Start voice input" }) {
-  const { activeVoiceModule } = useRxPadSync();
-  const locked = disabled || (!!activeVoiceModule && !active);
+export function VoiceRxModuleButton({ active = false, disabled = false, onClick, label = "Start voice input", dictationTargetId }) {
+  const { activeVoiceModule, headerDictation } = useRxPadSync();
+  const headerDictationStatus = headerDictation?.status || "idle";
+  const headerDictationBusy = headerDictationStatus === "recording" || headerDictationStatus === "transcribing";
+  const headerDictationMatches = headerDictationBusy && !!dictationTargetId && headerDictation?.targetId === dictationTargetId;
+  const locked = disabled || (!!activeVoiceModule && !active) || (headerDictationBusy && !headerDictationMatches);
+  const clickBlocked = locked || headerDictationBusy;
+  const statusLabel = headerDictationStatus === "recording"
+    ? "Recording..."
+    : headerDictationStatus === "transcribing"
+      ? "Transcribing..."
+      : "";
 
   return (
-    <HoverTooltip content={locked ? "VoiceRx is active in another section" : label} side="top">
+    <HoverTooltip content={headerDictationMatches ? statusLabel : locked ? "VoiceRx is active in another section" : label} side="top">
       <button
         type="button"
         aria-label={label}
-        aria-pressed={active}
+        aria-pressed={active || headerDictationMatches}
         disabled={locked}
-        onClick={locked ? undefined : onClick}
-        className={[styles.voiceButton, active ? styles.voiceButtonActive : "", locked ? styles.voiceButtonDisabled : ""].filter(Boolean).join(" ")}>
-        <VoiceRxIcon size={36} color="#673AAC" />
+        onClick={clickBlocked ? undefined : onClick}
+        className={[
+          styles.voiceButton,
+          active || headerDictationMatches ? styles.voiceButtonActive : "",
+          headerDictationMatches && headerDictationStatus === "recording" ? styles.voiceButtonRecording : "",
+          headerDictationMatches && headerDictationStatus === "transcribing" ? styles.voiceButtonTranscribing : "",
+          locked ? styles.voiceButtonDisabled : ""
+        ].filter(Boolean).join(" ")}>
+        {headerDictationMatches && headerDictationStatus === "transcribing" ? (
+          <LoadingOutlined style={{ fontSize: 20 }} />
+        ) : (
+          <VoiceRxIcon size={36} color={headerDictationMatches && headerDictationStatus === "recording" ? "#e53935" : "#673AAC"} />
+        )}
+        {headerDictationMatches && headerDictationStatus === "recording" ? (
+          <span className={styles.voiceButtonPulse} aria-hidden="true" />
+        ) : null}
       </button>
     </HoverTooltip>
   );
@@ -1036,7 +1059,8 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
   const handledCopyIdRef = useRef(null);
   const copyPayloadKeysRef = useRef(copyPayloadKeys);
   const copyPayloadMatcherRef = useRef(copyPayloadMatcher);
-  const { lastCopyRequest } = useRxPadSync();
+  const { lastCopyRequest, claimActiveVoiceModule, releaseActiveVoiceModule } = useRxPadSync();
+  const moduleVoiceLockIdRef = useRef(`module-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 
   useEffect(() => {
     copyPayloadKeysRef.current = copyPayloadKeys;
@@ -1051,8 +1075,18 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
       if (voiceUpdatedTimerRef.current) {
         window.clearTimeout(voiceUpdatedTimerRef.current);
       }
+      releaseActiveVoiceModule(moduleVoiceLockIdRef.current);
     };
-  }, []);
+  }, [releaseActiveVoiceModule]);
+
+  useEffect(() => {
+    const lockId = moduleVoiceLockIdRef.current;
+    if (voiceCaptureOpen) {
+      claimActiveVoiceModule(lockId, moduleName);
+      return () => releaseActiveVoiceModule(lockId);
+    }
+    releaseActiveVoiceModule(lockId);
+  }, [claimActiveVoiceModule, moduleName, releaseActiveVoiceModule, voiceCaptureOpen]);
 
   const triggerHighlight = useCallback((scroll = true) => {
     setVoiceUpdated(true);

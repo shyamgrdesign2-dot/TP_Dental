@@ -1,7 +1,7 @@
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "./clinical-api";
 
 const TRANSCRIBE_ANY_AUDIO_ENDPOINT = "/agents/transcribe-any-audio";
-const TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS = 120000;
+const TRANSCRIBE_ANY_AUDIO_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const PRIVATE_NOTES_TRANSCRIPTION_PROMPT =
   "Transcribe the audio exactly as spoken, preserving the original language. Do not summarize. Remove any silent filler words (e.g., 'um', 'uh'); do not include them in the transcription."

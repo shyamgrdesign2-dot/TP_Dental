@@ -739,7 +739,7 @@ function AdviceBox({ showVoiceRxModule }) {
 
   return (
     <>
-      <div ref={sectionRef} className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
+      <div ref={sectionRef} data-voice-rx-dictation-target="advice" className={[voiceModuleStyles.moduleRoot, isVoiceRxModuleEnabled && voiceUpdated ? voiceModuleStyles.moduleUpdated : ""].filter(Boolean).join(" ")}>
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Adviceicon} alt="Advice" />
@@ -749,6 +749,7 @@ function AdviceBox({ showVoiceRxModule }) {
             {isVoiceRxModuleEnabled && (
               <VoiceRxModuleButton
                 active={voiceCaptureOpen}
+                dictationTargetId="advice"
                 label="Start Advices voice input"
                 onClick={() => setVoiceCaptureOpen(true)} />
             )}

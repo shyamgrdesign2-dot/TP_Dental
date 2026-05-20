@@ -18,11 +18,13 @@ export function DrAgentRuntime({
   const {
     collapsedVoiceSession,
     activeVoiceModule,
+    headerDictation,
     copyOverlayActive,
     requestVoicePauseToggle,
     requestVoiceSubmit
   } = useRxPadSync();
 
+  const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const collapsedVoiceActive = !isOpen && !!collapsedVoiceSession.active;
   const showPageAura = collapsedVoiceActive || copyOverlayActive;
   const showIdleFab = !isOpen && !collapsedVoiceSession.active;
@@ -65,7 +67,7 @@ export function DrAgentRuntime({
       </div>
 
       {showIdleFab && (
-        <DrAgentFab disabled={!!activeVoiceModule} onClick={onOpen} />
+        <DrAgentFab disabled={!!activeVoiceModule || headerDictationBusy} onClick={onOpen} />
       )}
 
       {collapsedVoiceActive && (

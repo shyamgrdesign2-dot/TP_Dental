@@ -19,6 +19,11 @@ const RxPadSyncContext = createContext({
   setActiveVoiceModule: () => {},
   claimActiveVoiceModule: () => {},
   releaseActiveVoiceModule: () => {},
+  headerDictation: {
+    status: "idle",
+    targetId: "header"
+  },
+  setHeaderDictation: () => {},
   collapsedVoiceSession: {
     active: false,
     paused: false,
@@ -65,17 +70,44 @@ export function RxPadSyncProvider({ children }) {
   }, []);
   const [copyOverlayActive, setCopyOverlayActive] = useState(false);
   const copyOverlayTimerRef = useRef(null);
-  const [activeVoiceLock, setActiveVoiceLock] = useState(null);
-  const activeVoiceModule = activeVoiceLock?.label || null;
+  const [activeVoiceLocks, setActiveVoiceLocks] = useState({});
+  const activeVoiceModule = Object.values(activeVoiceLocks)[0]?.label || null;
   const setActiveVoiceModule = useCallback((label) => {
-    setActiveVoiceLock(label ? { id: "legacy", label } : null);
+    setActiveVoiceLocks((prev) => {
+      const next = { ...prev };
+      if (label) {
+        next.legacy = { id: "legacy", label };
+      } else {
+        delete next.legacy;
+      }
+      return next;
+    });
   }, []);
   const claimActiveVoiceModule = useCallback((id, label) => {
     if (!id || !label) return;
-    setActiveVoiceLock({ id, label });
+    setActiveVoiceLocks((prev) => ({
+      ...prev,
+      [id]: { id, label }
+    }));
   }, []);
   const releaseActiveVoiceModule = useCallback((id) => {
-    setActiveVoiceLock((prev) => (prev?.id === id ? null : prev));
+    if (!id) return;
+    setActiveVoiceLocks((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+  const [headerDictation, setHeaderDictationRaw] = useState({
+    status: "idle",
+    targetId: "header"
+  });
+  const setHeaderDictation = useCallback((next) => {
+    setHeaderDictationRaw((prev) => ({
+      status: next?.status || "idle",
+      targetId: next?.targetId || prev.targetId || "header"
+    }));
   }, []);
   const [collapsedVoiceSession, setCollapsedVoiceSessionRaw] = useState({
     active: false,
@@ -251,6 +283,8 @@ export function RxPadSyncProvider({ children }) {
       setActiveVoiceModule,
       claimActiveVoiceModule,
       releaseActiveVoiceModule,
+      headerDictation,
+      setHeaderDictation,
       collapsedVoiceSession,
       setCollapsedVoiceSession,
       voicePauseToggleRequest,
@@ -279,7 +313,7 @@ export function RxPadSyncProvider({ children }) {
       patientAllergies, aiFillInProgress, voiceActive, copyAllAuraActive,
       flashCopyAllAura, copyOverlayActive, runCopyWithAura, activeVoiceModule,
       setActiveVoiceModule, claimActiveVoiceModule, releaseActiveVoiceModule,
-      collapsedVoiceSession, setCollapsedVoiceSession, voicePauseToggleRequest,
+      headerDictation, setHeaderDictation, collapsedVoiceSession, setCollapsedVoiceSession, voicePauseToggleRequest,
       requestVoicePauseToggle, voiceSubmitRequest, requestVoiceSubmit,
       micUnavailable, micUnavailableReason, historicalUpdates,
       isHistoricalSectionUnseen, pushHistoricalUpdates, acknowledgeHistoricalSection,

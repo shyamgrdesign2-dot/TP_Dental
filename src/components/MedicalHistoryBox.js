@@ -2175,6 +2175,7 @@ function MedicalHistoryBox(props) {
                                                                             <span className="d-inline-flex ms-2">
                                                                                 <VoiceRxModuleButton
                                                                                     active={additionalHistoryVoiceCaptureOpen}
+                                                                                    dictationTargetId="medical-history-additional"
                                                                                     label="Start Additional History voice input"
                                                                                     onClick={openAdditionalHistoryVoiceCapture}
                                                                                 />
@@ -2183,7 +2184,7 @@ function MedicalHistoryBox(props) {
                                                                     </div>
                                                                 </div>
                                                                 {expandRemarks &&
-                                                                    <div style={{ position: "relative", width: "100%" }}>
+                                                                    <div data-voice-rx-dictation-target="medical-history-additional" style={{ position: "relative", width: "100%" }}>
                                                                         {isVoiceRxModuleEnabled && additionalHistoryVoiceCaptureOpen ? (
                                                                             <div className={voiceModuleStyles.moduleSlot}>
                                                                                 <VoiceRxModuleCapture
@@ -2469,7 +2470,7 @@ function MedicalHistoryBox(props) {
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            <div className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
+                                                            <div data-voice-rx-dictation-target="medical-history-note" className={`${isMobile ? 'mt-5' : 'mt-20'}`}>
                                                                 <div className="d-flex align-items-center mb-1">
                                                                     <label className="title-common mb-0">
                                                                         {selectData?.tmmhs_id == 5 ? "Surgical History Remarks" : "Note"}
@@ -2478,6 +2479,7 @@ function MedicalHistoryBox(props) {
                                                                         <span className="d-inline-flex ms-2">
                                                                             <VoiceRxModuleButton
                                                                                 active={selectedHistoryNoteVoiceCaptureOpen}
+                                                                                dictationTargetId="medical-history-note"
                                                                                 label="Start Medical History note voice input"
                                                                                 onClick={openSelectedHistoryNoteVoiceCapture}
                                                                             />
