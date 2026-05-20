@@ -184,7 +184,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
   if (adv.length > 0) {
     const lines = adv
       .map((a) =>
-        typeof a === "string" ? a : a?.value ?? a?.advice ?? a?.text ?? ""
+        typeof a === "string" ? a : a?.advice_name ?? a?.advice ?? a?.text ?? ""
       )
       .filter(Boolean);
     if (lines.length) parts.push("ADVICE:\n" + lines.join("\n"));
