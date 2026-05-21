@@ -77,7 +77,7 @@ const TableBillingDashboard = forwardRef(
     const [advanceCount, setAdvanceCount] = useState(0);
     const [dateStatus, setDateStatus] = useState(4);
     const [dateRange, setDateRange] = useState({
-      startDate: "2000-01-01",
+      startDate: "2024-01-01",
       endDate: moment().format(dateFormat),
     });
     const [selectedDoctors, setSelectedDoctors] = useState([]);

@@ -168,7 +168,7 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
       label: (
         <div className={`${dateStatus === 4 ? "active" : ""}`}>Till date</div>
       ),
-      value: [dayjs("2000-01-01"), dayjs()],
+      value: [dayjs("2024-01-01"), dayjs()],
     },
     {
       label: (
@@ -207,7 +207,7 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
       ) {
         setDateStatus(3);
       } else if (
-        dayjs("2000-01-01").format(dateFormat) ===
+        dayjs("2024-01-01").format(dateFormat) ===
         moment(dateStrings[0], showDateFormat).format(dateFormat) &&
         dayjs().format(dateFormat) ===
         moment(dateStrings[1], showDateFormat).format(dateFormat)
@@ -982,7 +982,7 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
                           onClick={() => {
                             setDateStatus(4);
                             setDateRange({
-                              startDate: "2000-01-01",
+                              startDate: "2024-01-01",
                               endDate: moment().format(dateFormat),
                             });
                             setPickerPanelValue([dayjs(), dayjs()]);
