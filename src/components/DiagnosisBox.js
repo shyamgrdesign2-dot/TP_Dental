@@ -53,6 +53,7 @@ import {
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { appendStripped } from "../utils/voiceRxRowStrip";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
@@ -462,7 +463,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     const action = await dispatch(singleTemplateDetails(template.tdt_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setDiagnosisData([...diagnosisData, ...updatedData]);
+      setDiagnosisData(appendStripped(diagnosisData, updatedData, "diagnosis"));
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)

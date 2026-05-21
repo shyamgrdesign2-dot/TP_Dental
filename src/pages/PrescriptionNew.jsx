@@ -94,6 +94,7 @@ import {
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
+import { appendStripped } from "../utils/voiceRxRowStrip";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
@@ -341,20 +342,9 @@ function PrescriptionNewRxPadCopyListener() {
 
     const payload = lastCopyRequest.payload || {};
     const digitization = payload.digitization || {};
-    const STRIP_KEYS = {
-      symptoms: ["symptom_name", "since", "severity", "note"],
-      examinations: ["examination_name", "note"],
-      diagnosis: ["tds_name", "icd_code", "since", "status", "note"],
-      investigations: ["investigation_name", "note"],
-      surgeries: ["name", "notes"],
-    };
     const appendRows = (setter, rows, moduleKey) => {
       if (!rows.length) return;
-      setter((prev) => {
-        const keys = STRIP_KEYS[moduleKey];
-        const cleaned = keys ? prev.filter(r => keys.some(k => String(r?.[k] ?? "").trim() !== "")) : prev;
-        return [...cleaned, ...rows];
-      });
+      setter((prev) => appendStripped(prev, rows, moduleKey));
     };
 
     const symptoms = firstNonEmpty(digitization.symptoms, payload.symptoms);

@@ -53,6 +53,7 @@ import GenRxButton from '../components/GenRxButton';
 
 import { placeIctOrder } from '../redux/appointmentsSlice';
 import { getDecodedToken } from '../utils/localStorage';
+import { appendStripped } from '../utils/voiceRxRowStrip';
 import { env } from '../EnvironmentConfig';
 import { updateCredits } from '../redux/monetizationSlice';
 import { setAddToRx, storeVoicePrescription } from '../api/services/ApiGenRx';
@@ -715,25 +716,25 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const updatedData = data.symptoms.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", severity: "", note: "" }
                     })
-                    setSymptomsData([...symptomsData, ...updatedData]);
+                    setSymptomsData(appendStripped(symptomsData, updatedData, "symptoms"));
                 }
                 if (data.examination.length > 0) {
                     const updatedData = data.examination.map(e => {
                         return { ...e, unique_id: uuidv4(), note: "" }
                     })
-                    setExaminationData([...examinationData, ...updatedData]);
+                    setExaminationData(appendStripped(examinationData, updatedData, "examinations"));
                 }
                 if (data?.surgeries && data.surgeries?.length > 0) {
                   const updatedData = data.surgeries.map((e) => {
                     return { ...e, unique_id: uuidv4(), notes: "" };
                   });
-                  setSurgeriesData([...surgeriesData, ...updatedData]);
+                  setSurgeriesData(appendStripped(surgeriesData, updatedData, "surgeries"));
                 }
                 if (data.diagnosis.length > 0) {
                     const updatedData = data.diagnosis.map(e => {
                         return { ...e, unique_id: uuidv4(), since: "", status: e.hasOwnProperty('status') ? e.status : "", note: "" }
                     })
-                    setDiagnosisData([...diagnosisData, ...updatedData]);
+                    setDiagnosisData(appendStripped(diagnosisData, updatedData, "diagnosis"));
                 }
                 if (data.advice.length > 0) {
                     const updatedData = data.advice.map(e => {
@@ -745,7 +746,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     const updatedData = data.investigation.map(e => {
                         return { ...e, unique_id: uuidv4(), note: "" }
                     })
-                    setInvestigationData([...investigationData, ...updatedData]);
+                    setInvestigationData(appendStripped(investigationData, updatedData, "investigations"));
                 }
                 if (data.medicine.length > 0) {
                     if (!isMobile) {

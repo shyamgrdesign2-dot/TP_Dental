@@ -20,6 +20,7 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, getHmTypeIndicator, onlyNumberFormat, removeBeforeWhiteSpace } from "../utils/utils";
+import { appendStripped } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined } from '@ant-design/icons';
 import {
@@ -472,19 +473,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     window.Moengage.track_event("investigation_template_used", {
       "template_name": template.tit_template_name
     });
-    const action = await dispatch(singleTemplateDetails(template.tit_id));
-    if (action.meta.requestStatus === "fulfilled") {
-      const rows = Array.isArray(action.payload) ? action.payload : [];
-      const updatedData = rows.map((e) => ({
-        ...e,
-        unique_id: uuidv4(),
-        note: e.note ? e.note : "",
-      }));
-      setInvestigationData([...investigationData, ...updatedData]);
-      showHideTemplatesListPopover();
-    } else {
-      errorMessage(action.error);
-    }
+    const updatedData = template.investigation.map(e => {
+      return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
+    })
+      setInvestigationData(appendStripped(investigationData, updatedData, "investigations"));
+    showHideTemplatesListPopover();
   };
 
   const onDeleteTemplateClicked = async (tit_id) => {

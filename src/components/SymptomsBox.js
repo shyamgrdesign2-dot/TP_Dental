@@ -19,6 +19,7 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
+import { appendStripped } from "../utils/voiceRxRowStrip";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 
@@ -508,7 +509,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
     const action = await dispatch(singleTemplateDetails(template.tst_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setSymptomsData([...symptomsData, ...updatedData]);
+      setSymptomsData(appendStripped(symptomsData, updatedData, "symptoms"));
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)

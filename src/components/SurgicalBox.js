@@ -31,6 +31,7 @@ import {
   capitalizeAfterSentence,
   getClinicName,
 } from "../utils/utils";
+import { appendStripped } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined } from "@ant-design/icons";
 import {
@@ -431,7 +432,7 @@ function SurgicalBox({ showVoiceRxModule }) {
         notes: e.notes ? e.notes : "",
       };
     });
-    setSurgeriesData([...surgeriesData, ...updatedData]);
+    setSurgeriesData(appendStripped(surgeriesData, updatedData, "surgeries"));
     showHideTemplatesListPopover();
   };
 

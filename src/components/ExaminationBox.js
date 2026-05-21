@@ -19,6 +19,7 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
+import { appendStripped } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
 import {
@@ -358,7 +359,7 @@ function ExaminationBox({ showVoiceRxModule }) {
     const action = await dispatch(singleTemplateDetails(template.tet_id));
     if (action.meta.requestStatus === "fulfilled") {
       const updatedData = action?.payload;
-      setExaminationData([...examinationData, ...updatedData]);
+      setExaminationData(appendStripped(examinationData, updatedData, "examinations"));
       showHideTemplatesListPopover();
     } else {
       errorMessage(action.error)
