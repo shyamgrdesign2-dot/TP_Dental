@@ -382,8 +382,11 @@ function SurgicalBox({ showVoiceRxModule }) {
         query: surgeriesUpdatedData.name,
         index: i,
       });
+      if (canShowVoiceRxNewRows && i === surgeriesData.length - 1) {
+        setSurgeriesData((prev) => [...prev, emptySurgeryRow()]);
+      }
     },
-    [searchChildQuery, surgeriesData]
+    [searchChildQuery, surgeriesData, canShowVoiceRxNewRows]
   );
 
   const onChangeNoteChild = useCallback(
@@ -396,7 +399,11 @@ function SurgicalBox({ showVoiceRxModule }) {
 
   const onRemoveRow = (index) => {
     surgeriesData.splice(index, 1);
-    setSurgeriesData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && surgeriesData.length === 0) {
+      setSurgeriesData([emptySurgeryRow()]);
+    } else {
+      setSurgeriesData((prev) => [...prev]);
+    }
   };
 
   //PopOver1 function
@@ -847,7 +854,7 @@ function SurgicalBox({ showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setSurgeriesData([]);
+    setSurgeriesData(canShowVoiceRxNewRows ? [emptySurgeryRow()] : []);
     showHideClearData();
   };
 
@@ -987,7 +994,7 @@ function SurgicalBox({ showVoiceRxModule }) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
@@ -995,7 +1002,7 @@ function SurgicalBox({ showVoiceRxModule }) {
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.surgeries}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          ) : !isVoiceRxModuleEnabled ? (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1009,7 +1016,7 @@ function SurgicalBox({ showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          )}
+          ) : null}
         </div>
       </div>
     </>

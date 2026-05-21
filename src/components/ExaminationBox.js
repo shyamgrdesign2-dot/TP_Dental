@@ -304,8 +304,11 @@ function ExaminationBox({ showVoiceRxModule }) {
       setExaminationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).examination_name, index: i });
       dispatch(setIsDDxReadyToGenerate(true));
+      if (canShowVoiceRxNewRows && i === examinationData.length - 1) {
+        setExaminationData((prev) => [...prev, emptyExaminationRow()]);
+      }
     },
-    [searchChildQuery, examinationData]
+    [searchChildQuery, examinationData, canShowVoiceRxNewRows]
   );
 
   const onChangeNoteChild = useCallback(
@@ -320,7 +323,11 @@ function ExaminationBox({ showVoiceRxModule }) {
 
   const onRemoveRow = (index) => {
     examinationData.splice(index, 1);
-    setExaminationData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && examinationData.length === 0) {
+      setExaminationData([emptyExaminationRow()]);
+    } else {
+      setExaminationData((prev) => [...prev]);
+    }
     if (examinationData?.length > 0) {
       dispatch(setIsDDxReadyToGenerate(true));
     } else if (symptomsData?.length === 0) {
@@ -779,7 +786,7 @@ function ExaminationBox({ showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setExaminationData([])
+    setExaminationData(canShowVoiceRxNewRows ? [emptyExaminationRow()] : [])
     showHideClearData()
   };
 
@@ -915,7 +922,7 @@ function ExaminationBox({ showVoiceRxModule }) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Examinations"
@@ -923,7 +930,7 @@ function ExaminationBox({ showVoiceRxModule }) {
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.examination}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          ) : !isVoiceRxModuleEnabled ? (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -938,7 +945,7 @@ function ExaminationBox({ showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          )}
+          ) : null}
         </div>
       </div>
     </>

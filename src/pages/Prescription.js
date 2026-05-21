@@ -2006,6 +2006,7 @@ function Prescription() {
         ...(isVoiceRxNewFromGB && {
           isVoiceRxNewUiFlow: true,
           voiceRxEntryPoint: "prescription_header",
+          caseManagerData: caseManagerData,
         }),
       },
     });

@@ -401,8 +401,11 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
       setSymptomsData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).symptom_name, index: i });
       dispatch(setIsDDxReadyToGenerate(true));
+      if (canShowVoiceRxNewRows && i === symptomsData.length - 1) {
+        setSymptomsData((prev) => [...prev, emptySymptomRow()]);
+      }
     },
-    [searchChildQuery, symptomsData]
+    [searchChildQuery, symptomsData, canShowVoiceRxNewRows]
   );
 
   const onSearchSinceChid = useCallback(
@@ -467,7 +470,11 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
 
   const onRemoveRow = (index) => {
     symptomsData.splice(index, 1);
-    setSymptomsData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && symptomsData.length === 0) {
+      setSymptomsData([emptySymptomRow()]);
+    } else {
+      setSymptomsData((prev) => [...prev]);
+    }
     if (symptomsData?.length > 0) {
       dispatch(setIsDDxReadyToGenerate(true));
     } else if (examinationData?.length === 0) {
@@ -728,7 +735,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="symptoms" direction="vertical">
           {(provided) => (
-            <div {...provided.droppableProps} ref={provided.innerRef}>
+            <div {...provided.droppableProps} ref={provided.innerRef} className="mt-2">
               {symptomsData.length > 0 &&
                 symptomsData.map((item, index) => (
                   <Draggable key={index} draggableId={`symptom-${index}`} index={index}>
@@ -988,7 +995,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setSymptomsData([])
+    setSymptomsData(canShowVoiceRxNewRows ? [emptySymptomRow()] : [])
     showHideClearData()
   };
 
@@ -1157,7 +1164,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
             />
           </div>
         )} */}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Symptoms"
@@ -1165,7 +1172,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.symptoms}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          ) : !isVoiceRxModuleEnabled ? (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1180,7 +1187,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
                 prefix={<i className="icon-search"></i>}
               />
             </AutoComplete>
-          )}
+          ) : null}
         </div>
         </>
         )}

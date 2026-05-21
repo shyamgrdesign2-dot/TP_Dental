@@ -609,18 +609,19 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         },
     ];
     async function onResetClick() {
-        setSymptomsData([])
-        setExaminationData([])
-        setDiagnosisData([])
+        const canShowVoiceRxNewRows = Boolean(showVoiceRxModule) && isVoiceRxNewFromGB;
+        setSymptomsData(canShowVoiceRxNewRows ? [{ symptom_name: "", unique_id: uuidv4(), since: "", severity: "", note: "", change: 1, pms_default: 0 }] : [])
+        setExaminationData(canShowVoiceRxNewRows ? [{ examination_name: "", unique_id: uuidv4(), note: "", change: 1, pms_default: 0 }] : [])
+        setDiagnosisData(canShowVoiceRxNewRows ? [{ tds_name: "", tds_id: 0, unique_id: uuidv4(), change: 1, pms_default: 0, icd_code: "", since: "", status: "", note: "" }] : [])
         setAdviceData([])
-        setInvestigationData([])
+        setInvestigationData(canShowVoiceRxNewRows ? [{ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 }] : [])
         setMedicationData([])
         // setVitalsData([])
         // setMedicalHistoryData([])
         setPrivateNotesData(null)
         setFollowUpDate(null)
         setAdditionalNote('')
-        setSurgeriesData([]);
+        setSurgeriesData(canShowVoiceRxNewRows ? [{ masterId: uuidv4(), name: "", notes: "" }] : []);
         setCustomModuleContents([]);
         dispatch(resetOpthalForm());
     }

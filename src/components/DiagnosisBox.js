@@ -350,8 +350,11 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       diagnosisData[i] = { ...diagnosisData[i], ...JSON.parse(e.key) };
       setDiagnosisData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).tds_name, index: i });
+      if (canShowVoiceRxNewRows && i === diagnosisData.length - 1) {
+        setDiagnosisData((prev) => [...prev, emptyDiagnosisRow()]);
+      }
     },
-    [searchChildQuery, diagnosisData]
+    [searchChildQuery, diagnosisData, canShowVoiceRxNewRows]
   );
 
   const onSearchSinceChid = useCallback(
@@ -412,7 +415,11 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const onRemoveRow = (index) => {
     diagnosisData.splice(index, 1);
-    setDiagnosisData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && diagnosisData.length === 0) {
+      setDiagnosisData([emptyDiagnosisRow()]);
+    } else {
+      setDiagnosisData((prev) => [...prev]);
+    }
   };
 
   //PopOver1 function
@@ -938,7 +945,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setDiagnosisData([])
+    setDiagnosisData(canShowVoiceRxNewRows ? [emptyDiagnosisRow()] : [])
     showHideClearData()
   };
 
@@ -1106,7 +1113,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             />
           </div>
         )}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
@@ -1114,7 +1121,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               dummyDigitisedData={VOICE_MODULE_DUMMY_DIGITISED_DATA.diagnosis}
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
-          ) : (
+          ) : !isVoiceRxModuleEnabled ? (
             <AutoComplete
               value={searchParentQuery}
               onSearch={onSearchParent}
@@ -1129,7 +1136,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
                 prefix={<i className="icon-search" />}
               />
             </AutoComplete>
-          )}
+          ) : null}
         </div>
       </div>
     </>

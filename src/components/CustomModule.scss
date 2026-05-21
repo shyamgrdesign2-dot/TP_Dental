@@ -59,7 +59,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  border: 1px dashed #BA7DE9;
+  border: 1px dashed #4b4ad5;
   background: #ffffff;
   border-radius: 12px;
   padding: 20px 16px;
@@ -69,7 +69,7 @@
 
 .add-custom-module-link {
   font-size: 16px;
-  color: #BA7DE9 !important; /* Ensures the text color applies */
+  color: #4b4ad5 !important; /* Ensures the text color applies */
   font-weight: 500;
   padding: 0 !important;
   margin: 0;
@@ -77,11 +77,11 @@
 }
 
 .add-custom-module-link > span {
-  color: #BA7DE9 !important; /* Targets the text specifically inside the button */
+  color: #4b4ad5 !important; /* Targets the text specifically inside the button */
 }
 
 .add-custom-module-link .anticon {
-  color: #BA7DE9 !important; /* Applies the color to the Ant Design icon */
+  color: #4b4ad5 !important; /* Applies the color to the Ant Design icon */
 }
 
 .add-custom-module-link:hover {
@@ -96,7 +96,7 @@
 }
 
 .module-count {
-  color: #BA7DE9 !important;
+  color: #4b4ad5 !important;
 }
 
 .info-icon {

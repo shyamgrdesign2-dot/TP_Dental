@@ -425,8 +425,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       setInvestigationData((prev) => [...prev]);
       setSearchChildQuery({ query: JSON.parse(e.key).investigation_name, index: i });
       setActiveVoiceInvestigationIndex(null);
+      if (canShowVoiceRxNewRows && i === investigationData.length - 1) {
+        setInvestigationData((prev) => [...prev, emptyInvestigationRow()]);
+      }
     },
-    [searchChildQuery, investigationData]
+    [searchChildQuery, investigationData, canShowVoiceRxNewRows]
   );
 
   const onChangeNoteChild = useCallback(
@@ -439,7 +442,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   const onRemoveRow = (index) => {
     investigationData.splice(index, 1);
-    setInvestigationData((prev) => [...prev]);
+    if (canShowVoiceRxNewRows && investigationData.length === 0) {
+      setInvestigationData([emptyInvestigationRow()]);
+    } else {
+      setInvestigationData((prev) => [...prev]);
+    }
   };
 
   //PopOver1 function
@@ -991,7 +998,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setInvestigationData([])
+    setInvestigationData(canShowVoiceRxNewRows ? [emptyInvestigationRow()] : [])
     showHideClearData()
   };
 
@@ -1140,7 +1147,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
+        <div className={isVoiceRxModuleEnabled ? voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "" : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName={INVESTIGATION_TITLE}
