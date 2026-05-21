@@ -9,20 +9,29 @@ import {
 const SOAP_PATH = "/agents/get-soap-notes";
 const SOAP_NAME = "SOAP";
 const SOAP_TAB = "soap";
+const SECTIONS = ["subjective", "objective", "assessment", "plan"];
 
-function hasSoapPreviousContext(value) {
-	if (value === undefined || value === null) return false;
-	if (typeof value === "string") return value.trim() !== "";
-	if (Array.isArray(value)) return value.length > 0;
-	if (typeof value === "object") return Object.keys(value).length > 0;
-	return String(value).trim() !== "";
+// Build previous_context in API contract shape:
+// { subjective, objective, assessment, plan } — each value RTF string.
+// Returns undefined if no section has content (omit field entirely).
+function normalizeSoapPreviousContext(raw) {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+	const out = {};
+	let hasAny = false;
+	for (const key of SECTIONS) {
+		const v = raw[key];
+		if (v != null && String(v).trim() !== "") {
+			out[key] = String(v);
+			hasAny = true;
+		}
+	}
+	return hasAny ? out : undefined;
 }
 
 function buildSoapPayload(context, previousContext) {
 	const payload = buildIdentityPayload(context);
-	if (hasSoapPreviousContext(previousContext)) {
-		payload.previous_context = { soap: previousContext };
-	}
+	const ctx = normalizeSoapPreviousContext(previousContext);
+	if (ctx) payload.previous_context = ctx;
 	return payload;
 }
 

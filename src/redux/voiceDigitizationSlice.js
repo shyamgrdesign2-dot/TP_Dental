@@ -11,7 +11,12 @@ const initialState = {
   digitizeData: null,
   editedData: null,
   clinicNotes: {},
-  soap: "",
+  // soap = raw structured object { subjective, objective, assessment, plan } from /agents/get-soap-notes.
+  // Persisted to /voice/store under key "soap" and used as previous_context on regen.
+  soap: null,
+  // soapHtml = display/edit HTML for RichEditor (derived from soap via soapToHtml).
+  // Not persisted to /voice/store; lives in redux for cross-component access during session.
+  soapHtml: "",
   recordId: null,
 };
 
@@ -38,7 +43,10 @@ const voiceDigitizationSlice = createSlice({
       state.clinicNotes = action.payload || {};
     },
     updateVoiceSoap: (state, action) => {
-      state.soap = typeof action.payload === "string" ? action.payload : "";
+      state.soap = action.payload && typeof action.payload === "object" ? action.payload : null;
+    },
+    updateVoiceSoapHtml: (state, action) => {
+      state.soapHtml = typeof action.payload === "string" ? action.payload : "";
     },
     hydrateVoiceDigitization: (state, action) => {
       const payload = action.payload || {};
@@ -46,7 +54,8 @@ const voiceDigitizationSlice = createSlice({
       state.digitizeData = payload.digitizeData ?? null;
       state.editedData = payload.editedData ?? null;
       state.clinicNotes = payload.clinicNotes || {};
-      state.soap = typeof payload.soap === "string" ? payload.soap : "";
+      state.soap = payload.soap && typeof payload.soap === "object" ? payload.soap : null;
+      state.soapHtml = typeof payload.soapHtml === "string" ? payload.soapHtml : "";
       state.recordId = payload._id || payload.id || state.recordId;
       state.voiceLogCreated = state.history.length > 0;
     },
@@ -66,6 +75,7 @@ export const {
   updateVoiceEditedData,
   updateVoiceClinicNotes,
   updateVoiceSoap,
+  updateVoiceSoapHtml,
   hydrateVoiceDigitization,
   resetVoiceDigitization,
 } = voiceDigitizationSlice.actions;

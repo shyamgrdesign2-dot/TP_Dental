@@ -30,7 +30,7 @@ export function SoapNoteCard({ status, html: htmlProp, error, onRetry, onChange 
 		onChange?.(next);
 	};
 
-	if (status === "pending" || status === undefined) {
+	if (status === "pending") {
 		return (
 			<div className={styles.root}>
 				<ShimmerBlock />
@@ -48,6 +48,16 @@ export function SoapNoteCard({ status, html: htmlProp, error, onRetry, onChange 
 							Retry
 						</button>
 					) : null}
+				</div>
+			</div>
+		);
+	}
+
+	if (!html) {
+		return (
+			<div className={styles.root}>
+				<div className={styles.errorState}>
+					<p className={styles.errorMsg}>No SOAP note available for this visit.</p>
 				</div>
 			</div>
 		);

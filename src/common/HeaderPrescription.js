@@ -2086,7 +2086,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 digitizeData: voiceDigitization.digitizeData || {},
                                 editedData: voiceEditedData,
                                 clinicNotes: voiceDigitization.clinicNotes || {},
-                                soap: voiceDigitization.soap || "",
+                                soap: voiceDigitization.soap || null,
                                 version: "v3",
                                 consent: {
                                     timestamp: Date.now(),

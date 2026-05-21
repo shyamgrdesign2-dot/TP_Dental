@@ -4,8 +4,8 @@ import { VoiceRxCanvas } from "../../../voicerx/VoiceRxCanvas";
 import { VoiceRxActiveAgent } from "../../../voicerx/VoiceRxActiveAgent";
 import { VoiceStructuredRxCard } from "../cards/action/VoiceStructuredRxCard";
 import { SoapNoteCard } from "../../../voicerx/SoapNoteCard";
-import { useDispatch } from "react-redux";
-import { updateVoiceSoap } from "../../../../../redux/voiceDigitizationSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { updateVoiceSoapHtml } from "../../../../../redux/voiceDigitizationSlice";
 
 class VoiceErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -53,6 +53,12 @@ export function BackFace({
   voiceLocked = false,
 }) {
   const dispatch = useDispatch();
+  const liveSoapHtml = useSelector((s) => s.voiceDigitization?.soapHtml || "");
+  const liveSoapRaw = useSelector((s) => s.voiceDigitization?.soap || null);
+  // liveSoapHtml updates on every RichEditor edit; prefer over the static voiceRxResult snapshot
+  const effectiveSoapHtml = liveSoapHtml || voiceRxResult?.soapHtml || "";
+  const effectiveSoap = voiceRxResult?.soap || liveSoapRaw;
+  const effectiveSoapStatus = voiceRxResult?.soapStatus || (effectiveSoap || effectiveSoapHtml ? "fulfilled" : undefined);
   return (
     <div
       className={cn(
@@ -86,13 +92,14 @@ export function BackFace({
             }
             soapCard={
               <SoapNoteCard
-                status={voiceRxResult.soapStatus}
-                html={voiceRxResult.soapHtml}
+                status={effectiveSoapStatus}
+                html={effectiveSoapHtml}
                 error={voiceRxResult.soapError}
-                onChange={(html) => dispatch(updateVoiceSoap(html))}
+                onChange={(html) => dispatch(updateVoiceSoapHtml(html))}
               />
             }
-            soapStatus={voiceRxResult.soapStatus}
+            soapStatus={effectiveSoapStatus}
+            soapHtml={effectiveSoapHtml}
             onCopyToRx={onCopyAll}
             onBack={onBack}
             onMinimize={onMinimize}

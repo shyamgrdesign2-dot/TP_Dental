@@ -4,7 +4,8 @@
 	flex: 1;
 	min-height: 0;
 	width: 100%;
-	height: 100%;
+	// viewport minus: portal header (~62) + back row (~50) + tabs (~50) + footer (~60) + padding (~30) = ~252
+	max-height: calc(100vh - 280px);
 }
 
 .shimmerWrap {

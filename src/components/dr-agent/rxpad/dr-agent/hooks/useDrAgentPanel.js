@@ -34,13 +34,14 @@ import {
 } from "../../../voicerx/api/clinical-processing";
 import { generateSoapNote } from "../../../voicerx/api/soap-service";
 import { digitizationToSections } from "../../../voicerx/utils/result-formatters";
-import { soapToHtml } from "../../../voicerx/utils/soap-formatter";
+import { soapToHtml, htmlToSoapSections } from "../../../voicerx/utils/soap-formatter";
 import {
   addVoiceHistoryEntry,
   beginVoiceAttempt,
   markVoiceLogCreated,
   updateVoiceClinicNotes,
   updateVoiceSoap,
+  updateVoiceSoapHtml,
   updateVoiceDigitizeData,
 } from "../../../../../redux/voiceDigitizationSlice";
 import {
@@ -348,11 +349,18 @@ export function useDrAgentPanel({
       })),
       copyAllPayload: digitization ? { digitization } : undefined,
     };
+    const hydratedSoap = voiceDigitization?.soap || null;
+    const hydratedSoapHtml = voiceDigitization?.soapHtml || (hydratedSoap ? soapToHtml(hydratedSoap) : "");
+    const hydratedSoapStatus = hydratedSoap || hydratedSoapHtml ? "fulfilled" : undefined;
     setVoiceRxResult({
       transcript,
       transcriptSegments,
       sections: resultSections,
       digitization,
+      soap: hydratedSoap,
+      soapHtml: hydratedSoapHtml,
+      soapStatus: hydratedSoapStatus,
+      soapError: null,
       durationMs: transcriptSegments.reduce((total, item) => total + (item.durationMs || 0), 0),
       structured: structuredStub,
       modeLabel: "Conversation Mode",
@@ -626,17 +634,17 @@ export function useDrAgentPanel({
       const finalTranscriptText = clinicalTranscriptToText(finalTranscript);
       progress?.onPhase?.("transcript_ready", { transcript: finalTranscript });
 
-      console.log("[voice-rx] quick-edit phase:", "digitising+soap (parallel)");
       progress?.onPhase?.("structuring_notes", { transcript: finalTranscript });
+      const digitisePrev = voiceRxResult?.digitization || voiceDigitization?.clinicNotes || voiceDigitization?.digitizeData || null;
       const [digitizeResult, soapResult] = await Promise.all([
         digitiseClinicalData({
           context,
-          previousContext: voiceRxResult?.digitization,
+          previousContext: digitisePrev,
           signal: abortController.signal
         }),
         generateSoapNote({
           context,
-          previousContext: voiceDigitization?.soap || voiceRxResult?.soapHtml || "",
+          previousContext: htmlToSoapSections(voiceDigitization?.soapHtml || voiceRxResult?.soapHtml) || voiceRxResult?.soap || voiceDigitization?.soap || null,
           signal: abortController.signal
         })
       ]);
@@ -727,7 +735,8 @@ export function useDrAgentPanel({
       });
       dispatch(updateVoiceDigitizeData(digitization));
       dispatch(updateVoiceClinicNotes(digitization));
-      if (soapHtml) dispatch(updateVoiceSoap(soapHtml));
+      if (soap) dispatch(updateVoiceSoap(soap));
+      if (soapHtml) dispatch(updateVoiceSoapHtml(soapHtml));
       const clinicalCompletedAtMs = Date.now();
       uploadAndLogVoiceRx2({
         audioBlob,
@@ -927,14 +936,16 @@ export function useDrAgentPanel({
         console.log("[voice-rx] phase:", "digitising+soap (parallel)");
         const soapPromise = generateSoapNote({
           context,
-          previousContext: voiceDigitization?.soap || priorVoiceResultRef.current?.soapHtml || "",
+          previousContext: htmlToSoapSections(voiceDigitization?.soapHtml || priorVoiceResultRef.current?.soapHtml) || priorVoiceResultRef.current?.soap || voiceDigitization?.soap || null,
           signal: abortController.signal
         });
         let digitizeResult;
         try {
+          const mainDigitisePrev = priorVoiceResultRef.current?.digitization || voiceDigitization?.clinicNotes || voiceDigitization?.digitizeData || null;
+          console.log("[voice-rx] main pipeline digitise previousContext:", mainDigitisePrev);
           digitizeResult = await digitiseClinicalData({
             context,
-            previousContext: priorVoiceResultRef.current?.digitization,
+            previousContext: mainDigitisePrev,
             signal: abortController.signal
           });
           digitizeCompletedAtMs = Date.now();
@@ -1025,7 +1036,8 @@ export function useDrAgentPanel({
           if (soapResult?.status === "fulfilled") {
             const soapHtml = soapToHtml(soapResult.data);
             setVoiceRxResult((prev) => prev ? { ...prev, soap: soapResult.data, soapHtml, soapStatus: "fulfilled", soapError: null } : prev);
-            if (soapHtml) dispatch(updateVoiceSoap(soapHtml));
+            if (soapResult.data) dispatch(updateVoiceSoap(soapResult.data));
+            if (soapHtml) dispatch(updateVoiceSoapHtml(soapHtml));
           } else {
             setVoiceRxResult((prev) => prev ? { ...prev, soap: null, soapHtml: "", soapStatus: "rejected", soapError: soapResult?.error || "SOAP generation failed." } : prev);
           }

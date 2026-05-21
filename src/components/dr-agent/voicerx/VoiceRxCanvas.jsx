@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download as DownloadIcon, X } from "../atoms/icons/lucide";
-import { Copy as CopyGlyph, DocumentText, InfoCircle, Microphone2, Note1 } from "iconsax-reactjs";
+import { Copy as CopyGlyph, DocumentText, InfoCircle, Microphone2, Note1, Printer } from "iconsax-reactjs";
 import { HoverTooltip } from "../atoms/Tooltip";
 import {
   CaptionCarousel,
@@ -65,6 +65,7 @@ export function VoiceRxCanvas({
   emrCard,
   soapCard,
   soapStatus,
+  soapHtml = "",
   inlineRecorderSlot,
   onCopyToRx,
   onBack,
@@ -175,6 +176,51 @@ export function VoiceRxCanvas({
   const handleDiscardVoiceEditAndBack = () => {
     handleVoiceEditCancel();
     onBack?.();
+  };
+
+  const handleCopySoap = async () => {
+    if (!soapHtml) return;
+    const div = document.createElement("div");
+    div.innerHTML = soapHtml;
+    const text = (div.innerText || div.textContent || "").trim();
+    try {
+      if (window.ClipboardItem && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new window.ClipboardItem({
+            "text/html": new Blob([soapHtml], { type: "text/html" }),
+            "text/plain": new Blob([text], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+      toast.success("SOAP note copied");
+    } catch {
+      toast.error("Failed to copy SOAP note");
+    }
+  };
+
+  const handlePrintSoap = () => {
+    if (!soapHtml) return;
+    // Inject print-only CSS once.
+    if (!document.getElementById("vrx-soap-print-css")) {
+      const style = document.createElement("style");
+      style.id = "vrx-soap-print-css";
+      style.textContent = `@media print { body > *:not(.vrx-soap-print) { display: none !important; } .vrx-soap-print { display: block !important; padding: 24px; font-family: Mulish, Inter, -apple-system, sans-serif; line-height: 1.55; color: #0f172a; } .vrx-soap-print h1 { font-size: 22px; font-weight: 700; margin: 12px 0 8px; } .vrx-soap-print h2 { font-size: 18px; font-weight: 700; margin: 16px 0 8px; } .vrx-soap-print p { margin: 8px 0; } .vrx-soap-print ul, .vrx-soap-print ol { padding-left: 22px; margin: 8px 0; } .vrx-soap-print li { margin: 4px 0; } .vrx-soap-print em { color: #64748b; font-style: italic; } .vrx-soap-print strong { font-weight: 700; } } .vrx-soap-print { display: none; }`;
+      document.head.appendChild(style);
+    }
+    const container = document.createElement("div");
+    container.className = "vrx-soap-print";
+    container.innerHTML = soapHtml;
+    document.body.appendChild(container);
+    const cleanup = () => {
+      container.remove();
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+    // Fallback cleanup if afterprint doesn't fire (some browsers).
+    setTimeout(cleanup, 1500);
   };
 
   return (
@@ -316,6 +362,30 @@ export function VoiceRxCanvas({
           </div>
         )}
       </div>
+
+      {/* Footer — SOAP tab: Copy + Print */}
+      {activeTab === "soap" && soapStatus === "fulfilled" && (
+        <div className={styles.footer}>
+          <div className={styles.footerRow}>
+            <button
+              type="button"
+              onClick={handleCopySoap}
+              disabled={!soapHtml}
+              className={["vrx-cn-secondary-blue", styles.footerPrimary].join(" ")}>
+              <CopyGlyph size={16} variant="Linear" color="currentColor" />
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={handlePrintSoap}
+              disabled={!soapHtml}
+              className={["vrx-cn-secondary-blue", styles.footerPrimary].join(" ")}>
+              <Printer size={16} variant="Linear" color="currentColor" />
+              Print
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Footer — only on EMR tab */}
       {activeTab === "emr" && (
