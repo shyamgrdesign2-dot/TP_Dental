@@ -75,7 +75,7 @@ function PrescriptionPrintView() {
     const isZydusWhatsappEnabled = useZydusWhatsapp();
 
     const { state } = useLocation();
-    const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
+    const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
 
     // Detect a hard refresh on the first mount after document load.
     const isFirstMountAfterLoad = ppvMountCount === 0;
@@ -483,7 +483,7 @@ function PrescriptionPrintView() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(isVoiceRxNewFromGB ? { isVoiceRxNewUiFlow: true } : {}) } })
+            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(isVoiceRxNewFromGB && isVoiceRxNewUiFlow ? { isVoiceRxNewUiFlow: true } : {}) } })
         } else {
             errorMessage(action.error)
         }

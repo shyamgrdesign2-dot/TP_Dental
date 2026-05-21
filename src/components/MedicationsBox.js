@@ -30,7 +30,7 @@ import {
   updateFrequentlyMedication,
   getAllDoses
 } from "../redux/medicationSlice";
-import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
+import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../utils/constants";
 import { getDecodedToken } from "../utils/localStorage";
 import { env } from "../EnvironmentConfig";
 
@@ -239,8 +239,11 @@ function MedicationsBox({ showVoiceRxModule }) {
   const [isModalOpen2, setIsModalOpen2] = useState(false);
 
   const isPillUpAccessableFromGB = useFeatureIsOn(GB_PILLUP_MEDICINE);
+  const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
+  const tokenData = getDecodedToken()?.result;
+  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
-  const hasUngroundedMedications = medicationData.some(isVoiceRxUngroundedMedication);
+  const hasUngroundedMedications = isZydusAccount && medicationData.some(isVoiceRxUngroundedMedication);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
       if (!isVoiceRxModuleEnabled) {
@@ -1321,17 +1324,17 @@ function MedicationsBox({ showVoiceRxModule }) {
                             xs={5}
                             className={[
                               isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
-                              isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : ""
+                              isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : ""
                             ].filter(Boolean).join(" ") || undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
+                              if (isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
-                            style={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
+                            style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
                           >
-                            <div className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
-                              {isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? (
+                            <div className={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
+                              {isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
                                     {voiceMedicineEdit.index === item.index ? (
@@ -1386,7 +1389,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined}>
-                            {!item.pms_default && !(isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item)) &&
+                            {!item.pms_default && !(isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)

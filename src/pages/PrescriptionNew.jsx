@@ -93,6 +93,7 @@ import {
 } from "../redux/ddxSlice";
 import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
+import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
 import AddCustomModule from "../components/AddCustomModule";
@@ -2529,6 +2530,7 @@ function PrescriptionNew() {
   };
 
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   
   const handleGenRx = () => {
     const clinic_name = getClinicName(profile?.hospital_data);
@@ -2556,13 +2558,15 @@ function PrescriptionNew() {
     }
     
 
-    navigate("/voice-rx-consult", {
-      state: {
+    navigateVoiceRx(
+      {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
       },
-    });
+      {},
+      "prescription_new_header"
+    );
   }
   // Auto-fetch Zydus lab params when labReportID is available (for ZydusLabParametersList display)
   useEffect(() => {
@@ -2739,6 +2743,7 @@ function PrescriptionNew() {
               selectedCarePlan={selectedCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
               showVoiceRxModule={canUseVoiceRxModuleUi}
+              isNewPrescriptionUi
             />
             <div style={{ display: "flex", height: "calc(100vh - 60px)", minHeight: 0, overflow: "hidden" }}>
               <SideNavbar

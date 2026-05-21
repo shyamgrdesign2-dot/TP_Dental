@@ -44,6 +44,8 @@ import {
   useVoiceRxModuleCapture,
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 const {
   alerticon: alertIcon,
   examination: Examinationicon,
@@ -51,6 +53,8 @@ const {
 
 function ExaminationBox({ showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const {
     selectedExaminationList,
     parentOptionsList,
@@ -91,7 +95,7 @@ function ExaminationBox({ showVoiceRxModule }) {
 
   const applyVoiceExaminations = useCallback((nextExaminations) => {
     if (nextExaminations.length > 0) {
-      if (isVoiceRxModuleEnabled) {
+      if (canShowVoiceRxNewRows) {
         const last = nextExaminations[nextExaminations.length - 1];
         const withTrailing = (!last || last.examination_name !== "") ? [...nextExaminations, emptyExaminationRow()] : nextExaminations;
         setExaminationData(withTrailing);
@@ -99,11 +103,11 @@ function ExaminationBox({ showVoiceRxModule }) {
         setExaminationData(nextExaminations);
       }
     }
-  }, [isVoiceRxModuleEnabled, setExaminationData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows, setExaminationData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // add one trailing empty row on mount (only when flag is on)
   useEffect(() => {
-    if (!isVoiceRxModuleEnabled) return;
+    if (!canShowVoiceRxNewRows) return;
     setExaminationData(prev => {
       const last = prev[prev.length - 1];
       if (!last || last.examination_name !== "") {
@@ -111,7 +115,7 @@ function ExaminationBox({ showVoiceRxModule }) {
       }
       return prev;
     });
-  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddRow = useCallback(() => {
     setExaminationData(prev => [...prev, emptyExaminationRow()]);
@@ -898,7 +902,7 @@ function ExaminationBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
-        {isVoiceRxModuleEnabled && (
+        {canShowVoiceRxNewRows && (
           <div className="p-2">
             <Button
               type="link"
@@ -911,7 +915,7 @@ function ExaminationBox({ showVoiceRxModule }) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Examinations"
@@ -920,22 +924,20 @@ function ExaminationBox({ showVoiceRxModule }) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            // <AutoComplete
-            //   // defaultValue={searchParentQuery}
-            //   value={searchParentQuery}
-            //   onSearch={onSearchParent}
-            //   options={parentSearchOptions}
-            //   className="autocomplete-custom w-100"
-            //   onSelect={onSelectParent}
-            //   defaultActiveFirstOption={true}
-            //   popupClassName={!searchParentQuery && "boxpopup"}
-            // >
-            //   <Input
-            //     placeholder="Search Examinations"
-            //     prefix={<i className="icon-search"></i>}
-            //   />
-            // </AutoComplete>
-            null
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={!searchParentQuery && "boxpopup"}
+            >
+              <Input
+                placeholder="Search Examinations"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
           )}
         </div>
       </div>

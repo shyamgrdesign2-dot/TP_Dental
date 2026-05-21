@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -611,6 +611,7 @@ function Prescription() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
@@ -1997,11 +1998,15 @@ function Prescription() {
     }
     
 
-    navigate("/voice-rx-consult", {
+    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
       state: {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
+        ...(isVoiceRxNewFromGB && {
+          isVoiceRxNewUiFlow: true,
+          voiceRxEntryPoint: "prescription_header",
+        }),
       },
     });
   }

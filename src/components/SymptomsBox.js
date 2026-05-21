@@ -19,6 +19,8 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 
 import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
 import {
@@ -53,6 +55,8 @@ const {
 
 function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const {
     selectedSymptomsList,
     parentOptionsList,
@@ -132,7 +136,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
 
   const applyVoiceSymptoms = useCallback((nextSymptoms) => {
     if (nextSymptoms.length > 0) {
-      if (isVoiceRxModuleEnabled) {
+      if (canShowVoiceRxNewRows) {
         const last = nextSymptoms[nextSymptoms.length - 1];
         const withTrailing = (!last || last.symptom_name !== "") ? [...nextSymptoms, emptySymptomRow()] : nextSymptoms;
         setSymptomsData(withTrailing);
@@ -140,11 +144,11 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
         setSymptomsData(nextSymptoms);
       }
     }
-  }, [isVoiceRxModuleEnabled, setSymptomsData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows, setSymptomsData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // add one trailing empty row on mount (only when flag is on)
   useEffect(() => {
-    if (!isVoiceRxModuleEnabled) return;
+    if (!canShowVoiceRxNewRows) return;
     setSymptomsData(prev => {
       const last = prev[prev.length - 1];
       if (!last || last.symptom_name !== "") {
@@ -152,7 +156,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
       }
       return prev;
     });
-  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddRow = useCallback(() => {
     setSymptomsData(prev => [...prev, emptySymptomRow()]);
@@ -1130,7 +1134,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
             {DELETE_MODAL}
             {REMOVE_ALL_ROWS}
             {TABLE_SYMPTOMS}
-            {isVoiceRxModuleEnabled && (
+            {canShowVoiceRxNewRows && (
               <div className="p-2">
                 <Button
                   type="link"
@@ -1153,7 +1157,7 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
             />
           </div>
         )} */}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-1"}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Symptoms"
@@ -1162,22 +1166,20 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            // <AutoComplete
-            //   // defaultValue={searchParentQuery}
-            //   value={searchParentQuery}
-            //   onSearch={onSearchParent}
-            //   options={parentSearchOptions}
-            //   className="autocomplete-custom w-100"
-            //   onSelect={onSelectParent}
-            //   defaultActiveFirstOption={true}
-            //   popupClassName={!searchParentQuery && "boxpopup"}
-            // >
-            //   <Input
-            //     placeholder="Search Symptoms"
-            //     prefix={<i className="icon-search"></i>}
-            //   />
-            // </AutoComplete>
-            null
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={!searchParentQuery && "boxpopup"}
+            >
+              <Input
+                placeholder="Search Symptoms"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
           )}
         </div>
         </>

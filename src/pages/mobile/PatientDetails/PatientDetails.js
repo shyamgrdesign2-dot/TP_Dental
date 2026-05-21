@@ -12,6 +12,7 @@ import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from '../../medicalRe
 import { mergeDocuments } from '../../medicalRecords/utils/helper';
 import { fetchPrintSetting } from '../../opdBilling/service';
 import { setBillPrintSettings } from '../../../redux/billingSlice';
+import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
 import {
   getClinicName,
   getClinic,
@@ -68,6 +69,7 @@ const alertIcon = ASSETS.images.alerticon;
 
 function PatientDetails() {
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const dispatch = useDispatch();
   const location = useLocation();
   const { isMobile, isPWA } = useDeviceType();
@@ -337,14 +339,16 @@ function PatientDetails() {
   };
 
   const handleStartWalkInConsultation = () => {
-    // From patient details: go directly to voice-rx-consult (not patients listing)
-    navigate('/voice-rx-consult', {
-      state: {
+    // From patient details, return to the correct VoiceRx entry point for this flag state.
+    navigateVoiceRx(
+      {
         patient_data: patient_data,
         isFromTabView: true,
         from: 'patient_details_walk_in',
       },
-    });
+      {},
+      "mobile_patient_details_walk_in"
+    );
   };
 
   const handleEditPatient = () => {
@@ -378,13 +382,15 @@ function PatientDetails() {
         source: "Patient Details",
       });
     }
-    navigate('/voice-rx-consult', {
-      state: { 
+    navigateVoiceRx(
+      {
         patient_data: patient_data,
         isFromTabView: true
       },
-    });
-  }, [navigate, profile, patient_data, clinic]);
+      {},
+      "mobile_patient_details_voice_rx"
+    );
+  }, [navigateVoiceRx, profile, patient_data, clinic]);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
   const handleEditRx = useCallback(async () => {

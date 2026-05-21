@@ -35,7 +35,7 @@ import {
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { getDecodedToken } from "../utils/localStorage";
-import { GB_APOLLO_DISABLE_FEATURE, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, INVESTIGATION_TITLE } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { ASSETS } from "../assets";
@@ -84,10 +84,12 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   // const [ investigationData, setInvestigationData] = useState([]);
   const emptyInvestigationRow = () => ({ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 });
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
 
   const applyVoiceInvestigation = useCallback((nextInvestigation) => {
     if (nextInvestigation.length > 0) {
-      if (isVoiceRxModuleEnabled) {
+      if (canShowVoiceRxNewRows) {
         const last = nextInvestigation[nextInvestigation.length - 1];
         const withTrailing = (!last || last.investigation_name !== "") ? [...nextInvestigation, emptyInvestigationRow()] : nextInvestigation;
         setInvestigationData(withTrailing);
@@ -95,11 +97,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         setInvestigationData(nextInvestigation);
       }
     }
-  }, [isVoiceRxModuleEnabled, setInvestigationData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows, setInvestigationData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // add one trailing empty row on mount (only when flag is on)
   useEffect(() => {
-    if (!isVoiceRxModuleEnabled) return;
+    if (!canShowVoiceRxNewRows) return;
     setInvestigationData(prev => {
       const last = prev[prev.length - 1];
       if (!last || last.investigation_name !== "") {
@@ -107,7 +109,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
       }
       return prev;
     });
-  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddRow = useCallback(() => {
     setInvestigationData(prev => [...prev, emptyInvestigationRow()]);
@@ -143,6 +145,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
+  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
@@ -708,17 +711,17 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                           md={8}
                           sm={8}
                           xs={8}
-                          className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
+                          className={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
                           onClick={() => {
-                            if (isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index) {
+                            if (isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index) {
                               handleVoiceInvestigationClick(index);
                             }
                           }}
-                          style={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
+                          style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
                         >
-                          <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
+                          <div className={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                              {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
+                              {isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
                                 <button
                                   type="button"
                                   className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
@@ -733,7 +736,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                   value={item.investigation_name}
                                   placeholder="Investigation Name"
                                   bordered={false}
-                                  disabled={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? false : undefined}
+                                  disabled={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? false : undefined}
                                   defaultOpen={activeVoiceInvestigationIndex === index}
                                   open={activeVoiceInvestigationIndex === index ? true : undefined}
                                   onSearch={(query) => onSearchChild(query, index)}
@@ -746,7 +749,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                 />
                               )}
                             </div>
-                            {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && (
+                            {isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) && (
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
@@ -1114,7 +1117,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_INVESTIGATION}
-        {isVoiceRxModuleEnabled && (
+        {canShowVoiceRxNewRows && (
           <div className="p-2">
             <Button
               type="link"

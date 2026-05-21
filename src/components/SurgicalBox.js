@@ -44,7 +44,7 @@ import {
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
-import { GB_APOLLO_DISABLE_FEATURE } from "../utils/constants";
+import { GB_APOLLO_DISABLE_FEATURE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 import { ASSETS } from "../assets";
 import {
   VOICE_MODULE_DUMMY_DIGITISED_DATA,
@@ -78,10 +78,13 @@ function SurgicalBox({ showVoiceRxModule }) {
   const { patient_data } = state;
 
   const { surgeriesData, setSurgeriesData } = useContext(CashManagerContext);
+  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const emptySurgeryRow = () => ({ masterId: uuidv4(), name: "", notes: "" });
   const applyVoiceSurgeries = useCallback((nextSurgeries) => {
     if (nextSurgeries.length > 0) {
-      if (isVoiceRxModuleEnabled) {
+      if (canShowVoiceRxNewRows) {
         const last = nextSurgeries[nextSurgeries.length - 1];
         const withTrailing = (!last || last.name !== "") ? [...nextSurgeries, emptySurgeryRow()] : nextSurgeries;
         setSurgeriesData(withTrailing);
@@ -89,7 +92,7 @@ function SurgicalBox({ showVoiceRxModule }) {
         setSurgeriesData(nextSurgeries);
       }
     }
-  }, [isVoiceRxModuleEnabled, setSurgeriesData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows, setSurgeriesData]); // eslint-disable-line react-hooks/exhaustive-deps
   const surgeriesVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(surgeriesData, "surgery"),
     [surgeriesData]
@@ -108,16 +111,15 @@ function SurgicalBox({ showVoiceRxModule }) {
   });
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
-  const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
 
   useEffect(() => {
-    if (!isVoiceRxModuleEnabled) return;
+    if (!canShowVoiceRxNewRows) return;
     setSurgeriesData(prev => {
       const last = prev[prev.length - 1];
       if (!last || last.name !== "") return [...prev, emptySurgeryRow()];
       return prev;
     });
-  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleAddRow = useCallback(() => {
     setSurgeriesData(prev => [...prev, emptySurgeryRow()]);
   }, [setSurgeriesData]);
@@ -977,7 +979,7 @@ function SurgicalBox({ showVoiceRxModule }) {
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
-        {isVoiceRxModuleEnabled && (
+        {canShowVoiceRxNewRows && (
           <div className="p-4">
             <Button type="link" icon={<PlusOutlined />} className="add-custom-module-link" onClick={handleAddRow}>
               Add New Line
@@ -985,7 +987,7 @@ function SurgicalBox({ showVoiceRxModule }) {
           </div>
         )}
 
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Surgeries/Procedures"
@@ -994,21 +996,19 @@ function SurgicalBox({ showVoiceRxModule }) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            // <AutoComplete
-            //   // defaultValue={searchParentQuery}
-            //   value={searchParentQuery}
-            //   onSearch={onSearchParent}
-            //   options={parentSearchOptions}
-            //   className="autocomplete-custom w-100"
-            //   onSelect={onSelectParent}
-            //   defaultActiveFirstOption={true}
-            // >
-            //   <Input
-            //     placeholder="Search Surgeries/Procedures"
-            //     prefix={<i className="icon-search"></i>}
-            //   />
-            // </AutoComplete>
-            null
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+            >
+              <Input
+                placeholder="Search Surgeries/Procedures"
+                prefix={<i className="icon-search"></i>}
+              />
+            </AutoComplete>
           )}
         </div>
       </div>

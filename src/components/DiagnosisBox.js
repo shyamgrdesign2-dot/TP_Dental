@@ -52,6 +52,7 @@ import {
 } from "./dr-agent/voicerx/VoiceRxModuleCapture";
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
+import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
@@ -73,6 +74,8 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
 
   const ddxOptionsList = generatedDDx?.map((item) => {
     return {
@@ -128,7 +131,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
 
   const applyVoiceDiagnosis = useCallback((nextDiagnosis) => {
     if (nextDiagnosis.length > 0) {
-      if (isVoiceRxModuleEnabled) {
+      if (canShowVoiceRxNewRows) {
         const last = nextDiagnosis[nextDiagnosis.length - 1];
         const withTrailing = (!last || last.tds_name !== "") ? [...nextDiagnosis, emptyDiagnosisRow()] : nextDiagnosis;
         setDiagnosisData(withTrailing);
@@ -136,11 +139,11 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         setDiagnosisData(nextDiagnosis);
       }
     }
-  }, [isVoiceRxModuleEnabled, setDiagnosisData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows, setDiagnosisData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // add one trailing empty row on mount (only when flag is on)
   useEffect(() => {
-    if (!isVoiceRxModuleEnabled) return;
+    if (!canShowVoiceRxNewRows) return;
     setDiagnosisData(prev => {
       const last = prev[prev.length - 1];
       if (!last || last.tds_name !== "") {
@@ -148,7 +151,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
       }
       return prev;
     });
-  }, [isVoiceRxModuleEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddRow = useCallback(() => {
     setDiagnosisData(prev => [...prev, emptyDiagnosisRow()]);
@@ -1071,7 +1074,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         {DELETE_MODAL}
         {REMOVE_ALL_ROWS}
         {TABLE_DIAGNOSIS}
-        {isVoiceRxModuleEnabled && (
+        {canShowVoiceRxNewRows && (
           <div className="p-2">
             <Button
               type="link"
@@ -1103,7 +1106,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
             />
           </div>
         )}
-        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : ""}>
+        <div className={isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleSlot : "p-14"}>
           {isVoiceRxModuleEnabled && voiceCaptureOpen ? (
             <VoiceRxModuleCapture
               moduleName="Diagnosis"
@@ -1112,22 +1115,20 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            // <AutoComplete
-            //   // defaultValue={searchParentQuery}
-            //   value={searchParentQuery}
-            //   onSearch={onSearchParent}
-            //   options={parentSearchOptions}
-            //   className="autocomplete-custom w-100"
-            //   onSelect={onSelectParent}
-            //   defaultActiveFirstOption={true}
-            //   popupClassName={!searchParentQuery && "boxpopup"}
-            // >
-            //   <Input
-            //     placeholder="Search Diagnosis"
-            //     prefix={<i className="icon-search" />}
-            //   />
-            // </AutoComplete>
-            null
+            <AutoComplete
+              value={searchParentQuery}
+              onSearch={onSearchParent}
+              options={parentSearchOptions}
+              className="autocomplete-custom w-100"
+              onSelect={onSelectParent}
+              defaultActiveFirstOption={true}
+              popupClassName={!searchParentQuery && "boxpopup"}
+            >
+              <Input
+                placeholder="Search Diagnosis"
+                prefix={<i className="icon-search" />}
+              />
+            </AutoComplete>
           )}
         </div>
       </div>
