@@ -9,7 +9,7 @@ import { useReactToPrint } from 'react-to-print';
 
 // import { PDFReader } from 'reactjs-pdf-reader';
 
-import { errorMessage, getClinic, isIPad, sendMessageToParent, trackEvent } from "../utils/utils";
+import { errorMessage, getClinic, isIPad, isValidMongoId, sendMessageToParent, trackEvent } from "../utils/utils";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
@@ -483,7 +483,8 @@ function PrescriptionPrintView() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(isVoiceRxNewFromGB && isVoiceRxNewUiFlow ? { isVoiceRxNewUiFlow: true } : {}) } })
+            const isVoiceRxVisit = isValidMongoId(action.payload?.smart_prescription_filename);
+            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(isVoiceRxNewFromGB && isVoiceRxVisit ? { isVoiceRxNewUiFlow: true } : {}) } })
         } else {
             errorMessage(action.error)
         }

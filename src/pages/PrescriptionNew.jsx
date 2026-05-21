@@ -341,27 +341,41 @@ function PrescriptionNewRxPadCopyListener() {
 
     const payload = lastCopyRequest.payload || {};
     const digitization = payload.digitization || {};
-    const appendRows = (setter, rows) => {
+    const STRIP_KEYS = {
+      symptoms: ["symptom_name", "since", "severity", "note"],
+      examinations: ["examination_name", "note"],
+      diagnosis: ["tds_name", "icd_code", "since", "status", "note"],
+      investigations: ["investigation_name", "note"],
+      surgeries: ["name", "notes"],
+    };
+    const appendRows = (setter, rows, moduleKey) => {
       if (!rows.length) return;
-      setter((prev) => [...prev, ...rows]);
+      setter((prev) => {
+        const keys = STRIP_KEYS[moduleKey];
+        const cleaned = keys ? prev.filter(r => keys.some(k => String(r?.[k] ?? "").trim() !== "")) : prev;
+        return [...cleaned, ...rows];
+      });
     };
 
     const symptoms = firstNonEmpty(digitization.symptoms, payload.symptoms);
     appendRows(
       setSymptomsData,
-      normalizeModuleRows({ symptoms: toArray(symptoms) }, "symptoms")
+      normalizeModuleRows({ symptoms: toArray(symptoms) }, "symptoms"),
+      "symptoms"
     );
 
     const examinations = firstNonEmpty(digitization.examinations, payload.examinations);
     appendRows(
       setExaminationData,
-      normalizeModuleRows({ examinations: toArray(examinations) }, "examinations")
+      normalizeModuleRows({ examinations: toArray(examinations) }, "examinations"),
+      "examinations"
     );
 
     const diagnosis = firstNonEmpty(digitization.diagnosis, payload.diagnosis, payload.diagnoses);
     appendRows(
       setDiagnosisData,
-      normalizeModuleRows({ diagnosis: toArray(diagnosis) }, "diagnosis")
+      normalizeModuleRows({ diagnosis: toArray(diagnosis) }, "diagnosis"),
+      "diagnosis"
     );
 
     const medications = firstNonEmpty(digitization.medications, payload.medications);
@@ -378,7 +392,8 @@ function PrescriptionNewRxPadCopyListener() {
     );
     appendRows(
       setInvestigationData,
-      normalizeModuleRows({ lab_investigation: toArray(investigations) }, "lab_investigations")
+      normalizeModuleRows({ lab_investigation: toArray(investigations) }, "lab_investigations"),
+      "investigations"
     );
 
     const advice = firstNonEmpty(digitization.advice, payload.advice);
@@ -487,7 +502,8 @@ function PrescriptionNewRxPadCopyListener() {
     const surgeries = firstNonEmpty(digitization.surgeries, payload.surgeries);
     appendRows(
       setSurgeriesData,
-      normalizeModuleRows({ surgery: toArray(surgeries) }, "surgery")
+      normalizeModuleRows({ surgery: toArray(surgeries) }, "surgery"),
+      "surgeries"
     );
 
     const followUp = firstNonEmpty(digitization.follow_up, digitization.followUp, payload.followUp);

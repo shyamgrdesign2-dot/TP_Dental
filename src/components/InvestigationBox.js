@@ -718,17 +718,17 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                           md={8}
                           sm={8}
                           xs={8}
-                          className={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
+                          className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "align-self-stretch" : undefined}
                           onClick={() => {
-                            if (isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index) {
+                            if (isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index) {
                               handleVoiceInvestigationClick(index);
                             }
                           }}
                           style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
                         >
-                          <div className={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
+                          <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                              {isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
+                              {isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) && activeVoiceInvestigationIndex !== index ? (
                                 <button
                                   type="button"
                                   className="btn p-0 border-0 bg-transparent text-start fontroboto fw-medium text-main2 text-truncate w-100"
@@ -743,7 +743,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                   value={item.investigation_name}
                                   placeholder="Investigation Name"
                                   bordered={false}
-                                  disabled={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? false : undefined}
+                                  disabled={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? false : undefined}
                                   defaultOpen={activeVoiceInvestigationIndex === index}
                                   open={activeVoiceInvestigationIndex === index ? true : undefined}
                                   onSearch={(query) => onSearchChild(query, index)}

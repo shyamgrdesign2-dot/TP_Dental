@@ -987,7 +987,7 @@ function SurgicalBox({ showVoiceRxModule }) {
         {REMOVE_ALL_ROWS}
         {TABLE_EXAMINATION}
         {canShowVoiceRxNewRows && (
-          <div className="p-4">
+          <div className="p-2">
             <Button type="link" icon={<PlusOutlined />} className="add-custom-module-link" onClick={handleAddRow}>
               Add New Line
             </Button>

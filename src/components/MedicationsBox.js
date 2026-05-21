@@ -1324,17 +1324,17 @@ function MedicationsBox({ showVoiceRxModule }) {
                             xs={5}
                             className={[
                               isVoiceRxModuleEnabled ? voiceModuleStyles.medicationNameCell : "",
-                              isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : ""
+                              isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "align-self-stretch" : ""
                             ].filter(Boolean).join(" ") || undefined}
                             onClick={() => {
-                              if (isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
+                              if (isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) && voiceMedicineEdit.index !== item.index) {
                                 handleVoiceMedicineClick(item);
                               }
                             }}
                             style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? { background: "#fff8ef" } : undefined}
                           >
-                            <div className={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
-                              {isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item) ? (
+                            <div className={isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? "fontroboto fw-medium p-2 pe-3 h-100 d-flex flex-column justify-content-center" : "fontroboto fw-medium p-2 pe-3"}>
+                              {isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item) ? (
                                 <div className="d-flex align-items-center gap-1 w-100">
                                   <div className="d-flex align-items-center flex-wrap gap-1 flex-grow-1" style={{ minWidth: 0 }}>
                                     {voiceMedicineEdit.index === item.index ? (
@@ -1365,16 +1365,18 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     )}
                                     {renderHmTypeBadge(item)}
                                   </div>
-                                  <Tooltip
-                                    placement="top"
-                                    overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                    title="This medication is not from your Zydus inventory list. Click to search and add the medicine."
-                                  >
-                                    <InfoCircleOutlined
-                                      className="fs-18"
-                                      style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
-                                    />
-                                  </Tooltip>
+                                  {isZydusAccount && (
+                                    <Tooltip
+                                      placement="top"
+                                      overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
+                                      title="This medication is not from your Zydus inventory list. Click to search and add the medicine."
+                                    >
+                                      <InfoCircleOutlined
+                                        className="fs-18"
+                                        style={{ color: "#d46b08", background: "#fff0df", borderRadius: "50%" }}
+                                      />
+                                    </Tooltip>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="d-flex align-items-center flex-wrap gap-1">
@@ -1389,7 +1391,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                             </div>
                           </Col>
                           <Col lg={18} md={18} sm={18} xs={18} className={isVoiceRxModuleEnabled ? voiceModuleStyles.medicationDetailsCell : undefined}>
-                            {!item.pms_default && !(isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxUngroundedMedication(item)) &&
+                            {!item.pms_default && !(isVoiceRxModuleEnabled && isVoiceRxUngroundedMedication(item)) &&
                               <i className="icon-Edit fs-18 position-absolute" style={{ bottom: 0, left: -22 }}
                                 onClick={() => {
                                   const medicineType = medicineTypeList.find(x => x?.tmy_id == item?.tmm_type)
@@ -1429,9 +1431,9 @@ function MedicationsBox({ showVoiceRxModule }) {
                                     />
                                     {ii === 0 && (profile?.dp_id === 9 || profile?.dp_id === NEO_NATOLOGISTS_DP_ID) && (
                                       dosesList.some((e1) => e1.medicine_id == item.tmm_id) ? (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> Edit Calculation</div>
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", item?.tmm_id)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Edit Calc." : "Edit Calculation"}</div>
                                       ) : (
-                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> Dose Calculator</div>
+                                        <div className="badge-tapper position-absolute" style={{ bottom: 0, left: 20 }} onClick={() => handleViewDoseCalcDrawer("1", 0)}><img src={calculatorIconBlue} alt="Dose calcultor" className="svg-hovered me-1" /> {isVoiceRxModuleEnabled ? "Dose Calc." : "Dose Calculator"}</div>
                                       )
                                     )}
                                   </Col>

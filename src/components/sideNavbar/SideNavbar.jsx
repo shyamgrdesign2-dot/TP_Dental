@@ -54,6 +54,7 @@ import {
 import { convertAgentMedicalHistoryRowsToSections } from "../../utils/medicalHistoryConverters";
 import { getVitalsRowDate, getVitalsRowSortId } from "../../utils/vitalsHelpers";
 import { addEditPrivateNotes, listSectionwithTag } from "../../redux/medicalhistorySlice";
+import { setPastVisitRows, appendPastVisitRows, setPastVisitDetail, setPrescriptionPayload, clearPastVisits } from "../../redux/pastVisitsSlice";
 import { SIDE_NAVBAR_DIGITIZATION_RESPONSE_CONTRACT } from "./mock/sideNavbarDigitizationContract";
 import "./sideNavbar.css";
 
@@ -3021,7 +3022,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
         visibleVisits.map((visitItem) => {
           const expanded = Boolean(expandedById[visitItem.id]);
           const showRxModeTabs = shouldShowPastVisitRxModeTabs(visitItem.rxSourceType);
-          const mode = showRxModeTabs ? modeByVisit[visitItem.id] || "digital" : "digital";
+          const mode = showRxModeTabs ? modeByVisit[visitItem.id] || (visitItem.digitalRx ? "digital" : "written") : "digital";
           const rx = visitItem.digitalRx;
           const rxByAttribution = rx?.doctorAttribution || visitItem.doctorAttribution;
           const canCopyVisit = Boolean(visitItem.detailLoaded && buildPastVisitAllPayload(visitItem));
@@ -3105,18 +3106,31 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
 }
 
 function WrittenRxPreview({ doc }) {
+  const dispatch = useDispatch();
   const [menuOpen, setMenuOpen] = useState(false);
   const printUrlWithLang = useMemo(() => {
     if (!doc?.printUrl) return null;
     return doc.printUrl;
   }, [doc?.printUrl]);
-  const { printBlob, isGenerating, error } = usePrintPayloadPdf({
+  const cachedPayloadJson = useSelector((state) =>
+    printUrlWithLang ? state.pastVisits.prescriptionPayloads[printUrlWithLang] ?? null : null
+  );
+  const cachedPayload = useMemo(() => {
+    if (!cachedPayloadJson) return null;
+    try { return JSON.parse(cachedPayloadJson); } catch { return null; }
+  }, [cachedPayloadJson]);
+  const { payload, printBlob, isGenerating, error } = usePrintPayloadPdf({
     printUrl: printUrlWithLang,
     selectedLang: undefined,
     isGynaecHistoryAccessable: false,
-    payloadOverride: null,
+    payloadOverride: cachedPayload || undefined,
     skipFetch: !printUrlWithLang,
   });
+  useEffect(() => {
+    if (payload && printUrlWithLang && !cachedPayloadJson) {
+      dispatch(setPrescriptionPayload({ url: printUrlWithLang, payload }));
+    }
+  }, [payload, printUrlWithLang, cachedPayloadJson, dispatch]);
   const [blobUrl, setBlobUrl] = useState("");
 
   useEffect(() => {
@@ -4670,9 +4684,11 @@ export function SideNavbar({
   const [sideNavSignals, setSideNavSignals] = useState({});
   const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
-  const [pastVisitRows, setPastVisitRows] = useState([]);
-  const [pastVisitDetails, setPastVisitDetails] = useState({});
+  const pastVisitRows = useSelector((state) => state.pastVisits.rowsByPatient[patientId]?.rows ?? []);
+  const pastVisitDetails = useSelector((state) => state.pastVisits.detailsByPatient[patientId] ?? {});
   const [pastVisitLoadingIds, setPastVisitLoadingIds] = useState({});
+  const pastVisitDetailsRef = useRef({});
+  const pastVisitLoadingIdsRef = useRef({});
   const [pastVisitsPage, setPastVisitsPage] = useState(1);
   const [pastVisitsHasMore, setPastVisitsHasMore] = useState(false);
   const [isPastVisitsLoading, setIsPastVisitsLoading] = useState(false);
@@ -4717,6 +4733,10 @@ export function SideNavbar({
   useEffect(() => {
     pastVisitRowsRef.current = pastVisitRows;
   }, [pastVisitRows]);
+
+  useEffect(() => {
+    pastVisitDetailsRef.current = pastVisitDetails;
+  }, [pastVisitDetails]);
 
   useEffect(() => {
     if (medicalHistoryDefaultList?.length || medicalHistoryLoading || medicalHistoryDefaultListRequestedRef.current) return;
@@ -4871,7 +4891,11 @@ export function SideNavbar({
       });
       const mergedRows = page === 1 ? nextRows : [...previousRows, ...nextRows];
       pastVisitRowsRef.current = mergedRows;
-      setPastVisitRows(mergedRows);
+      if (page === 1) {
+        dispatch(setPastVisitRows({ patientId, rows: mergedRows, page: currentPage, hasMore: currentPage < totalPages }));
+      } else {
+        dispatch(appendPastVisitRows({ patientId, rows: nextRows, page: currentPage, hasMore: currentPage < totalPages && nextRows.length > 0 }));
+      }
       setPastVisitsPage(currentPage);
       setPastVisitsHasMore(currentPage < totalPages && (page === 1 || nextRows.length > 0));
     } catch (error) {
@@ -4882,11 +4906,12 @@ export function SideNavbar({
         if (page === 1) setHasPastVisitsLoaded(true);
       }
     }
-  }, [patientId, tcmId]);
+  }, [dispatch, patientId, tcmId]);
 
   useEffect(() => {
-    setPastVisitRows([]);
-    setPastVisitDetails({});
+    dispatch(clearPastVisits());
+    pastVisitDetailsRef.current = {};
+    pastVisitLoadingIdsRef.current = {};
     setPastVisitLoadingIds({});
     setPastVisitsPage(1);
     setPastVisitsHasMore(false);
@@ -4899,12 +4924,13 @@ export function SideNavbar({
     } else {
       setHasPastVisitsLoaded(true);
     }
-  }, [fetchPastVisitsPage, patientId]);
+  }, [dispatch, fetchPastVisitsPage, patientId]);
 
   const fetchPastVisitDetail = useCallback(async (visit) => {
     const tcmId = visit?.tcmId;
-    if (!patientId || !tcmId || pastVisitDetails[tcmId] || pastVisitLoadingIds[tcmId]) return;
+    if (!patientId || !tcmId || pastVisitDetailsRef.current[tcmId] || pastVisitLoadingIdsRef.current[tcmId]) return;
     const patientAtRequest = patientId;
+    pastVisitLoadingIdsRef.current = { ...pastVisitLoadingIdsRef.current, [tcmId]: true };
     setPastVisitLoadingIds((prev) => ({ ...prev, [tcmId]: true }));
     try {
       const response = await ApiCaseManager.viewCaseManager({
@@ -4933,14 +4959,16 @@ export function SideNavbar({
             printPayload?.data?.smartDigitizeRxData ||
             printPayload?.data?.data?.smartDigitizeRxData,
         };
-        setPastVisitDetails((prev) => ({ ...prev, [tcmId]: enrichedDetail }));
+        dispatch(setPastVisitDetail({ patientId: patientAtRequest, tcmId, detail: enrichedDetail }));
+        pastVisitDetailsRef.current = { ...pastVisitDetailsRef.current, [tcmId]: enrichedDetail };
       }
     } catch (error) {
       console.error("[SideNavbar][PastVisits] failed to fetch consultation detail:", error);
     } finally {
+      pastVisitLoadingIdsRef.current = { ...pastVisitLoadingIdsRef.current, [tcmId]: false };
       setPastVisitLoadingIds((prev) => ({ ...prev, [tcmId]: false }));
     }
-  }, [pastVisitDetails, pastVisitLoadingIds, patientId]);
+  }, [patientId, dispatch]);
 
   const legacyPastVisitEntries = useMemo(
     () => filterCurrentPastVisit(pastVisitRows, tcmId).map((row) => {
