@@ -94,7 +94,6 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
   const [pageNo, setPageNo] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [pickerModal, setPickerModal] = useState(false);
-  const [pickerPanelValue, setPickerPanelValue] = useState([dayjs(), dayjs()]);
   const [selectedCard, setSelectedCard] = useState(1);
   const printableRef = useRef(null);
   const [tabLoader, setTabLoader] = useState(false);
@@ -135,9 +134,6 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
   );
 
   const handlePickerModal = useCallback(() => {
-    if (!pickerModal) {
-      setPickerPanelValue([dayjs(), dayjs()]);
-    }
     setPickerModal(!pickerModal);
   }, [pickerModal]);
 
@@ -163,12 +159,6 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
         </div>
       ),
       value: [dayjs().add(-1, "M"), dayjs()],
-    },
-    {
-      label: (
-        <div className={`${dateStatus === 4 ? "active" : ""}`}>Till date</div>
-      ),
-      value: [dayjs("2024-01-01"), dayjs()],
     },
     {
       label: (
@@ -206,14 +196,6 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
         moment(dateStrings[1], showDateFormat).format(dateFormat)
       ) {
         setDateStatus(3);
-      } else if (
-        dayjs("2024-01-01").format(dateFormat) ===
-        moment(dateStrings[0], showDateFormat).format(dateFormat) &&
-        dayjs().format(dateFormat) ===
-        moment(dateStrings[1], showDateFormat).format(dateFormat)
-      ) {
-        setDateStatus(4);
-        setPickerPanelValue([dayjs(), dayjs()]);
       } else {
         setDateStatus(null);
       }
@@ -944,8 +926,6 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
                       "Last week"
                     ) : dateStatus === 3 ? (
                       "Last month"
-                    ) : dateStatus === 4 ? (
-                      "Till date"
                     ) : (
                       <>
                         {moment(dateRange.startDate).format(showDateFormat)} -{" "}
@@ -967,25 +947,18 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
                   renderExtraFooter={() => (
                     <div className="d-flex align-items-center justify-content-between py-1">
                       <div>
-                        {dateStatus === 4 ? (
-                          "Till date"
-                        ) : (
-                          <>
-                            {moment(dateRange.startDate).format(showDateFormat)} -{" "}
-                            {moment(dateRange.endDate).format(showDateFormat)}
-                          </>
-                        )}
+                        {moment(dateRange.startDate).format(showDateFormat)} -{" "}
+                        {moment(dateRange.endDate).format(showDateFormat)}
                       </div>
                       <div>
                         <button
                           className="btn btn-text me-3 px-0"
                           onClick={() => {
-                            setDateStatus(4);
+                            setDateStatus(1);
                             setDateRange({
-                              startDate: "2024-01-01",
+                              startDate: moment().format(dateFormat),
                               endDate: moment().format(dateFormat),
                             });
-                            setPickerPanelValue([dayjs(), dayjs()]);
                             handlePickerModal();
                           }}
                         >
@@ -1002,27 +975,20 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
                     </div>
                   )}
                   onOpenChange={() => { }}
-                  pickerValue={pickerPanelValue}
-                  onPickerValueChange={(values) => {
-                    if (values) {
-                      setPickerPanelValue(values);
-                    }
-                  }}
-                  value={
-                    dateStatus === 1 &&
-                    dateRange.startDate === dateRange.endDate
-                      ? ["", ""]
-                      : [
-                          dayjs(
-                            moment(dateRange.startDate).format(showDateFormat),
-                            showDateFormat
-                          ),
-                          dayjs(
-                            moment(dateRange.endDate).format(showDateFormat),
-                            showDateFormat
-                          ),
-                        ]
-                  }
+                  value={[
+                    dateRange.startDate != dateRange.endDate
+                      ? dayjs(
+                        moment(dateRange.startDate).format(showDateFormat),
+                        showDateFormat
+                      )
+                      : "",
+                    dateRange.startDate != dateRange.endDate
+                      ? dayjs(
+                        moment(dateRange.endDate).format(showDateFormat),
+                        showDateFormat
+                      )
+                      : "",
+                  ]}
                 />
               </div>
               <div className="download-modal-container">

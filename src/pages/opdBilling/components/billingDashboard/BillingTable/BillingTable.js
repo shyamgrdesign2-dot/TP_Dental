@@ -337,7 +337,6 @@ export default function BillingTable({
   const [pageNo, setPageNo] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [pickerModal, setPickerModal] = useState(false);
-  const [pickerPanelValue, setPickerPanelValue] = useState([dayjs(), dayjs()]);
   const [selectedCard, setSelectedCard] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState([
     "FullyPaid",
@@ -437,9 +436,6 @@ export default function BillingTable({
   );
 
   const handlePickerModal = useCallback(() => {
-    if (!pickerModal) {
-      setPickerPanelValue([dayjs(), dayjs()]);
-    }
     setPickerModal(!pickerModal);
   }, [pickerModal]);
 
@@ -582,11 +578,7 @@ export default function BillingTable({
       header: billSheetColumnOrder,
     });
 
-    const paymentModes = (data?.summary?.paymentModeSummary || []).filter(
-      (item) =>
-        (Number(item?.receivedAmount) || 0) !== 0 ||
-        (Number(item?.refundedAmount) || 0) !== 0
-    );
+    const paymentModes = data?.summary?.paymentModeSummary || [];
     const paymentRows = paymentModes.map((item) => ({
       "PAYMENT MODE": item?.paymentMode || "",
       "RECEIVED AMOUNT": Number(item?.receivedAmount || 0),
@@ -1142,14 +1134,8 @@ export default function BillingTable({
                 )
               );
             }
-            const paymentModes = (
-              data?.summary?.paymentModeSummary || []
-            ).filter(
-              (item) =>
-                (Number(item?.receivedAmount) || 0) !== 0 ||
-                (Number(item?.refundedAmount) || 0) !== 0
-            );
-            if (paymentModes.length > 0) {
+            const paymentModes = data?.summary?.paymentModeSummary;
+            if (paymentModes?.length > 0) {
               flushSync(() => {
                 setPatientPdfUi({
                   rowStart: 0,
@@ -1291,12 +1277,6 @@ export default function BillingTable({
     },
     {
       label: (
-        <div className={`${dateStatus === 4 ? "active" : ""}`}>Till date</div>
-      ),
-      value: [dayjs("2024-01-01"), dayjs()],
-    },
-    {
-      label: (
         <div
           className={`${!dateStatus ? "active" : ""}`}
           onClick={() => onRangeChange(null)}
@@ -1331,14 +1311,6 @@ export default function BillingTable({
           moment(dateStrings[1], showDateFormat).format(dateFormat)
       ) {
         setDateStatus(3);
-      } else if (
-        dayjs("2024-01-01").format(dateFormat) ===
-          moment(dateStrings[0], showDateFormat).format(dateFormat) &&
-        dayjs().format(dateFormat) ===
-          moment(dateStrings[1], showDateFormat).format(dateFormat)
-      ) {
-        setDateStatus(4);
-        setPickerPanelValue([dayjs(), dayjs()]);
       } else {
         setDateStatus(null);
       }
@@ -1842,8 +1814,6 @@ export default function BillingTable({
                     "Last week"
                   ) : dateStatus === 3 ? (
                     "Last month"
-                  ) : dateStatus === 4 ? (
-                    "Till date"
                   ) : (
                     <>
                       {moment(dateRange.startDate).format(showDateFormat)} -{" "}
@@ -1865,25 +1835,18 @@ export default function BillingTable({
                 renderExtraFooter={() => (
                   <div className="d-flex align-items-center justify-content-between py-1">
                     <div>
-                      {dateStatus === 4 ? (
-                        "Till date"
-                      ) : (
-                        <>
-                          {moment(dateRange.startDate).format(showDateFormat)} -{" "}
-                          {moment(dateRange.endDate).format(showDateFormat)}
-                        </>
-                      )}
+                      {moment(dateRange.startDate).format(showDateFormat)} -{" "}
+                      {moment(dateRange.endDate).format(showDateFormat)}
                     </div>
                     <div>
                       <button
                         className="btn btn-text me-3 px-0"
                         onClick={() => {
-                          setDateStatus(4);
+                          setDateStatus(1);
                           setDateRange({
-                            startDate: "2024-01-01",
+                            startDate: moment().format(dateFormat),
                             endDate: moment().format(dateFormat),
                           });
-                          setPickerPanelValue([dayjs(), dayjs()]);
                           handlePickerModal();
                         }}
                       >
@@ -1900,27 +1863,20 @@ export default function BillingTable({
                   </div>
                 )}
                 onOpenChange={() => {}}
-                pickerValue={pickerPanelValue}
-                onPickerValueChange={(values) => {
-                  if (values) {
-                    setPickerPanelValue(values);
-                  }
-                }}
-                value={
-                  dateStatus === 1 &&
-                  dateRange.startDate === dateRange.endDate
-                    ? ["", ""]
-                    : [
-                        dayjs(
-                          moment(dateRange.startDate).format(showDateFormat),
-                          showDateFormat
-                        ),
-                        dayjs(
-                          moment(dateRange.endDate).format(showDateFormat),
-                          showDateFormat
-                        ),
-                      ]
-                }
+                value={[
+                  dateRange.startDate != dateRange.endDate
+                    ? dayjs(
+                        moment(dateRange.startDate).format(showDateFormat),
+                        showDateFormat
+                      )
+                    : "",
+                  dateRange.startDate != dateRange.endDate
+                    ? dayjs(
+                        moment(dateRange.endDate).format(showDateFormat),
+                        showDateFormat
+                      )
+                    : "",
+                ]}
               />
             </div>
             <div className="download-modal-container">
