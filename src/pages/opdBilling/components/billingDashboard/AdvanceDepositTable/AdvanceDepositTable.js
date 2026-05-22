@@ -4,7 +4,6 @@ import React, {
   useEffect,
   useRef,
   useImperativeHandle,
-  useMemo,
 } from "react";
 import {
   Select,
@@ -145,22 +144,6 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
   const disabledDate = (current) => {
     return current && current > dayjs().endOf("day");
   };
-
-  const rangePickerValue = useMemo(() => {
-    if (dateStatus === 1 && dateRange.startDate === dateRange.endDate) {
-      return ["", ""];
-    }
-    return [
-      dayjs(
-        moment(dateRange.startDate).format(showDateFormat),
-        showDateFormat
-      ),
-      dayjs(
-        moment(dateRange.endDate).format(showDateFormat),
-        showDateFormat
-      ),
-    ];
-  }, [dateStatus, dateRange.startDate, dateRange.endDate]);
 
   const rangePresets = [
     {
@@ -1018,14 +1001,28 @@ const AdvanceDepositTable = React.forwardRef(({ patientData, dateRange, setDateR
                       </div>
                     </div>
                   )}
-                  onOpenChange={() => {}}
+                  onOpenChange={() => { }}
                   pickerValue={pickerPanelValue}
                   onPickerValueChange={(values) => {
                     if (values) {
                       setPickerPanelValue(values);
                     }
                   }}
-                  value={rangePickerValue}
+                  value={
+                    dateStatus === 1 &&
+                    dateRange.startDate === dateRange.endDate
+                      ? ["", ""]
+                      : [
+                          dayjs(
+                            moment(dateRange.startDate).format(showDateFormat),
+                            showDateFormat
+                          ),
+                          dayjs(
+                            moment(dateRange.endDate).format(showDateFormat),
+                            showDateFormat
+                          ),
+                        ]
+                  }
                 />
               </div>
               <div className="download-modal-container">

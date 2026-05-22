@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { flushSync } from "react-dom";
 import { PDFDocument } from "pdf-lib";
 import {
@@ -1270,22 +1270,6 @@ export default function BillingTable({
     return current && current > dayjs().endOf("day");
   };
 
-  const rangePickerValue = useMemo(() => {
-    if (dateStatus === 1 && dateRange.startDate === dateRange.endDate) {
-      return ["", ""];
-    }
-    return [
-      dayjs(
-        moment(dateRange.startDate).format(showDateFormat),
-        showDateFormat
-      ),
-      dayjs(
-        moment(dateRange.endDate).format(showDateFormat),
-        showDateFormat
-      ),
-    ];
-  }, [dateStatus, dateRange.startDate, dateRange.endDate]);
-
   const rangePresets = [
     {
       label: <div className={`${dateStatus === 1 ? "active" : ""}`}>Today</div>,
@@ -1922,7 +1906,21 @@ export default function BillingTable({
                     setPickerPanelValue(values);
                   }
                 }}
-                value={rangePickerValue}
+                value={
+                  dateStatus === 1 &&
+                  dateRange.startDate === dateRange.endDate
+                    ? ["", ""]
+                    : [
+                        dayjs(
+                          moment(dateRange.startDate).format(showDateFormat),
+                          showDateFormat
+                        ),
+                        dayjs(
+                          moment(dateRange.endDate).format(showDateFormat),
+                          showDateFormat
+                        ),
+                      ]
+                }
               />
             </div>
             <div className="download-modal-container">
