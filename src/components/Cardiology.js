@@ -1982,11 +1982,19 @@ function Cardiology(props) {
       );
     }
 
-    const hasVitalsContent = (obj) =>
-      obj && typeof obj === "object" && Object.values(obj).some((val) => val != null && String(val).trim() !== "");
+    const hasVitalsContent = (obj) => {
+      if (!obj || typeof obj !== "object") return false;
+      if (Array.isArray(obj)) {
+        return obj.some(reading => 
+          reading && typeof reading === "object" && 
+          Object.values(reading).some(val => formatVitalDisplayForUi(val) !== "")
+        );
+      }
+      return Object.values(obj).some(val => formatVitalDisplayForUi(val) !== "");
+    };
     const vitalsObj =
       type === "vitals"
-        ? ([data?.vitals, data?.vitalsAndBodyComposition].find(hasVitalsContent) || {})
+        ? (data?.vitalsAndBodyComposition ?? data?.vitals ?? {})
         : data?.vitals || data?.vitalsAndBodyComposition || {};
     const arrayForType =
       type === "examination" || type === "examinations"
@@ -2007,17 +2015,32 @@ function Cardiology(props) {
           )}
           {/* Handle vitals: old (vitals) or new (vitalsAndBodyComposition) */}
           {type === "vitals" &&
-             Object.entries(vitalsObj)
-               .filter(([key, value]) => value != null && String(value).trim())
-               .map(([key, value]) => (
-                 <li key={key}>
-                   <div className="medicine-item">
-                     <span>{key}</span>
-                     <span className="separator">:</span>
-                     <span>{value}</span>
-                   </div>
-                 </li>
-               ))}
+            (Array.isArray(vitalsObj)
+              ? vitalsObj.flatMap((reading, index) =>
+                  Object.entries(reading || {})
+                    .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
+                    .map(([key, value]) => (
+                      <li key={`${index}-${key}`}>
+                        <div className="medicine-item">
+                          <span>{key}</span>
+                          <span className="separator">:</span>
+                          <span>{formatVitalDisplayForUi(value)}</span>
+                        </div>
+                      </li>
+                    ))
+                )
+              : Object.entries(vitalsObj)
+                  .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
+                  .map(([key, value]) => (
+                    <li key={key}>
+                      <div className="medicine-item">
+                        <span>{key}</span>
+                        <span className="separator">:</span>
+                        <span>{formatVitalDisplayForUi(value)}</span>
+                      </div>
+                    </li>
+                  ))
+            )}
 
           {/* Handle array types: support old (examination, tests) and new (examinations, labInvestigation) */}
           {type !== "vitals" &&
