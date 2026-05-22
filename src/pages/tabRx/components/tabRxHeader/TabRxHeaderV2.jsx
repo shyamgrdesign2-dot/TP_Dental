@@ -59,8 +59,6 @@ import {
 } from "../../../../utils/constants";
 import {
     assignCarePlan,
-    getCarePlanAssignments,
-    hasExistingCarePlanForConsultation,
     updateCarePlanName,
 } from "../../../../pages/smartSync/services/carePlanService";
 
@@ -131,6 +129,7 @@ function TabRxHeaderV2({
     handleGenRx,
     labReportID,
     selectedCarePlan,
+    hasExistingCarePlan = false,
     handleVideoConsult,
     isVideoConsultLoading,
     smartRxFiles = [],
@@ -1849,12 +1848,6 @@ function TabRxHeaderV2({
                     const tokenData = decodedToken?.result;
                     const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
 
-                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                        patient_data?.patient_unique_id,
-                        generatedTcmId,
-                        'submit',
-                    );
-
                     if (generatedTcmId > 0 && selectedCarePlan) {
                         if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
                             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
@@ -1876,17 +1869,6 @@ function TabRxHeaderV2({
                     }
                 } catch (error) {
                     console.error('Care plan sync after submit failed:', error);
-                }
-
-                // Fetch care plan assignments to include in print state
-                let carePlanAssignments = [];
-                try {
-                    if (patient_data?.patient_unique_id) {
-                        const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-                        carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
-                    }
-                } catch (cpFetchErr) {
-                    console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
                 }
 
                 message.open({

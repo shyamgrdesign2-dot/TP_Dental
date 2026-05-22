@@ -228,6 +228,7 @@ function SmartPrescription() {
   const [followUpDate, setFollowUpDate] = useState(null);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [vitalsData, setVitalsData] = useState([]);
   const [medicalHistoryData, setMedicalHistoryData] = useState([]);
   const [addlabparamsDrawer, setAddlabparamsDrawer] = useState(false);
@@ -312,6 +313,7 @@ function SmartPrescription() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -3488,6 +3490,7 @@ function SmartPrescription() {
           selectedTemplateId={selectedTemplateId}
           prepareMetadataForSubmissionData={prepareMetadataForSubmission()}
           selectedCarePlan={selectedCarePlan}
+          hasExistingCarePlan={hasExistingCarePlan}
           setBuildNumber={setBuildNumber}
           handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
           isVideoConsultLoading={isInitiatingCall}

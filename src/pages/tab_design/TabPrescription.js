@@ -457,6 +457,7 @@ function TabPrescription() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
@@ -1596,12 +1597,13 @@ function TabPrescription() {
         const list = Array.isArray(resp) ? resp : [];
   
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
       }
     };
-  
+
     resolvePlaceholder();
   }, [isCarePlanEnabled, patient_data?.patient_unique_id, tcmId]);
 
@@ -1914,7 +1916,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} hasExistingCarePlan={hasExistingCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
