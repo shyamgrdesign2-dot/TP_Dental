@@ -56,7 +56,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_SMARTSYNC_CONNECT } from "../utils/constants";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
-import { assignCarePlan, updateCarePlanName, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
+import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
 import VideoConsultButton from "../components/VideoConsultButton";
 import { ASSETS } from "../assets";
 const {
@@ -86,6 +86,7 @@ function HeaderPrescription({
   selectedTemplateId,
   prepareMetadataForSubmissionData,
   selectedCarePlan,
+  hasExistingCarePlan = false,
   setBuildNumber,
   handleVideoConsult,
   isVideoConsultLoading,
@@ -548,12 +549,6 @@ function HeaderPrescription({
         const decodedToken = getDecodedToken();
         const tokenData = decodedToken?.result;
         const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-        const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-          patient_data?.patient_unique_id,
-          generatedTcmId,
-          'smart-rx submit',
-        );
 
         if (generatedTcmId > 0 && selectedCarePlan) {
           if (hasExistingCarePlan && selectedCarePlan?.plan_name) {

@@ -444,6 +444,7 @@ function Prescription() {
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
@@ -1303,6 +1304,7 @@ function Prescription() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -2114,6 +2116,7 @@ function Prescription() {
               isTeleconsultActive={!!joinToken}
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
+              hasExistingCarePlan={hasExistingCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper">

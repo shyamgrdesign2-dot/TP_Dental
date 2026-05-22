@@ -59,7 +59,6 @@ import {
 } from "../../../../utils/constants";
 import {
     assignCarePlan,
-    hasExistingCarePlanForConsultation,
     updateCarePlanName,
 } from "../../../../pages/smartSync/services/carePlanService";
 
@@ -130,6 +129,7 @@ function TabRxHeaderV2({
     handleGenRx,
     labReportID,
     selectedCarePlan,
+    hasExistingCarePlan = false,
     handleVideoConsult,
     isVideoConsultLoading,
     smartRxFiles = [],
@@ -1847,12 +1847,6 @@ function TabRxHeaderV2({
                     const decodedToken = getDecodedToken();
                     const tokenData = decodedToken?.result;
                     const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                        patient_data?.patient_unique_id,
-                        generatedTcmId,
-                        'submit',
-                    );
 
                     if (generatedTcmId > 0 && selectedCarePlan) {
                         if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
