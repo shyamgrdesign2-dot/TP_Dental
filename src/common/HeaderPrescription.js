@@ -24,7 +24,7 @@ import TabVoiceRxButton from '../components/tab_design/TabVoiceRxButton';
 import { errorMessage, getClinicName, shouldMonetizationDisabled, removeBeforeWhiteSpace, isVoiceRxFree, filterCustomModuleContent, getDraftMoengageDoctorAttributes } from "../utils/utils";
 
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, GB_ZYDUS_USER, GB_CARE_PLAN, MESSAGE_KEY, S_DDX, S_VOICE_RX, OPTHAL_PAD_MODULE_ID, GB_SAVE_AS_DRAFT_RX, GB_VOICE_RX_FREE } from "../utils/constants";
-import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
+import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -73,7 +73,7 @@ const {
 
 var oneClickCosultationTemplateId = 0
 
-function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon }) {
+function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
 
@@ -1411,14 +1411,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
               );
             }
             try {
-              // Ensure care plan is linked to the definitive consultation id
               const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
-
-              const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                patient_data?.patient_unique_id,
-                generatedTcmId,
-                'draft',
-              );
 
               if (generatedTcmId > 0 && selectedCarePlan) {
                 if (
@@ -1659,16 +1652,11 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     );
                 }
                 try {
-                    // Ensure care plan is linked to the definitive consultation id
                     const decodedToken = getDecodedToken();
                     const tokenData = decodedToken?.result;
-                    const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-                        patient_data?.patient_unique_id,
-                        generatedTcmId,
-                        'submit',
-                    );
 
                     if (generatedTcmId > 0 && selectedCarePlan) {
+
                         if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
                             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
                         } else if (
@@ -1691,17 +1679,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     console.error('Care plan sync after submit failed:', error);
                 }
                 
-                // Fetch care plan assignments to include in print state
-                let carePlanAssignments = [];
-                try {
-                    if (patient_data?.patient_unique_id) {
-                        const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-                        carePlanAssignments = Array.isArray(assignmentsResp?.data) ? assignmentsResp.data : (Array.isArray(assignmentsResp) ? assignmentsResp : (assignmentsResp?.assignments || []));
-                    }
-                } catch (cpFetchErr) {
-                    console.error('Failed to fetch care plan assignments for print state:', cpFetchErr);
-                }
-
                 message.open({
                     key: MESSAGE_KEY,
                     type: '',
@@ -1842,7 +1819,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     }
                 }
 
-                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID, carePlanAssignments } })
+                navigate('/prescription_print_view', { replace: true, state: { ...action.payload, patient_data: patient_data, labParamsData: labParamsData, zydusSelectedLabParams: zydusSelectedLabParams, labReportID: labReportID } })
             } else {
                 errorMessage(action.error)
             }
