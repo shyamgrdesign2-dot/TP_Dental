@@ -30,12 +30,15 @@ import axios from "axios";
 import { updateCredits } from "../redux/monetizationSlice";
 import ApiMedication from "../api/services/ApiMedication";
 import { setDentalData, clearDentalData } from "../redux/dentalRxSlice";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
 import {
   hasVitalsAndBodyCompositionData,
   normalizeVitalsAndBodyCompositionToRxRowFields,
   vitalScalarString,
 } from "../utils/symptomCollectorVitalsMerge";
+import {
+  ensureLabInvestigationMetadataForRxSave,
+  ensureMedicationGroundedForRxSave,
+} from "../utils/medicationRxPayload";
 import { ASSETS } from "../assets";
 const documentIcon = ASSETS.images.documentNormal;
 
@@ -340,6 +343,11 @@ function SmartRxDigitise() {
 
             return ensureMedicationGroundedForRxSave({ ...item, quantity });
           }),
+        labInvestigation: Array.isArray(data?.labInvestigation)
+          ? data.labInvestigation.map((item) =>
+              ensureLabInvestigationMetadataForRxSave(item)
+            )
+          : [],
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };
