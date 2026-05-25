@@ -31,6 +31,11 @@ import { useNetConnection } from "./use-net-connection";
 import { useLiveTranscript } from "./use-live-transcript";
 import { ConfirmDialog as TPConfirmDialog } from "../molecules/ConfirmDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "../atoms/Popover";
+import {
+  VOICE_CHUNK_UPLOAD_INTERVAL_MS,
+  isAudioChunkContextReady,
+  uploadAudioChunk,
+} from "./api/audio-chunk-upload";
 import fsStyles from "./VoiceRxActiveAgent.module.scss";
 import osStyles from "./VoiceRxModuleRecorder.module.scss";
 import canvasStyles from "./VoiceRxCanvas.module.scss";
@@ -209,6 +214,203 @@ function useBlobRecorder(stream, paused, enabled) {
   return { getBlob };
 }
 
+function createAudioRecorder(stream) {
+  if (!stream || typeof window === "undefined" || typeof window.MediaRecorder === "undefined") {
+    return null;
+  }
+  const supports = (type) => {
+    try { return window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(type); }
+    catch { return false; }
+  };
+  const mime = supports("audio/webm;codecs=opus") ? "audio/webm;codecs=opus"
+    : supports("audio/webm") ? "audio/webm"
+    : supports("audio/mp4") ? "audio/mp4" : "";
+  try {
+    return mime ? new window.MediaRecorder(stream, { mimeType: mime }) : new window.MediaRecorder(stream);
+  } catch (error) {
+    console.error("Audio chunk recorder init failed", error);
+    return null;
+  }
+}
+
+function useAudioChunkRecorder(stream, paused, enabled, audioChunkContext) {
+  const recorderRef = useRef(null);
+  const recorderStreamRef = useRef(null);
+  const segmentChunksRef = useRef([]);
+  const segmentStartedAtRef = useRef(0);
+  const chunkIndexRef = useRef(0);
+  const emittedChunksRef = useRef(false);
+  const uploadQueueRef = useRef(Promise.resolve());
+  const intervalTimerRef = useRef(null);
+  const pausedRef = useRef(paused);
+  const enabledRef = useRef(enabled);
+  const streamRef = useRef(stream);
+  const contextRef = useRef(audioChunkContext);
+  const localErrorNotifiedRef = useRef(false);
+
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+  useEffect(() => { enabledRef.current = enabled; }, [enabled]);
+  useEffect(() => { streamRef.current = stream; }, [stream]);
+  useEffect(() => { contextRef.current = audioChunkContext; }, [audioChunkContext]);
+
+  const clearIntervalTimer = useCallback(() => {
+    if (intervalTimerRef.current) {
+      window.clearTimeout(intervalTimerRef.current);
+      intervalTimerRef.current = null;
+    }
+  }, []);
+
+  const queueUpload = useCallback((audioBlob, chunkIndex) => {
+    const context = contextRef.current || {};
+    uploadQueueRef.current = uploadQueueRef.current
+      .then(() => uploadAudioChunk({
+        audioBlob,
+        chunkIndex,
+        sessionId: context.sessionId,
+        doctorId: context.doctorId,
+        patientId: context.patientId,
+      }))
+      .catch((error) => {
+        console.error("[voice-rx] audio chunk upload failed", { chunkIndex, error });
+        if (!localErrorNotifiedRef.current) {
+          localErrorNotifiedRef.current = true;
+          toast.error(error?.message || "Audio chunk upload failed.");
+        }
+      });
+    return uploadQueueRef.current;
+  }, []);
+
+  const disposeRecorderStream = useCallback(() => {
+    const chunkStream = recorderStreamRef.current;
+    recorderStreamRef.current = null;
+    if (chunkStream && chunkStream !== streamRef.current) {
+      chunkStream.getTracks().forEach((track) => track.stop());
+    }
+  }, []);
+
+  const stopSegment = useCallback(({ reason, forceUpload = false, restart = false } = {}) => {
+    clearIntervalTimer();
+    const recorder = recorderRef.current;
+    if (!recorder) {
+      disposeRecorderStream();
+      return Promise.resolve();
+    }
+
+    recorderRef.current = null;
+    return new Promise((resolve) => {
+      const startedAt = segmentStartedAtRef.current || Date.now();
+      const elapsedMs = Math.max(0, Date.now() - startedAt);
+      const finish = () => {
+        const chunks = segmentChunksRef.current;
+        segmentChunksRef.current = [];
+        segmentStartedAtRef.current = 0;
+        disposeRecorderStream();
+
+        const shouldUpload =
+          forceUpload ||
+          elapsedMs >= VOICE_CHUNK_UPLOAD_INTERVAL_MS ||
+          (emittedChunksRef.current && reason === "final" && elapsedMs > 0);
+
+        if (shouldUpload && chunks.length) {
+          const type = recorder.mimeType || chunks[0]?.type || "audio/webm";
+          const audioBlob = new Blob(chunks, { type });
+          if (audioBlob.size > 0) {
+            emittedChunksRef.current = true;
+            chunkIndexRef.current += 1;
+            queueUpload(audioBlob, chunkIndexRef.current);
+          }
+        }
+
+        if (restart && enabledRef.current && !pausedRef.current && streamRef.current && isAudioChunkContextReady(contextRef.current)) {
+          window.setTimeout(() => {
+            const start = startSegmentRef.current;
+            start?.();
+          }, 0);
+        }
+        resolve();
+      };
+
+      recorder.addEventListener("stop", finish, { once: true });
+      try {
+        if (recorder.state !== "inactive") {
+          recorder.stop();
+        } else {
+          finish();
+        }
+      } catch {
+        finish();
+      }
+    });
+  }, [clearIntervalTimer, disposeRecorderStream, queueUpload]);
+
+  const startSegmentRef = useRef(null);
+  const startSegment = useCallback(() => {
+    if (!streamRef.current || recorderRef.current || pausedRef.current || !enabledRef.current) return;
+    if (!isAudioChunkContextReady(contextRef.current)) return;
+
+    const sourceStream = streamRef.current;
+    const chunkStream = typeof sourceStream.clone === "function" ? sourceStream.clone() : sourceStream;
+    const recorder = createAudioRecorder(chunkStream);
+    if (!recorder) {
+      if (chunkStream !== sourceStream) {
+        chunkStream.getTracks().forEach((track) => track.stop());
+      }
+      return;
+    }
+
+    recorderStreamRef.current = chunkStream;
+    segmentChunksRef.current = [];
+    segmentStartedAtRef.current = Date.now();
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        segmentChunksRef.current.push(event.data);
+      }
+    };
+
+    try {
+      recorder.start();
+      recorderRef.current = recorder;
+      intervalTimerRef.current = window.setTimeout(() => {
+        stopSegment({ reason: "interval", restart: true });
+      }, VOICE_CHUNK_UPLOAD_INTERVAL_MS);
+    } catch (error) {
+      console.error("Audio chunk recorder start failed", error);
+      recorderRef.current = null;
+      disposeRecorderStream();
+    }
+  }, [disposeRecorderStream, stopSegment]);
+  startSegmentRef.current = startSegment;
+
+  useEffect(() => {
+    if (!enabled || paused || !stream || !isAudioChunkContextReady(audioChunkContext)) return undefined;
+    startSegment();
+    return undefined;
+  }, [audioChunkContext, enabled, paused, startSegment, stream]);
+
+  useEffect(() => {
+    if (paused) {
+      stopSegment({ reason: "pause", forceUpload: true });
+      return;
+    }
+    if (enabled && stream && isAudioChunkContextReady(audioChunkContext)) {
+      startSegment();
+    }
+  }, [audioChunkContext, enabled, paused, startSegment, stopSegment, stream]);
+
+  useEffect(() => {
+    return () => {
+      stopSegment({ reason: "cleanup", forceUpload: false });
+    };
+  }, [stopSegment]);
+
+  const flushFinalChunks = useCallback(async () => {
+    await stopSegment({ reason: "final", forceUpload: false });
+    await uploadQueueRef.current;
+  }, [stopSegment]);
+
+  return { flushFinalChunks };
+}
+
 function useActiveMic(stream, devices, selectedDeviceId) {
   const [activeDeviceId, setActiveDeviceId] = useState(undefined);
   const lastNotifiedRef = useRef(undefined);
@@ -353,6 +555,7 @@ export function VoiceRecorderCore({
   onCancel,
   onCancelRequest,
   onSubmit,
+  audioChunkContext,
   sectionLabel,
   showSectionInStatus = true,
 
@@ -425,6 +628,7 @@ export function VoiceRecorderCore({
 
   // Derived paused state
   const paused = manualMute || networkPaused || isAwaitingResponse || submitProcessing;
+  const chunkPaused = manualMute || networkPaused;
 
   // Recording timer
   const elapsedMs = useRecordingTimer(!paused);
@@ -435,6 +639,7 @@ export function VoiceRecorderCore({
 
   // Blob recorder
   const { getBlob } = useBlobRecorder(stream, paused, micEnabled);
+  const { flushFinalChunks } = useAudioChunkRecorder(stream, chunkPaused, micEnabled, audioChunkContext);
 
   // Active mic tracking
   const { activeDevice } = useActiveMic(stream, devices, selectedDeviceId);
@@ -464,7 +669,8 @@ export function VoiceRecorderCore({
 
   // Sync context (safe without provider — context has no-op defaults)
   const {
-    activeVoiceModule,
+    activeVoiceLocks,
+    activeVoiceLockIds,
     setMicUnavailable,
     claimActiveVoiceModule,
     releaseActiveVoiceModule,
@@ -473,7 +679,10 @@ export function VoiceRecorderCore({
     voiceSubmitRequest
   } = useRxPadSync();
   const voiceLockIdRef = useRef(`voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const resumeBlockedByOtherVoice = manualMute && !!activeVoiceModule;
+  const resumeBlockedByOtherVoice = manualMute && activeVoiceLockIds?.some((id) => (
+    id !== voiceLockIdRef.current &&
+    activeVoiceLocks?.[id]?.label !== sectionLabel
+  ));
 
   useEffect(() => {
     setMicUnavailable(!!micError, micError || null);
@@ -706,6 +915,7 @@ export function VoiceRecorderCore({
     const submitClickedAt = new Date(submitClickedAtMs).toISOString();
     let audioBlob = null;
     try { audioBlob = await getBlob(); } catch (e) { console.error("Failed to capture audio blob", e); }
+    try { await flushFinalChunks(); } catch (e) { console.error("Failed to flush audio chunks", e); }
     const transcript = isFullscreen ? externalTranscript : liveDisplayText;
     try {
       await onSubmit?.({ audioBlob, transcript, durationMs: elapsedMs, submitClickedAt, submitClickedAtMs, micBeingUsed: activeDevice?.label || "" });
@@ -714,7 +924,7 @@ export function VoiceRecorderCore({
     } finally {
       setSubmitProcessing(false);
     }
-  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, onSubmit, externalTranscript, liveDisplayText, elapsedMs, activeDevice?.label]);
+  }, [submitProcessing, isFullscreen, isAwaitingResponse, canSubmit, getBlob, flushFinalChunks, onSubmit, externalTranscript, liveDisplayText, elapsedMs, activeDevice?.label]);
 
   const submitRequestSeenRef = useRef(voiceSubmitRequest);
   useEffect(() => {

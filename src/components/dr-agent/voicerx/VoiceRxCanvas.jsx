@@ -72,6 +72,7 @@ export function VoiceRxCanvas({
   onMinimize,
   onAddDetailsByVoice,
   onQuickEditSubmit,
+  audioChunkContext,
   voiceLocked = false
 }) {
   const canvasTitle = "Back";
@@ -446,6 +447,7 @@ export function VoiceRxCanvas({
               isAwaitingResponse={voiceEditProcessing}
               processingTranscript={voiceEditTranscript}
               processingLabel={voiceEditPhase === "creating_transcript" ? "Refining your captured consultation..." : "Updating clinical notes…"}
+              audioChunkContext={audioChunkContext}
               onCancel={handleVoiceEditCancel}
               onSubmit={handleVoiceEditSubmit}
               radiusClassName="rounded-t-[18px]"

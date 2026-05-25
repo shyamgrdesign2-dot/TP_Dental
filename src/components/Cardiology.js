@@ -56,6 +56,7 @@ import {
   sendMessageToParent,
   errorMessage,
 } from "../utils/utils";
+import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CvtKnowMore from "../pages/smartSync/components/CvtKnowMore";
@@ -610,6 +611,8 @@ function Cardiology(props) {
   const hasCaseManagerPrescriptionData = Boolean(
     viewCaseManagerData?.visit_advice ||
       viewCaseManagerData?.treatment ||
+      viewCaseManagerData?.follow_up_date ||
+      viewCaseManagerData?.private_notes ||
       [
         viewCaseManagerData?.symptoms,
         viewCaseManagerData?.examination,
@@ -620,6 +623,12 @@ function Cardiology(props) {
         viewCaseManagerData?.vitals,
         viewCaseManagerData?.surgeries,
         viewCaseManagerData?.moduleContents,
+        viewCaseManagerData?.medical_history,
+        viewCaseManagerData?.vaccines?.given,
+        viewCaseManagerData?.vaccines?.due,
+        viewCaseManagerData?.measurements,
+        viewCaseManagerData?.lab_params,
+        viewCaseManagerData?.zydus_lab_params,
       ].some((items) => Array.isArray(items) && items.length > 0)
   );
   const shouldUseLegacyVoiceRxData =
@@ -1861,13 +1870,16 @@ function Cardiology(props) {
       } else {
         window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
       }
-
+      console.log("viewCaseManagerData", viewCaseManagerData);
+      console.log("isVoiceRxNewFromGB", isVoiceRxNewFromGB);
+      console.log("shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB)", shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB));
       navigate("/prescription", {
         state: {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
           isEditRx: true,
+          ...(shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}),
           ...(videoConsultData ? { videoConsultData } : {}),
         },
       });

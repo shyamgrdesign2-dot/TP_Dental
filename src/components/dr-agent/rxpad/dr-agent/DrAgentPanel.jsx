@@ -301,6 +301,8 @@ export function DrAgentPanel({
           voiceRxAwaitingResponse={voiceRxAwaitingResponse}
           voiceRxHandoffExiting={voiceRxHandoffExiting}
           patientName={patient.label}
+          patientId={patientId}
+          doctorId={doctorId}
           onCancel={cancelVoiceRxRecording}
           onSubmit={submitVoiceRxRecording}
           onCollapse={onClose}

@@ -1698,6 +1698,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
           const sendData = {
             is_draft: 1,
+            ui_version: isVoiceRxNewFromGB ? "new" : "old",
             action: tcmId == 0 ? "add" : "edit",
             tcm_id: tcmId,
             patient_unique_id:
@@ -1929,6 +1930,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             const medicinePayload = await buildMedicinePayload();
 
             var sendData = {
+                ui_version: isVoiceRxNewFromGB ? "new" : "old",
                 action: tcmId == 0 ? 'add' : 'edit',
                 tcm_id: tcmId,
                 patient_unique_id: patient_data !== undefined ? patient_data.patient_unique_id : 0,
@@ -2636,12 +2638,35 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                             {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isTablet ? 'Draft' : 'Save as Draft'} />}
 
-                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please fill your prescription to end visit."}>
-                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) && onEndVisitClick()} loading={loading && !saveDraftLoading}>
-                                    <i className='icon-exit me-2'></i>
-                                    {isTablet ? "End" : "End Visit"}
-                                </Button>
-                            </Tooltip>
+                            {(() => {
+                              // PrescriptionNew-module signals (symptoms/examinations/diagnosis/surgeries/advice/investigations/medications/follow-up/visit-advice/custom modules/opthal/vaccines/private notes).
+                              const hasPrescriptionModuleData = (
+                                symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 ||
+                                diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 ||
+                                medicationData.length > 0 || privateNotesData || followUpDate || additionalNote ||
+                                givenVaccines.length > 0 || updatedDueVaccines?.length > 0 ||
+                                customModuleContents?.some((e) => e?.content?.length && e?.content?.some(c => c.title || c.notes)) ||
+                                hasOpthalValues() || hasCustomModuleContent()
+                              );
+                              // Sidebar-only signals (vitals/medical history/measurements/gynec/obstetric/lab params/zydus labs).
+                              const hasSidebarOnlyData = (
+                                vitalsData.length > 0 || medicalHistoryData.length > 0 || measurements.length > 0 ||
+                                (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated ||
+                                labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0
+                              );
+                              // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
+                              const canEndVisit = isVoiceRxNewFromGB
+                                ? hasPrescriptionModuleData
+                                : (hasPrescriptionModuleData || hasSidebarOnlyData);
+                              return (
+                                <Tooltip placement="bottom" title={canEndVisit ? "" : "Please fill your prescription to end visit."}>
+                                    <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
+                                        <i className='icon-exit me-2'></i>
+                                        {isTablet ? "End" : "End Visit"}
+                                    </Button>
+                                </Tooltip>
+                              );
+                            })()}
 
                             <Dropdown className='btn btn-outline btn-more p-0' menu={{ items }} trigger={['click']}>
                                 <a onClick={(e) => e.preventDefault()}>

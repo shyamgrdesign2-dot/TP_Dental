@@ -1381,6 +1381,11 @@ export function VoiceRxModuleCapture({
             showSectionInStatus
             radiusClassName=""
             hideCaptions={hideCaptions}
+            audioChunkContext={{
+              sessionId: voiceDigitization?.sessionId || getModuleSessionId(),
+              doctorId: profile?.doctor_unique_id,
+              patientId: patient_data?.patient_unique_id,
+            }}
             onCancel={onCancel}
             onCancelRequest={() => setConfirmOpen(true)}
             onSubmit={handleSubmit} />

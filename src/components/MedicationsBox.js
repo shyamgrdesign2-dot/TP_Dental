@@ -92,6 +92,62 @@ const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   textAlign: "center",
 };
 
+const FALLBACK_MEDICINE_UNITS = [
+  "Ampule(s)",
+  "Tablet(s)",
+  "mg",
+  "ml",
+  "unit(s)",
+  "Capsule(s)",
+  "Fingertip(s)",
+  "Pea sized",
+  "gm",
+  "palm sized",
+  "tsp",
+  "Kit(s)",
+  "Drop(s)",
+  "Spray",
+  "Sachet(s)",
+  "Cup(s)",
+  "Scoop(s)",
+  "Suppository(s)",
+  "Soap(s)",
+  "Bottle(s)",
+  "patch(s)",
+  "Respule(s)",
+  "Puff(s)",
+  "mcg",
+  "tbsp(s)",
+  "Globule(s)",
+  "Pill(s)",
+  "Containers",
+  "Liniment(s)",
+  "transcap(s)",
+  "I/V",
+  "I/M",
+].map((title, index) => ({ tmu_id: 0, tmu_title: title, fallbackIndex: index }));
+
+const getDoseUnitOptions = (medicine) => {
+  const medicineUnits = Array.isArray(medicine?.medicineUnit) ? medicine.medicineUnit : [];
+  if (medicineUnits.length > 0) return medicineUnits;
+
+  const currentUnitTitle = String(medicine?.tmm_unit_name || "").trim();
+  const currentUnit = currentUnitTitle
+    ? [{
+      tmu_id: medicine?.tmu_id || medicine?.tmm_unit || 0,
+      tmu_title: currentUnitTitle,
+      fallbackIndex: -1,
+    }]
+    : [];
+  const seen = new Set();
+  return [...currentUnit, ...FALLBACK_MEDICINE_UNITS].filter((unit) => {
+    const key = String(unit?.tmu_title || "").trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 function MedicationsBox({ showVoiceRxModule }) {
   const isChikitsalayAccessable = useChikitsalay();
   const renderLowStockBadge = useCallback((med) => {
@@ -612,6 +668,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const onSearchUnitPerDoseChid = useCallback(
     (query, i) => {
+      if (!medicationData[i]) return;
       const updateQuery = onlyDecimalFormat(query);
       medicationData[i].tmm_dosage_unit_name = updateQuery;
       medicationData[i].tmm_dosage = '';
@@ -620,7 +677,7 @@ function MedicationsBox({ showVoiceRxModule }) {
       medicationData[i].tmu_id = 0;
       setMedicationData((prev) => [...prev]);
       if (updateQuery) {
-        const options = medicationData[i].medicineUnit.map((e) => {
+        const options = getDoseUnitOptions(medicationData[i]).map((e) => {
           return {
             key: JSON.stringify({ ...e, tmm_dosage: updateQuery, unique_id: uuidv4() }),
             value: `${updateQuery} ${e.tmu_title}`,
@@ -637,6 +694,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const onBlurUnitPerDoseChid = useCallback(
     async (i) => {
+      if (!medicationData[i]) return;
       if (!isAlphabetExit(medicationData[i].tmm_dosage_unit_name)) {
         setUnitPerDoseOptions([]);
         medicationData[i].tmm_dosage_unit_name = "";
@@ -652,6 +710,7 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const onSelectUnitPerDoseChild = useCallback(
     (data, e, i) => {
+      if (!medicationData[i]) return;
       setUnitPerDoseOptions([]);
       const objParse = JSON.parse(e.key);
       medicationData[i].tmm_dosage_unit_name = data;

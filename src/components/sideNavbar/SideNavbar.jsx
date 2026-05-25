@@ -29,6 +29,7 @@ import {
   SidebarLeft,
 } from "iconsax-reactjs";
 import { VoiceRxIcon } from "../dr-agent/voicerx/voice-consult-icons";
+import ZydusLabParametersList from "../ZydusLabParametersList";
 import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
 import CashManagerContext from "../../context/CashManagerContext";
@@ -74,6 +75,7 @@ const NAV_ITEMS = [
   { id: "growth", label: "Growth", icon: { kind: "iconsax", Icon: Ruler } },
   { id: "optal", label: "Ophthal", icon: { kind: "iconsax", Icon: Eye } },
   { id: "personalNotes", label: "Private Notes", icon: { kind: "iconsax", Icon: DocumentText } },
+  { id: "zydusLabReports", label: "Zydus Reports", icon: { kind: "medical", name: "lab" } },
 ];
 
 const NAV_ITEM_BY_ID = NAV_ITEMS.reduce((acc, item) => {
@@ -120,6 +122,7 @@ const SECTION_TITLES = {
   growth: "Growth",
   optal: "Ophthal History",
   personalNotes: "Private Notes",
+  zydusLabReports: "Zydus Reports",
 };
 
 const SIDE_NAV_MODULE_NAMES = {
@@ -4475,13 +4478,13 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
       </div>
       <div className="snv-private-note-hint">
         <span className="snv-private-note-hint-icon">!</span>
-        <span>This note will only be visible to you and will not be printed. You will be able to see it in Patient Details.</span>
+        <span>This note will only be visible to you and will not be printed.</span>
       </div>
     </div>
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender }) {
   switch (activeId) {
     case "pastVisits":
       return (
@@ -4520,6 +4523,15 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
           showVoiceRx={showVoiceRx}
           onVoiceClick={onPrivateNotesVoiceClick}
           voiceDisabled={privateNotesVoiceDisabled}
+        />
+      );
+    case "zydusLabReports":
+      return (
+        <ZydusLabParametersList
+          labParamsData={zydusSelectedLabParams || []}
+          patient_unique_id={patientId}
+          doc_id={doctorId}
+          patientGender={patientGender}
         />
       );
     default:
@@ -4572,7 +4584,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -4628,6 +4640,10 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onCopyPayload={onCopyPayload}
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsUpdating}
+          zydusSelectedLabParams={zydusSelectedLabParams}
+          patientId={patientId}
+          doctorId={doctorId}
+          patientGender={patientGender}
         />
       </div>
       {showVoiceRx && voiceRecorderVisible && (
@@ -4641,6 +4657,11 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
             isAwaitingResponse={isAwaitingResponse}
             processingLabel={processingLabel}
             error={voiceStatus === "error" ? (voiceState?.error || "Voice processing failed.") : null}
+            audioChunkContext={{
+              sessionId: voiceSessionId,
+              doctorId,
+              patientId,
+            }}
             onClose={onVoiceOverlayClose}
             onCancel={onVoiceCancel}
             onSubmit={onVoiceRecorderSubmit}
@@ -4672,6 +4693,9 @@ export function SideNavbar({
   isVaccinationAccessable = false,
   isGrowthChartAccessable = false,
   isGynaecHistoryAccessable = false,
+  isZydusUserAccessable = false,
+  zydusSelectedLabParams = [],
+  patientGender,
   showVoiceRx = true,
 }) {
   const dispatch = useDispatch();
@@ -4681,6 +4705,7 @@ export function SideNavbar({
   const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
   const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
   const sideNavVoiceLockIdRef = useRef(`side-nav-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const sideNavVoiceSessionIdRef = useRef(null);
   const [sideNavSignals, setSideNavSignals] = useState({});
   const [vitalsCopyUpdating, setVitalsCopyUpdating] = useState(false);
   const [digitizedOverrides, setDigitizedOverrides] = useState({});
@@ -4726,6 +4751,14 @@ export function SideNavbar({
     privateNotesData,
     setPrivateNotesData,
   } = useContext(CashManagerContext) || {};
+  const getSideNavVoiceSessionId = useCallback(() => {
+    if (tcmId && Number(tcmId) !== 0) return tcmId;
+    if (pamId) return pamId;
+    if (!sideNavVoiceSessionIdRef.current) {
+      sideNavVoiceSessionIdRef.current = createSessionId();
+    }
+    return sideNavVoiceSessionIdRef.current;
+  }, [pamId, tcmId]);
   useEffect(() => {
     activePatientRef.current = patientId;
   }, [patientId]);
@@ -5140,6 +5173,10 @@ export function SideNavbar({
       seen.add("growth");
       orderedItems.push(NAV_ITEM_BY_ID.growth);
     }
+    if (isZydusUserAccessable && !seen.has("zydusLabReports")) {
+      seen.add("zydusLabReports");
+      orderedItems.push(NAV_ITEM_BY_ID.zydusLabReports);
+    }
 
     return orderedItems;
   }, [
@@ -5148,6 +5185,7 @@ export function SideNavbar({
     isGrowthChartAccessable,
     isOpthalModuleAccessible,
     isVaccinationAccessable,
+    isZydusUserAccessable,
   ]);
 
   const navSequence = useMemo(() => navItems.map((item) => item.id), [navItems]);
@@ -5332,7 +5370,7 @@ export function SideNavbar({
           audioBlob,
           patientId,
           doctorId,
-          sessionId: tcmId && Number(tcmId) !== 0 ? tcmId : pamId || createSessionId(),
+          sessionId: getSideNavVoiceSessionId(),
           previousContext: sectionId === "history"
             ? buildSideNavMedicalHistoryPreviousContext(medicalHistoryData)
             : undefined,
@@ -5362,7 +5400,7 @@ export function SideNavbar({
       toast.error(error?.message || "Voice processing failed.");
       updateVoiceState(sectionId, { status: "idle", error: "", transcript: "", digitizedSummary: "" });
     }
-  }, [applySideNavVoiceResult, doctorId, medicalHistoryData, pamId, patientId, privateNotesValue, savePrivateNotesFromVoice, tcmId, updateVoiceState]);
+  }, [applySideNavVoiceResult, doctorId, getSideNavVoiceSessionId, medicalHistoryData, patientId, privateNotesValue, savePrivateNotesFromVoice, updateVoiceState]);
 
   const handleVoiceClick = useCallback(() => {
     if (!activeId) return;
@@ -5370,8 +5408,9 @@ export function SideNavbar({
     if (activeVoiceModule || headerDictationBusy) return;
     const existing = voiceBySection[activeId]?.status;
     if (existing === "recording" || existing === "transcribing" || existing === "digitizing") return;
+    getSideNavVoiceSessionId();
     updateVoiceState(activeId, { status: "recording", error: "", transcript: "", digitizedSummary: "" });
-  }, [activeId, activeVoiceModule, headerDictationBusy, voiceBySection, updateVoiceState]);
+  }, [activeId, activeVoiceModule, getSideNavVoiceSessionId, headerDictationBusy, voiceBySection, updateVoiceState]);
 
   const handleVoiceRecorderSubmit = useCallback(({ audioBlob } = {}) => {
     if (activeId) return transcribeSectionAudio(activeId, audioBlob);
@@ -5422,6 +5461,11 @@ export function SideNavbar({
           voiceLocked={!!activeVoiceModule || headerDictationBusy}
           showVoiceRx={showVoiceRx}
           vitalsUpdating={vitalsCopyUpdating}
+          zydusSelectedLabParams={zydusSelectedLabParams}
+          patientId={patientId}
+          doctorId={doctorId}
+          patientGender={patientGender}
+          voiceSessionId={getSideNavVoiceSessionId()}
         />
       ) : null}
     </aside>

@@ -10,6 +10,7 @@ import { useReactToPrint } from 'react-to-print';
 // import { PDFReader } from 'reactjs-pdf-reader';
 
 import { errorMessage, getClinic, isIPad, isValidMongoId, sendMessageToParent, trackEvent } from "../utils/utils";
+import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
@@ -483,8 +484,7 @@ function PrescriptionPrintView() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            const isVoiceRxVisit = isValidMongoId(action.payload?.smart_prescription_filename);
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(isVoiceRxNewFromGB && isVoiceRxVisit ? { isVoiceRxNewUiFlow: true } : {}) } })
+            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(shouldUseNewPrescriptionUi(action.payload, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
         } else {
             errorMessage(action.error)
         }

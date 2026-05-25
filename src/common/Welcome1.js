@@ -10,6 +10,7 @@ import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, GB_CVT_EXT_HOS, CLINIC_TARGET_STATUS } from '../utils/constants';
+import { shouldUseNewPrescriptionUi } from '../utils/prescriptionRouting';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId, getDraftMoengageDoctorAttributes } from '../utils/utils';
 import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -221,16 +222,18 @@ function Welcome1(props) {
                 ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
                 : voiceRxId;
 
+            const repeatCaseManagerData = {
+                ...viewCaseManagerData,
+                smart_prescription_filename: copiedRxId,
+                tcm_id: 0,
+                consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
+            };
             navigate("/prescription", {
                 state: {
                     patient_data: patient_data,
                     send_path: "patient_details",
-                    caseManagerData: {
-                        ...viewCaseManagerData,
-                        smart_prescription_filename: copiedRxId,
-                        tcm_id: 0,
-                        consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
-                    }
+                    caseManagerData: repeatCaseManagerData,
+                    ...(shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {})
                 }
             });
         } catch (error) {
@@ -412,7 +415,7 @@ function Welcome1(props) {
                                                     tcm_id: viewCaseManagerData?.tcm_id || 0,
                                                     source: 0,
                                                 });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData, ...(shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
                                             }}
                                         >
                                             <img src={draftIcon} width={20} height={20} alt="Draft" className='me-2' />
@@ -437,7 +440,10 @@ function Welcome1(props) {
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                     "rx_date": viewCaseManagerData?.consultation_date
                                                 });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null },fromRepeatRx: true } })
+                                                {
+                                                  const repeatCaseManagerData = { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null };
+                                                  navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: repeatCaseManagerData, fromRepeatRx: true, ...(shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } });
+                                                }
                                             }
                                         }}>
                                             <i className={'icon-reload me-2'}></i>

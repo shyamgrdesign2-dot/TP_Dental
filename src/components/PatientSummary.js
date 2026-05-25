@@ -15,7 +15,9 @@ import { getSnapRxDigitization } from "../pages/snapRx/services/snapRxService";
 import { getClinicName, getTokenData, isValidMongoId, trackEvent } from "../utils/utils";
 import { setShowSCPopup } from "../redux/ddxSlice";
 import { env } from "../EnvironmentConfig";
-import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN, GB_VOICE_RX_NEW_UI } from "../utils/constants";
+import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import ViewLabParam from "./ViewLabParams";
 import LabParams from "./LabParams";
 import { ASSETS } from "../assets";
@@ -34,6 +36,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
   const dispatch = useDispatch();
   const { viewCaseManagerData } = useSelector((state) => state.caseManager);
   const { frequencyList, timingList, profile, userId } = useSelector((state) => state.doctors);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const { symptomCollector } = useSelector((state) => state.ddx);
   
   const [showDetailedSummary, setShowDetailedSummary] = useState(false);
@@ -1351,16 +1354,18 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                         return;
                       }
                       const copiedRxId = copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id || rxId;
+                      const repeatCaseManagerData = {
+                        ...lastPrescriptionData,
+                        smart_prescription_filename: copiedRxId,
+                        tcm_id: 0,
+                        consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
+                      };
                       navigate("/prescription", {
                         state: {
                           patient_data: patient_data,
                           send_path: "voice_rx_consult",
-                          caseManagerData: {
-                            ...lastPrescriptionData,
-                            smart_prescription_filename: copiedRxId,
-                            tcm_id: 0,
-                            consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
-                          }
+                          caseManagerData: repeatCaseManagerData,
+                          ...(shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {})
                         }
                       });
                     } catch (error) {

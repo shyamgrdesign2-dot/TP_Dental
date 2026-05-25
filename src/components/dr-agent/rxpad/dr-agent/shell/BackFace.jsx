@@ -39,6 +39,8 @@ export function BackFace({
   voiceRxAwaitingResponse,
   voiceRxHandoffExiting,
   patientName,
+  patientId,
+  doctorId,
   onCancel,
   onSubmit,
   onCollapse,
@@ -55,6 +57,7 @@ export function BackFace({
   const dispatch = useDispatch();
   const liveSoapHtml = useSelector((s) => s.voiceDigitization?.soapHtml || "");
   const liveSoapRaw = useSelector((s) => s.voiceDigitization?.soap || null);
+  const voiceSessionId = useSelector((s) => s.voiceDigitization?.sessionId);
   // liveSoapHtml updates on every RichEditor edit; prefer over the static voiceRxResult snapshot
   const effectiveSoapHtml = liveSoapHtml || voiceRxResult?.soapHtml || "";
   const effectiveSoap = voiceRxResult?.soap || liveSoapRaw;
@@ -105,6 +108,11 @@ export function BackFace({
             onMinimize={onMinimize}
             onAddDetailsByVoice={onAddDetailsByVoice}
             onQuickEditSubmit={onQuickEditSubmit}
+            audioChunkContext={{
+              sessionId: voiceSessionId,
+              doctorId,
+              patientId,
+            }}
             voiceLocked={voiceLocked}
           />
         ) : isFlipped ? (
@@ -124,6 +132,11 @@ export function BackFace({
               isPanelVisible={isPanelVisible}
               onPauseChange={onPauseChange}
               patientName={patientName}
+              audioChunkContext={{
+                sessionId: voiceSessionId,
+                doctorId,
+                patientId,
+              }}
             />
           </VoiceErrorBoundary>
         ) : null}

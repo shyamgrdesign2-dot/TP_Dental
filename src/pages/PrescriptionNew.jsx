@@ -2688,6 +2688,9 @@ function PrescriptionNew() {
           handleDrawerOpthal();
         }
         break;
+      case "zydusLabReports":
+        handleZydusTestReportDrawer();
+        break;
       default:
         break;
     }
@@ -2703,6 +2706,7 @@ function PrescriptionNew() {
     handleDrawerVaccination,
     handleDrawerVital,
     handleViewLabParamsDrawer,
+    handleZydusTestReportDrawer,
     isOpthalModuleAccessible,
     labParamsData?.length,
   ]);
@@ -2765,6 +2769,9 @@ function PrescriptionNew() {
                 isVaccinationAccessable={isVaccinationAccessable}
                 isGrowthChartAccessable={isGrowthChartAccessable}
                 isGynaecHistoryAccessable={isGynaecHistoryAccessable}
+                isZydusUserAccessable={isGroundingAccessableForZydus}
+                zydusSelectedLabParams={zydusSelectedLabParams}
+                patientGender={patient_data?.pm_gender}
                 showVoiceRx={canUseVoiceRxModuleUi}
                 onSectionAction={handleSideNavbarSectionAction}
               />

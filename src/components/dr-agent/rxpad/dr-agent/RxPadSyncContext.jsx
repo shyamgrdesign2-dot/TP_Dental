@@ -16,6 +16,8 @@ const RxPadSyncContext = createContext({
   runCopyWithAura: () => {},
   setVoiceActive: () => {},
   activeVoiceModule: null,
+  activeVoiceLocks: {},
+  activeVoiceLockIds: [],
   setActiveVoiceModule: () => {},
   claimActiveVoiceModule: () => {},
   releaseActiveVoiceModule: () => {},
@@ -71,6 +73,7 @@ export function RxPadSyncProvider({ children }) {
   const [copyOverlayActive, setCopyOverlayActive] = useState(false);
   const copyOverlayTimerRef = useRef(null);
   const [activeVoiceLocks, setActiveVoiceLocks] = useState({});
+  const activeVoiceLockIds = Object.keys(activeVoiceLocks);
   const activeVoiceModule = Object.values(activeVoiceLocks)[0]?.label || null;
   const setActiveVoiceModule = useCallback((label) => {
     setActiveVoiceLocks((prev) => {
@@ -280,6 +283,8 @@ export function RxPadSyncProvider({ children }) {
       copyOverlayActive,
       runCopyWithAura,
       activeVoiceModule,
+      activeVoiceLocks,
+      activeVoiceLockIds,
       setActiveVoiceModule,
       claimActiveVoiceModule,
       releaseActiveVoiceModule,
@@ -312,6 +317,7 @@ export function RxPadSyncProvider({ children }) {
       lastCopyRequest, lastSignal, requestCopyToRxPad, publishSignal,
       patientAllergies, aiFillInProgress, voiceActive, copyAllAuraActive,
       flashCopyAllAura, copyOverlayActive, runCopyWithAura, activeVoiceModule,
+      activeVoiceLocks, activeVoiceLockIds,
       setActiveVoiceModule, claimActiveVoiceModule, releaseActiveVoiceModule,
       headerDictation, setHeaderDictation, collapsedVoiceSession, setCollapsedVoiceSession, voicePauseToggleRequest,
       requestVoicePauseToggle, voiceSubmitRequest, requestVoiceSubmit,
