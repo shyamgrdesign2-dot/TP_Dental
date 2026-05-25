@@ -1044,6 +1044,13 @@ function PrescriptionNew() {
   const prescriptionWrapperStyle = {
     flex: "1 1 auto",
     minWidth: 0,
+    minHeight: 0,
+    height: "100%",
+    maxHeight: "100%",
+    overflowY: "auto",
+    overflowX: "hidden",
+    overscrollBehavior: "contain",
+    boxSizing: "border-box",
     transition: "padding-right 220ms cubic-bezier(0.4,0,0.2,1)",
     ...(!isTablet && drAgentOpen ? { paddingRight: 408 } : {}),
   };
@@ -2679,9 +2686,11 @@ function PrescriptionNew() {
         handleDrawerObstetric();
         break;
       case "vaccine":
+        setDrAgentOpen(false);
         handleDrawerVaccination();
         break;
       case "growth":
+        setDrAgentOpen(false);
         handleDrawerGrowth();
         break;
       case "optal":
@@ -2756,7 +2765,7 @@ function PrescriptionNew() {
               showVoiceRxModule={canUseVoiceRxModuleUi}
               isNewPrescriptionUi
             />
-            <div style={{ display: "flex", height: "calc(100vh - 60px)", minHeight: 0, overflow: "hidden" }}>
+            <div className={drAgentStyles.prescriptionNewRouteShell}>
               <SideNavbar
                 patientId={patient_data?.patient_unique_id}
                 doctorId={profile?.doctor_unique_id}
@@ -2777,7 +2786,7 @@ function PrescriptionNew() {
                 onSectionAction={handleSideNavbarSectionAction}
               />
               <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
-          <img src={hey} alt="vitals" className="me-3 hey" />
+          {/* <img src={hey} alt="vitals" className="me-3 hey" /> */}
           <div className="row">
             
             <div className="col-lg-12 col-md-12 col-12 mt-lg-0 mt-3">

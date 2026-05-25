@@ -173,6 +173,7 @@ import AiReceptionistButton from "./AiReceptionist";
 import { fetchPatientDefaultLanguage } from "../api/services/DefaultLanguageService";
 import AbhaDrawer from "./abha/AbhaDrawer";
 import OphthalmologyExamDrawer from "./ophthalmology/OphthalmologyExamDrawer";
+import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { clearAbhaDetails } from "../redux/abhaSlice";
 import {
   resetOpthalForm,
@@ -2265,7 +2266,15 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     }
     const action = await dispatch(viewCaseManager(sendData));
     if (action.meta.requestStatus === "fulfilled") {
-        navigate("/prescription", { state: { patient_data: record, caseManagerData: action.payload } })
+        navigate("/prescription", {
+          state: {
+            patient_data: record,
+            caseManagerData: action.payload,
+            ...(shouldUseNewPrescriptionUi(action.payload, isVoiceRxNewFromGB)
+              ? { isVoiceRxNewUiFlow: true }
+              : {}),
+          },
+        });
     }
   };
 

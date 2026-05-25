@@ -1,5 +1,15 @@
 /* Dr Agent panel — fixed right-side inline panel (starts below 62px portal header) */
 
+.prescriptionNewRouteShell {
+  height: calc(100vh - 60px);
+  max-height: calc(100vh - 60px);
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #f5f4f8;
+}
+
 .drAgentOverlay {
   position: fixed;
   top: 60px;

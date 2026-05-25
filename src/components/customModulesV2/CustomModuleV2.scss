@@ -1,4 +1,12 @@
 /* Custom Module V2 - Table Design */
+.prescription-wrapper {
+  .prescription-box-sm.custom-module-v2--dropdown-open {
+    position: relative;
+    z-index: 20;
+    overflow: visible;
+  }
+}
+
 .custom-module-v2__table {
   width: 100%;
   background: #ffffff;
@@ -123,6 +131,12 @@
     text-align: center;
     overflow: visible;
   }
+}
+
+.custom-module-v2__table-row--dropdown-open,
+.custom-module-v2__table-cell--dropdown-open {
+  position: relative;
+  z-index: 30;
 }
 
 .custom-module-v2__input {

@@ -119,7 +119,7 @@ export function BackFace({
           <VoiceErrorBoundary onCancel={onCancel}>
             <VoiceRxActiveAgent
               mode={voiceRxDialogChoice}
-              // sectionLabel="VoiceRx consultation"
+              sectionLabel="Dr Agent"
               transcript={voiceRxLiveTranscript}
               submittedTranscript={voiceRxSubmittedTranscript}
               processingTranscript={voiceRxProcessingTranscript}

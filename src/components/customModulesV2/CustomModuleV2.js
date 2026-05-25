@@ -1551,6 +1551,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
   }, [module?.module_id]);
 
   const voiceDictationTargetId = `custom-module-${module?.module_id || module?.name || "v2"}`;
+  const activeDropdownFieldId = focusedFieldId;
 
   return (
     <div
@@ -1558,6 +1559,7 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
       data-voice-rx-dictation-target={voiceDictationTargetId}
       className={[
         "prescription-box-sm",
+        activeDropdownFieldId ? "custom-module-v2--dropdown-open" : "",
         voiceModuleStyles.moduleRoot,
         isVoiceRxModuleEnabled && voiceCaptureOpen ? voiceModuleStyles.moduleCaptureLocked : "",
         voiceUpdated ? voiceModuleStyles.moduleUpdated : "",
@@ -1805,16 +1807,23 @@ const CustomModuleV2 = ({ module, showVoiceRxModule }) => {
           {moduleData.map((row, rowIndex) => {
             // Ensure row has an id - fallback to index if missing (shouldn't happen but safety check)
             const rowKey = row.id || `row-${rowIndex}-${module.module_id}`;
+            const isActiveDropdownRow = module.namedFields?.some(
+              (field) => activeDropdownFieldId === `${row.id}-${field.fieldName}`
+            );
             return (
             <tr
               key={rowKey}
-              className="border-bottom"
+              className={[
+                "border-bottom",
+                isActiveDropdownRow ? "custom-module-v2__table-row--dropdown-open" : "",
+              ].filter(Boolean).join(" ")}
             >
               {module.namedFields?.map((field, fieldIndex) => (
                 <td
                   key={field.fieldName}
                   className={[
                     "custom-module-v2__table-cell",
+                    activeDropdownFieldId === `${row.id}-${field.fieldName}` ? "custom-module-v2__table-cell--dropdown-open" : "",
                     isVoiceTargetHighlighted(row.id, field.fieldName) ? "custom-module-v2__voice-target-cell" : "",
                   ].filter(Boolean).join(" ")}
                 >

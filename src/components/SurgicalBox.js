@@ -42,6 +42,7 @@ import {
   searchExamination,
   createSurgery,
 } from "../redux/surgicalSlice";
+import ApiSurgical from "../api/services/ApiSurgical";
 
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useLocation } from "react-router-dom";
@@ -83,17 +84,92 @@ function SurgicalBox({ showVoiceRxModule }) {
   const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
   const emptySurgeryRow = () => ({ masterId: uuidv4(), name: "", notes: "" });
-  const applyVoiceSurgeries = useCallback((nextSurgeries) => {
+  const mapSurgeryMasterRecord = useCallback((record) => {
+    if (typeof record === "string" || typeof record === "number") {
+      return { masterId: record };
+    }
+    if (!record || typeof record !== "object") return null;
+    const { id, ...rest } = record;
+    return {
+      masterId: record.masterId || id,
+      ...rest,
+    };
+  }, []);
+  const findLocalSurgeryMaster = useCallback((name) => {
+    const normalizedName = String(name || "").trim().toLowerCase();
+    if (!normalizedName) return null;
+    const match = [...(parentOptionsList || []), ...(childOptionsList || [])].find((item) => (
+      String(item?.name || "").trim().toLowerCase() === normalizedName
+    ));
+    return match ? mapSurgeryMasterRecord(match) : null;
+  }, [childOptionsList, mapSurgeryMasterRecord, parentOptionsList]);
+  const findSurgeryMasterByName = useCallback(async (name) => {
+    const normalizedName = String(name || "").trim().toLowerCase();
+    if (!normalizedName) return null;
+
+    const localMatch = findLocalSurgeryMaster(name);
+    if (localMatch) return localMatch;
+
+    const result = await ApiSurgical.searchExamination(name);
+    const exactMatch = Array.isArray(result)
+      ? result.find((item) => String(item?.name || "").trim().toLowerCase() === normalizedName)
+      : null;
+    return exactMatch ? mapSurgeryMasterRecord(exactMatch) : null;
+  }, [findLocalSurgeryMaster, mapSurgeryMasterRecord]);
+  const createCustomSurgeryRecord = useCallback(async (name) => {
+    const created = await ApiSurgical.createSurgery({ name });
+    const createdRecord = mapSurgeryMasterRecord(created) || { masterId: created?.id, name };
+    const masterRecord = await findSurgeryMasterByName(name).catch(() => null);
+    return {
+      ...createdRecord,
+      ...masterRecord,
+      masterId: masterRecord?.masterId || createdRecord.masterId,
+      name: masterRecord?.name || createdRecord.name || name,
+      change: createdRecord.change ?? 1,
+    };
+  }, [findSurgeryMasterByName, mapSurgeryMasterRecord]);
+  const enrichVoiceSurgeryRows = useCallback(async (rows) => {
+    const enrichedRows = [];
+
+    for (const row of rows) {
+      const name = String(row?.name || row?.surgery_name || row?.procedure_name || "").trim();
+      if (!name) continue;
+
+      let resolvedMaster;
+      try {
+        const masterRecord = await findSurgeryMasterByName(name);
+        resolvedMaster = masterRecord || await createCustomSurgeryRecord(name);
+      } catch (error) {
+        console.error("VoiceRx surgery master enrichment failed:", error);
+        resolvedMaster = {
+          masterId: row?.masterId || uuidv4(),
+          name,
+          change: row?.change ?? 1,
+        };
+      }
+      enrichedRows.push({
+        ...row,
+        ...resolvedMaster,
+        masterId: resolvedMaster?.masterId || row?.masterId || uuidv4(),
+        name: resolvedMaster?.name || name,
+        notes: row?.notes ?? row?.note ?? "",
+      });
+    }
+
+    return enrichedRows;
+  }, [createCustomSurgeryRecord, findSurgeryMasterByName]);
+  const applyVoiceSurgeries = useCallback(async (nextSurgeries) => {
     if (nextSurgeries.length > 0) {
+      const enrichedSurgeries = await enrichVoiceSurgeryRows(nextSurgeries);
       if (canShowVoiceRxNewRows) {
-        const last = nextSurgeries[nextSurgeries.length - 1];
-        const withTrailing = (!last || last.name !== "") ? [...nextSurgeries, emptySurgeryRow()] : nextSurgeries;
+        const last = enrichedSurgeries[enrichedSurgeries.length - 1];
+        const withTrailing = (!last || last.name !== "") ? [...enrichedSurgeries, emptySurgeryRow()] : enrichedSurgeries;
         setSurgeriesData(withTrailing);
       } else {
-        setSurgeriesData(nextSurgeries);
+        setSurgeriesData(enrichedSurgeries);
       }
     }
-  }, [canShowVoiceRxNewRows, setSurgeriesData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canShowVoiceRxNewRows, enrichVoiceSurgeryRows, setSurgeriesData]); // eslint-disable-line react-hooks/exhaustive-deps
   const surgeriesVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(surgeriesData, "surgery"),
     [surgeriesData]

@@ -878,7 +878,10 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           pms_default: row?.pms_default ?? 0,
           advice_name: row?.advice_name || row?.advice || name || notes,
         };
-      case "lab_investigations":
+      case "lab_investigations": {
+        const investigationInstruction = isPrimitiveRow
+          ? ""
+          : firstTextValue(row?.note, row?.notes, row?.instruction);
         return {
           id: row?.id,
           objectID: row?.objectID || row?.id || createModuleVoiceId(),
@@ -890,10 +893,12 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           um_id: row?.um_id,
           service_code: row?.service_code,
           unique_id: row?.unique_id || createModuleVoiceId(),
-          note: notes,
+          note: investigationInstruction,
         };
+      }
       case "surgery":
         return {
+          ...row,
           masterId: row?.masterId || row?.id || createModuleVoiceId(),
           name: row?.name || row?.surgery_name || row?.procedure_name || "",
           notes,
@@ -1059,8 +1064,7 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
   const handledCopyIdRef = useRef(null);
   const copyPayloadKeysRef = useRef(copyPayloadKeys);
   const copyPayloadMatcherRef = useRef(copyPayloadMatcher);
-  const { lastCopyRequest, claimActiveVoiceModule, releaseActiveVoiceModule } = useRxPadSync();
-  const moduleVoiceLockIdRef = useRef(`module-voice-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const { lastCopyRequest } = useRxPadSync();
 
   useEffect(() => {
     copyPayloadKeysRef.current = copyPayloadKeys;
@@ -1075,18 +1079,8 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
       if (voiceUpdatedTimerRef.current) {
         window.clearTimeout(voiceUpdatedTimerRef.current);
       }
-      releaseActiveVoiceModule(moduleVoiceLockIdRef.current);
     };
-  }, [releaseActiveVoiceModule]);
-
-  useEffect(() => {
-    const lockId = moduleVoiceLockIdRef.current;
-    if (voiceCaptureOpen) {
-      claimActiveVoiceModule(lockId, moduleName);
-      return () => releaseActiveVoiceModule(lockId);
-    }
-    releaseActiveVoiceModule(lockId);
-  }, [claimActiveVoiceModule, moduleName, releaseActiveVoiceModule, voiceCaptureOpen]);
+  }, []);
 
   const triggerHighlight = useCallback((scroll = true) => {
     setVoiceUpdated(true);
@@ -1118,11 +1112,11 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
     if (hasData) triggerHighlight();
   }, [lastCopyRequest, triggerHighlight]);
 
-  const handleVoiceCaptureComplete = useCallback((digitisedData) => {
+  const handleVoiceCaptureComplete = useCallback(async (digitisedData) => {
     if (digitisedData?.transcript !== undefined) {
       const transcript = String(digitisedData.transcript || "").trim();
       if (transcript) {
-        onTranscriptionApply?.(transcript, digitisedData);
+        await Promise.resolve(onTranscriptionApply?.(transcript, digitisedData));
       }
       setVoiceCaptureOpen(false);
       triggerHighlight(false);
@@ -1141,7 +1135,7 @@ export function useVoiceRxModuleCapture({ moduleName, onApply, onTranscriptionAp
       console.groupEnd();
     }
     if (nextItems.length > 0) {
-      onApply?.(nextItems);
+      await Promise.resolve(onApply?.(nextItems));
     }
     setVoiceCaptureOpen(false);
     triggerHighlight(false);
@@ -1264,13 +1258,12 @@ export function VoiceRxModuleCapture({
           console.groupEnd();
         }
         const clinicalCompletedAtMs = Date.now();
-        onComplete?.(isTranscribeMode ? digitisedResult : rows, {
+        return Promise.resolve(onComplete?.(isTranscribeMode ? digitisedResult : rows, {
           audioBlob,
           transcript: isTranscribeMode ? digitisedResult?.transcript || "" : nextTranscript,
           durationMs,
           moduleName,
-        });
-        uploadAndLogVoiceRx2({
+        })).then(() => uploadAndLogVoiceRx2({
           audioBlob,
           patientData: patient_data,
           profile,
@@ -1301,7 +1294,7 @@ export function VoiceRxModuleCapture({
             isDoctorAgent: false,
             moduleName,
           })));
-        });
+        }));
       })
       .catch((error) => {
         if (!mountedRef.current) return;
