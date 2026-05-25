@@ -2675,6 +2675,7 @@ function PrescriptionNew() {
         handleDrawerMedicalHistory("gynec");
         break;
       case "obstetric":
+        setDrAgentOpen(false);
         handleDrawerObstetric();
         break;
       case "vaccine":
