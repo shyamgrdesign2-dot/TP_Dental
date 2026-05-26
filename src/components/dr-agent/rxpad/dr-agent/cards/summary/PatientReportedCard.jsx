@@ -220,7 +220,13 @@ export function PatientReportedCard({ data, onCopy, defaultCollapsed = false }) 
 
   return (
     <CardShell
-      icon={<span className={styles.headerIcon} aria-hidden="true" />}
+      icon={
+        <span
+          className={styles.headerIcon}
+          style={{ "--reported-patient-icon-url": 'url("/new-assets/icons/medical/clipboard-activity--bulk.svg")' }}
+          aria-hidden="true"
+        />
+      }
       title="Reported by Patient"
       collapsible
       dataSources={["Patient Intake"]}

@@ -134,7 +134,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const navigate = useNavigate();
     const isTablet = useTabletViewport();
-    const headerOverlayZIndex = 1305;
+    const headerOverlayZIndex = isNewPrescriptionUi ? 1305 : undefined;
     const shouldUseMobileTemplateContent = isMobile && !isTablet;
     const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft } = useContext(CashManagerContext);
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
@@ -863,7 +863,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     setCustomModuleContents(Array.from(moduleMap.values()));
                 }
             }
-            (isMobile || isTablet) ? handleDrawerTemplate() : showHideTemplatesListPopover()
+            (isMobile || (isTablet && isNewPrescriptionUi)) ? handleDrawerTemplate() : showHideTemplatesListPopover()
         } else {
             errorMessage(action.error)
         }
@@ -2353,7 +2353,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [popOverVideo]);
     return (
-        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
+        <Navbar className={`justify-content-between headerprescription p-0 ${isTablet ? ' headerprescription--tablet' : ''}${isNewPrescriptionUi ? ' headerprescription--new-ui' : ''}${isTabPrescription ? ' headerprescription--tab' : ''}`}>
             <Container fluid className='h-100 gx-0 w-100'>
                 <Row className='h-100 align-items-center w-100 justify-content-between'>
                     <Col sm="auto" className={`h-100 ${isTablet ? 'pr-0' : ''}`}>
@@ -2515,7 +2515,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     </Tooltip>
                                     <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
                                 </div>
-                            ) : (!isMobile && !isTablet) ? (
+                            ) : !isMobile ? (
                                 <div className="d-flex align-items-center">
                                     <Popover
                                         open={popOver1}

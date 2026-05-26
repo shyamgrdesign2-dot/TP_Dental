@@ -1,10 +1,11 @@
 .headerIcon {
-  display: block;
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, #d565ea 0%, #673aac 58%, #3a38b8 100%);
-  box-shadow: 0 0 0 4px rgba(75, 74, 213, 0.08);
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  color: var(--tp-blue-500, #4b4ad5);
+  background-color: currentColor;
+  -webkit-mask: var(--reported-patient-icon-url) center / contain no-repeat;
+  mask: var(--reported-patient-icon-url) center / contain no-repeat;
 }
 
 .sections {

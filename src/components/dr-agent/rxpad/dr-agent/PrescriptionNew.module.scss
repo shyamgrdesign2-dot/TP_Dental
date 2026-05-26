@@ -15,7 +15,7 @@
   max-height: calc(100dvh - 60px);
 }
 
-:global(.headerprescription.headerprescription--tablet) {
+:global(.headerprescription.headerprescription--tablet.headerprescription--new-ui) {
   position: sticky;
   top: 0;
   z-index: 1002;
