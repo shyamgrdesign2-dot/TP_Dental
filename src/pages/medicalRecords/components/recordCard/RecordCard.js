@@ -81,6 +81,7 @@ const RecordCard = ({
   const categoryName = category_id === -2 ? 'Zydus Lab' : category_id === -3 ? 'Zydus Radio' : uploadDocCategories.find(
     (item) => item?.category_id === category_id
   )?.category_name;
+  const isZydusRecord = category_id === -2 || category_id === -3 || url?.startsWith(config.zydus_proxy_url);
 
   const [showTooltip, setShowTooltip] = useState(false);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
@@ -275,7 +276,7 @@ const RecordCard = ({
         ),
         key: "download",
       },
-      !url?.startsWith(config.zydus_proxy_url) && {
+      !isZydusRecord && {
         label: (
           <div onClick={handleEdit}>
             <img src={edit} alt="edit" className="me-2" />
@@ -284,7 +285,7 @@ const RecordCard = ({
         ),
         key: "edit",
       },
-      !url?.startsWith(config.zydus_proxy_url) && {
+      !isZydusRecord && {
         label: (
           <div onClick={toggleDeletePopup}>
             <img src={trash} alt="delete" className="me-2" />
