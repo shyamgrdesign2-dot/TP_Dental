@@ -2157,7 +2157,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
         if (popup) {
           popup.document.title = "Generating Prescription";
           popup.document.body.innerHTML =
-            "<div style='font-family: sans-serif; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 18px; color: #1a2233;'>Prescription Loading...</div>";
+            "<div style='font-family: sans-serif; padding: 20px;'>Generating prescription PDF...</div>";
         }
 
         const messageKey = `print-rx-${record?.pam_id || Date.now()}`;
