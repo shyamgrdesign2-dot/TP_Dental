@@ -1132,6 +1132,11 @@ function Cardiology(props) {
     return typeof conversation === "string" && conversation.trim() !== "";
   };
 
+  const isDoctorTranscriptSpeaker = (speaker) => {
+    const normalized = String(speaker || "").trim().toLowerCase();
+    return normalized === "doctor" || normalized === "dr";
+  };
+
   const getGenRxDetails = async (recordId) => {
     try {
       setIsGenRxTableView(false);
@@ -1142,6 +1147,7 @@ function Cardiology(props) {
         if (payload) {
           if (lastGenRxFetchIdRef.current !== recordId) return;
           const d = payload;
+          const voiceHistory = Array.isArray(d) ? d : (Array.isArray(d?.history) ? d.history : []);
           const hasTabularView =
             typeof d?.version === "string" &&
             d.version.trim().toLowerCase() === "v2";
@@ -1153,15 +1159,15 @@ function Cardiology(props) {
           const isAmbientMode = Boolean(
             d?.isAmbientVoiceRxDigitizeBool ||
               d?.ambientVoiceRxDigitizeEditedData ||
-              d?.history?.some((h) => hasVoiceConversation(h?.conversation))
+              voiceHistory.some((h) => hasVoiceConversation(h?.conversation))
           );
           setIsAmbientRx(isAmbientMode);
 
           // Prescription: editedData → digitizeData → digitize (top, history[0], or latest history)
           let prescriptionData = d.ambientVoiceRxDigitizeEditedData ?? d.editedData ?? d.digitizeData ?? null;
           if (!prescriptionData) {
-            const lastHistory = d.history?.length > 0 ? d.history[d.history.length - 1] : null;
-            const digitize = d.digitize ?? d.history?.[0]?.digitize ?? lastHistory?.digitize;
+            const lastHistory = voiceHistory.length > 0 ? voiceHistory[voiceHistory.length - 1] : null;
+            const digitize = d.digitize ?? voiceHistory?.[0]?.digitize ?? lastHistory?.digitize;
             if (digitize && typeof digitize === "object" && !Array.isArray(digitize)) {
               const numericKeys = Object.keys(digitize).filter((k) => /^\d+$/.test(k));
               prescriptionData = numericKeys.length ? digitize[numericKeys[0]] : digitize;
@@ -1171,10 +1177,10 @@ function Cardiology(props) {
           }
 
           if (isAmbientMode) {
-            setGenRxData(prescriptionData);
+            setGenRxData(prescriptionData || {});
 
             // Build transcript blocks from history: conversation bubbles or TEXT_WITH_CONTEXT as text (no bubbles)
-            const historyItems = d?.history?.filter((h) =>
+            const historyItems = voiceHistory.filter((h) =>
               hasVoiceConversation(h.conversation) ||
               (h.transcription && h.transcription.trim()) ||
               (h.source && typeof h.source === "string" && h.source.trim())
@@ -1200,7 +1206,7 @@ function Cardiology(props) {
           } else {
             // Dictate: use full history for transcripts (one per update)
             setGenRxData(prescriptionData ?? d?.editedData ?? d?.digitizeData);
-            const historyTranscriptions = d?.history
+            const historyTranscriptions = voiceHistory
               ?.map((item) => item.transcription)
               ?.filter((t) => t && t !== "null" && t.trim());
             setGenRxQueries(historyTranscriptions?.length > 0 ? historyTranscriptions : null);
@@ -4211,20 +4217,22 @@ function Cardiology(props) {
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', overflowY: 'auto', padding: '16px' }}>
                 <div>
                   {ambientConversations && ambientConversations.length > 0 ? (
-                    ambientConversations.map((conv, index) => (
+                    ambientConversations.map((conv, index) => {
+                      const isDoctor = isDoctorTranscriptSpeaker(conv.speaker);
+                      return (
                       <div key={index} style={{
                         display: "flex",
                         flexDirection: "column",
-                        alignItems: conv.speaker === "doctor" || conv.speaker === "Dr" ? "flex-end" : "flex-start",
+                        alignItems: isDoctor ? "flex-end" : "flex-start",
                         marginBottom: "16px"
                       }}>
                         <div style={{
-                          backgroundColor: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#f1f1f5" : "#EFF6FF",
-                          borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                          backgroundColor: isDoctor ? "#f1f1f5" : "#EFF6FF",
+                          borderRadius: isDoctor ? "18px 0 18px 18px" : "0 18px 18px 18px",
                           padding: "16px",
                           maxWidth: "80%",
-                          marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
-                          marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
+                          marginLeft: isDoctor ? "auto" : "0px",
+                          marginRight: isDoctor ? "0px" : "auto",
                         }}>
                           <div style={{
                             fontSize: "10px",
@@ -4233,7 +4241,7 @@ function Cardiology(props) {
                             marginBottom: "4px",
                             textTransform: "uppercase"
                           }}>
-                            {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
+                            {isDoctor ? "Doctor" : "Patient"}
                           </div>
                           <div style={{
                             color: "#374151",
@@ -4247,7 +4255,8 @@ function Cardiology(props) {
                           </div>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     genRxQueries
                       ?.filter((query) => {
@@ -4329,51 +4338,57 @@ function Cardiology(props) {
                               </div>
                             ) : (
                               <React.Fragment key={index}>
-                                {(block.conversations || []).map((conv, convIdx) => (
+                                {(block.conversations || []).map((conv, convIdx) => {
+                                  const isDoctor = isDoctorTranscriptSpeaker(conv.speaker);
+                                  return (
                                   <div
                                     key={`${index}-${convIdx}`}
                                     style={{
-                                      background: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#e3f2fd" : "#f3e5f5",
+                                      background: isDoctor ? "#e3f2fd" : "#f3e5f5",
                                       marginBottom: "20px",
-                                      borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                                      borderRadius: isDoctor ? "18px 0 18px 18px" : "0 18px 18px 18px",
                                       padding: "16px",
                                       maxWidth: "80%",
-                                      marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
-                                      marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
+                                      marginLeft: isDoctor ? "auto" : "0px",
+                                      marginRight: isDoctor ? "0px" : "auto",
                                     }}
                                   >
                                     <div style={{ fontSize: "10px", fontWeight: 600, color: "#5a6774", marginBottom: "4px", textTransform: "uppercase" }}>
-                                      {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
+                                      {isDoctor ? "Doctor" : "Patient"}
                                     </div>
                                     <div style={{ color: "#374151", wordWrap: "break-word", fontSize: "12px", fontWeight: 400, lineHeight: "18px", textAlign: "left" }}>
                                       {conv.text || conv.content || conv.message}
                                     </div>
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </React.Fragment>
                             )
                           )
-                        : ambientConversations?.map((conv, index) => (
+                        : ambientConversations?.map((conv, index) => {
+                            const isDoctor = isDoctorTranscriptSpeaker(conv.speaker);
+                            return (
                             <div
                               key={index}
                               style={{
-                                background: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#e3f2fd" : "#f3e5f5",
+                                background: isDoctor ? "#e3f2fd" : "#f3e5f5",
                                 marginBottom: "20px",
-                                borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                                borderRadius: isDoctor ? "18px 0 18px 18px" : "0 18px 18px 18px",
                                 padding: "16px",
                                 maxWidth: "80%",
-                                marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
-                                marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
+                                marginLeft: isDoctor ? "auto" : "0px",
+                                marginRight: isDoctor ? "0px" : "auto",
                               }}
                             >
                               <div style={{ fontSize: "10px", fontWeight: 600, color: "#5a6774", marginBottom: "4px", textTransform: "uppercase" }}>
-                                {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
+                                {isDoctor ? "Doctor" : "Patient"}
                               </div>
                               <div style={{ color: "#374151", wordWrap: "break-word", fontSize: "12px", fontWeight: 400, lineHeight: "18px", textAlign: "left" }}>
                                 {conv.text || conv.content}
                               </div>
                             </div>
-                          ))
+                            );
+                          })
                     ) : (
                       genRxQueries
                         ?.filter((query) => {
