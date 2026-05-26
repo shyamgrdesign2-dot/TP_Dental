@@ -1097,6 +1097,7 @@
   height: 16px;
   object-fit: contain;
   flex: 0 0 16px;
+  filter: grayscale(1) saturate(0) brightness(0.72) opacity(0.9);
 }
 
 .snv-copy-btn {
@@ -1117,6 +1118,9 @@
 
 .snv-copy-btn:hover {
   background: var(--tp-blue-100);
+}
+.snv-bullet-list-wrapper {
+  margin-left: 8px;
 }
 
 .snv-bullet-list {
@@ -1177,6 +1181,14 @@
 
 .snv-past-medical-history-section .snv-bullet-list {
   margin: 8px 10px 10px;
+}
+
+.snv-past-medical-history-section .snv-bullet-detail {
+  font-weight: 400 !important;
+}
+
+.snv-info-card .snv-bullet-detail {
+  font-weight: 400 !important;
 }
 
 .snv-past-custom-module-sections {

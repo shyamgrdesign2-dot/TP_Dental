@@ -2668,6 +2668,14 @@ function BulletList({ items }) {
   );
 }
 
+function formatMedicalHistoryDetail(detail) {
+  return String(detail || "")
+    .split("|")
+    .map((part) => part.trim().replace(/^(since|status|notes?|note):\s*/i, ""))
+    .filter(Boolean)
+    .join(", ");
+}
+
 function RxSection({ title, icon, children, onCopy, stickyTitle = false }) {
   return (
     <div className={`snv-rx-section ${stickyTitle ? "snv-rx-section-sticky-title" : ""}`}>
@@ -2691,7 +2699,7 @@ function PastVisitMedicalHistorySections({ sections = [], fallbackItems = [] }) 
             {section.items?.length ? (
               <BulletList items={section.items.map((item) => ({
                 label: item.name,
-                detail: item.detail,
+                detail: formatMedicalHistoryDetail(item.detail),
                 fresh: item.fresh,
               }))} />
             ) : (
@@ -3510,7 +3518,12 @@ function HistoryContent({ sections = [], emptyState }) {
       ) : sections.map((section) => (
         <div key={section.id} className={`snv-info-card ${section.fresh ? "snv-fresh-card" : ""}`}>
           <div className="snv-info-card-title">{section.title}</div>
-          {section.items.length ? <BulletList items={section.items.map((item) => ({ label: item.name, detail: item.detail, fresh: item.fresh }))} /> : <div className="snv-empty-state">No data recorded.</div>}
+          {section.items.length ? (
+            <div className="snv-bullet-list-wrapper">
+              <BulletList items={section.items.map((item) => ({ label: item.name, detail: formatMedicalHistoryDetail(item.detail), fresh: item.fresh }))} />
+            </div>
+          )
+           : <div className="snv-empty-state">No data recorded.</div>}
         </div>
       ))}
     </div>

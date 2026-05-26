@@ -1615,6 +1615,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         };
 
         const payload = [];
+        const createdVoiceMedicineByGroup = new Map();
         const defaultMedicineType = Array.isArray(medicineTypeList) ? medicineTypeList[0]?.tmy_id : 0;
 
         for (const { medicineUnit, ...rest } of medicationData) {
@@ -1624,17 +1625,30 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             }
 
             const medicineName = getVoiceRxMedicineName(rest);
-            const action = await dispatch(addMedicine({
-                tmm_medicine_name: medicineName,
-                tmm_type: rest.tmm_type || defaultMedicineType || 0,
-                tmm_generic: rest.tmm_generic || "",
-                tmm_company: rest.tmm_company || "",
-            }));
-            if (action.meta.requestStatus !== "fulfilled") {
-                throw new Error(action?.error?.message || `Failed to add medicine ${medicineName}`);
+            const medicineGroupKey = String(
+                rest.voice_rx_group_id ||
+                rest.voice_rx_original_name ||
+                medicineName
+            ).trim().toLowerCase();
+            let createdMedicine = createdVoiceMedicineByGroup.get(medicineGroupKey);
+
+            if (!createdMedicine) {
+                const action = await dispatch(addMedicine({
+                    tmm_medicine_name: medicineName,
+                    tmm_type: rest.tmm_type || defaultMedicineType || 0,
+                    tmm_generic: rest.tmm_generic || "",
+                    tmm_company: rest.tmm_company || "",
+                }));
+                if (action.meta.requestStatus !== "fulfilled") {
+                    throw new Error(action?.error?.message || `Failed to add medicine ${medicineName}`);
+                }
+
+                createdMedicine = Array.isArray(action.payload) ? action.payload[0] : action.payload;
+                if (medicineGroupKey) {
+                    createdVoiceMedicineByGroup.set(medicineGroupKey, createdMedicine);
+                }
             }
 
-            const createdMedicine = Array.isArray(action.payload) ? action.payload[0] : action.payload;
             const resolvedUnit = rest.tmm_unit || createdMedicine?.default_tmm_unit || createdMedicine?.tmm_unit || 0;
 
             payload.push({
