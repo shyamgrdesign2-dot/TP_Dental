@@ -16,6 +16,7 @@ import {
     deleteTemplate,
     getInvestigationTemplates,
     getFrequentlySearchedInvestigation,
+    singleTemplateDetails,
 } from "../../redux/investigationSlice";
 
 import TabInvestigationSearch from "../../components/tab_design/TabInvestigationSearch";
@@ -201,15 +202,23 @@ function TabInvestigationBox({handleDDxDrawer, generatedDDx}) {
         }
     };
 
-    const onTemplateSelected = (template) => {
+    const onTemplateSelected = async (template) => {
         window.Moengage.track_event("investigation_template_used", {
             "template_name": template.tit_template_name
         });
-        const updatedData = template.investigation.map(e => {
-            return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
-        })
-        setInvestigationData([...investigationData, ...updatedData]);
-        handleDrawerTemplate();
+        const action = await dispatch(singleTemplateDetails(template.tit_id));
+        if (action.meta.requestStatus === "fulfilled") {
+            const rows = Array.isArray(action.payload) ? action.payload : [];
+            const updatedData = rows.map((e) => ({
+                ...e,
+                unique_id: uuidv4(),
+                note: e.note ? e.note : "",
+            }));
+            setInvestigationData([...investigationData, ...updatedData]);
+            handleDrawerTemplate();
+        } else {
+            errorMessage(action.error);
+        }
     };
 
     const onDeleteTemplateClicked = async (tit_id) => {

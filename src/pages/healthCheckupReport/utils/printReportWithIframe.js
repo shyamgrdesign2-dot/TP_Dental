@@ -171,17 +171,14 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     }
 
     /*
-     * When content spills into .print-repeat-pages-table, that table's <thead> (patient strip)
-     * must not render immediately after the first-page table — it would sit between e.g.
-     * "General Examination" and its vitals tables. Force the repeat table to start on a new sheet.
+     * Break AFTER the first-page table (not before the repeat table) to avoid a Chrome
+     * print bug where <thead> is not rendered on the very first page of a table that
+     * starts with break-before:page, causing the Patient Name/MRN header to be missing
+     * on page 2 while correctly repeating on pages 3+.
      */
-    .print-repeat-pages-table.print-repeat-starts-new-page {
-      page-break-before: always !important;
-      break-before: page !important;
-    }
-
     .print-first-page-table.has-rest-pages {
-      page-break-after: auto !important;
+      page-break-after: always !important;
+      break-after: page !important;
     }
     
     .report-doc-header {
@@ -294,8 +291,14 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     const pxPerMm = mmProbe.getBoundingClientRect().height || 3.78;
     mmProbe.remove();
 
-    /* Matches .print-padding-wrapper vertical padding (~10mm top + ~30mm bottom); small slack for font/layout variance */
-    const availableFirstPageHeight = (297 - 10 - 30 + 5) * pxPerMm;
+    /*
+     * Exact print content area: A4 297mm − 10mm top padding − 30mm bottom padding = 257mm.
+     * The previous +5 slack allowed up to 262mm, and overflowTolerancePx added another ~6mm,
+     * meaning firstPageTable could be 268mm tall while the print page only holds 257mm.
+     * Chrome then paginates firstPageTable across pages 1 & 2, pushing repeatPagesTable
+     * (and its header) to page 3 — the "header missing on page 2" bug.
+     */
+    const availableFirstPageHeight = (297 - 10 - 30) * pxPerMm;
     const sourceNodes = Array.from(source.childNodes).filter((node) => {
       if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent && node.textContent.trim());
       return true;
@@ -358,7 +361,6 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     const chunks = groupNodesForPrintPagination(sourceNodes);
 
     let spillToRestPages = false;
-
     chunks.forEach((chunkNodes) => {
       const clones = chunkNodes.map((node) => node.cloneNode(true));
       if (spillToRestPages) {
@@ -370,7 +372,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       clones.forEach((c) => firstPageContainer.appendChild(c));
       const firstPageHeight = firstPageTable.getBoundingClientRect().height;
 
-      const overflowTolerancePx = 24;
+      const overflowTolerancePx = 4; // ~1mm for sub-pixel rounding only; must stay well under 257mm limit
       const overflows =
         firstPageHeight > availableFirstPageHeight + overflowTolerancePx;
       if (overflows && prevChildCount > 0) {
@@ -384,11 +386,59 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     if (hasRestPages) {
       firstPageTable.classList.add("has-rest-pages");
       repeatPagesTable.style.display = "table";
-      repeatPagesTable.classList.add("print-repeat-starts-new-page");
+
+      /*
+       * The <thead> auto-repeats Patient Name/MRN on every page of print-content-table,
+       * including continuation pages within large sections (e.g. a Consultations table that
+       * spans pages 3 and 4). No manual header clones are needed.
+       *
+       * Major sections with .print-page-break are forced onto new pages via an injected
+       * breakDiv; the auto-repeating thead provides the header on that new page.
+       */
+      // Direct children of restPagesContainer.
+      const contentNodes = Array.from(restPagesContainer.childNodes);
+      let isFirstElement = true;
+      const toInject = []; // nodes that need a page-break div injected before them
+
+      for (const node of contentNodes) {
+        if (node.nodeType === Node.TEXT_NODE) continue;
+
+        const hasForcedBreak = node.classList?.contains("print-page-break");
+
+        if (hasForcedBreak && isFirstElement) {
+          // First section: page 2 already starts fresh (firstPageTable has break-after:page). Absorb.
+          node.classList.remove("print-page-break");
+          node.style.pageBreakBefore = "auto";
+          node.style.breakBefore = "auto";
+          isFirstElement = false;
+          continue;
+        }
+
+        if (hasForcedBreak) {
+          // Consultations, Impressions, General Recommendations: force onto a new page.
+          // The auto-repeating thead provides Patient Name/MRN on the new page.
+          toInject.push(node);
+          node.classList.remove("print-page-break");
+          node.style.pageBreakBefore = "auto";
+          node.style.breakBefore = "auto";
+          isFirstElement = false;
+          continue;
+        }
+
+        isFirstElement = false;
+      }
+
+      // Insert page-break divs in reverse to preserve earlier node positions.
+      for (let i = toInject.length - 1; i >= 0; i--) {
+        const target = toInject[i];
+        const breakDiv = printDoc.createElement("div");
+        breakDiv.style.cssText =
+          "page-break-before:always;break-before:page;height:0;margin:0;padding:0;";
+        restPagesContainer.insertBefore(breakDiv, target);
+      }
     } else {
       firstPageTable.classList.remove("has-rest-pages");
       repeatPagesTable.style.display = "none";
-      repeatPagesTable.classList.remove("print-repeat-starts-new-page");
     }
   };
 

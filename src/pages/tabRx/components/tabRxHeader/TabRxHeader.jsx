@@ -60,7 +60,6 @@ import {
 import {
   assignCarePlan,
   updateCarePlanName,
-  getCarePlanAssignments,
 } from "../../../../pages/smartSync/services/carePlanService";
 
 import { useSelector, useDispatch } from "react-redux";
@@ -724,12 +723,12 @@ function TabRxHeader({
           advice_name,
           ...(change !== undefined && { change }),
         })),
-        investigation: investigationData.map(
-          ({ investigation_name, change }) => ({
-            investigation_name,
-            ...(change !== undefined && { change }),
-          }),
-        ),
+        investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+          investigation_name,
+          ...(change !== undefined && { change }),
+          ...(id != null && String(id).trim() !== "" && { id }),
+          ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+        })),
         userModules: customModuleContents?.map((e) => {
           // Filter content based on module version
           let filteredContent;
@@ -883,12 +882,12 @@ function TabRxHeader({
           advice_name,
           ...(change !== undefined && { change }),
         })),
-        investigation: investigationData.map(
-          ({ investigation_name, change }) => ({
-            investigation_name,
-            ...(change !== undefined && { change }),
-          }),
-        ),
+        investigation: investigationData.map(({ investigation_name, change, id, service_code }) => ({
+          investigation_name,
+          ...(change !== undefined && { change }),
+          ...(id != null && String(id).trim() !== "" && { id }),
+          ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+        })),
         userModules: customModuleContents?.map((e) => {
           // Filter content based on module version
           let filteredContent;
@@ -1945,26 +1944,6 @@ function TabRxHeader({
           console.error("Care plan sync after submit failed:", error);
         }
 
-        // Fetch care plan assignments to include in print state
-        let carePlanAssignments = [];
-        try {
-          if (patient_data?.patient_unique_id) {
-            const assignmentsResp = await getCarePlanAssignments(
-              patient_data.patient_unique_id,
-            );
-            carePlanAssignments = Array.isArray(assignmentsResp?.data)
-              ? assignmentsResp.data
-              : Array.isArray(assignmentsResp)
-                ? assignmentsResp
-                : assignmentsResp?.assignments || [];
-          }
-        } catch (cpFetchErr) {
-          console.error(
-            "Failed to fetch care plan assignments for print state:",
-            cpFetchErr,
-          );
-        }
-
         message.open({
           key: MESSAGE_KEY,
           type: "",
@@ -2043,18 +2022,30 @@ function TabRxHeader({
             getInvestigationAndMedicine(sendInvestigationAndMedicine),
           );
           if (actionIM.meta.requestStatus === "fulfilled") {
+            const cmInvestigations = actionIM?.payload?.investigation ?? [];
+            const investigationList = (investigationData.length > 0 ? cmInvestigations : []).map(
+              (item) => ({
+                serviceName: String(item?.investigation_name ?? "").trim(),
+                serviceCode: String(item?.service_code ?? "").trim(),
+              })
+            );
+            const investigationsForMoengage =
+              investigationData.length > 0
+                ? cmInvestigations
+                    .map(
+                      (item) =>
+                        `${item.investigation_name}:${item.service_code ?? ""}`,
+                    )
+                    .join(", ")
+                : "";
+
             window.Moengage.track_event(
               "Z_getInvestigationAndMedicine_API_Response",
               {
                 clinic_name,
                 patient_id: patient_data?.patient_unique_id,
                 status: "suceess",
-                investigationList:
-                  investigationData.length > 0
-                    ? actionIM?.payload?.investigation
-                        .map((item) => item.investigation_name)
-                        .join(", ")
-                    : [],
+                investigationList: investigationsForMoengage,
                 medicineList:
                   medicationData.length > 0
                     ? actionIM?.payload?.medicine
@@ -2082,12 +2073,7 @@ function TabRxHeader({
               doctorCode: patient_data?.employeeId,
               storeCode: storeCode, // hardcoded value
               duplicateCheck: 1, // hardcoded value
-              investigationList:
-                investigationData.length > 0
-                  ? actionIM?.payload?.investigation.map(
-                      (item) => item.investigation_name,
-                    )
-                  : [],
+              investigationList,
               medicineList:
                 medicationData.length > 0
                   ? actionIM?.payload?.medicine.map(
@@ -2112,12 +2098,7 @@ function TabRxHeader({
               doctorCode: patient_data?.employeeId,
               storeCode: storeCode, // hardcoded value
               duplicateCheck: 1, // hardcoded value
-              investigationList:
-                investigationData.length > 0
-                  ? actionIM?.payload?.investigation
-                      .map((item) => item.investigation_name)
-                      .join(", ")
-                  : [],
+              investigationList: investigationsForMoengage,
               medicineList:
                 medicationData.length > 0
                   ? actionIM?.payload?.medicine
@@ -2164,7 +2145,6 @@ function TabRxHeader({
             labParamsData: labParamsData,
             zydusSelectedLabParams: zydusSelectedLabParams,
             labReportID: labReportID,
-            carePlanAssignments,
           },
         });
       } else {

@@ -56,7 +56,7 @@ import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_SMARTSYNC_CONNECT } from "../utils/constants";
 import { upsertDoctorSettingFlag } from "../redux/doctorsSlice";
 import { setDefaultCustomSyncPadTemplate } from "../pages/smartSync/services/uploadService";
-import { assignCarePlan, updateCarePlanName, getCarePlanAssignments, hasExistingCarePlanForConsultation } from "../pages/smartSync/services/carePlanService";
+import { assignCarePlan, updateCarePlanName } from "../pages/smartSync/services/carePlanService";
 import VideoConsultButton from "../components/VideoConsultButton";
 import { ASSETS } from "../assets";
 const {
@@ -86,6 +86,7 @@ function HeaderPrescription({
   selectedTemplateId,
   prepareMetadataForSubmissionData,
   selectedCarePlan,
+  hasExistingCarePlan = false,
   setBuildNumber,
   handleVideoConsult,
   isVideoConsultLoading,
@@ -549,12 +550,6 @@ function HeaderPrescription({
         const tokenData = decodedToken?.result;
         const generatedTcmId = action?.payload?.tcm_id ?? tcmId;
 
-        const hasExistingCarePlan = await hasExistingCarePlanForConsultation(
-          patient_data?.patient_unique_id,
-          generatedTcmId,
-          'smart-rx submit',
-        );
-
         if (generatedTcmId > 0 && selectedCarePlan) {
           if (hasExistingCarePlan && selectedCarePlan?.plan_name) {
             await updateCarePlanName(parseInt(generatedTcmId), selectedCarePlan.plan_name);
@@ -578,21 +573,6 @@ function HeaderPrescription({
         console.error('Care plan sync (assign/update) after SmartRx submit failed:', cpErr);
       }
 
-      // Fetch care plan assignments to include in print state
-      let carePlanAssignments = [];
-      try {
-        if (patient_data?.patient_unique_id) {
-          const assignmentsResp = await getCarePlanAssignments(patient_data.patient_unique_id);
-          carePlanAssignments = Array.isArray(assignmentsResp?.data)
-            ? assignmentsResp.data
-            : Array.isArray(assignmentsResp)
-            ? assignmentsResp
-            : assignmentsResp?.assignments || [];
-        }
-      } catch (cpFetchErr) {
-        console.error('Failed to fetch care plan assignments for smart rx print state:', cpFetchErr);
-      }
-
       navigate("/print-smart-rx", {
         replace: true,
         state: {
@@ -600,7 +580,6 @@ function HeaderPrescription({
           patient_data: patient_data,
           smartRxFile: (files && files.length > 0) ? files : smartRxFiles,
           page: "prescription",
-          carePlanAssignments,
         },
       });
     } else {

@@ -28,7 +28,8 @@ import {
   deleteTemplate,
   getInvestigationTemplates,
   getFrequentlySearchedInvestigation,
-  searchInvestigation
+  searchInvestigation,
+  singleTemplateDetails,
 } from "../redux/investigationSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -433,15 +434,23 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     }
   };
 
-  const onTemplateSelected = (template) => {
+  const onTemplateSelected = async (template) => {
     window.Moengage.track_event("investigation_template_used", {
       "template_name": template.tit_template_name
     });
-    const updatedData = template.investigation.map(e => {
-      return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
-    })
-    setInvestigationData([...investigationData, ...updatedData]);
-    showHideTemplatesListPopover();
+    const action = await dispatch(singleTemplateDetails(template.tit_id));
+    if (action.meta.requestStatus === "fulfilled") {
+      const rows = Array.isArray(action.payload) ? action.payload : [];
+      const updatedData = rows.map((e) => ({
+        ...e,
+        unique_id: uuidv4(),
+        note: e.note ? e.note : "",
+      }));
+      setInvestigationData([...investigationData, ...updatedData]);
+      showHideTemplatesListPopover();
+    } else {
+      errorMessage(action.error);
+    }
   };
 
   const onDeleteTemplateClicked = async (tit_id) => {
