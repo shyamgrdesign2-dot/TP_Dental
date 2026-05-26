@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Drawer, Table } from "antd";
 import { Button } from "react-bootstrap";
@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 import BillingHistoryNew from "./BillingHistoryNew";
 import BillingPrint from "./BillingPrint";
 import { billingHistory, invoiceGenerate, receiptGenerate } from "../../redux/monetizationSlice";
-import { fetchSubscriptionDetails } from "../../redux/subscriptionSlice";
 import { S_SMARTSYNC, S_TATVA_PRACTICE } from "../../utils/constants";
 import { errorMessage, getClinicName, getDeviceSdkData, getTokenData } from "../../utils/utils";
 import { deviceType, osName } from "react-device-detect";
@@ -23,7 +22,6 @@ function SubscriptionNew() {
   const navigate = useNavigate();
 
   const { profile } = useSelector((state) => state.doctors);
-  const { planDetails } = useSelector((state) => state.subscription);
   const { billingHistoryList } = useSelector((state) => state.monetization);
   const dispatch = useDispatch();
 
@@ -31,20 +29,9 @@ function SubscriptionNew() {
   const [open, setOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
 
-  const billingFetched = useRef(false);
   useEffect(() => {
-    if (!planDetails) {
-      dispatch(fetchSubscriptionDetails());
-    }
-  }, [planDetails, dispatch]);
-
-  useEffect(() => {
-    const b2c = profile?.b2c ?? planDetails?.profile_b2c;
-    if (b2c && !billingFetched.current) {
-      billingFetched.current = true;
-      dispatch(billingHistory(b2c));
-    }
-  }, [profile?.b2c, planDetails?.profile_b2c, dispatch]);
+    dispatch(billingHistory(profile?.b2c));
+  }, []);
 
   const handlePdfDrawer = useCallback(() => {
     setOpen(!open);
