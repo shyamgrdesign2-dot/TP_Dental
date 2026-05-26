@@ -102,7 +102,7 @@ function Welcome1(props) {
     }, [viewCaseManagerData])
 
     const [createCertificateDrawer, setCreateCertificateDrawer] = useState(false);
-    const [isV2VoiceAmbientRx, setIsV2VoiceAmbientRx] = useState(false);
+    const [voiceRxVersion, setVoiceRxVersion] = useState("");
     const isVoiceOrAmbientRx = useMemo(() => {
         return viewCaseManagerData?.smart_prescription_filename && 
                isValidMongoId(viewCaseManagerData.smart_prescription_filename);
@@ -111,11 +111,13 @@ function Welcome1(props) {
     const voiceRxId = useMemo(() => {
         return isVoiceOrAmbientRx ? viewCaseManagerData?.smart_prescription_filename : null;
     }, [isVoiceOrAmbientRx, viewCaseManagerData?.smart_prescription_filename]);
+    const normalizedVoiceRxVersion = voiceRxVersion.trim().toLowerCase();
+    const canRepeatVoiceRx = isVoiceOrAmbientRx && ["v2", "v3"].includes(normalizedVoiceRxVersion);
 
     useEffect(() => {
         const checkRxVersion = async () => {
             if (!voiceRxId) {
-                setIsV2VoiceAmbientRx(false);
+                setVoiceRxVersion("");
                 return;
             }
 
@@ -126,10 +128,9 @@ function Welcome1(props) {
                 }
 
                 const version = rxResponse?.data?.version || rxResponse?.data?.data?.version;
-                const isV2 = typeof version === "string" && version.trim().toLowerCase() === "v2";
-                setIsV2VoiceAmbientRx(isV2);
+                setVoiceRxVersion(typeof version === "string" ? version : "");
             } catch (error) {
-                setIsV2VoiceAmbientRx(false);
+                setVoiceRxVersion("");
             }
         };
 
@@ -217,7 +218,10 @@ function Welcome1(props) {
                 isAmbientRxType = ambientCheck?.success && ambientCheck?.data;
             }
 
-            window.TATVA_ACTIVE_VOICE_SERVICE = isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
+            window.TATVA_ACTIVE_VOICE_SERVICE =
+                normalizedVoiceRxVersion === "v3"
+                    ? S_VOICE_RX
+                    : isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
             const copiedRxId = copyResponse?.success 
                 ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
                 : voiceRxId;
@@ -228,12 +232,15 @@ function Welcome1(props) {
                 tcm_id: 0,
                 consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
             };
+            const shouldOpenVoiceRxNewUi =
+                canRepeatVoiceRx &&
+                shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB);
             navigate("/prescription", {
                 state: {
                     patient_data: patient_data,
                     send_path: "patient_details",
                     caseManagerData: repeatCaseManagerData,
-                    ...(shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {})
+                    ...(shouldOpenVoiceRxNewUi ? { isVoiceRxNewUiFlow: true } : {})
                 }
             });
         } catch (error) {
@@ -423,9 +430,9 @@ function Welcome1(props) {
                                         </Button>
                                     }
                                     
-                                    {(!viewCaseManagerData?.smart_prescription_filename?.length || (isVoiceOrAmbientRx && isV2VoiceAmbientRx)) &&
+                                    {(!viewCaseManagerData?.smart_prescription_filename?.length || canRepeatVoiceRx) &&
                                         <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={() => {
-                                            if (isVoiceOrAmbientRx && isV2VoiceAmbientRx) {
+                                            if (canRepeatVoiceRx) {
                                                 handleRepeatVoiceAmbientRx();
                                             } else {
                                                 if (canRepeatDraftRx) {
@@ -457,7 +464,7 @@ function Welcome1(props) {
                                             }
                                         </Button>
                                     }
-                                    { ((viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !isV2VoiceAmbientRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && !isMobile) ||
+                                    { ((viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !canRepeatVoiceRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && !isMobile) ||
                                        (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile)) &&
                                          <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={async () => {
                                             window.Moengage.track_event("repeat_rx_click", {
