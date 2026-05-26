@@ -22,7 +22,6 @@ import {
   Copy,
   DocumentText,
   Eye,
-  More,
   Note1,
   Printer,
   Ruler,
@@ -996,6 +995,18 @@ function normalizePastVisitDoctorName(name) {
   return /^dr\.?\s/i.test(doctorName) ? doctorName : `Dr. ${doctorName}`;
 }
 
+function shortPastVisitSpecialty(speciality) {
+  const value = String(speciality || "").trim();
+  if (!value) return "";
+  const key = value.toLowerCase();
+  if (/general (physician|practitioner)/.test(key)) return "GP";
+  if (/gyn(ae|e)c/.test(key)) return "Gynaec";
+  if (/p(ae|e)diatr/.test(key)) return "Paed";
+  if (key === "physician" || key === "internal medicine") return "Gen Med";
+  const words = key.split(/\s+/).filter(Boolean);
+  return words.length > 1 ? words.map((word) => word[0]).join("").toUpperCase() : value.slice(0, 4);
+}
+
 function getPastVisitDoctorAttribution(...sources) {
   const sourceList = sources.filter(Boolean);
   const doctorSources = sourceList.flatMap((source) => {
@@ -1032,7 +1043,8 @@ function getPastVisitDoctorAttribution(...sources) {
   return {
     doctorName: displayDoctorName,
     speciality,
-    text: speciality ? `Rx by: ${displayDoctorName} (${speciality})` : `Rx by: ${displayDoctorName}`,
+    specialityShort: shortPastVisitSpecialty(speciality),
+    text: displayDoctorName,
   };
 }
 
@@ -2759,7 +2771,7 @@ function hasListData(items) {
   return Array.isArray(items) && items.length > 0;
 }
 
-function DateCard({ title, subtitle, expanded, onToggle, onCopy, children, fresh, stickyHeader = false }) {
+function DateCard({ title, subtitle, subtitleMeta, expanded, onToggle, onCopy, children, fresh, stickyHeader = false }) {
   const cardRef = useRef(null);
   const headerRef = useRef(null);
 
@@ -2798,7 +2810,12 @@ function DateCard({ title, subtitle, expanded, onToggle, onCopy, children, fresh
         <button type="button" className="snv-date-toggle-btn" onClick={onToggle}>
           <span className="snv-date-title-wrap">
             <span className="snv-date-title">{title}</span>
-            {subtitle ? <span className="snv-date-subtitle">{subtitle}</span> : null}
+            {subtitle ? (
+              <span className="snv-date-subtitle-row">
+                <span className="snv-date-subtitle">{subtitle}</span>
+                {subtitleMeta ? <span className="snv-date-speciality-pill">{subtitleMeta}</span> : null}
+              </span>
+            ) : null}
           </span>
         </button>
         {onCopy ? (
@@ -2968,6 +2985,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
   const visibleVisits = useMemo(() => visits.slice(0, visibleCount), [visibleCount, visits]);
   const canLoadMore = visibleCount < visits.length || hasMore;
   const showLoadMoreFooter = canLoadMore || loading;
+  const showPastVisitsEmptyState = visits.length === 0 && !loading;
 
   const handleLoadMore = useCallback(() => {
     if (visibleCount < visits.length) {
@@ -3018,9 +3036,24 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
   }, [handleCopyPayload]);
 
   return (
-    <div className={`snv-content-scroll snv-past-visits-scroll ${showLoadMoreFooter ? "snv-content-scroll-has-load-more" : ""}`} data-snv-scroll-root="true">
-      {visits.length === 0 && !loading ? (
-        <div className="snv-empty-state">No past visits recorded.</div>
+    <div
+      className={`snv-content-scroll snv-past-visits-scroll ${showLoadMoreFooter ? "snv-content-scroll-has-load-more" : ""} ${showPastVisitsEmptyState ? "snv-past-visits-scroll-empty" : ""}`}
+      data-snv-scroll-root="true"
+    >
+      {showPastVisitsEmptyState ? (
+        <div className="snv-past-visits-empty-state">
+          <img
+            className="snv-past-visits-empty-icon"
+            src="/new-assets/icons/dr-agent/empty-docs.svg"
+            alt=""
+            width={72}
+            height={72}
+            draggable={false}
+          />
+          <p className="snv-past-visits-empty-text">
+            This patient hasn{"\u2019"}t had any visits at your hospital yet.
+          </p>
+        </div>
       ) : (
         visibleVisits.map((visitItem) => {
           const expanded = Boolean(expandedById[visitItem.id]);
@@ -3035,6 +3068,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
               key={visitItem.id}
               title={visitItem.dateLabel}
               subtitle={rxByAttribution?.text}
+              subtitleMeta={rxByAttribution?.specialityShort}
               expanded={expanded}
               fresh={visitItem.fresh}
               stickyHeader
@@ -3176,7 +3210,22 @@ function WrittenRxPreview({ doc }) {
             aria-label="Written Rx actions"
             onClick={() => setMenuOpen((prev) => !prev)}
           >
-            <More size={18} variant="Linear" />
+            <svg
+              className="snv-written-more-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="5" r="1" />
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="12" cy="19" r="1" />
+            </svg>
           </button>
           {menuOpen ? (
             <div className="snv-written-menu">
@@ -3244,7 +3293,88 @@ function DateEntryCard({ entry, expanded, onToggle }) {
   );
 }
 
-function DateRowsContent({ entries = [], updating = false }) {
+const EMPTY_SECTION_CONFIG = {
+  vitals: {
+    message: "No vitals have been recorded for this patient yet.",
+    addLabel: "Add Vitals",
+    showVoice: false,
+  },
+  history: {
+    message: "No medical history has been recorded for this patient yet.",
+    addLabel: "Add Medical History",
+    showVoice: true,
+  },
+  labResults: {
+    message: "No lab results have been added for this patient yet.",
+    addLabel: "Add Lab Results",
+    showVoice: false,
+  },
+  gynec: {
+    message: "No gynec history has been recorded for this patient yet.",
+    addLabel: "Add Gynec History",
+    showVoice: false,
+  },
+  obstetric: {
+    message: "No obstetric history has been recorded for this patient yet.",
+    addLabel: "Add Obstetric History",
+    showVoice: false,
+  },
+  growth: {
+    message: "No growth measurements have been recorded for this patient yet.",
+    addLabel: "Add Growth",
+    showVoice: false,
+  },
+  optal: {
+    message: "No ophthal exams have been recorded for this patient yet.",
+    showAction: false,
+    showVoice: false,
+  },
+};
+
+function SideNavEmptyState({ sectionId, onActionClick, onVoiceClick, showVoiceAction = true, voiceDisabled = false }) {
+  const config = EMPTY_SECTION_CONFIG[sectionId];
+  if (!config) return null;
+  const showVoice = config.showVoice && showVoiceAction;
+
+  return (
+    <div className="snv-section-empty-state">
+      <img
+        className="snv-section-empty-icon"
+        src="/new-assets/icons/dr-agent/empty-docs.svg"
+        alt=""
+        width={72}
+        height={72}
+        draggable={false}
+      />
+      <p className="snv-section-empty-text">{config.message}</p>
+      {config.showAction === false ? null : (
+        <div className="snv-section-empty-actions">
+          <button
+            type="button"
+            className="snv-section-empty-primary"
+            onClick={() => onActionClick?.(sectionId)}
+          >
+            <span className="snv-section-empty-plus" aria-hidden="true" />
+            <span>{config.addLabel}</span>
+          </button>
+          {showVoice ? (
+            <button
+              type="button"
+              className="snv-section-empty-voice"
+              onClick={voiceDisabled ? undefined : onVoiceClick}
+              disabled={voiceDisabled}
+            >
+              <VoiceRxIcon size={24} color="#673AAC" />
+              <span>Add via voice</span>
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DateRowsContent({ entries = [], updating = false, emptyState }) {
   const firstEntryId = entries[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstEntryId));
   const [visibleCount, setVisibleCount] = useState(SIDE_NAV_BATCH_SIZE);
@@ -3284,7 +3414,7 @@ function DateRowsContent({ entries = [], updating = false }) {
     <div className={`snv-content-scroll ${showLoadMoreFooter ? "snv-content-scroll-has-load-more" : ""}`} data-snv-scroll-root="true">
       {updating ? <VitalsUpdatingShimmer /> : null}
       {entries.length === 0 && !updating ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : (
         visibleEntries.map((entry) => {
           const expanded = Boolean(expandedById[entry.id]);
@@ -3305,7 +3435,7 @@ function DateRowsContent({ entries = [], updating = false }) {
   );
 }
 
-function VirtualDateRowsContent({ entries = [] }) {
+function VirtualDateRowsContent({ entries = [], emptyState }) {
   const scrollRef = useRef(null);
   const firstEntryId = entries[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstEntryId));
@@ -3329,7 +3459,7 @@ function VirtualDateRowsContent({ entries = [] }) {
   return (
     <div ref={scrollRef} className="snv-content-scroll" data-snv-scroll-root="true">
       {entries.length === 0 ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : (
         <div className="snv-virtual-list" style={{ height: rowVirtualizer.getTotalSize() }}>
           {virtualRows.map((virtualRow) => {
@@ -3366,11 +3496,11 @@ function VirtualDateRowsContent({ entries = [] }) {
   );
 }
 
-function HistoryContent({ sections = [] }) {
+function HistoryContent({ sections = [], emptyState }) {
   return (
     <div className="snv-content-scroll" data-snv-scroll-root="true">
       {sections.length === 0 ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : sections.map((section) => (
         <div key={section.id} className={`snv-info-card ${section.fresh ? "snv-fresh-card" : ""}`}>
           <div className="snv-info-card-title">{section.title}</div>
@@ -3398,11 +3528,11 @@ function SectionCardsBody({ sections = [] }) {
   );
 }
 
-function SectionCardsContent({ sections }) {
+function SectionCardsContent({ sections, emptyState }) {
   return (
     <div className="snv-content-scroll" data-snv-scroll-root="true">
       {sections.length === 0 ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : (
         <SectionCardsBody sections={sections} />
       )}
@@ -3494,13 +3624,13 @@ function ObstetricBody({ sections = [] }) {
   );
 }
 
-function ObstetricContent({ sections = [] }) {
+function ObstetricContent({ sections = [], emptyState }) {
   const visibleSections = getVisibleObstetricSections(sections);
 
   return (
     <div className="snv-content-scroll snv-ob-content" data-snv-scroll-root="true">
       {visibleSections.length === 0 ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : (
         <ObstetricBody sections={visibleSections} />
       )}
@@ -4011,7 +4141,7 @@ function VaccineContent({ data = { pending: [], given: [] } }) {
   );
 }
 
-function OptalContent({ entries = [] }) {
+function OptalContent({ entries = [], emptyState }) {
   const firstEntryId = entries[0]?.id;
   const [expandedById, setExpandedById] = useState(() => defaultExpandedMap(firstEntryId));
   useEffect(() => { setExpandedById(defaultExpandedMap(firstEntryId)); }, [firstEntryId]);
@@ -4019,7 +4149,7 @@ function OptalContent({ entries = [] }) {
   return (
     <div className="snv-content-scroll" data-snv-scroll-root="true">
       {entries.length === 0 ? (
-        <div className="snv-empty-state">No data recorded.</div>
+        emptyState || <div className="snv-empty-state">No data recorded.</div>
       ) : entries.map((entry) => {
         const expanded = Boolean(expandedById[entry.id]);
         return (
@@ -4404,7 +4534,7 @@ function GrowthHeightWeightCard({ entries = [] }) {
   );
 }
 
-function GrowthContent({ data }) {
+function GrowthContent({ data, emptyState }) {
   const { entries = [], info = {} } = data;
   const infoRows = [
     ["Mid-parental height", info.midParentalHeight],
@@ -4421,7 +4551,7 @@ function GrowthContent({ data }) {
   if (!hasMetricData && !infoRows.length) {
     return (
       <div className="snv-content-scroll" data-snv-scroll-root="true">
-        <div className="snv-empty-state">No data recorded.</div>
+        {emptyState || <div className="snv-empty-state">No data recorded.</div>}
       </div>
     );
   }
@@ -4484,7 +4614,17 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled }) {
+  const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
+    <SideNavEmptyState
+      sectionId={activeId}
+      onActionClick={onActionClick}
+      onVoiceClick={onVoiceClick}
+      showVoiceAction={showVoiceRx}
+      voiceDisabled={emptyVoiceDisabled}
+    />
+  ) : null;
+
   switch (activeId) {
     case "pastVisits":
       return (
@@ -4498,23 +4638,24 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
         />
       );
     case "vitals":
-      return <DateRowsContent entries={viewData.vitals} updating={vitalsUpdating} />;
+      return <DateRowsContent entries={viewData.vitals} updating={vitalsUpdating} emptyState={emptyState} />;
     case "history":
-      return <HistoryContent sections={viewData.history} />;
+      return <HistoryContent sections={viewData.history} emptyState={emptyState} />;
     case "labResults":
-      return <VirtualDateRowsContent entries={viewData.labResults} />;
+      return <VirtualDateRowsContent entries={viewData.labResults} emptyState={emptyState} />;
     case "medicalRecords":
       return <RecordsContent records={viewData.medicalRecords} rawDocs={viewData.medicalRecordsRawDocs} uploadDocCategories={viewData.medicalRecordsCategories} />;
     case "gynec":
-      return <SectionCardsContent sections={viewData.gynec} />;
+      return <SectionCardsContent sections={viewData.gynec} emptyState={emptyState} />;
     case "obstetric":
-      return <ObstetricContent sections={viewData.obstetric} />;
+      return <ObstetricContent sections={viewData.obstetric} emptyState={emptyState} />;
     case "vaccine":
-      return <VaccineContent data={viewData.vaccine} />;
+      // return <VaccineContent data={viewData.vaccine} />; // TODO: INTEL - TO BE HANDLED ON PROD FIRST (showing due date to all vaccines by default)
+      return null;
     case "growth":
-      return <GrowthContent data={viewData.growth} />;
+      return <GrowthContent data={viewData.growth} emptyState={emptyState} />;
     case "optal":
-      return <OptalContent entries={viewData.optal} />;
+      return <OptalContent entries={viewData.optal} emptyState={emptyState} />;
     case "personalNotes":
       return (
         <PrivateNotesContent
@@ -4537,6 +4678,34 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
     default:
       return <div className="snv-empty-state">No data recorded.</div>;
   }
+}
+
+function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating) {
+  if (activeId === "vitals") return !vitalsUpdating && (viewData.vitals || []).length === 0;
+  if (activeId === "history") return (viewData.history || []).length === 0;
+  if (activeId === "labResults") return (viewData.labResults || []).length === 0;
+  if (activeId === "gynec") return (viewData.gynec || []).length === 0;
+  if (activeId === "obstetric") return getVisibleObstetricSections(viewData.obstetric || []).length === 0;
+  if (activeId === "growth") {
+    const data = viewData.growth || {};
+    const entries = data.entries || [];
+    const info = data.info || {};
+    const infoRows = [
+      info.midParentalHeight,
+      info.motherHeight,
+      info.fatherHeight,
+      info.gestationPeriod,
+    ].filter(hasValue);
+    const hasMetricData = entries.some((entry) => (
+      hasGrowthMetricValue(entry.height) ||
+      hasGrowthMetricValue(entry.weight) ||
+      hasGrowthMetricValue(entry.bmi) ||
+      hasGrowthMetricValue(entry.ofc)
+    ));
+    return !hasMetricData && !infoRows.length;
+  }
+  if (activeId === "optal") return (viewData.optal || []).length === 0;
+  return false;
 }
 
 function sectionActionLabel(activeId, actionLabels = {}) {
@@ -4595,6 +4764,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
     ? (activeId === SIDE_NAV_PRIVATE_NOTES_SECTION ? "Transcribing private notes..." : "Refining your captured consultation...")
     : voiceStatus === "digitizing" ? "Filling section…" : undefined;
   const privateNotesVoiceDisabled = voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus);
+  const emptyInlineActions = isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating);
 
   useEdgeSwipeNavigation({
     containerRef,
@@ -4618,16 +4788,18 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           </button>
         </span>
       </div>
-      <SectionActionRow
-        activeId={activeId}
-        voiceState={voiceState}
-        onVoiceClick={onVoiceClick}
-        onActionClick={onActionClick}
-        actionLabels={actionLabels}
-        hidePlusIcon={actionHidePlusIcons?.[activeId]}
-        voiceEnabled={voiceEnabled}
-        voiceLocked={voiceLocked}
-      />
+      {!emptyInlineActions ? (
+        <SectionActionRow
+          activeId={activeId}
+          voiceState={voiceState}
+          onVoiceClick={onVoiceClick}
+          onActionClick={onActionClick}
+          actionLabels={actionLabels}
+          hidePlusIcon={actionHidePlusIcons?.[activeId]}
+          voiceEnabled={voiceEnabled}
+          voiceLocked={voiceLocked}
+        />
+      ) : null}
       <div key={activeId} className={`snv-section-anim ${transitionDir ? `snv-section-${transitionDir}` : ""}`}>
         <SectionContent
           activeId={activeId}
@@ -4644,6 +4816,9 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           patientId={patientId}
           doctorId={doctorId}
           patientGender={patientGender}
+          onActionClick={onActionClick}
+          onVoiceClick={onVoiceClick}
+          emptyVoiceDisabled={voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus)}
         />
       </div>
       {showVoiceRx && voiceRecorderVisible && (

@@ -37,10 +37,15 @@ export function ChatThread({
   // Scroll to bottom on typing indicator OR when a new voice-entry user message lands
   useEffect(() => {
     const prev = prevMessageCountRef.current;
+    const lastMessage = messages[messages.length - 1];
     const landedVoice =
       messages.length > prev &&
-      messages[messages.length - 1]?.voiceEntryAnimation;
-    if (isTyping || landedVoice) {
+      lastMessage?.voiceEntryAnimation;
+    const landedShimmerAssistant =
+      messages.length > prev &&
+      lastMessage?.role === "assistant" &&
+      lastMessage?.shimmerReveal;
+    if (isTyping || landedVoice || landedShimmerAssistant) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
     prevMessageCountRef.current = messages.length;

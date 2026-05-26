@@ -263,6 +263,7 @@ export function useDrAgentPanel({
   const [voiceRxDialogOpen, setVoiceRxDialogOpen] = useState(false);
   const autoOpenedRef = useRef(false);
   const scFlowStartedRef = useRef(new Set());
+  const scFollowUpTimerRef = useRef(null);
   useEffect(() => {
     if (autoOpenBottomSheet && isPanelVisible && voiceRxMode && !autoOpenedRef.current) {
       autoOpenedRef.current = true;
@@ -270,6 +271,14 @@ export function useDrAgentPanel({
       return () => clearTimeout(timer);
     }
   }, [autoOpenBottomSheet, isPanelVisible, voiceRxMode]);
+  useEffect(() => {
+    return () => {
+      if (scFollowUpTimerRef.current) {
+        window.clearTimeout(scFollowUpTimerRef.current);
+        scFollowUpTimerRef.current = null;
+      }
+    };
+  }, [selectedPatientId]);
   const [voiceRxDialogChoice, setVoiceRxDialogChoice] = useState("ambient_consultation");
   const [voiceRxRecording, setVoiceRxRecording] = useState(false);
   /** Scripted-demo transcript — used only as a fallback when the browser has no Web Speech API. */
@@ -1339,8 +1348,13 @@ export function useDrAgentPanel({
 
           }));
 
-          // Phase 2 (2.5s): follow-up message after card + feedback row have revealed
-          const timer = window.setTimeout(() => {
+          // Phase 2 (2.5s): follow-up message after card + feedback row have revealed.
+          // Keep this timer outside the effect cleanup so the message-state rerender
+          // from Phase 1 does not cancel the delayed reveal.
+          if (scFollowUpTimerRef.current) {
+            window.clearTimeout(scFollowUpTimerRef.current);
+          }
+          scFollowUpTimerRef.current = window.setTimeout(() => {
             const replyIso = new Date().toISOString();
             setMessagesByPatient((prev) => ({
               ...prev,
@@ -1357,8 +1371,9 @@ export function useDrAgentPanel({
               }]
 
             }));
+            scFollowUpTimerRef.current = null;
           }, 2500);
-          return () => window.clearTimeout(timer);
+          return;
         } else {
           introMessages = [];
         }

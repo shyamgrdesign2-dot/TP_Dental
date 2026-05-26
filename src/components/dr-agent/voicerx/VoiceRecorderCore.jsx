@@ -872,6 +872,7 @@ export function VoiceRecorderCore({
   }, [isAwaitingResponse, submitProcessing, online, micError, manualMute]);
 
   const isListening = statusLabel === "Listening";
+  const shouldShowSectionLabel = showSectionInStatus && sectionLabel && sectionLabel !== "Dr Agent";
 
   useEffect(() => {
     if (!publishesCollapsedVoiceSession) return;
@@ -1150,7 +1151,7 @@ export function VoiceRecorderCore({
         )}
         <span className={[s.statusText || s.statusText, criticalBlock ? (s.statusTextError || "") : (s.statusTextNormal || "")].filter(Boolean).join(" ")}>
           {statusLabel}
-          {!criticalBlock && showSectionInStatus && sectionLabel && (
+          {!criticalBlock && shouldShowSectionLabel && (
             <span className={s.statusSection || s.statusElapsed || ""}>{" · "}{sectionLabel}</span>
           )}
           {!criticalBlock && (isListening || manualMute) && elapsedMs > 0 && (
