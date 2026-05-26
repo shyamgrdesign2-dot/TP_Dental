@@ -46,6 +46,7 @@ import {
   shouldMonetizationDisabled,
   handleAdmitToIpd,
   getDraftMoengageDoctorAttributes,
+  isValidMongoId,
 } from "../utils/utils";
 import { getDecodedToken } from "../utils/localStorage";
 import {
@@ -126,6 +127,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { changeSortOrder } from "../redux/doctorsSlice";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
+import ApiCaseManager from "../api/services/ApiCaseManager";
 import {
   setAppointmentTeleconsultStatus,
   setJoinToken,
@@ -182,6 +184,7 @@ import {
 } from "../redux/ophthalmologyExamSlice";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
+import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
 const {
   endVisit: visitEnd,
@@ -209,6 +212,7 @@ const { TextArea } = Input;
 
 const dateFormat = "YYYY-MM-DD";
 const showDateFormat = "DD-MM-YYYY";
+const FINISHED_PRINT_MESSAGE_KEY = "finished-print-rx-generate";
 
 function AppointmentData({ locationPath, appointmentAgentsData }) {
   const navigate = useNavigate();
@@ -493,11 +497,73 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
   );
   const isAppointmentSequenceFromGB = useFeatureIsOn(GB_APPT_SEQUENCE);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
+  const [pendingFinishedPrint, setPendingFinishedPrint] = useState(null);
+  const [hasFinishedPrintGenerationStarted, setHasFinishedPrintGenerationStarted] = useState(false);
 
   const baseUrl = env.casemanager_api_url;
   const snapRxDigitizationUrl = env.snap_rx_api_url;
   const customBaseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
+
+  const finishedPrintSelectedLang = useMemo(() => {
+    if (!pendingFinishedPrint?.selectedLang) return undefined;
+    try {
+      return Number(atob(pendingFinishedPrint.selectedLang));
+    } catch (error) {
+      return undefined;
+    }
+  }, [pendingFinishedPrint?.selectedLang]);
+
+  const {
+    printBlob: finishedPrintBlob,
+    isGenerating: isFinishedPrintGenerating,
+    error: finishedPrintError,
+  } = usePrintPayloadPdf({
+    printUrl: pendingFinishedPrint?.printUrl || null,
+    selectedLang: finishedPrintSelectedLang,
+    isGynaecHistoryAccessable: false,
+    payloadOverride: null,
+    skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
+    isCvtExtHosAccessableFromGB,
+  });
+
+  useEffect(() => {
+    if (pendingFinishedPrint?.printChannel !== "browser") return;
+    if (isFinishedPrintGenerating) {
+      setHasFinishedPrintGenerationStarted(true);
+    }
+  }, [pendingFinishedPrint?.printChannel, isFinishedPrintGenerating]);
+
+  useEffect(() => {
+    if (!pendingFinishedPrint || pendingFinishedPrint.printChannel !== "browser") return;
+    if (!hasFinishedPrintGenerationStarted || isFinishedPrintGenerating) return;
+
+    if (finishedPrintBlob instanceof Blob) {
+      message.destroy(FINISHED_PRINT_MESSAGE_KEY);
+      const blobURL = URL.createObjectURL(finishedPrintBlob);
+      window.open(blobURL, "_blank");
+      setPendingFinishedPrint(null);
+      setHasFinishedPrintGenerationStarted(false);
+      return;
+    }
+
+    if (finishedPrintError) {
+      message.open({
+        key: FINISHED_PRINT_MESSAGE_KEY,
+        type: "error",
+        content: "Failed to generate PDF.",
+        duration: 2,
+      });
+      setPendingFinishedPrint(null);
+      setHasFinishedPrintGenerationStarted(false);
+    }
+  }, [
+    pendingFinishedPrint,
+    hasFinishedPrintGenerationStarted,
+    isFinishedPrintGenerating,
+    finishedPrintBlob,
+    finishedPrintError,
+  ]);
 
   const handleClickOutside = (event) => {
     if (!consultButtonRef?.current?.contains(event.target)) {
@@ -2118,6 +2184,123 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     return urlObj.toString();
   };
 
+  const encodePrintLanguage = (language) => {
+    return language && language !== "English" ? btoa(language.toString()) : "";
+  };
+
+  const getConsultationsFromResponse = (response) => {
+    const payload = response?.data ?? response;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.consultations)) return payload.consultations;
+    if (Array.isArray(payload?.data?.consultations)) return payload.data.consultations;
+    return [];
+  };
+
+  const hasCaseManagerPrescriptionData = (caseManagerData) => {
+    return Boolean(
+      caseManagerData?.visit_advice ||
+        caseManagerData?.treatment ||
+        caseManagerData?.follow_up_date ||
+        caseManagerData?.private_notes ||
+        [
+          caseManagerData?.symptoms,
+          caseManagerData?.examination,
+          caseManagerData?.diagnosis,
+          caseManagerData?.advice,
+          caseManagerData?.investigation,
+          caseManagerData?.medicine,
+          caseManagerData?.vitals,
+          caseManagerData?.surgeries,
+          caseManagerData?.moduleContents,
+          caseManagerData?.medical_history,
+          caseManagerData?.vaccines?.given,
+          caseManagerData?.vaccines?.due,
+          caseManagerData?.measurements,
+          caseManagerData?.lab_params,
+          caseManagerData?.zydus_lab_params,
+        ].some((items) => Array.isArray(items) && items.length > 0)
+    );
+  };
+
+  const buildFinishedPrintUrl = ({
+    caseManagerData,
+    latestConsultation,
+    record,
+    selectedLang,
+  }) => {
+    const basePrintUrl =
+      caseManagerData?.print_url ||
+      caseManagerData?.print_rx_url ||
+      record?.print_rx_url;
+
+    if (!basePrintUrl) return null;
+
+    const urlObj = new URL(basePrintUrl, window.location.origin);
+    const resolvedPamId =
+      caseManagerData?.pam_id ??
+      latestConsultation?.pam_id ??
+      record?.pam_id ??
+      caseManagerData?.appointmentId ??
+      latestConsultation?.appointmentId;
+    if (resolvedPamId) {
+      urlObj.searchParams.set("pam_id", resolvedPamId);
+    }
+
+    const smartPrescriptionFilename = caseManagerData?.smart_prescription_filename;
+    const shouldUseLegacyVoiceRxData =
+      isValidMongoId(smartPrescriptionFilename) &&
+      !hasCaseManagerPrescriptionData(caseManagerData);
+
+    if (shouldUseLegacyVoiceRxData && caseManagerData?.print_url) {
+      urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+      urlObj.searchParams.set("voiceRxDigitize", "false");
+      urlObj.searchParams.set("rxDigitize", "false");
+    } else {
+      urlObj.searchParams.delete("ambientVoiceRxDigitize");
+    }
+
+    urlObj.searchParams.set("lg", selectedLang || "");
+    return urlObj.toString();
+  };
+
+  const resolveLatestFinishedPrintUrl = async (record, selectedLang) => {
+    const patientUniqueId = record?.patient_unique_id;
+    if (!patientUniqueId) {
+      throw new Error("Patient unique ID is missing.");
+    }
+
+    const consultationsResponse = await ApiCaseManager.listConsultations({
+      patient_unique_id: patientUniqueId,
+      limit: 10,
+      page: 1,
+    });
+    const consultations = getConsultationsFromResponse(consultationsResponse);
+    const latestConsultation = consultations?.[0];
+    const latestTcmId = latestConsultation?.tcm_id;
+    if (!latestTcmId) {
+      throw new Error("Latest consultation not found.");
+    }
+
+    const caseManagerResponse = await ApiCaseManager.viewCaseManager({
+      patient_unique_id: patientUniqueId,
+      tcm_id: latestTcmId,
+    });
+    if (caseManagerResponse?.status === false) {
+      throw new Error(caseManagerResponse?.error || "Failed to fetch prescription.");
+    }
+    const caseManagerData = caseManagerResponse?.data ?? caseManagerResponse;
+    const printUrl = buildFinishedPrintUrl({
+      caseManagerData,
+      latestConsultation,
+      record,
+      selectedLang,
+    });
+    if (!printUrl) {
+      throw new Error("Print URL is missing.");
+    }
+    return { printUrl, caseManagerData, latestConsultation };
+  };
+
   const getPatientDefaultLanguage = async (record) => {
     const res = await fetchPatientDefaultLanguage(
       record?.patient_unique_id
@@ -2137,13 +2320,51 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       });
     }
     const patientDefaultLanguage = await getPatientDefaultLanguage(record);
-    const encodedData = patientDefaultLanguage !== "English" ? btoa(patientDefaultLanguage.toString()) : "";
+    const encodedData = encodePrintLanguage(patientDefaultLanguage);
+
+    if (selectedTab === TAB_FINISHED) {
+      const printChannel = !isChrome && !isSafari ? "in_app" : "browser";
+      try {
+        const { printUrl, caseManagerData, latestConsultation } =
+          await resolveLatestFinishedPrintUrl(record, encodedData);
+
+        if (printChannel === "in_app") {
+          sendMessageToParent(EVENTS.PRINT, { url: printUrl });
+          return;
+        }
+
+        message.open({
+          key: FINISHED_PRINT_MESSAGE_KEY,
+          type: "loading",
+          content: "Preparing PDF...",
+          duration: 0,
+        });
+        setHasFinishedPrintGenerationStarted(false);
+        setPendingFinishedPrint({
+          printUrl,
+          selectedLang: encodedData,
+          printChannel,
+          record,
+          caseManagerData,
+          latestConsultation,
+        });
+      } catch (error) {
+        message.open({
+          key: FINISHED_PRINT_MESSAGE_KEY,
+          type: "error",
+          content: error?.message || "Failed to open prescription.",
+          duration: 2,
+        });
+      }
+      return;
+    }
+
     if (record.print_rx_url) {
       const printUrl = await updateRxDigitizeInUrl(record);
       if (!isChrome && !isSafari) {
         // navigate(`/?url=${printUrl}&lg=${encodedData}&key=print`, { replace: true });
         // navigate(0, { replace: true });
-        sendMessageToParent(EVENTS.PRINT, { url: `${record.print_rx_url}&lg=${encodedData}` });
+        sendMessageToParent(EVENTS.PRINT, { url: `${printUrl}&lg=${encodedData}` });
       } else {
         await window.open(`${printUrl}&lg=${encodedData}`);
       }
