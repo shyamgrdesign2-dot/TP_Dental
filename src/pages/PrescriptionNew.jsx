@@ -1058,6 +1058,10 @@ function PrescriptionNew() {
     drAgentStyles.drAgentOverlay,
     isTablet ? drAgentStyles.drAgentOverlayTablet : "",
   ].filter(Boolean).join(" ");
+  const prescriptionRouteShellClassName = [
+    drAgentStyles.prescriptionNewRouteShell,
+    isTablet ? drAgentStyles.prescriptionNewRouteShellTablet : "",
+  ].filter(Boolean).join(" ");
   const [generatedDDx, setGeneratedDDx] = useState({ results: [] });
   const [isDDxLoading, setIsDDxLoading] = useState(false);
   const [ddxDrawer, setDDxDrawer] = useState(false);
@@ -1108,10 +1112,10 @@ function PrescriptionNew() {
   };
 
   useEffect(() => {
-    if (canUseVoiceRxModuleUi) {
+    if (canUseVoiceRxModuleUi && !isTablet) {
       setDrAgentOpen(true);
     }
-  }, [canUseVoiceRxModuleUi, patient_data?.patient_unique_id]);
+  }, [canUseVoiceRxModuleUi, isTablet, patient_data?.patient_unique_id]);
   useEffect(() => {
     if (!canUseVoiceRxModuleUi && drAgentOpen) {
       setDrAgentOpen(false);
@@ -2765,7 +2769,7 @@ function PrescriptionNew() {
               showVoiceRxModule={canUseVoiceRxModuleUi}
               isNewPrescriptionUi
             />
-            <div className={drAgentStyles.prescriptionNewRouteShell}>
+            <div className={prescriptionRouteShellClassName}>
               <SideNavbar
                 patientId={patient_data?.patient_unique_id}
                 doctorId={profile?.doctor_unique_id}
@@ -2783,6 +2787,7 @@ function PrescriptionNew() {
                 zydusSelectedLabParams={zydusSelectedLabParams}
                 patientGender={patient_data?.pm_gender}
                 showVoiceRx={canUseVoiceRxModuleUi}
+                initialActiveId={isTablet ? null : undefined}
                 onSectionAction={handleSideNavbarSectionAction}
               />
               <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>

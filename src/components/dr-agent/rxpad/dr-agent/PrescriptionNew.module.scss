@@ -10,6 +10,17 @@
   background: #f5f4f8;
 }
 
+.prescriptionNewRouteShellTablet {
+  height: calc(100dvh - 60px);
+  max-height: calc(100dvh - 60px);
+}
+
+:global(.headerprescription.headerprescription--tablet) {
+  position: sticky;
+  top: 0;
+  z-index: 1002;
+}
+
 .drAgentOverlay {
   position: fixed;
   top: 60px;
@@ -28,5 +39,8 @@
 
 .drAgentOverlayTablet {
   width: min(320px, calc(100vw - 24px));
+  bottom: 0;
+  height: auto;
+  max-height: calc(100dvh - 60px);
   z-index: 1001;
 }

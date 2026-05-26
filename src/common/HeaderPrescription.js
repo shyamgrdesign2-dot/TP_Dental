@@ -134,6 +134,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const navigate = useNavigate();
     const isTablet = useTabletViewport();
+    const headerOverlayZIndex = 1305;
+    const shouldUseMobileTemplateContent = isMobile && !isTablet;
     const { patient_data, send_path, tcmId, pamId, consultationDate, symptomsData, setSymptomsData, examinationData, setExaminationData, surgeriesData, setSurgeriesData, diagnosisData, setDiagnosisData, adviceData, setAdviceData, investigationData, setInvestigationData, medicationData, setMedicationData, vitalsData, setVitalsData, medicalHistoryData, setMedicalHistoryData, privateNotesData, setPrivateNotesData, followUpDate, setFollowUpDate, additionalNote, setAdditionalNote, startTime, customModuleContents, setCustomModuleContents, pillupSwitch, useVoiceRx, useDDX, isDraft } = useContext(CashManagerContext);
     const { isAutofillSelected, selectedSymptomsCollector, symptomCollector } = useSelector(
         (state) => state.ddx
@@ -861,7 +863,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     setCustomModuleContents(Array.from(moduleMap.values()));
                 }
             }
-            !isMobile ? showHideTemplatesListPopover() : handleDrawerTemplate()
+            (isMobile || isTablet) ? handleDrawerTemplate() : showHideTemplatesListPopover()
         } else {
             errorMessage(action.error)
         }
@@ -1156,6 +1158,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 isModalOpen={isModalOpen}
                 onCancel={showHideModal}
                 modalWidth={500}
+                zIndex={headerOverlayZIndex}
                 title={"You may lose your data"}
                 modalBody={
                     <>
@@ -2363,6 +2366,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     isModalOpen={isBackModalOpen}
                                     onCancel={showHideBackModal}
                                     modalWidth={500}
+                                    zIndex={headerOverlayZIndex}
                                     title={"You may lose your data"}
                                     modalBody={
                                         <>
@@ -2397,6 +2401,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 <Tooltip
                                     placement="bottom"
                                     title={headerIconVoiceState === "recording" ? "Recording… double-shift or click to stop" : headerIconVoiceState === "transcribing" ? "Transcribing…" : "Voice input (double-shift to start)"}
+                                    zIndex={headerOverlayZIndex}
                                     destroyTooltipOnHide
                                     trigger={["hover"]}
                                     mouseLeaveDelay={0}
@@ -2429,6 +2434,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     trigger="click"
                                     overlayClassName="pop-430 pp-0 videoTutorial"
                                     placement="bottom"
+                                    zIndex={headerOverlayZIndex}
                                 >
                                     <button className={`btn d-flex align-items-center btn-text p-0 ${!isTablet ? 'me-20' : ''}`}>
                                         {/* onClick={showHideVideoListPopover} */}
@@ -2445,6 +2451,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         trigger="click"
                                         overlayClassName="pop-430 pp-0 videoTutorial"
                                         placement="bottom"
+                                        zIndex={headerOverlayZIndex}
                                     >
                                         <button className="btn d-flex align-items-center btn-text p-0">
                                             {/* onClick={showHideVideoListPopover} */}
@@ -2452,21 +2459,30 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         </button>
                                     </Popover>
                                     <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
-                                    <Popover
-                                        open={popOver1}
-                                        onOpenChange={showHideTemplatesListPopover}
-                                        content={isMobile ? TEMPLATE_CONTENT_TAB : TEMPLATE_CONTENT_WEB}
-                                        trigger="click"
-                                        overlayClassName="pop-350 pp-0"
-                                        placement="bottom"
-                                    >
-                                        <span>
-                                            <Tooltip placement="bottom" title="Browse prescription templates">
-                                                <VoiceRxModuleActionButton type="template" label="Browse prescription templates" />
-                                            </Tooltip>
-                                        </span>
-                                    </Popover>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"}>
+                                    {isTablet ? (
+                                        <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
+                                            <span>
+                                                <VoiceRxModuleActionButton type="template" label="Browse prescription templates" onClick={handleDrawerTemplate} />
+                                            </span>
+                                        </Tooltip>
+                                    ) : (
+                                        <Popover
+                                            open={popOver1}
+                                            onOpenChange={showHideTemplatesListPopover}
+                                            content={shouldUseMobileTemplateContent ? TEMPLATE_CONTENT_TAB : TEMPLATE_CONTENT_WEB}
+                                            trigger="click"
+                                            overlayClassName="pop-350 pp-0"
+                                            placement="bottom"
+                                            zIndex={headerOverlayZIndex}
+                                        >
+                                            <span>
+                                                <Tooltip placement="bottom" title="Browse prescription templates" zIndex={headerOverlayZIndex}>
+                                                    <VoiceRxModuleActionButton type="template" label="Browse prescription templates" />
+                                                </Tooltip>
+                                            </span>
+                                        </Popover>
+                                    )}
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "Save prescription as template" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         {isMobile ? (
                                             <VoiceRxModuleActionButton
                                                 type="save"
@@ -2482,6 +2498,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                                 trigger="click"
                                                 overlayClassName="pop-450 pp-0"
                                                 placement="bottom"
+                                                zIndex={headerOverlayZIndex}
                                             >
                                                 <span>
                                                     <VoiceRxModuleActionButton
@@ -2493,12 +2510,12 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             </Popover>
                                         )}
                                     </Tooltip>
-                                    <Tooltip placement="bottom" title="Customize prescription sections">
+                                    <Tooltip placement="bottom" title="Customize prescription sections" zIndex={headerOverlayZIndex}>
                                         <VoiceRxModuleActionButton type="customize" label="Customize prescription sections" onClick={handleDrawerCustomize} />
                                     </Tooltip>
                                     <div className={voiceModuleStyles.headerActionDivider} aria-hidden="true" />
                                 </div>
-                            ) : !isMobile ? (
+                            ) : (!isMobile && !isTablet) ? (
                                 <div className="d-flex align-items-center">
                                     <Popover
                                         open={popOver1}
@@ -2507,13 +2524,14 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                         trigger="click"
                                         overlayClassName="pop-350 pp-0"
                                         placement="bottom"
+                                        zIndex={headerOverlayZIndex}
                                     >
                                         <button className="btn d-flex align-items-center btn-text">
                                             {" "}
                                             <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
                                         </button>
                                     </Popover>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <Popover
                                             open={popOver2}
                                             onOpenChange={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && showHideSaveTemplatePopOver()}
@@ -2521,6 +2539,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                             trigger="click"
                                             overlayClassName="pop-450 pp-0"
                                             placement="bottom"
+                                            zIndex={headerOverlayZIndex}
                                         >
                                             <span>
                                                 <button className="btn d-flex align-items-center btn-text" disabled={hasUngroundedMedications}>
@@ -2536,7 +2555,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                     <button className='btn d-flex align-items-center btn-text' onClick={handleDrawerTemplate}>
                                         <i className="icon-template me-2"></i> <span>{isTablet ? "Temp" : "Templates"}</span>
                                     </button>
-                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"}>
+                                    <Tooltip placement="bottom" title={hasUngroundedMedications ? "Some medications aren't linked to your inventory. Please resolve them before saving as a template." : (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please enter some data to save a template"} zIndex={headerOverlayZIndex}>
                                         <span>
                                             <button className='btn d-flex align-items-center btn-text' disabled={hasUngroundedMedications} onClick={() => !hasUngroundedMedications && (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || hasOpthalValues() || hasCustomModuleContent()) && handleDrawerSave()}> <i className="icon-save me-2"></i> <span>Save</span></button>
                                         </span>
@@ -2557,13 +2576,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             </button> */}
 
 
-                            <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto">
+                            <Drawer title="One Click Rx Templates" placement="right" onClose={handleDrawerTemplate} open={templateDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
                                 {TEMPLATE_CONTENT_TAB}
                             </Drawer>
-                            <Drawer title="Save Template" placement="right" onClose={handleDrawerSave} open={saveDrawer} className="modalWidth-563" width="auto">
+                            <Drawer title="Save Template" placement="right" onClose={handleDrawerSave} open={saveDrawer} className="modalWidth-563" width="auto" zIndex={headerOverlayZIndex}>
                                 {SAVE_CONTENT_TAB}
                             </Drawer>
-                            <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto">
+                            <Drawer placement="right" closeIcon={false} onClose={handleDrawerCustomize} open={customizeDrawer} className="modalWidth-900" width="auto" zIndex={headerOverlayZIndex}>
                                 {CUSTOMIZE_CONTENT_TAB}
                             </Drawer>
 
@@ -2599,7 +2618,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 </div>
                             </Tooltip> */}
                             {showTeleconsultIcon && (
-                                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0}>
+                                <Tooltip placement="bottom" title={isTeleconsultActive ? "Meeting in progress" : "Tele-Consultation"} destroyTooltipOnHide trigger={["hover"]} mouseLeaveDelay={0} zIndex={headerOverlayZIndex}>
                                     <span className={isTeleconsultActive ? "d-inline-block" : ""}>
                                         <button
                                             type="button"
@@ -2659,7 +2678,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                                 ? hasPrescriptionModuleData
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
-                                <Tooltip placement="bottom" title={canEndVisit ? "" : "Please fill your prescription to end visit."}>
+                                <Tooltip placement="bottom" title={canEndVisit ? "" : "Please fill your prescription to end visit."} zIndex={headerOverlayZIndex}>
                                     <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
                                         <i className='icon-exit me-2'></i>
                                         {isTablet ? "End" : "End Visit"}
@@ -2668,7 +2687,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                               );
                             })()}
 
-                            <Dropdown className='btn btn-outline btn-more p-0' menu={{ items }} trigger={['click']}>
+                            <Dropdown className='btn btn-outline btn-more p-0' menu={{ items }} trigger={['click']} overlayStyle={{ zIndex: headerOverlayZIndex }}>
                                 <a onClick={(e) => e.preventDefault()}>
                                     <i className='icon-More'></i>
                                 </a>

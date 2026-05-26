@@ -4697,9 +4697,10 @@ export function SideNavbar({
   zydusSelectedLabParams = [],
   patientGender,
   showVoiceRx = true,
+  initialActiveId = "pastVisits",
 }) {
   const dispatch = useDispatch();
-  const [activeId, setActiveId] = useState("pastVisits");
+  const [activeId, setActiveId] = useState(() => initialActiveId);
   const [transitionDir, setTransitionDir] = useState(null);
   const [voiceBySection, setVoiceBySection] = useState({});
   const { activeVoiceModule, headerDictation, claimActiveVoiceModule, releaseActiveVoiceModule, runCopyWithAura, lastCopyRequest, lastSignal } = useRxPadSync();
