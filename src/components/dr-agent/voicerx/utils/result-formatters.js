@@ -29,6 +29,17 @@ function sectionItem(name, detail = '') {
 	return { name: cleanValue(name), detail: cleanValue(detail) };
 }
 
+function isDisabledEntry(data) {
+	const value = cleanValue(data?.enable ?? data?.enabled);
+	return value.toUpperCase() === 'N';
+}
+
+function displayNameForEntry(data, keys) {
+	const name = firstValue(data, keys);
+	if (!name || !isDisabledEntry(data)) return name;
+	return /^no\b/i.test(name) ? name : `No ${name}`;
+}
+
 function asArray(value) {
 	if (Array.isArray(value)) return value;
 	return cleanValue(value) ? [value] : [];
@@ -72,7 +83,7 @@ export function digitizationToSections(data) {
 
 	const items2 = arraySectionItems(data.symptoms, (s) => {
 		if (typeof s === 'string') return sectionItem(s);
-		const name = firstValue(s, ['name', 'symptom_name', 'lineItem']);
+		const name = displayNameForEntry(s, ['name', 'symptom_name', 'lineItem']);
 		const detail = detailFrom([
 			s.since,
 			s.duration,
@@ -86,7 +97,7 @@ export function digitizationToSections(data) {
 
 	const items3 = arraySectionItems(data.examinations, (e) => {
 		if (typeof e === 'string') return sectionItem(e);
-		const name = firstValue(e, ['name', 'examination_name', 'findings', 'lineItem']);
+		const name = displayNameForEntry(e, ['name', 'examination_name', 'findings', 'lineItem']);
 		const detail = detailFrom([e.notes, e.note]);
 		return sectionItem(name, detail);
 	});
@@ -94,7 +105,7 @@ export function digitizationToSections(data) {
 
 	const items4 = arraySectionItems(data.diagnosis, (d) => {
 		if (typeof d === 'string') return sectionItem(d);
-		const name = firstValue(d, ['name', 'tds_name', 'diagnosis_name', 'lineItem']);
+		const name = displayNameForEntry(d, ['name', 'tds_name', 'diagnosis_name', 'lineItem']);
 		const detail = detailFrom([
 			d.since,
 			d.status,
@@ -113,7 +124,7 @@ export function digitizationToSections(data) {
 		const duration = firstValue(m, ['duration', 'tmm_days']);
 		const durationType = firstValue(m, ['durationType', 'tmm_duration_type', 'tmm_days_duration_type']);
 		const durationText = [duration, durationType].filter(Boolean).join(' ');
-		const name = firstValue(m, ['name', 'medicine', 'medicine_name', 'tmm_medicine_name']);
+		const name = displayNameForEntry(m, ['name', 'medicine', 'medicine_name', 'tmm_medicine_name']);
 		const detail = detailFrom([
 			dosageText,
 			m.frequency,
@@ -134,7 +145,7 @@ export function digitizationToSections(data) {
 	const medicalHistory = field(data, 'medicalHistory', 'medical_history');
 	const items6 = arraySectionItems(medicalHistory, (h) => {
 		if (typeof h === 'string') return sectionItem(h);
-		const name = firstValue(h, ['name', 'history_name', 'lineItem']);
+		const name = displayNameForEntry(h, ['name', 'history_name', 'lineItem']);
 		const detail = detailFrom([h.type, h.duration, h.relation, h.notes, h.note]);
 		return sectionItem(name, detail);
 	});
@@ -143,7 +154,7 @@ export function digitizationToSections(data) {
 	const labInvestigation = field(data, 'labInvestigation', 'lab_investigation');
 	const items7 = arraySectionItems(labInvestigation, (l) => {
 		if (typeof l === 'string') return sectionItem(l);
-		const name = firstValue(l, ['name', 'investigation_name', 'testname', 'testName', 'lineItem']);
+		const name = displayNameForEntry(l, ['name', 'investigation_name', 'testname', 'testName', 'lineItem']);
 		const detail = detailFrom([l.instruction, l.notes, l.note]);
 		return sectionItem(name, detail);
 	});
@@ -158,7 +169,7 @@ export function digitizationToSections(data) {
 			items: advice.map((a) => {
 				if (typeof a === 'string') return sectionItem(a);
 				return sectionItem(
-					firstValue(a, ['advice_name', 'name', 'lineItem']),
+					displayNameForEntry(a, ['advice_name', 'name', 'lineItem']),
 					detailFrom([a.notes, a.note])
 				);
 			}),
@@ -176,7 +187,7 @@ export function digitizationToSections(data) {
 			id: 'others',
 			title: 'Additional Notes',
 			tpIconName: 'notes',
-			items: others.map((o) => sectionItem(typeof o === 'string' ? o : (o?.value ?? o?.name ?? ''))),
+			items: others.map((o) => sectionItem(typeof o === 'string' ? o : displayNameForEntry(o, ['value', 'name', 'lineItem']))),
 		});
 	}
 
