@@ -53,7 +53,7 @@ import {
 import { Grid5, Trash } from "iconsax-reactjs";
 import voiceModuleStyles from "./dr-agent/voicerx/VoiceRxModuleCapture.module.scss";
 import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
@@ -500,14 +500,15 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   );
 
   const onAddTemplateClicked = async () => {
-    if (diagnosisData.length === 0) {
+    const templateDiagnosis = canShowVoiceRxNewRows ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
+    if (templateDiagnosis.length === 0) {
       errorMessage('At least 1 diagnosis added')
-    } else if (diagnosisData.filter((e) => e.tds_name == "").length > 0) {
+    } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
     } else {
       var sendData = {
         tdt_template_name: inputTemplateName,
-        diagnosis: diagnosisData,
+        diagnosis: templateDiagnosis,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -529,16 +530,17 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (diagnosisData.length === 0) {
+    const templateDiagnosis = canShowVoiceRxNewRows ? stripEmptyRows(diagnosisData, "diagnosis") : diagnosisData;
+    if (templateDiagnosis.length === 0) {
       errorMessage('At least 1 diagnosis added')
-    } else if (diagnosisData.filter((e) => e.tds_name == "").length > 0) {
+    } else if (templateDiagnosis.filter((e) => String(e.tds_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup diagnosis name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tdt_id: data.tdt_id,
         tdt_template_name: data.tdt_template_name,
-        diagnosis: diagnosisData,
+        diagnosis: templateDiagnosis,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {

@@ -19,7 +19,7 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, isNumeric, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { GB_VOICE_RX_NEW_UI } from "../utils/constants";
 
@@ -546,14 +546,15 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (symptomsData.length === 0) {
+    const templateSymptoms = canShowVoiceRxNewRows ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
+    if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
-    } else if (symptomsData.filter(e => e.symptom_name == "").length > 0) {
+    } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup symptom name')
     } else {
       var sendData = {
         tst_template_name: inputTemplateName,
-        symptoms: symptomsData,
+        symptoms: templateSymptoms,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -575,16 +576,17 @@ function SymptomsBox({ handleDDxDrawer, generatedDDx, showVoiceRxModule }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (symptomsData.length === 0) {
+    const templateSymptoms = canShowVoiceRxNewRows ? stripEmptyRows(symptomsData, "symptoms") : symptomsData;
+    if (templateSymptoms.length === 0) {
       errorMessage('At least 1 symptom added')
-    } else if (symptomsData.filter(e => e.symptom_name == "").length > 0) {
+    } else if (templateSymptoms.filter(e => String(e.symptom_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup symptom name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tst_id: data.tst_id,
         tst_template_name: data.tst_template_name,
-        symptoms: symptomsData,
+        symptoms: templateSymptoms,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {

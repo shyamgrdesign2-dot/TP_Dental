@@ -19,7 +19,7 @@ import CommonModal from '../common/CommonModal';
 
 import CashManagerContext from '../context/CashManagerContext';
 import { errorMessage, onlyNumberFormat, removeBeforeWhiteSpace, capitalizeAfterSentence } from "../utils/utils";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined, PlusOutlined } from '@ant-design/icons';
 import {
@@ -396,14 +396,15 @@ function ExaminationBox({ showVoiceRxModule }) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (examinationData.length === 0) {
+    const templateExamination = canShowVoiceRxNewRows ? stripEmptyRows(examinationData, "examinations") : examinationData;
+    if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
-    } else if (examinationData.filter(e => e.examination_name == "").length > 0) {
+    } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup examination name')
     } else {
       var sendData = {
         tet_template_name: inputTemplateName,
-        examination: examinationData,
+        examination: templateExamination,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -425,16 +426,17 @@ function ExaminationBox({ showVoiceRxModule }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (examinationData.length === 0) {
+    const templateExamination = canShowVoiceRxNewRows ? stripEmptyRows(examinationData, "examinations") : examinationData;
+    if (templateExamination.length === 0) {
       errorMessage('At least 1 examination added')
-    } else if (examinationData.filter(e => e.examination_name == "").length > 0) {
+    } else if (templateExamination.filter(e => String(e.examination_name ?? "").trim() === "").length > 0) {
       errorMessage('Please fillup examination name')
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         tet_id: data.tet_id,
         tet_template_name: data.tet_template_name,
-        examination: examinationData,
+        examination: templateExamination,
       };
       const action = await dispatch(updateTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {

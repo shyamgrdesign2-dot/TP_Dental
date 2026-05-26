@@ -13,6 +13,7 @@ import { MenuOutlined } from '@ant-design/icons';
 
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
+import { useTabletViewport } from "../hooks/useTabletViewport";
 
 import {
   addTemplate,
@@ -299,6 +300,8 @@ function MedicationsBox({ showVoiceRxModule }) {
   const tokenData = getDecodedToken()?.result;
   const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
+  const isTablet = useTabletViewport();
+  const prescriptionNewTabletOverlayZIndex = isVoiceRxModuleEnabled && isTablet ? 1305 : undefined;
   const hasUngroundedMedications = isZydusAccount && medicationData.some(isVoiceRxUngroundedMedication);
   const getMedicationPopupProps = useCallback(
     (popupClassName = "") => {
@@ -2510,6 +2513,7 @@ function MedicationsBox({ showVoiceRxModule }) {
             open={doseCalculatorDrawer}
             onClose={showHideModal2}
             width="auto"
+            zIndex={prescriptionNewTabletOverlayZIndex}
             styles={{
               body: {
                 backgroundColor: "white",

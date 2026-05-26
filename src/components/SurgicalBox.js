@@ -31,7 +31,7 @@ import {
   capitalizeAfterSentence,
   getClinicName,
 } from "../utils/utils";
-import { appendStripped } from "../utils/voiceRxRowStrip";
+import { appendStripped, stripEmptyRows } from "../utils/voiceRxRowStrip";
 
 import { MenuOutlined } from "@ant-design/icons";
 import {
@@ -542,14 +542,15 @@ function SurgicalBox({ showVoiceRxModule }) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (surgeriesData.length === 0) {
+    const templateSurgeries = canShowVoiceRxNewRows ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
+    if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
-    } else if (surgeriesData.filter((e) => e.name == "").length > 0) {
+    } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
       errorMessage("Please fillup surgeries/procedures name");
     } else {
       var sendData = {
         name: inputTemplateName,
-        surgeries: surgeriesData,
+        surgeries: templateSurgeries,
       };
       const action = await dispatch(addTemplate(sendData));
       if (action.meta.requestStatus === "fulfilled") {
@@ -571,15 +572,16 @@ function SurgicalBox({ showVoiceRxModule }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (surgeriesData.length === 0) {
+    const templateSurgeries = canShowVoiceRxNewRows ? stripEmptyRows(surgeriesData, "surgeries") : surgeriesData;
+    if (templateSurgeries.length === 0) {
       errorMessage("At least 1 surgeries/procedures added");
-    } else if (surgeriesData.filter((e) => e.name == "").length > 0) {
+    } else if (templateSurgeries.filter((e) => String(e.name ?? "").trim() === "").length > 0) {
       errorMessage("Please fillup surgeries/procedures name");
     } else {
       var data = JSON.parse(inputTemplateName);
       var sendData = {
         name: data.name,
-        surgeries: surgeriesData,
+        surgeries: templateSurgeries,
       };
       const action = await dispatch(
         updateTemplate({ template: sendData, templateId: data.id })

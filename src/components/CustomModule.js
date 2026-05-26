@@ -74,6 +74,11 @@ const {
   closeVisit: imgCloseVisit,
 } = ASSETS.images;
 
+const hasCustomModuleRowContent = (row) => (
+  String(row?.title ?? "").trim() !== "" ||
+  String(row?.notes ?? "").trim() !== ""
+);
+
 function insertTranscriptIntoFieldValue(value, transcript, selectionStart, selectionEnd) {
   const currentValue = String(value || "");
   const nextTranscript = String(transcript || "").trim();
@@ -722,7 +727,13 @@ function CustomModule({ module, showVoiceRxModule }) {
   );
 
   const onAddTemplateClicked = async () => {
-    if (!moduleData?.some((e) => e.title || e.notes)) {
+    const templateModuleData = isVoiceRxModuleEnabled
+      ? moduleData?.filter(hasCustomModuleRowContent)
+      : moduleData;
+    const hasTemplateModuleData = isVoiceRxModuleEnabled
+      ? templateModuleData?.some(hasCustomModuleRowContent)
+      : templateModuleData?.some((e) => e.title || e.notes);
+    if (!hasTemplateModuleData) {
       errorMessage(
         `At least 1 ${module.module_name || module.name} should be added`
       );
@@ -734,7 +745,9 @@ function CustomModule({ module, showVoiceRxModule }) {
             templates: [
               {
                 template_name: inputTemplateName,
-                content: moduleData?.filter((e) => e.title || e.notes),
+                content: isVoiceRxModuleEnabled
+                  ? templateModuleData?.filter(hasCustomModuleRowContent)
+                  : templateModuleData?.filter((e) => e.title || e.notes),
               },
               ...cm.templates,
             ],
@@ -762,9 +775,15 @@ function CustomModule({ module, showVoiceRxModule }) {
   );
 
   const onUpdateTemplateClicked = async () => {
-    if (moduleData.length === 0) {
+    const templateModuleData = isVoiceRxModuleEnabled
+      ? moduleData?.filter(hasCustomModuleRowContent)
+      : moduleData;
+    const hasBlankModuleTitle = isVoiceRxModuleEnabled
+      ? templateModuleData.filter((e) => String(e.title ?? "").trim() === "").length > 0
+      : templateModuleData.filter((e) => e.title == "").length > 0;
+    if (templateModuleData.length === 0) {
       errorMessage(`At least 1 ${module?.name} added`);
-    } else if (moduleData.filter((e) => e.title == "").length > 0) {
+    } else if (hasBlankModuleTitle) {
       errorMessage(`Please fillup ${module?.name} name`);
     } else {
       let data = JSON.parse(inputTemplateName);
@@ -777,7 +796,9 @@ function CustomModule({ module, showVoiceRxModule }) {
                 return {
                   ...t,
                   template_name: data.template_name,
-                  content: moduleData?.filter((e) => e.title || e.notes),
+                  content: isVoiceRxModuleEnabled
+                    ? templateModuleData?.filter(hasCustomModuleRowContent)
+                    : templateModuleData?.filter((e) => e.title || e.notes),
                 };
               }
               return t;
