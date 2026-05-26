@@ -497,8 +497,6 @@ function SidebarDoctor() {
             </div>
           </NavLink>
 
-          {!isCvtExtHosAccessableFromGB && (
-          <>
           <NavLink
             replace={true}
             className={({ isActive, isPending }) =>
@@ -527,6 +525,9 @@ function SidebarDoctor() {
               </div>
             </div>
           </NavLink>
+
+          {!isCvtExtHosAccessableFromGB && (
+          <>
 
           {profile &&
             profile?.module_data

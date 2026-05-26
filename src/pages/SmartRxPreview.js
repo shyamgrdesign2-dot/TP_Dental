@@ -822,7 +822,7 @@ function SmartRxPreview() {
                                     {patient_data !== undefined ? `WhatsApp +91 ${patient_data.pm_contact_no}` : '-'}
                                 </div>
                             </div>}
-                            { !isCvtExtHosAccessableFromGB &&
+                            {/* { !isCvtExtHosAccessableFromGB && */}
                                 <button
                                 className="btn btn-send-to-wtsap btnicon20 align-items-center d-flex mb-3 btn-41 w-100"
                                 onClick={handleSendToWhatsapp}
@@ -833,7 +833,7 @@ function SmartRxPreview() {
                                         buttonText
                                     )}
                                 </button>
-                            }
+                            {/* } */}
                             
                             { isSmartSyncCVTAccessableFromGB && (
                                 <>
