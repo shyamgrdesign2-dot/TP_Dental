@@ -569,6 +569,7 @@ function Cardiology(props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [genRxData, setGenRxData] = useState(null);
+  const [genRxVersion, setGenRxVersion] = useState(null);
   const [isGenRxTableView, setIsGenRxTableView] = useState(false);
   const [genRxQueries, setGenRxQueries] = useState(null);
   const [hasVideoConsult, setHasVideoConsult] = useState(false);
@@ -606,33 +607,21 @@ function Cardiology(props) {
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
-  const smartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
+  const rawSmartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
+  const smartPrescriptionFilename = Array.isArray(rawSmartPrescriptionFilename)
+    ? rawSmartPrescriptionFilename.find(Boolean)
+    : rawSmartPrescriptionFilename;
   const isVoiceRxVisit = isValidMongoId(smartPrescriptionFilename);
-  const hasCaseManagerPrescriptionData = Boolean(
-    viewCaseManagerData?.visit_advice ||
-      viewCaseManagerData?.treatment ||
-      viewCaseManagerData?.follow_up_date ||
-      viewCaseManagerData?.private_notes ||
-      [
-        viewCaseManagerData?.symptoms,
-        viewCaseManagerData?.examination,
-        viewCaseManagerData?.diagnosis,
-        viewCaseManagerData?.advice,
-        viewCaseManagerData?.investigation,
-        viewCaseManagerData?.medicine,
-        viewCaseManagerData?.vitals,
-        viewCaseManagerData?.surgeries,
-        viewCaseManagerData?.moduleContents,
-        viewCaseManagerData?.medical_history,
-        viewCaseManagerData?.vaccines?.given,
-        viewCaseManagerData?.vaccines?.due,
-        viewCaseManagerData?.measurements,
-        viewCaseManagerData?.lab_params,
-        viewCaseManagerData?.zydus_lab_params,
-      ].some((items) => Array.isArray(items) && items.length > 0)
-  );
-  const shouldUseLegacyVoiceRxData =
-    isVoiceRxVisit && !hasCaseManagerPrescriptionData;
+  const normalizedGenRxVersion =
+    typeof genRxVersion === "string" ? genRxVersion.trim().toLowerCase() : "";
+  const isVoiceRxVersionLoading = isVoiceRxVisit && normalizedGenRxVersion === "";
+  const isVoiceRxV3 = normalizedGenRxVersion === "v3";
+  const shouldUseVoiceRxPrintPayload =
+    isVoiceRxVisit && !isVoiceRxVersionLoading && !isVoiceRxV3;
+  const shouldShowVoiceRxTabs =
+    isVoiceRxVisit && !isVoiceRxVersionLoading && !!genRxData;
+  const shouldUseNormalConsultPayload =
+    !isVoiceRxVisit || isVoiceRxV3;
   const resolvedPrescriptionPamId =
     viewCaseManagerData?.pam_id ??
     tcmData?.pam_id ??
@@ -648,9 +637,14 @@ function Cardiology(props) {
       if (resolvedPrescriptionPamId) {
         urlObj.searchParams.set("pam_id", resolvedPrescriptionPamId);
       }
-      if (shouldUseLegacyVoiceRxData) {
-        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-        urlObj.searchParams.set("voiceRxDigitize", "false");
+      if (shouldUseVoiceRxPrintPayload) {
+        if (isAmbientRx) {
+          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+          urlObj.searchParams.set("voiceRxDigitize", "false");
+        } else {
+          urlObj.searchParams.delete("ambientVoiceRxDigitize");
+          urlObj.searchParams.set("voiceRxDigitize", "true");
+        }
         urlObj.searchParams.set("rxDigitize", "false");
       } else {
         urlObj.searchParams.delete("ambientVoiceRxDigitize");
@@ -663,8 +657,9 @@ function Cardiology(props) {
     }
   }, [
     resolvedPrescriptionPamId,
+    isAmbientRx,
     selectedLang,
-    shouldUseLegacyVoiceRxData,
+    shouldUseVoiceRxPrintPayload,
     viewCaseManagerData?.print_url,
   ]);
 
@@ -772,6 +767,7 @@ function Cardiology(props) {
       lastGenRxFetchIdRef.current = null;
       setIsAmbientRx(false);
       setGenRxData(null);
+      setGenRxVersion(null);
       setGenRxQueries(null);
       setAmbientTranscriptBlocks([]);
       setAmbientConversations([]);
@@ -835,6 +831,10 @@ function Cardiology(props) {
   // This function is called in render and useEffect, so memoization prevents redundant work
   // MUST be defined before mobilePdfUrl useMemo to avoid initialization error
   const getMobilePdfUrl = useCallback(() => {
+    if (isVoiceRxVersionLoading) {
+      return null;
+    }
+
     // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
     if ((isSmartRxFile || isTabRx) && isRxdigitised && !isSnapRx) {
       return showDigitalRx 
@@ -849,14 +849,14 @@ function Cardiology(props) {
         : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
     }
     
-    // VoiceRx print URL is centralized so legacy empty caseManagerData visits use ambient payload.
-    if (showDigitalGenRx && !isSmartRxFile && !isTabRx && !isSnapRx) {
+    // VoiceRx print URL is centralized so legacy empty caseManagerData visits use the right digitize payload.
+    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx && !isSmartRxFile && !isTabRx && !isSnapRx) {
       return buildPrescriptionPrintViewUrl();
     }
     
-    // Default: use print_rx_url for regular prescriptions
-    return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
-  }, [isSmartRxFile, isTabRx, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, buildPrescriptionPrintViewUrl]);
+    // Default full prescription print uses print_url; print_rx_url is only for "Print Medicines Only".
+    return shouldUseNormalConsultPayload && viewCaseManagerData?.print_url ? `${viewCaseManagerData.print_url}&lg=${selectedLang}` : null;
+  }, [isVoiceRxVersionLoading, isSmartRxFile, isTabRx, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_url, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, shouldUseVoiceRxPrintPayload, shouldUseNormalConsultPayload, buildPrescriptionPrintViewUrl]);
 
   // MOBILE OPTIMIZATION: Memoize PDF URL to avoid recalculating in render and useEffect
   // This prevents the effect from running unnecessarily when unrelated dependencies change
@@ -918,29 +918,37 @@ function Cardiology(props) {
     !showDigitalSnapRx && !isTabRx;
 
   const printUrlWithLang = useMemo(() => {
+    if (isVoiceRxVersionLoading) {
+      return null;
+    }
+
     // Digital Rx / Snap Rx: use updated printUrl
     if (showDigitalRx || showDigitalSnapRx) {
       return printUrl ? `${printUrl}&lg=${selectedLang}` : null;
     }
 
-    // VoiceRx print URL is centralized so legacy empty caseManagerData visits use ambient payload.
-    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
+    // VoiceRx print URL is centralized so legacy empty caseManagerData visits use the right digitize payload.
+    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
       return buildPrescriptionPrintViewUrl();
     }
 
-    // Default: use print_rx_url
-    return viewCaseManagerData?.print_rx_url
-      ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`
+    // Default full prescription print uses print_url; print_rx_url is only for "Print Medicines Only".
+    return shouldUseNormalConsultPayload && viewCaseManagerData?.print_url
+      ? `${viewCaseManagerData.print_url}&lg=${selectedLang}`
       : null;
   }, [
+    isVoiceRxVersionLoading,
     showDigitalRx,
     showDigitalSnapRx,
     printUrl,
     selectedLang,
     showDigitalGenRx,
+    shouldUseVoiceRxPrintPayload,
+    shouldUseNormalConsultPayload,
     isSmartRxFile,
     isSnapRx,
     isTabRx,
+    viewCaseManagerData?.print_url,
     viewCaseManagerData?.print_rx_url,
     buildPrescriptionPrintViewUrl,
   ]);
@@ -951,6 +959,7 @@ function Cardiology(props) {
   }, [viewCaseManagerData?.print_rx_url, selectedLang]);
 
   const {
+    payload: printPayloadData,
     printBlob: printPayloadBlob,
     isGenerating: isPrintPayloadGenerating,
   } = usePrintPayloadPdf({
@@ -961,6 +970,61 @@ function Cardiology(props) {
     skipFetch: !printUrlWithLang,
     isCvtExtHosAccessableFromGB,
   });
+
+  const parseObjectValue = useCallback((value) => {
+    if (!value || typeof value !== "string") return value;
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      return value;
+    }
+  }, []);
+
+  const unwrapDigitizePayload = useCallback((value) => {
+    const parsedValue = parseObjectValue(value);
+    if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) {
+      return null;
+    }
+    const candidate =
+      parseObjectValue(parsedValue.voiceRxDigitizeEditedData) ||
+      parseObjectValue(parsedValue.rxDigitizeEditedData) ||
+      parseObjectValue(parsedValue.editedData) ||
+      parseObjectValue(parsedValue.digitizeData) ||
+      parseObjectValue(parsedValue.refinedData) ||
+      parseObjectValue(parsedValue.payload) ||
+      parseObjectValue(parsedValue.prescription) ||
+      parsedValue;
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      return null;
+    }
+    const numericKeys = Object.keys(candidate).filter((key) => /^\d+$/.test(key));
+    if (numericKeys.length && candidate[numericKeys[0]] && typeof candidate[numericKeys[0]] === "object") {
+      return candidate[numericKeys[0]];
+    }
+    return candidate;
+  }, [parseObjectValue]);
+
+  const voiceRxPrintPayloadData = useMemo(() => {
+    const smartData =
+      printPayloadData?.smartDigitizeRxData ||
+      printPayloadData?.smart_digitize_rx_data ||
+      printPayloadData?.data?.smartDigitizeRxData ||
+      printPayloadData?.data?.smart_digitize_rx_data ||
+      printPayloadData?.data?.data?.smartDigitizeRxData ||
+      printPayloadData?.data?.data?.smart_digitize_rx_data ||
+      null;
+    if (!smartData) return null;
+    const parsedSmartData = parseObjectValue(smartData);
+    return (
+      unwrapDigitizePayload(parsedSmartData?.voiceRxDigitizeEditedData) ||
+      unwrapDigitizePayload(parsedSmartData?.editedData) ||
+      unwrapDigitizePayload(parsedSmartData?.digitizeData) ||
+      unwrapDigitizePayload(parsedSmartData?.refinedData) ||
+      unwrapDigitizePayload(parsedSmartData)
+    );
+  }, [parseObjectValue, printPayloadData, unwrapDigitizePayload]);
+
+  const legacyVoiceRxDisplayData = voiceRxPrintPayloadData || genRxData;
 
   const buildPayloadBlobFromPrintUrl = useCallback(async (sourceUrl) => {
     if (!sourceUrl) return null;
@@ -1140,6 +1204,7 @@ function Cardiology(props) {
   const getGenRxDetails = async (recordId) => {
     try {
       setIsGenRxTableView(false);
+      setGenRxVersion(null);
       const initialResponse = await getGenRx(recordId);
 
       if (initialResponse.success) {
@@ -1148,9 +1213,12 @@ function Cardiology(props) {
           if (lastGenRxFetchIdRef.current !== recordId) return;
           const d = payload;
           const voiceHistory = Array.isArray(d) ? d : (Array.isArray(d?.history) ? d.history : []);
-          const hasTabularView =
-            typeof d?.version === "string" &&
-            d.version.trim().toLowerCase() === "v2";
+          const normalizedVersion =
+            typeof d?.version === "string" && d.version.trim()
+              ? d.version.trim().toLowerCase()
+              : "legacy";
+          setGenRxVersion(normalizedVersion);
+          const hasTabularView = normalizedVersion === "v2";
           setIsGenRxTableView(hasTabularView);
           setSnapRxDigitisedData([]);
           setRxDigitisedData([]);
@@ -1564,7 +1632,7 @@ function Cardiology(props) {
     : "";
 
   const printInAppContent = async () => {
-    if (showDigitalGenRx) {
+    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Print", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
@@ -1575,7 +1643,7 @@ function Cardiology(props) {
     let printUrlRx =
       showDigitalRx || showDigitalSnapRx
         ? printUrl
-        : showDigitalGenRx && !isTabRx
+        : shouldUseVoiceRxPrintPayload && showDigitalGenRx && !isTabRx
           ? buildPrescriptionPrintViewUrl()
           : viewCaseManagerData?.print_url;
 
@@ -1739,7 +1807,7 @@ function Cardiology(props) {
       sendMessageToParent(EVENTS.DOWNLOAD, { url: uploadedUrl });
     };
 
-    if (showDigitalGenRx) {
+    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Download", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
@@ -2996,7 +3064,7 @@ function Cardiology(props) {
   const shouldRenderModuleContentsInVoiceRx =
     isVoiceRxNewFromGB &&
     showDigitalGenRx &&
-    isValidMongoId(viewCaseManagerData?.smart_prescription_filename) &&
+    shouldUseVoiceRxPrintPayload &&
     renderableCustomModulesRxData.length > 0;
 
   const renderCustomModulesRxData = () => {
@@ -4110,10 +4178,7 @@ function Cardiology(props) {
               ))
             }
 
-            {genRxData &&
-              isValidMongoId(
-                viewCaseManagerData?.smart_prescription_filename
-              ) &&
+            {shouldShowVoiceRxTabs &&
               !isSmartRxFile && !isTabRx && 
               !loading && (
                 <div className={(isMobile && !isTablet) ? "py-2 mb-2 px-0 mx-0" : "p-2 m-2"} style={(isMobile && !isTablet) ? { width: '100%' } : {}}>
@@ -4165,12 +4230,12 @@ function Cardiology(props) {
             )}
             {/* Mobile view: Show prescription PDF inline using react-pdf */}
             {/* MOBILE OPTIMIZATION: Use memoized mobilePdfUrl and pdfPages instead of calculating in render */}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) && showDigitalGenRx && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && shouldUseVoiceRxPrintPayload && (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 <PrescriptionSkeleton />
               </Card.Body>
             )}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && mobilePreviewReady && (printPayloadBlob instanceof Blob) && showDigitalGenRx && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && shouldUseVoiceRxPrintPayload && mobilePreviewReady && (printPayloadBlob instanceof Blob) && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 {isPdfLoading && (
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }}>
@@ -4213,7 +4278,7 @@ function Cardiology(props) {
             )}
             {/* Mobile view: Show Transcript when toggle is set to Transcript */}
             {(isMobile && !isTablet) && !loading && viewCaseManagerData && !showDigitalGenRx && genRxData &&
-              isValidMongoId(viewCaseManagerData?.smart_prescription_filename) && (
+              shouldShowVoiceRxTabs && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', overflowY: 'auto', padding: '16px' }}>
                 <div>
                   {ambientConversations && ambientConversations.length > 0 ? (
@@ -4294,16 +4359,13 @@ function Cardiology(props) {
                   <Spin size="small" />
                 </div>
               </div>
-            ) : !(isMobile && !isTablet) && genRxData &&
-              isValidMongoId(
-                viewCaseManagerData?.smart_prescription_filename
-              ) &&
-              (!isSmartRxFile && !isTabRx) &&
-              (shouldUseLegacyVoiceRxData || !showDigitalGenRx) ? (
+            ) : !(isMobile && !isTablet) && legacyVoiceRxDisplayData &&
+              (shouldUseVoiceRxPrintPayload || !showDigitalGenRx) &&
+              (!isSmartRxFile && !isTabRx) ? (
               <div>
                 {showDigitalGenRx ? (
                   <>
-                    {renderDigitisedSections(genRxData)}
+                    {renderDigitisedSections(legacyVoiceRxDisplayData)}
                     {shouldRenderModuleContentsInVoiceRx && renderCustomModulesRxData()}
                     <div
                       className={`d-flex align-items-center mb-14 ${

@@ -128,6 +128,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 import { changeSortOrder } from "../redux/doctorsSlice";
 import ApiTeleconsult from "../api/services/ApiTeleconsult";
 import ApiCaseManager from "../api/services/ApiCaseManager";
+import { getGenRx } from "../api/services/ApiGenRx";
 import {
   setAppointmentTeleconsultStatus,
   setJoinToken,
@@ -2196,30 +2197,42 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     return [];
   };
 
-  const hasCaseManagerPrescriptionData = (caseManagerData) => {
-    return Boolean(
-      caseManagerData?.visit_advice ||
-        caseManagerData?.treatment ||
-        caseManagerData?.follow_up_date ||
-        caseManagerData?.private_notes ||
-        [
-          caseManagerData?.symptoms,
-          caseManagerData?.examination,
-          caseManagerData?.diagnosis,
-          caseManagerData?.advice,
-          caseManagerData?.investigation,
-          caseManagerData?.medicine,
-          caseManagerData?.vitals,
-          caseManagerData?.surgeries,
-          caseManagerData?.moduleContents,
-          caseManagerData?.medical_history,
-          caseManagerData?.vaccines?.given,
-          caseManagerData?.vaccines?.due,
-          caseManagerData?.measurements,
-          caseManagerData?.lab_params,
-          caseManagerData?.zydus_lab_params,
-        ].some((items) => Array.isArray(items) && items.length > 0)
-    );
+  const hasVoiceConversation = (conversation) => {
+    if (Array.isArray(conversation)) return conversation.length > 0;
+    return typeof conversation === "string" && conversation.trim() !== "";
+  };
+
+  const getVoiceRxPrintPayloadMeta = async (recordId) => {
+    const defaultMeta = {
+      shouldUseVoiceRxPrintPayload: false,
+      isAmbientVoiceRx: false,
+    };
+    if (!recordId) return defaultMeta;
+    try {
+      const response = await getGenRx(recordId);
+      const payload = response?.data ?? response?.response;
+      const history = Array.isArray(payload) ? payload : (Array.isArray(payload?.history) ? payload.history : []);
+      const version = typeof payload?.version === "string"
+        ? payload.version.trim().toLowerCase()
+        : "legacy";
+      const isAmbientVoiceRx = Boolean(
+        payload?.isAmbientVoiceRxDigitizeBool ||
+          payload?.ambientVoiceRxDigitizeEditedData ||
+          history.some((item) => hasVoiceConversation(item?.conversation))
+      );
+      return {
+        shouldUseVoiceRxPrintPayload: version !== "v3",
+        isAmbientVoiceRx,
+      };
+    } catch (error) {
+      console.error("Failed to identify VoiceRx print payload type:", error);
+      return defaultMeta;
+    }
+  };
+
+  const getSmartPrescriptionFilename = (caseManagerData) => {
+    const filename = caseManagerData?.smart_prescription_filename;
+    return Array.isArray(filename) ? filename.find(Boolean) : filename;
   };
 
   const buildFinishedPrintUrl = ({
@@ -2227,6 +2240,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     latestConsultation,
     record,
     selectedLang,
+    shouldUseVoiceRxPrintPayload = false,
+    isAmbientVoiceRx = false,
   }) => {
     const basePrintUrl =
       caseManagerData?.print_url ||
@@ -2246,14 +2261,14 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       urlObj.searchParams.set("pam_id", resolvedPamId);
     }
 
-    const smartPrescriptionFilename = caseManagerData?.smart_prescription_filename;
-    const shouldUseLegacyVoiceRxData =
-      isValidMongoId(smartPrescriptionFilename) &&
-      !hasCaseManagerPrescriptionData(caseManagerData);
-
-    if (shouldUseLegacyVoiceRxData && caseManagerData?.print_url) {
-      urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-      urlObj.searchParams.set("voiceRxDigitize", "false");
+    if (shouldUseVoiceRxPrintPayload) {
+      if (isAmbientVoiceRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("voiceRxDigitize", "false");
+      } else {
+        urlObj.searchParams.delete("ambientVoiceRxDigitize");
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
       urlObj.searchParams.set("rxDigitize", "false");
     } else {
       urlObj.searchParams.delete("ambientVoiceRxDigitize");
@@ -2289,11 +2304,19 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
       throw new Error(caseManagerResponse?.error || "Failed to fetch prescription.");
     }
     const caseManagerData = caseManagerResponse?.data ?? caseManagerResponse;
+    const smartPrescriptionFilename = getSmartPrescriptionFilename(caseManagerData);
+    const voiceRxPrintPayloadMeta = isValidMongoId(smartPrescriptionFilename)
+      ? await getVoiceRxPrintPayloadMeta(smartPrescriptionFilename)
+      : {
+          shouldUseVoiceRxPrintPayload: false,
+          isAmbientVoiceRx: false,
+        };
     const printUrl = buildFinishedPrintUrl({
       caseManagerData,
       latestConsultation,
       record,
       selectedLang,
+      ...voiceRxPrintPayloadMeta,
     });
     if (!printUrl) {
       throw new Error("Print URL is missing.");
