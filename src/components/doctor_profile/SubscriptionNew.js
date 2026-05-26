@@ -30,17 +30,19 @@ function SubscriptionNew() {
   const [showBillingHistory, setShowBillingHistory] = useState(false);
   const [open, setOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
 
   const billingFetched = useRef(false);
   useEffect(() => {
-    if (!planDetails) {
+    if (!planDetails && !isReceptionist) {
       dispatch(fetchSubscriptionDetails());
     }
   }, [planDetails, dispatch]);
 
   useEffect(() => {
     const b2c = profile?.b2c ?? planDetails?.profile_b2c;
-    if (b2c && !billingFetched.current) {
+    if (b2c && !billingFetched.current && !isReceptionist) {
       billingFetched.current = true;
       dispatch(billingHistory(b2c));
     }
