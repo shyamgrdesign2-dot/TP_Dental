@@ -6,6 +6,7 @@ import { CopyIcon } from "../CopyIcon";
 import { ActionableTooltip } from "../ActionableTooltip";
 import { SectionSummaryBar } from "../SectionSummaryBar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../../atoms/Tooltip";
+import { AgentActionButton } from "../../../../atoms/AgentActionButton";
 import { DocumentText } from "iconsax-reactjs";
 import { pickVitalsRowForLabel } from "../../../../../../utils/vitalsHelpers";
 import styles from "./VoiceStructuredRxCard.module.scss";
@@ -356,12 +357,12 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
         dataSources={["Voice consultation"]}>
 
         {!isStale ? (
-          <button
-            type="button"
+          <AgentActionButton
             onClick={handleExpand}
-            className={styles.expandBtn}>
-            View clinical notes
-            <svg
+            className={styles.expandBtn}
+            text="View clinical notes"
+            variant="secondary"
+            suffixIcon={<svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
               height="16"
@@ -374,8 +375,8 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-            </svg>
-          </button>
+            </svg>}
+          />
         ) : (
           <p className={styles.staleText}>
             Replaced by a newer recording below.

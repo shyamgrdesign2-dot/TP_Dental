@@ -321,7 +321,8 @@ export function VoiceRxCanvas({
                 const numberedTitle = transcriptSegments.length > 1 || sourceLabel
                   ? `${baseTitle} ${idx + 1}`
                   : baseTitle;
-                const heading = sourceLabel ? `${numberedTitle} (${sourceLabel})` : numberedTitle;
+                const displaySourceLabel = sourceLabel && sourceLabel !== "Clinical Notes";
+                const heading = displaySourceLabel ? `${numberedTitle} (${sourceLabel})` : numberedTitle;
                 const timeLabel = seg.createdAt
                   ? new Date(seg.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
                   : null;

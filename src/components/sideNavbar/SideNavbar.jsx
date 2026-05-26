@@ -28,6 +28,7 @@ import {
   SidebarLeft,
 } from "iconsax-reactjs";
 import { VoiceRxIcon } from "../dr-agent/voicerx/voice-consult-icons";
+import { AgentActionButton } from "../dr-agent/atoms/AgentActionButton";
 import ZydusLabParametersList from "../ZydusLabParametersList";
 import { VoiceRecorderCore } from "../dr-agent/voicerx/VoiceRecorderCore";
 import RecordCard from "../../pages/medicalRecords/components/recordCard/RecordCard";
@@ -37,7 +38,12 @@ import { getOverridenDueDate, getPatientVaccineDetails, getVaccineBrands, getVac
 import { mergeDataPatientDetails } from "../../pages/vaccination/VaccinationHelper";
 import { getAllOpthalPrescriptions } from "../../pages/ophthalmology/service";
 import { getAllGrowthChartParams, getParentalDetails } from "../../pages/growthChart/service";
-import { getMidParentalHeight } from "../../pages/growthChart/growthChartHelper";
+import {
+  dummyData,
+  getGrowthChartData,
+  getMidParentalHeight,
+} from "../../pages/growthChart/growthChartHelper";
+import growthChartStaticData from "../../pages/growthChart/GrowthChart.json";
 import ApiCaseManager from "../../api/services/ApiCaseManager";
 import { usePrintPayloadPdf } from "../../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../../assets";
@@ -3642,7 +3648,15 @@ const RECORD_FILTER_TYPES = ["All", "Pathology", "Prescription", "Radiology"];
 
 const NOOP = () => {};
 
-function RecordsContent({ records = [], rawDocs = [], uploadDocCategories = [] }) {
+function RecordsContent({
+  records = [],
+  rawDocs = [],
+  uploadDocCategories = [],
+  handleDrawerUploadDoc = NOOP,
+  setFilesData = NOOP,
+  setIsEditDocument = NOOP,
+  setUploadDocDrawer = NOOP,
+}) {
   const scrollRef = useRef(null);
   const [activeFilter, setActiveFilter] = useState("All");
   const hasRawDocs = rawDocs.length > 0;
@@ -3726,10 +3740,10 @@ function RecordsContent({ records = [], rawDocs = [], uploadDocCategories = [] }
                 {hasRawDocs ? (
                   <RecordCard
                     cardData={item}
-                    handleDrawerUploadDoc={NOOP}
-                    setFilesData={NOOP}
-                    setIsEditDocument={NOOP}
-                    setUploadDocDrawer={NOOP}
+                    handleDrawerUploadDoc={handleDrawerUploadDoc}
+                    setFilesData={setFilesData}
+                    setIsEditDocument={setIsEditDocument}
+                    setUploadDocDrawer={setUploadDocDrawer}
                   />
                 ) : (
                   <div className="snv-record-thumb-card">
@@ -3950,9 +3964,23 @@ function hasGrowthMetricValue(value) {
   return value !== "" && value !== null && value !== undefined && Number.isFinite(Number(value));
 }
 
+function normalizeGrowthGender(patientData) {
+  const rawGender = patientData?.pm_gender || patientData?.patient_gender || patientData?.gender || "Male";
+  const normalized = String(rawGender).toLowerCase() === "other" ? "male" : String(rawGender).toLowerCase();
+  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase() : "Male";
+}
+
+function getGrowthAgeInterval(patientAgeInMonths) {
+  if (patientAgeInMonths >= 0 && patientAgeInMonths < 24) return "0To2";
+  if (patientAgeInMonths >= 24 && patientAgeInMonths <= 60) return "2To5";
+  return "5To18";
+}
+
 function buildLegacyGrowthData(rows = [], parentalDetails, patientData) {
   const dob = parsePatientDobForGrowth(patientData);
   const todayAgeMonths = dob ? Math.max(0, moment().diff(dob, "months")) : 36;
+  const gender = normalizeGrowthGender(patientData);
+  const ageInterval = getGrowthAgeInterval(todayAgeMonths);
   const sortedRows = rows
     .filter((row) => (
       getGrowthRowDate(row) ||
@@ -3987,8 +4015,30 @@ function buildLegacyGrowthData(rows = [], parentalDetails, patientData) {
     })
     .filter((row) => row.ageMonths !== null && row.ageMonths !== undefined)
     .sort((a, b) => a.ageMonths - b.ageMonths);
+  const modalGrowthRows = sortedRows.map((row) => ({
+    ...row,
+    height: getGrowthRowValue(row, "height"),
+    weight: getGrowthRowValue(row, "weight"),
+    bmi: getGrowthRowValue(row, "bmi"),
+    ofc: getGrowthRowValue(row, "ofc"),
+  }));
+  const modalCharts = {
+    ageInterval,
+    gender,
+    patientAgeInMonths: todayAgeMonths,
+    showTimelineInYear: todayAgeMonths >= 24,
+    growthChartData: dob
+      ? getGrowthChartData(modalGrowthRows, dob, todayAgeMonths)
+      : {
+        Height: [],
+        Weight: [],
+        BMI: [],
+        OFC: [],
+        HeightVsWeight: [],
+      },
+  };
   const hasParentalDetails = isObject(parentalDetails) && Object.values(parentalDetails).some(hasValue);
-  if (!entries.length && !hasParentalDetails) return { entries: [], info: {} };
+  if (!entries.length && !hasParentalDetails && !dob) return { entries: [], info: {} };
 
   const fatherHeight = Number(parentalDetails?.father_height);
   const motherHeight = Number(parentalDetails?.mother_height);
@@ -4010,6 +4060,7 @@ function buildLegacyGrowthData(rows = [], parentalDetails, patientData) {
       fatherHeight: fatherHeight ? `${fatherHeight} cm` : "",
       gestationPeriod: gestationPeriod ? `${gestationPeriod} weeks` : "",
     },
+    modalCharts,
   };
 }
 
@@ -4534,8 +4585,312 @@ function GrowthHeightWeightCard({ entries = [] }) {
   );
 }
 
+const SIDE_NAV_GROWTH_GRAPH_TITLES = {
+  Height: "Height for Age",
+  Weight: "Weight for Age",
+  BMI: "BMI for Age",
+  OFC: "Head Circumference (OFC)",
+  HeightVsWeight: "Height vs Weight",
+};
+
+const SIDE_NAV_GROWTH_AXIS_LABELS = {
+  Height: "Height (cm)",
+  Weight: "Weight (kg)",
+  BMI: "BMI (kg/m2)",
+  OFC: "OFC (cm)",
+  HeightVsWeight: "Weight (kg)",
+};
+
+function formatSideNavGrowthTick(value, unit) {
+  if (unit === "months") return `${value}`;
+  if (Number(value) === 0) return "0y";
+  return `${Number(value)}y`;
+}
+
+function buildSideNavGrowthPlugin({ graphName, patientAgeInMonths, unit, visibleKeys }) {
+  return {
+    id: `sideNavGrowthOverlay-${graphName}-${unit}-${visibleKeys.join("-")}`,
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      if (!scales.x || !scales.y || !chartArea) return;
+      if (graphName !== "HeightVsWeight") {
+        const todayValue = unit === "years" ? patientAgeInMonths / 12 : patientAgeInMonths;
+        const todayPx = scales.x.getPixelForValue(todayValue);
+        if (Number.isFinite(todayPx)) {
+          ctx.save();
+          ctx.strokeStyle = "#34d399";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(todayPx, chartArea.top);
+          ctx.lineTo(todayPx, chartArea.bottom);
+          ctx.stroke();
+          ctx.fillStyle = "#34d399";
+          ctx.font = "600 11px Inter, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("Today", todayPx, chartArea.top - 26);
+          ctx.font = "500 10px Inter, sans-serif";
+          ctx.fillText(formatGrowthAgeLabel(patientAgeInMonths, "years"), todayPx, chartArea.top - 10);
+          ctx.restore();
+        }
+      }
+
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        if (!chart.isDatasetVisible(datasetIndex) || dataset.label === "Patient") return;
+        const meta = chart.getDatasetMeta(datasetIndex);
+        if (!meta.data.length) return;
+        const last = meta.data[meta.data.length - 1];
+        if (!last) return;
+        ctx.save();
+        ctx.fillStyle = dataset.borderColor;
+        ctx.font = "600 9px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(dataset.label, chartArea.right + 5, last.y);
+        ctx.restore();
+      });
+    },
+  };
+}
+
+function getSideNavGrowthPercentileLabel(selectedCount, totalCount) {
+  if (selectedCount === totalCount) return "All Percentiles";
+  if (selectedCount === 0) return "Percentile";
+  return `${selectedCount} selected`;
+}
+
+function GrowthSideNavPercentileDropdown({ visibleKeys, onToggle, onSelectAll, onClear }) {
+  const allSelected = visibleKeys.length === dummyData.datasets.length;
+  return (
+    <div className="snv-growth-percentile-dropdown">
+      <button
+        type="button"
+        className="snv-growth-clear-btn"
+        onClick={allSelected ? onClear : onSelectAll}
+      >
+        {allSelected ? "Clear all" : "Select all"}
+      </button>
+      <div className="snv-growth-percentile-list">
+        {dummyData.datasets.map((item) => (
+          <label key={item.key} className="snv-growth-percentile-row">
+            <input
+              type="checkbox"
+              checked={visibleKeys.includes(item.key)}
+              onChange={() => onToggle(item.key)}
+            />
+            <span className="snv-growth-percentile-check" aria-hidden="true" />
+            <span className="snv-growth-percentile-label">{item.label}</span>
+            <span
+              className="snv-growth-percentile-swatch"
+              style={{ backgroundColor: item.backgroundColor }}
+              aria-hidden="true"
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GrowthSideNavChartCard({
+  graphName,
+  percentileData,
+  ageInterval,
+  patientAgeInMonths,
+}) {
+  const { ageData } = growthChartStaticData;
+  const [unit, setUnit] = useState("years");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState(() => dummyData.datasets.map((item) => item.key));
+  const percentileWrapRef = useRef(null);
+  const isAgeChart = graphName !== "HeightVsWeight";
+  const percentileLabel = getSideNavGrowthPercentileLabel(visibleKeys.length, dummyData.datasets.length);
+
+  useEffect(() => {
+    if (!dropdownOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (percentileWrapRef.current?.contains(event.target)) return;
+      setDropdownOpen(false);
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [dropdownOpen]);
+
+  const rawAgeLabels = isAgeChart
+    ? ageData?.[graphName === "Weight" && ageInterval === "5To18" ? "5To10" : ageInterval] || []
+    : ageData?.HeightVsWeight?.[ageInterval] || [];
+  const xValues = isAgeChart
+    ? rawAgeLabels
+      .map((value) => unit === "years" ? value / 12 : value)
+      .filter((value, index) => unit === "months" || index % 6 === 0 || index === rawAgeLabels.length - 1)
+    : rawAgeLabels;
+  const datasetIndexes = isAgeChart
+    ? rawAgeLabels
+      .map((_, index) => index)
+      .filter((index) => unit === "months" || index % 6 === 0 || index === rawAgeLabels.length - 1)
+    : rawAgeLabels.map((_, index) => index);
+  const chartDatasets = dummyData.datasets
+    .filter((item) => visibleKeys.includes(item.key))
+    .map((item) => ({
+      label: item.label,
+      borderColor: item.backgroundColor,
+      backgroundColor: "rgba(0, 0, 0, 0)",
+      fill: false,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      borderWidth: 2,
+      tension: 0.35,
+      data: datasetIndexes.map((sourceIndex, index) => ({
+        x: xValues[index],
+        y: percentileData?.[item.key]?.[sourceIndex],
+      })).filter((point) => Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y))),
+    }));
+  const maxX = xValues.length ? Math.max(...xValues.map(Number)) : 1;
+  const minX = xValues.length ? Math.min(...xValues.map(Number)) : 0;
+  const plugin = React.useMemo(
+    () => buildSideNavGrowthPlugin({ graphName, patientAgeInMonths, unit, visibleKeys }),
+    [graphName, patientAgeInMonths, unit, visibleKeys]
+  );
+  const chartOptions = React.useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    layout: { padding: { top: isAgeChart ? 48 : 22, right: 34, left: 4, bottom: 4 } },
+    elements: { line: { borderWidth: 2 } },
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: false },
+    },
+    scales: {
+      x: {
+        type: "linear",
+        min: minX,
+        max: maxX,
+        ticks: {
+          color: "#717179",
+          font: { size: 10, weight: "400" },
+          callback: (value) => isAgeChart ? formatSideNavGrowthTick(value, unit) : value,
+          maxTicksLimit: isAgeChart ? 7 : 6,
+        },
+        grid: { color: "#e8ebf1", lineWidth: 1 },
+        title: {
+          display: true,
+          text: isAgeChart ? `Age in ${unit === "years" ? "Years" : "Months"}` : "Height in cm",
+          color: "#717179",
+          font: { size: 11, weight: "500" },
+        },
+      },
+      y: {
+        ticks: { color: "#717179", font: { size: 10, weight: "400" }, maxTicksLimit: 5 },
+        grid: { color: "#e8ebf1", lineWidth: 1 },
+        title: {
+          display: true,
+          text: SIDE_NAV_GROWTH_AXIS_LABELS[graphName] || graphName,
+          color: "#717179",
+          font: { size: 11, weight: "500" },
+        },
+      },
+    },
+  }), [graphName, isAgeChart, maxX, minX, unit]);
+
+  return (
+    <div className="snv-growth-chart-card">
+      <div className="snv-growth-chart-header">
+        <span>{SIDE_NAV_GROWTH_GRAPH_TITLES[graphName] || graphName}</span>
+      </div>
+      <div className="snv-growth-chart-body">
+        <div className="snv-growth-chart-controls">
+          <div className="snv-growth-percentile-wrap" ref={percentileWrapRef}>
+            <button
+              type="button"
+              className={`snv-growth-percentile-trigger ${dropdownOpen ? "snv-growth-percentile-trigger-open" : ""}`}
+              onClick={() => setDropdownOpen((current) => !current)}
+            >
+              <span>{percentileLabel}</span>
+              <ArrowDown2 size={13} variant="Linear" color="#545460" className={dropdownOpen ? "snv-growth-chevron-open" : ""} />
+            </button>
+            {dropdownOpen ? (
+              <GrowthSideNavPercentileDropdown
+                visibleKeys={visibleKeys}
+                onToggle={(key) => {
+                  setVisibleKeys((current) => (
+                    current.includes(key)
+                      ? current.filter((item) => item !== key)
+                      : [...current, key]
+                  ));
+                }}
+                onSelectAll={() => setVisibleKeys(dummyData.datasets.map((item) => item.key))}
+                onClear={() => setVisibleKeys([])}
+              />
+            ) : null}
+          </div>
+          {isAgeChart ? (
+            <div className="snv-growth-unit-toggle">
+              <button
+                type="button"
+                className={unit === "years" ? "snv-growth-unit-active" : ""}
+                onClick={() => setUnit("years")}
+              >
+                Yrs
+              </button>
+              <button
+                type="button"
+                className={unit === "months" ? "snv-growth-unit-active" : ""}
+                onClick={() => setUnit("months")}
+              >
+                Mth
+              </button>
+            </div>
+          ) : null}
+        </div>
+        <div className="snv-growth-chart-canvas">
+          <Line data={{ datasets: chartDatasets }} options={chartOptions} plugins={[plugin]} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GrowthModalCharts({ charts }) {
+  const { growthData } = growthChartStaticData;
+  const {
+    growthChartData = {},
+    gender = "Male",
+    ageInterval = "0To2",
+    patientAgeInMonths = 0,
+  } = charts || {};
+  const graphNodes = Object.keys(growthChartData).map((graphName) => {
+    let percentileData = growthData?.[gender]?.[ageInterval]?.[graphName];
+    if (graphName === "Weight" && patientAgeInMonths > 120) {
+      percentileData = {};
+    }
+    if (!percentileData || !Object.keys(percentileData).length) return null;
+    return (
+      <GrowthSideNavChartCard
+        key={graphName}
+        graphName={graphName}
+        percentileData={percentileData}
+        ageInterval={ageInterval}
+        patientAgeInMonths={patientAgeInMonths}
+      />
+    );
+  }).filter(Boolean);
+
+  if (!graphNodes.length) return null;
+
+  return <div className="snv-growth-modal-chart-list">{graphNodes}</div>;
+}
+
 function GrowthContent({ data, emptyState }) {
-  const { entries = [], info = {} } = data;
+  const { entries = [], info = {}, modalCharts } = data;
   const infoRows = [
     ["Mid-parental height", info.midParentalHeight],
     ["Mother", info.motherHeight],
@@ -4548,15 +4903,14 @@ function GrowthContent({ data, emptyState }) {
     hasGrowthMetricValue(entry.bmi) ||
     hasGrowthMetricValue(entry.ofc)
   ));
-  if (!hasMetricData && !infoRows.length) {
+  const hasModalCharts = Boolean(modalCharts?.growthChartData && Object.keys(modalCharts.growthChartData).length);
+  if (!hasMetricData && !infoRows.length && !hasModalCharts) {
     return (
       <div className="snv-content-scroll" data-snv-scroll-root="true">
         {emptyState || <div className="snv-empty-state">No data recorded.</div>}
       </div>
     );
   }
-  const ageMonths = Number.isFinite(info.ageMonths) ? info.ageMonths : 36;
-
   return (
     <div className="snv-content-scroll" data-snv-scroll-root="true">
       {infoRows.length > 0 ? (
@@ -4574,11 +4928,7 @@ function GrowthContent({ data, emptyState }) {
           </div>
         </div>
       ) : null}
-      <GrowthChartCard title="Height for Age" whoData={WHO_HEIGHT} yLabel="Height (cm)" ageMonths={ageMonths} entries={entries} valueKey="height" />
-      <GrowthChartCard title="Weight for Age" whoData={WHO_WEIGHT} yLabel="Weight (kg)" ageMonths={ageMonths} entries={entries} valueKey="weight" />
-      <GrowthChartCard title="BMI for Age" whoData={WHO_BMI} yLabel="BMI (kg/m²)" ageMonths={ageMonths} entries={entries} valueKey="bmi" />
-      <GrowthChartCard title="Head Circumference (OFC)" whoData={WHO_OFC} yLabel="OFC (cm)" ageMonths={ageMonths} entries={entries} valueKey="ofc" />
-      <GrowthHeightWeightCard entries={entries} />
+      <GrowthModalCharts charts={modalCharts} />
     </div>
   );
 }
@@ -4614,7 +4964,7 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
   );
 }
 
-function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled }) {
+function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
   const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
     <SideNavEmptyState
       sectionId={activeId}
@@ -4644,7 +4994,17 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
     case "labResults":
       return <VirtualDateRowsContent entries={viewData.labResults} emptyState={emptyState} />;
     case "medicalRecords":
-      return <RecordsContent records={viewData.medicalRecords} rawDocs={viewData.medicalRecordsRawDocs} uploadDocCategories={viewData.medicalRecordsCategories} />;
+      return (
+        <RecordsContent
+          records={viewData.medicalRecords}
+          rawDocs={viewData.medicalRecordsRawDocs}
+          uploadDocCategories={viewData.medicalRecordsCategories}
+          handleDrawerUploadDoc={medicalRecordActions?.handleDrawerUploadDoc}
+          setFilesData={medicalRecordActions?.setFilesData}
+          setIsEditDocument={medicalRecordActions?.setIsEditDocument}
+          setUploadDocDrawer={medicalRecordActions?.setUploadDocDrawer}
+        />
+      );
     case "gynec":
       return <SectionCardsContent sections={viewData.gynec} emptyState={emptyState} />;
     case "obstetric":
@@ -4696,13 +5056,14 @@ function isSectionEmptyForInlineActions(activeId, viewData, vitalsUpdating) {
       info.fatherHeight,
       info.gestationPeriod,
     ].filter(hasValue);
+    const hasModalCharts = Boolean(data.modalCharts?.growthChartData && Object.keys(data.modalCharts.growthChartData).length);
     const hasMetricData = entries.some((entry) => (
       hasGrowthMetricValue(entry.height) ||
       hasGrowthMetricValue(entry.weight) ||
       hasGrowthMetricValue(entry.bmi) ||
       hasGrowthMetricValue(entry.ofc)
     ));
-    return !hasMetricData && !infoRows.length;
+    return !hasMetricData && !infoRows.length && !hasModalCharts;
   }
   if (activeId === "optal") return (viewData.optal || []).length === 0;
   return false;
@@ -4728,14 +5089,13 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 
   return (
     <div className="snv-action-row">
-      <button
-        type="button"
+      <AgentActionButton
         className="snv-add-details-btn vrx-cn-secondary-blue"
         onClick={() => onActionClick(activeId)}
-      >
-        {!hidePlusIcon ? <span className="snv-add-plus" aria-hidden="true" /> : null}
-        <span>{label}</span>
-      </button>
+        prefixIcon={!hidePlusIcon ? <span className="snv-add-plus" aria-hidden="true" /> : null}
+        text={label}
+        variant="secondary"
+      />
       {voiceEnabled ? (
         <button
           type="button"
@@ -4753,7 +5113,7 @@ function SectionActionRow({ activeId, voiceState, onVoiceClick, onActionClick, a
 }
 
 
-function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId }) {
+function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState, onVoiceClick, onVoiceRecorderSubmit, onVoiceCancel, onVoiceOverlayClose, viewData, pastVisitsState, onActionClick, actionLabels, actionHidePlusIcons, privateNotesValue, onPrivateNotesChange, onCopyPayload, voiceEnabled, voiceLocked, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, voiceSessionId, medicalRecordActions }) {
   const title = SECTION_TITLES[activeId] || "Section";
   const containerRef = useRef(null);
   const voiceStatus = voiceState?.status;
@@ -4819,6 +5179,7 @@ function SectionPanel({ activeId, onClose, onNavigate, transitionDir, voiceState
           onActionClick={onActionClick}
           onVoiceClick={onVoiceClick}
           emptyVoiceDisabled={voiceLocked || ["recording", "transcribing", "digitizing"].includes(voiceStatus)}
+          medicalRecordActions={medicalRecordActions}
         />
       </div>
       {showVoiceRx && voiceRecorderVisible && (
@@ -4873,6 +5234,10 @@ export function SideNavbar({
   patientGender,
   showVoiceRx = true,
   initialActiveId = "pastVisits",
+  handleDrawerUploadDoc = NOOP,
+  setFilesData = NOOP,
+  setIsEditDocument = NOOP,
+  setUploadDocDrawer = NOOP,
 }) {
   const dispatch = useDispatch();
   const [activeId, setActiveId] = useState(() => initialActiveId);
@@ -5642,6 +6007,12 @@ export function SideNavbar({
           doctorId={doctorId}
           patientGender={patientGender}
           voiceSessionId={getSideNavVoiceSessionId()}
+          medicalRecordActions={{
+            handleDrawerUploadDoc,
+            setFilesData,
+            setIsEditDocument,
+            setUploadDocDrawer,
+          }}
         />
       ) : null}
     </aside>

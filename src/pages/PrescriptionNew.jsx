@@ -2789,6 +2789,10 @@ function PrescriptionNew() {
                 showVoiceRx={canUseVoiceRxModuleUi}
                 initialActiveId={isTablet ? null : undefined}
                 onSectionAction={handleSideNavbarSectionAction}
+                handleDrawerUploadDoc={handleDrawerUploadDoc}
+                setFilesData={setFilesData}
+                setIsEditDocument={setIsEditDocument}
+                setUploadDocDrawer={setUploadDocDrawer}
               />
               <div className="w-100 bg-body wrapper2 prescription-wrapper" style={prescriptionWrapperStyle}>
           {/* <img src={hey} alt="vitals" className="me-3 hey" /> */}
