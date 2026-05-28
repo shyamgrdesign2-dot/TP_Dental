@@ -772,7 +772,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
     // Conditionally add the Pending Digitisation tab
     if (
-      (isSmartSyncCVTAccessableFromGB || isSnapRxDigitizationAccessable) &&
+      (isSmartSyncCVTAccessableFromGB || isSnapRxDigitizationAccessable || isTabRxCVTAccessableFromGB) &&
       unDigitizedUnReviewedIdsLength > 0
     ) {
       updatedItems.push({
@@ -828,6 +828,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     isZydusUserAccessableFromGB,
     isSmartSyncCVTAccessableFromGB,
     isSnapRxDigitizationAccessable,
+    isTabRxCVTAccessableFromGB,
     isCvtExtHosAccessableFromGB,
     isSaveAsDraftRxAccessableFromGB,
     draftRxCount,
@@ -2823,7 +2824,7 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
             (isSnapRxAccessable || isSmartSyncAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) &&
             shouldShowVoiceRx() &&
             selectedTab != TAB_ZYDUS_ENCOUNTER ? (
-              (isDigitisationTab && (isSnapRxDigitizationAccessable || isSmartSyncAccessableFromGB)) ? (
+              (isDigitisationTab && (isSnapRxDigitizationAccessable || isSmartSyncAccessableFromGB || isTabRxCVTAccessableFromGB)) ? (
                 ["snap-rx", "tab-rx"].includes(
                   getUnDigitisedAppointmentMeta(record)?.source
                 ) &&

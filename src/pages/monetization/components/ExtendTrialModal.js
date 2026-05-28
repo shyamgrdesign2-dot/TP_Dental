@@ -35,22 +35,24 @@ function ExtendTrialModal() {
     const [isExpiredModalOpen, setIsExpiredModalOpen] = useState(false);
 
     const tp_monetization_enable = !shouldMonetizationDisabled();
+    const urlParams = new URLSearchParams(window.location.search);
+    const isReceptionist = urlParams.has("receptionist");
 
     useEffect(() => {
-        if (!planDetails) {
+        if (!planDetails && !isReceptionist) {
             dispatch(fetchSubscriptionDetails());
         }
     }, [planDetails, dispatch]);
 
     useEffect(() => {
-        if (profile && !profile?.b2c && planDetails?.profile_b2c) {
+        if (profile && !profile?.b2c && planDetails?.profile_b2c && !isReceptionist) {
             dispatch(setB2C_Profile(planDetails.profile_b2c));
         }
     }, [profile, profile?.b2c, planDetails?.profile_b2c, dispatch]);
 
     useEffect(() => {
         const b2c = profile?.b2c ?? planDetails?.profile_b2c;
-        b2c !== null && b2c !== undefined && tp_monetization_enable && dispatch(services(b2c));
+        b2c !== null && b2c !== undefined && tp_monetization_enable && !isReceptionist && dispatch(services(b2c));
     }, [profile?.b2c, planDetails?.profile_b2c]);
 
     useEffect(() => {

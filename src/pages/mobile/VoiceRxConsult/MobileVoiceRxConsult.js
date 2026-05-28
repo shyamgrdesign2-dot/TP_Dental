@@ -53,6 +53,8 @@ function MobileVoiceRxConsult() {
 
   const contentRef = useRef(null);
   const lastScrollTopRef = useRef(0);
+  const urlParams = new URLSearchParams(window.location.search);
+  const isReceptionist = urlParams.has("receptionist");
 
   // Ensure profile is loaded - dispatch getProfile if missing
   useEffect(() => {
@@ -62,20 +64,20 @@ function MobileVoiceRxConsult() {
   }, [dispatch, profile, profileLoading]);
 
   useEffect(() => {
-    if (!planDetails) {
+    if (!planDetails && !isReceptionist) {
       dispatch(fetchSubscriptionDetails());
     }
   }, [planDetails, dispatch]);
 
   useEffect(() => {
-    if (profile && !profile?.b2c && planDetails?.profile_b2c) {
+    if (profile && !profile?.b2c && planDetails?.profile_b2c && !isReceptionist) {
       dispatch(setB2C_Profile(planDetails.profile_b2c));
     }
   }, [profile, profile?.b2c, planDetails?.profile_b2c, dispatch]);
 
   useEffect(() => {
     const b2c = profile?.b2c ?? planDetails?.profile_b2c;
-    if (b2c) {
+    if (b2c && !isReceptionist) {
       dispatch(services(b2c));
     }
   }, [dispatch, profile?.b2c, planDetails?.profile_b2c]);
