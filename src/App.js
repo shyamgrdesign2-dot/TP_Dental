@@ -32,6 +32,7 @@ import { lazyRetry } from "./utils/lazyRetry";
 import PatientDetails from "./pages/PatientDetails";
 import MobilePatientDetails from "./pages/mobile/PatientDetails/PatientDetails";
 import useRouteTracking from "./hooks/useRouteTracking";
+import { isProductionEnv } from "./utils/environment";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -193,7 +194,7 @@ const TabRxDigitization = React.lazy(() =>
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
   clientKey: config?.GROWTHBOOK_CLIENTKEY,
-  enableDevMode: process.env.REACT_APP_ENV !== "prod",
+  enableDevMode: !isProductionEnv(),
 });
 
 function App() {
