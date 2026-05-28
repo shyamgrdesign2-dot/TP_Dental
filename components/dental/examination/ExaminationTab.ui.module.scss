@@ -1813,29 +1813,45 @@
 }
 
 /* SITE popover scroll body — always visible custom scrollbar so the doctor
-   knows there's more to scroll to. Width 8px (thumb + tiny track gutter). */
+   knows there's more to scroll to.
+   - `overflow-y: scroll` (not auto) reserves the track even when content fits
+   - `scrollbar-gutter: stable` keeps layout from shifting
+   - Firefox: `scrollbar-color` paints the thumb in TP slate-500
+   - Chromium/WebKit: explicit thumb darker than slate-400 + min-height: 32px
+     so it's clearly visible at rest on macOS (where the system normally
+     auto-hides scrollbar thumbs). No `border + background-clip` trick — that
+     was making the thumb look 4px wide and washing it out against the track. */
 .surfacePopoverScroll {
-  overflow-y: scroll; /* `scroll` keeps the track visible even when content fits */
+  overflow-y: scroll;
   overflow-x: hidden;
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: #{tp.$slate-400} #{tp.$slate-100};
+  // NB: do NOT set `scrollbar-width: thin` — on Chromium/macOS that forces an
+  // overlay scrollbar that takes 0px and ignores ::-webkit-scrollbar styles.
+  // Firefox-only `scrollbar-color` still paints the thumb cleanly.
+  scrollbar-color: #{tp.$slate-500} #{tp.$slate-100};
 
   &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: tp.$slate-400;
-    border-radius: 9999px;
-    border: 2px solid tp.$slate-100;
-    background-clip: padding-box;
+    width: 10px;
+    -webkit-appearance: none;
+            appearance: none;
   }
 
   &::-webkit-scrollbar-track {
     background: tp.$slate-100;
     border-radius: 9999px;
-    margin: 4px 0;
+    margin: 6px 2px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: tp.$slate-500;
+    border-radius: 9999px;
+    min-height: 32px;
+    -webkit-appearance: none;
+            appearance: none;
+
+    &:hover {
+      background: tp.$slate-600;
+    }
   }
 }
 

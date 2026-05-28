@@ -631,6 +631,35 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
     const btnRef = useRef(null);
     const popRef = useRef(null);
     const searchRef = useRef(null);
+    // ── Custom always-visible scroll indicator ──────────────────────────
+    // macOS Chromium honors the system "show scrollbars when scrolling"
+    // pref and renders ::-webkit-scrollbar styles as OVERLAY (taking 0px
+    // and disappearing when idle). We paint our own track + thumb on the
+    // right edge — pointer-events: none so it never blocks chip clicks,
+    // metrics derived from scrollTop/scrollHeight/clientHeight.
+    const scrollRef = useRef(null);
+    const [scrollMetrics, setScrollMetrics] = useState({ thumbTop: 0, thumbH: 0, visible: false });
+    const updateScrollMetrics = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        if (scrollHeight <= clientHeight + 1) {
+            setScrollMetrics((m) => (m.visible ? { thumbTop: 0, thumbH: 0, visible: false } : m));
+            return;
+        }
+        const trackPad = 8;
+        const trackH = clientHeight - trackPad * 2;
+        const thumbH = Math.max(28, (clientHeight / scrollHeight) * trackH);
+        const maxThumbTop = trackH - thumbH;
+        const thumbTop = trackPad + ((scrollTop / Math.max(1, scrollHeight - clientHeight)) * maxThumbTop);
+        setScrollMetrics({ thumbTop, thumbH, visible: true });
+    }, []);
+    useEffect(() => {
+        if (!open) return;
+        // Defer one tick so the popover paints + measures before we read metrics.
+        const t = setTimeout(updateScrollMetrics, 60);
+        return () => clearTimeout(t);
+    }, [open, query, updateScrollMetrics]);
     const place = useCallback(() => {
         const el = btnRef.current;
         if (!el) return;
@@ -704,30 +733,30 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
             ] }) }, it.id)); };
             const groupHead = (label) => _jsx("div", { style: { fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", padding: "8px 12px 4px" }, children: label });
             const filtered = ORAL_POSITION_GROUPS.map((g) => ({ group: g.group, items: g.items.filter((it) => !q || it.label.toLowerCase().includes(q)) })).filter((g) => g.items.length);
-            return _jsxs("div", { ref: popRef, className: ui.surfacePopover, style: { top: pos.top, left: pos.left, width: pos.width, maxHeight: 420, display: "flex", flexDirection: "column", overflow: "hidden", position: "fixed" }, children: [
+            return _jsxs("div", { ref: popRef, className: ui.surfacePopover, style: { top: pos.top, left: pos.left, width: pos.width, display: "flex", flexDirection: "column", overflow: "hidden", position: "fixed" }, children: [
                 // Sticky search
                 _jsx("div", { style: { padding: "12px 12px 8px", borderBottom: "1px solid #f1f5f9", background: "#fff" }, children: _jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", background: "#f8fafc" }, children: [
                     _jsx(SearchNormal1, { size: 16, color: "#94a3b8", variant: "Linear" }),
                     _jsx("input", { ref: searchRef, value: query, onChange: (e) => setQuery(e.target.value), placeholder: "Search sites, regions, surfaces…", style: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#334155" } }),
                     query ? _jsx("button", { type: "button", "aria-label": "Clear search", onClick: () => { setQuery(""); searchRef.current?.focus(); }, style: { border: "none", background: "transparent", color: "#94a3b8", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }, children: "×" }) : null,
                 ] }) }),
-                // Body — wrapped in a relative box so a fade-gradient scroll
-                // indicator can hover at the bottom edge, telling the user there's
-                // more content below to scroll to.
-                _jsxs("div", { style: { position: "relative", flex: 1, minHeight: 0 }, children: [
-                _jsx("div", { className: ui.surfacePopoverScroll, style: { padding: "10px 4px", height: "100%" }, children: filtered.length === 0
+                // Body wrapped in a relative box so the custom always-visible
+                // scroll indicator (track + thumb) can sit on the right edge.
+                _jsxs("div", { style: { position: "relative" }, children: [
+                _jsx("div", { ref: scrollRef, onScroll: updateScrollMetrics, className: ui.surfacePopoverScroll, style: { padding: "10px 4px", maxHeight: "min(460px, 60vh)" }, children: filtered.length === 0
                     ? _jsx("div", { style: { padding: "20px 12px", textAlign: "center", color: "#94a3b8", fontSize: 12 }, children: "No matching sites" })
                     : q
                         ? _jsx("ul", { className: ui.surfaceZoneList, style: { maxHeight: "none", overflow: "visible" }, children: filtered.flatMap((g) => g.items.map((it) => renderRow(it, g.group))) })
-                        : _jsx("div", { style: { columnCount: 2, columnGap: 8 }, children: filtered.map((g) => (_jsxs("div", { style: { breakInside: "avoid", display: "inline-block", width: "100%", marginBottom: 10, paddingInline: 8 }, children: [
+                        : _jsx("div", { style: { columnCount: 2, columnGap: 8 }, children: filtered.map((g) => (_jsxs("div", { style: { breakInside: "avoid", display: "block", marginBottom: 10, paddingInline: 8 }, children: [
                             groupHead(g.group),
                             _jsx("ul", { className: ui.surfaceZoneList, style: { maxHeight: "none", overflow: "visible" }, children: g.items.map((it) => renderRow(it)) }),
                         ] }, `grp-${g.group}`))) }),
                 }),
-                // Fade gradient at the bottom — signals to the user that there's
-                // more content to scroll. Pointer-events:none so it doesn't block
-                // clicks on the last visible row.
-                _jsx("div", { "aria-hidden": true, style: { position: "absolute", left: 0, right: 0, bottom: 0, height: 28, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 70%, #fff 100%)", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 4 }, children: _jsx("svg", { width: "14", height: "8", viewBox: "0 0 10 6", fill: "none", children: _jsx("path", { d: "M1 1L5 5L9 1", stroke: "#94a3b8", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) }),
+                // Custom scroll indicator — track + thumb. Pointer-events: none
+                // so it never blocks chip clicks. Track is always rendered when
+                // content overflows; thumb size/position derived from scroll state.
+                scrollMetrics.visible && _jsx("div", { "aria-hidden": true, style: { position: "absolute", top: 8, bottom: 8, right: 4, width: 6, background: "var(--tp-slate-100, #f1f5f9)", borderRadius: 999, pointerEvents: "none" } }),
+                scrollMetrics.visible && _jsx("div", { "aria-hidden": true, style: { position: "absolute", top: scrollMetrics.thumbTop, height: scrollMetrics.thumbH, right: 4, width: 6, background: "var(--tp-slate-500, #64748b)", borderRadius: 999, pointerEvents: "none", transition: "top 60ms linear" } }),
                 ] }),
             ] });
         })(), document.body),
@@ -877,31 +906,31 @@ function OralRecordsList({ state }) {
     // on the left (no stroke, plain light violet bg, 6px corner radius).
     const itemTagStyle = { display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 600, color: "#703A9E", background: "rgba(164,97,216,0.16)", padding: "3px 8px", borderRadius: 6, lineHeight: 1.4, whiteSpace: "nowrap", cursor: "default" };
     // Hover broadcast — DentitionView listens to `oral-tags-filter` and shows
-    // only matching tooltips on the canvas:
-    //   null               → hide everything
-    //   { all: true }      → show every tag (card-level hover)
-    //   { kind }           → show all tags of that kind (section-level hover)
-    //   { kind, name }     → show just that one entry (chip-level hover)
-    // Section / chip handlers also nudge `onSetOralHighlight` so the affected
-    // teeth dim on the dentition.
+    // only matching tooltips on the canvas. Simplified 2-level model:
+    //   null               → hide everything (card leave)
+    //   { all: true }      → show every tag (any hover inside the card —
+    //                        card itself, a section, OR between chips)
+    //   { kind, name }     → show just that one entry (individual chip hover)
+    // The previous per-section "show only this kind" filter was removed —
+    // doctors found it noisy. Only chip-level narrowing remains useful.
     const fire = (detail) => { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("oral-tags-filter", { detail })); };
     const onCardEnter = () => fire({ all: true });
     const onCardLeave = () => { fire(null); state?.onSetOralHighlight?.([]); };
     const onCardClick = () => { fire(null); state?.onSetOralHighlight?.([]); state.onEnterOralExam?.(); };
-    const onSectionEnter = (kind) => fire({ kind });
-    const onSectionLeave = () => fire({ all: true });
     const onItemEnter = (kind, name) => {
         const e = entries.find((x) => x.kind === kind && x.name === name);
         if (e) state?.onSetOralHighlight?.(e.surfaces || []);
         fire({ kind, name });
     };
-    const onItemLeave = (kind) => { state?.onSetOralHighlight?.([]); fire({ kind }); };
+    // Chip leave restores the card-level "show all" view — we know the
+    // cursor is still inside the card (mouseleave on chip ≠ leaving card).
+    const onItemLeave = () => { state?.onSetOralHighlight?.([]); fire({ all: true }); };
     const sectionRow = (icon, label, items, key, kind) => items.length === 0 ? null : (
-        _jsxs("div", { onMouseEnter: () => onSectionEnter(kind), onMouseLeave: onSectionLeave, style: { display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", borderRadius: 10, background: "#f8fafc", border: "1px solid #eef2f7" }, children: [
+        _jsxs("div", { style: { display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", borderRadius: 10, background: "#f8fafc", border: "1px solid #eef2f7" }, children: [
             _jsx("span", { style: { display: "inline-flex", height: 32, width: 32, alignItems: "center", justifyContent: "center", borderRadius: 8, background: "rgba(164,97,216,0.12)", flexShrink: 0 }, children: _jsx(TPMedicalIcon, { name: icon, variant: "bulk", size: 16, color: "var(--tp-violet-600)" }) }),
             _jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 8, minWidth: 0, flex: 1, textAlign: "left" }, children: [
                 _jsxs("span", { style: { fontSize: 14, fontWeight: 700, color: "#0f172a", letterSpacing: "0.1px" }, children: [label, " ", _jsxs("span", { style: { fontWeight: 500, color: "#94a3b8" }, children: ["(", items.length, ")"] })] }),
-                _jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: items.map((it, i) => _jsx("span", { style: itemTagStyle, title: it, onMouseEnter: (ev) => { ev.stopPropagation(); onItemEnter(kind, it); }, onMouseLeave: (ev) => { ev.stopPropagation(); onItemLeave(kind); }, children: it }, `${key}-${i}`)) }),
+                _jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: items.map((it, i) => _jsx("span", { style: itemTagStyle, title: it, onMouseEnter: (ev) => { ev.stopPropagation(); onItemEnter(kind, it); }, onMouseLeave: (ev) => { ev.stopPropagation(); onItemLeave(); }, children: it }, `${key}-${i}`)) }),
             ] }),
         ] }, key)
     );
