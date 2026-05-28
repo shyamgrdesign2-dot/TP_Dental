@@ -87,15 +87,15 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "start:dev": "env-cmd -f .env.dev react-scripts start",
-    "build": "react-scripts build && npm run sentry:sourcemaps",
+    "start": "craco start",
+    "start:dev": "env-cmd -f .env.dev craco start",
+    "build": "craco build && npm run sentry:sourcemaps",
     "lint:assets": "node scripts/check-no-raster-imports.js",
     "lint": "eslint --max-warnings=0 \"src/**/*.{js,jsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx}\"",
     "lint:errors": "eslint \"src/**/*.{js,jsx}\" --quiet --format unix",
     "prepare": "husky",
-    "test": "react-scripts test",
+    "test": "craco test",
     "eject": "react-scripts eject",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org digicare-health-solutions-priv --project tatvapractice ./build && sentry-cli sourcemaps upload --org digicare-health-solutions-priv --project tatvapractice ./build"
   },
@@ -134,6 +134,7 @@
     ]
   },
   "devDependencies": {
+    "@craco/craco": "^7.1.0",
     "eslint": "^8.57.0",
     "eslint-plugin-import": "^2.29.1",
     "husky": "^9.0.11"

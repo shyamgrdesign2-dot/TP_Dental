@@ -50,6 +50,7 @@ import OphthalmologyListView from "../../components/print_settings/ophthalmology
 import OphthalmologyTableView from "../../components/print_settings/ophthalmology/table";
 import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
+import { isProductionEnv } from "../environment";
 import { ASSETS } from "../../assets";
 import { getUploadedFilePublicUrl } from "../../pages/smartSync/services/templateUtils";
 
@@ -640,10 +641,10 @@ const styles = StyleSheet.create({
 });
 
 const module_id =
-  process.env?.NODE_ENV !== "prod"
+  !isProductionEnv()
     ? "6874956bc1abf17f6932cb32"
     : "68624471353771e0a587fed6";
-const um_id = process.env?.NODE_ENV !== "prod" ? "493" : "12028";
+const um_id = !isProductionEnv() ? "493" : "12028";
 
 /** Custom module labels/values in PDF: keep user casing and spacing; only normalize NBSP. */
 const formatCustomModuleColumnTitle = (value = "") =>

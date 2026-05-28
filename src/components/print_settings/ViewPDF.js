@@ -16,6 +16,7 @@ import OphthalmologyInlineView from './ophthalmology/inline';
 import OphthalmologyListView from './ophthalmology/list';
 import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
+import { isProductionEnv } from '../../utils/environment';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;
@@ -318,8 +319,8 @@ const styles = StyleSheet.create({
     },
 });
 
-const module_id = process.env.REACT_APP_ENV !== "prod" ? '6874956bc1abf17f6932cb32' : '68624471353771e0a587fed6';
-const um_id = process.env.REACT_APP_ENV !== "prod" ? '493' : '12028';
+const module_id = !isProductionEnv() ? '6874956bc1abf17f6932cb32' : '68624471353771e0a587fed6';
+const um_id = !isProductionEnv() ? '493' : '12028';
 
 const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' };
 
