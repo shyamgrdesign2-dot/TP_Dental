@@ -1,4 +1,5 @@
 import { env } from '../../../../EnvironmentConfig';
+import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from '../../../../utils/constants';
 
 function normalizeBaseUrl(url) {
 	return (url || '').trim().replace(/\/+$/, '');
@@ -34,13 +35,32 @@ export function joinAgentModuleApiUrl(path) {
 	return `${configuredUrl}/${requestedPath}`;
 }
 
+function normalizeBearerToken(token) {
+	const cleanedToken = String(token || '').trim().replace(/^['"]+|['"]+$/g, '');
+	if (!cleanedToken) return '';
+	return cleanedToken.startsWith('Bearer ') ? cleanedToken : `Bearer ${cleanedToken}`;
+}
+
+function parseStoredToken(rawToken) {
+	if (!rawToken) return '';
+	try {
+		return JSON.parse(rawToken);
+	} catch (error) {
+		return rawToken;
+	}
+}
+
+function getStoredAuthToken() {
+	if (typeof window === 'undefined' || !window.localStorage) return '';
+	return parseStoredToken(window.localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN));
+}
+
 export function buildClinicalApiHeaders({ includeContentType = true } = {}) {
 	const headers = includeContentType ? { 'Content-Type': 'application/json' } : {};
+	const authToken = getStoredAuthToken() || CLINICAL_API_BEARER_TOKEN;
 
-	if (CLINICAL_API_BEARER_TOKEN) {
-		headers.Authorization = CLINICAL_API_BEARER_TOKEN.startsWith('Bearer ')
-			? CLINICAL_API_BEARER_TOKEN
-			: `Bearer ${CLINICAL_API_BEARER_TOKEN}`;
+	if (authToken) {
+		headers.Authorization = normalizeBearerToken(authToken);
 	}
 
 	return headers;
