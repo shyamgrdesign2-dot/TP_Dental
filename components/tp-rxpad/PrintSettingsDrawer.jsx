@@ -81,8 +81,8 @@ export function PrintSettingsDrawer({ open, settings, onChange, onClose }) {
               </label>
               <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid #e2e8f0", cursor: "pointer" }}>
                 <span>
-                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#334155" }}>Include past visits</span>
-                  <span style={{ display: "block", fontSize: 12, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>Adds dental and oral history from previous visits to this consultation.</span>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#334155" }}>Include past dental history</span>
+                  <span style={{ display: "block", fontSize: 12, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>Adds tooth records and oral examination entries from previous visits. Each tooth shows the date it was last updated.</span>
                 </span>
                 <Toggle on={includeHistorical} onClick={() => onChange({ ...settings, includeHistorical: !includeHistorical })} />
               </label>

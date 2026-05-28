@@ -272,9 +272,13 @@ function CameraController({ viewMode, patientType, selectionScopeType = 'tooth',
         // Push the camera further back on narrow / portrait canvases (e.g. split
         // oral-exam view on small screens) so the entire dentition stays visible.
         const base = aspect < 0.6 ? 38 : aspect < 0.8 ? 30 : aspect < 1.1 ? 22 : 18;
+        // Oral examination shows the whole mouth as context — push camera FURTHER
+        // back than a regular full-mouth scope so the teeth read smaller and the
+        // doctor sees the full arch + soft-tissue regions without cropping.
+        const oralExtra = viewMode === 'oral' ? 9 : 0;
         let z;
         if (selectionScopeType === 'full-mouth')
-            z = base + (patientType === 'mixed' ? 7.2 : 5.2) + widthAdjust + zoomPad;
+            z = base + (patientType === 'mixed' ? 7.2 : 5.2) + widthAdjust + zoomPad + oralExtra;
         else if (selectionScopeType === 'arch')
             z = base + (patientType === 'mixed' ? 4.2 : 3.0) + widthAdjust + zoomPad;
         else
@@ -283,7 +287,7 @@ function CameraController({ viewMode, patientType, selectionScopeType = 'tooth',
             || (selectionScopeType === 'arch' && (selectionScopeId === 'RIGHT_ARCH' || selectionScopeId === 'LEFT_ARCH'));
         const zoomTotal = groupedZoomBase + (isQuadrantOrSideArch ? QUADRANT_SIDE_SCOPE_EXTRA_ZOOM : 0);
         return z - zoomTotal;
-    }, [size.width, size.height, patientType, selectionScopeType, selectionScopeId]);
+    }, [size.width, size.height, patientType, selectionScopeType, selectionScopeId, viewMode]);
     // Ctrl/Cmd + drag vertically nudges dentition framing (desktop).
     // iPad keeps native 2-finger panning through OrbitControls.
     useEffect(() => {

@@ -355,7 +355,7 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                   <div style={{ padding: "4px 8px 8px", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Preview options</div>
                   {[
                     { key: "showDentalChart", label: "Show dental chart", desc: "Include the odontogram in the preview." },
-                    { key: "includeHistorical", label: "Include past visits", desc: "Adds dental and oral history from previous visits." },
+                    { key: "includeHistorical", label: "Include past dental history", desc: "Adds tooth records and oral examination entries from previous visits, dated per tooth." },
                   ].map((opt) => {
                     const on = opt.key === "showDentalChart" ? previewSettings.showDentalChart !== false : previewSettings[opt.key] === true
                     return (
