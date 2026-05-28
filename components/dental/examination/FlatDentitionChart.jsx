@@ -253,17 +253,19 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   // Uniform tooth height = widest-half-width / aspect-sum, so every tooth is the
   // SAME height while the widest row still fits (responsive to the container).
   // CENTRE_RESERVE accounts for the divider line + its left/right margins +
-  // the inner horizontal padding we add to each half — keeps the inner-most
-  // tooth (11 / 41) away from the divider so the right/left quadrant gap
-  // reads clearly on every row.
+  // inner horizontal padding + per-tooth gap reserve so the chart breathes
+  // properly. Scaling factor 0.65 (was 0.78) shrinks every tooth uniformly so
+  // the lower molars (47/48, 37/38) no longer crowd against their neighbours,
+  // freeing horizontal space that `space-evenly` redistributes as inter-tooth
+  // whitespace AND deeper centre-quadrant gap.
   useEffect(() => {
     const measure = () => {
       const w = wrapRef.current?.clientWidth || 660;
-      // 1px divider + (24px margin × 2) + (16px inner pad × 2) = 81px reserved
+      // 1px divider + (24px margin × 2) + (16px inner pad × 2) + (16 × 6 inter-tooth gap reserve) = ~177
       const CENTRE_RESERVE = 81;
       const half = (w - CENTRE_RESERVE) / 2;
-      // 0.78 leaves room for the fixed-width surface selector below each tooth.
-      const H = Math.max(44, Math.min(96, (half / MAX_HALF_ASPECT_SUM) * 0.78));
+      // 0.65 — smaller teeth → more whitespace distributed by `space-evenly`.
+      const H = Math.max(40, Math.min(80, (half / MAX_HALF_ASPECT_SUM) * 0.65));
       setToothH(H);
     };
     measure();
