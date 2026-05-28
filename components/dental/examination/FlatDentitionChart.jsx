@@ -404,7 +404,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
       <div style={wrap}>
         <div style={kindHead}>{label}</div>
         <table style={tbl}>
-          <thead><tr>{["Name", "Region", "Since", "Notes"].map((t, ci) => <th key={t} style={{ ...th, width: colW[ci] }}>{t}</th>)}</tr></thead>
+          <thead><tr>{["Name", "Area", "Since", "Notes"].map((t, ci) => <th key={t} style={{ ...th, width: colW[ci] }}>{t}</th>)}</tr></thead>
           <tbody>{list.map((it, ri) => (
             <tr key={ri}><td style={tdName}>{it.name}{showDates && <DateChip value={it.date} />}</td><td style={td}>{it.region || "—"}</td><td style={td}>{it.since || "—"}</td><td style={td}>{it.note || "—"}</td></tr>
           ))}</tbody>
