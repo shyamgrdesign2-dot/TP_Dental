@@ -681,7 +681,7 @@ export function DrAgentPage() {
                     { id: "voice-rx", label: "VoiceRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                     { id: "tab-rx", label: "TabRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                     { id: "snap-rx", label: "SnapRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
-                    { id: "smart-sync", label: "SmartSync", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
+                    { id: "smart-sync", label: "WriteRx", onClick: () => router.push(`/rxpad?patientId=${row.id}`) },
                 ]} variant="outline" theme="primary" size="md"/>
                                     </div>
 

@@ -591,7 +591,7 @@ function renderBannerActions(activeConfig, { goTypeRx }) {
   if (!activeConfig) return null;
 
   // OPD summary + Dental plan both live in the Rx authoring flow → offer the
-  // Type RX split button (primary = TypeRx; dropdown = Voice/Snap/SmartSync).
+  // Type RX split button (primary = TypeRx; dropdown = Voice/Snap/WriteRx).
   if (activeConfig.kind === "opd" || activeConfig.kind === "dental-plan") {
     return (
       <TPSplitButton
@@ -605,7 +605,7 @@ function renderBannerActions(activeConfig, { goTypeRx }) {
           { id: "type-rx", label: "Type RX", onClick: goTypeRx },
           { id: "voice-rx", label: "Voice RX", onClick: goTypeRx },
           { id: "snap-rx", label: "Snap RX", onClick: goTypeRx },
-          { id: "smart-sync", label: "SmartSync", onClick: goTypeRx },
+          { id: "smart-sync", label: "WriteRx", onClick: goTypeRx },
         ]}
       />
     );
