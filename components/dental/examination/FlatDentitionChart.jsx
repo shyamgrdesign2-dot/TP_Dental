@@ -252,12 +252,18 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   }, [patientId, chartProp]);
   // Uniform tooth height = widest-half-width / aspect-sum, so every tooth is the
   // SAME height while the widest row still fits (responsive to the container).
+  // CENTRE_RESERVE accounts for the divider line + its left/right margins +
+  // the inner horizontal padding we add to each half — keeps the inner-most
+  // tooth (11 / 41) away from the divider so the right/left quadrant gap
+  // reads clearly on every row.
   useEffect(() => {
     const measure = () => {
       const w = wrapRef.current?.clientWidth || 660;
-      const half = (w - 18) / 2;
-      // 0.8 leaves room for the fixed-width surface selector below each tooth.
-      const H = Math.max(44, Math.min(100, (half / MAX_HALF_ASPECT_SUM) * 0.8));
+      // 1px divider + (24px margin × 2) + (16px inner pad × 2) = 81px reserved
+      const CENTRE_RESERVE = 81;
+      const half = (w - CENTRE_RESERVE) / 2;
+      // 0.78 leaves room for the fixed-width surface selector below each tooth.
+      const H = Math.max(44, Math.min(96, (half / MAX_HALF_ASPECT_SUM) * 0.78));
       setToothH(H);
     };
     measure();
@@ -283,18 +289,21 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   const cell = (fdi, arch) => (
     <ChartToothCell key={fdi} fdi={fdi} h={toothH} arch={arch} zones={zonesByTooth[fdi]} st={toothState(fdi, toothDiagnoses, findingsByTooth)} />
   );
-  // `space-evenly` (not `space-between`) puts an equal gap BEFORE the first
-  // and AFTER the last tooth in each half — so the inner-most tooth (11 in
-  // the upper, 41 in the lower row) never sits flush against the centre
-  // divider. Combined with a wider divider margin (16px each side) this
-  // gives clear separation between the right and left quadrants on every
-  // row, including the lower one where tooth glyphs render with their full
-  // root visible and would otherwise visually graze the divider line.
+  // The right/left quadrant separation has THREE layered safeguards so the
+  // inner-most tooth (11 in the upper row, 41 in the lower) never visually
+  // grazes the centre divider — even with `space-evenly`, even when the
+  // lower-row tooth glyphs render with their full root:
+  //   1. Divider margin: 24px on each side (48px total around the 1px line).
+  //   2. Inner padding: 16px paddingRight on the left half, 16px paddingLeft
+  //      on the right half — gives the inner tooth a hard reserve even if
+  //      the flex space-evenly math collapses on narrow containers.
+  //   3. CENTRE_RESERVE in the tooth-height calc subtracts all of the above
+  //      from the half-width budget so the teeth stay sized to fit.
   const row = (fdis, arch) => (
     <div style={{ display: "flex", alignItems: "stretch" }}>
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
-      <div style={{ width: 1, background: "#e2e8f0", margin: "0 16px" }} />
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
+      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly", paddingRight: 16 }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
+      <div style={{ width: 1, background: "#e2e8f0", margin: "0 24px" }} />
+      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly", paddingLeft: 16 }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
     </div>
   );
 
