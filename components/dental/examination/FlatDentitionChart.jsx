@@ -283,11 +283,18 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   const cell = (fdi, arch) => (
     <ChartToothCell key={fdi} fdi={fdi} h={toothH} arch={arch} zones={zonesByTooth[fdi]} st={toothState(fdi, toothDiagnoses, findingsByTooth)} />
   );
+  // `space-evenly` (not `space-between`) puts an equal gap BEFORE the first
+  // and AFTER the last tooth in each half — so the inner-most tooth (11 in
+  // the upper, 41 in the lower row) never sits flush against the centre
+  // divider. Combined with a wider divider margin (16px each side) this
+  // gives clear separation between the right and left quadrants on every
+  // row, including the lower one where tooth glyphs render with their full
+  // root visible and would otherwise visually graze the divider line.
   const row = (fdis, arch) => (
     <div style={{ display: "flex", alignItems: "stretch" }}>
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-between" }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
-      <div style={{ width: 1, background: "#e2e8f0", margin: "0 8px" }} />
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-between" }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
+      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
+      <div style={{ width: 1, background: "#e2e8f0", margin: "0 16px" }} />
+      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
     </div>
   );
 

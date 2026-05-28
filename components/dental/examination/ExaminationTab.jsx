@@ -724,7 +724,7 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
     const tooltipTitle = value.length === 0 ? "" : value.map((v) => ORAL_POSITION_LABEL[v] || v).join(", ");
     return (_jsxs(_Fragment, { children: [
         _jsx(TPTooltip, { title: tooltipTitle, arrow: true, placement: "top", enterDelay: 250, children: _jsxs("button", { ref: btnRef, type: "button", onClick: () => { const n = !open; setOpen(n); if (n) onHoverPreview?.(value); }, className: clsx(ui.surfaceTriggerBtn, open && ui.surfaceTriggerActive), children: [
-            _jsx("span", { className: ui.surfaceTriggerText, style: { minWidth: 0, flex: 1 }, children: value.length === 0 ? (_jsx("span", { className: ui.surfacePlaceholder, children: "Select location" })) : (_jsx("span", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, rowGap: 4, minWidth: 0 }, children: shownPills.map((v) => (_jsx("span", { style: pillStyle, children: oralPositionShort(v) }, v))) })) }),
+            _jsx("span", { className: ui.surfaceTriggerText, style: { minWidth: 0, flex: 1 }, children: value.length === 0 ? (_jsx("span", { className: ui.surfacePlaceholder, children: "Select region" })) : (_jsx("span", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, rowGap: 4, minWidth: 0 }, children: shownPills.map((v) => (_jsx("span", { style: pillStyle, children: oralPositionShort(v) }, v))) })) }),
             _jsx("svg", { width: "10", height: "6", viewBox: "0 0 10 6", fill: "none", style: { transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }, children: _jsx("path", { d: "M1 1L5 5L9 1", stroke: "#94a3b8", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }),
         ] }) }),
         open && pos && typeof document !== "undefined" && createPortal((() => {
@@ -745,14 +745,14 @@ function OralPositionCell({ value = [], onChange, onHoverPreview }) {
                 // Sticky search
                 _jsx("div", { style: { padding: "12px 12px 8px", borderBottom: "1px solid #f1f5f9", background: "#fff" }, children: _jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", background: "#f8fafc" }, children: [
                     _jsx(SearchNormal1, { size: 16, color: "#94a3b8", variant: "Linear" }),
-                    _jsx("input", { ref: searchRef, value: query, onChange: (e) => setQuery(e.target.value), placeholder: "Search locations, regions, surfaces…", style: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#334155" } }),
+                    _jsx("input", { ref: searchRef, value: query, onChange: (e) => setQuery(e.target.value), placeholder: "Search sites, regions, surfaces…", style: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#334155" } }),
                     query ? _jsx("button", { type: "button", "aria-label": "Clear search", onClick: () => { setQuery(""); searchRef.current?.focus(); }, style: { border: "none", background: "transparent", color: "#94a3b8", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }, children: "×" }) : null,
                 ] }) }),
                 // Body wrapped in a relative box so the custom always-visible
                 // scroll indicator (track + thumb) can sit on the right edge.
                 _jsxs("div", { style: { position: "relative" }, children: [
                 _jsx("div", { ref: scrollRef, onScroll: updateScrollMetrics, className: ui.surfacePopoverScroll, style: { padding: "10px 4px", maxHeight: "min(460px, 60vh)" }, children: filtered.length === 0
-                    ? _jsx("div", { style: { padding: "20px 12px", textAlign: "center", color: "#94a3b8", fontSize: 12 }, children: "No matching locations" })
+                    ? _jsx("div", { style: { padding: "20px 12px", textAlign: "center", color: "#94a3b8", fontSize: 12 }, children: "No matching regions" })
                     : q
                         ? _jsx("ul", { className: ui.surfaceZoneList, style: { maxHeight: "none", overflow: "visible" }, children: filtered.flatMap((g) => g.items.map((it) => renderRow(it, g.group))) })
                         : _jsx("div", { style: { columnCount: 2, columnGap: 8 }, children: filtered.map((g) => (_jsxs("div", { style: { breakInside: "avoid", display: "block", marginBottom: 10, paddingInline: 8 }, children: [
@@ -829,11 +829,13 @@ function OralTable({ state, title, kind, catalog, list }) {
     const catalogExact = !!queryTrim && catalog.some((c) => c.toLowerCase() === q);
     const alreadyAdded = !!queryTrim && list.some((e) => e.name.toLowerCase() === q);
     const showAddCustom = !!queryTrim && !catalogExact && !alreadyAdded;
-    // Procedures + past procedures route the custom name through the dental
-    // bill-item drawer (so the doctor can set price/code/notes once and have
-    // it reusable). Findings just add the typed text directly — they aren't
-    // a chargeable service.
-    const usesBillItemDrawer = kind === "past" || kind === "procedure";
+    // Matches the single-tooth EntryTab pattern exactly: ONLY the planned
+    // "Procedures" section routes the custom name through the dental bill-item
+    // drawer (it's the only chargeable, forward-looking service that benefits
+    // from price/code/notes metadata). Past Procedures + Findings just add the
+    // typed text directly — past work isn't entered fresh into the bill, and
+    // findings aren't billable at all.
+    const usesBillItemDrawer = kind === "procedure";
     const placeholder = kind === "finding" ? "Search & add oral finding" : kind === "past" ? "Search & add past procedure" : "Search & add oral procedure";
     const addAndClear = (name) => { if (name) state.onAddOralEntry(kind, name); setQuery(""); setSearchOpen(false); };
     const onAddCustom = () => {
@@ -870,7 +872,7 @@ function OralTable({ state, title, kind, catalog, list }) {
     return (_jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 8, padding: "4px 14px 12px" }, children: [
         list.length > 0 && (_jsx("div", { ref: wrapRef, className: clsx(ui.tableWrap, showEdge && ui.scrolledEdge), children: _jsxs("table", { className: ui.table, children: [
             _jsxs("colgroup", { children: [_jsx("col", { style: { minWidth: 150 } }), _jsx("col", { style: { width: 220, minWidth: 200 } }), _jsx("col", { style: { width: 120, minWidth: 110 } }), _jsx("col", { style: { minWidth: 130 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }),
-            _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "LOCATION" }), _jsx("th", { className: ui.th, children: "SINCE" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }),
+            _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "REGION" }), _jsx("th", { className: ui.th, children: "SINCE" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }),
             _jsx("tbody", { children: list.map((e) => (_jsxs("tr", { className: ui.tbodyRow, children: [
                 _jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: e.name }) }),
                 _jsx("td", { className: ui.tdPlain, children: _jsx(OralPositionCell, { value: e.surfaces || [], onChange: (arr) => state.onUpdateOralEntry(e.id, { surfaces: arr }), onHoverPreview: (arr) => state.onSetOralHighlight?.(arr) }) }),

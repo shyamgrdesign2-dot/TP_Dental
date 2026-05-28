@@ -17,7 +17,7 @@
 7. [End-to-end workflow](#7-end-to-end-workflow)
 8. [Right-column card (`OralRecordsList`)](#8-right-column-card-oralrecordslist)
 9. [Oral Examination panel (entry UI)](#9-oral-examination-panel-entry-ui)
-10. [LOCATION cell (`OralPositionCell`)](#10-location-cell-oralpositioncell)
+10. [REGION cell (`OralPositionCell`)](#10-location-cell-oralpositioncell)
 11. [Canvas tags (`OralRegionTag3D`)](#11-canvas-tags-oralregiontag3d)
 12. [Hover broadcast — 2-level model](#12-hover-broadcast--2-level-model)
 13. [Rx Preview rendering (`OralExamReport`)](#13-rx-preview-rendering-oralexamreport)
@@ -103,7 +103,7 @@ Wire-up:
 
 ## 5. Location catalogue — each group explained
 
-The LOCATION picker is the single most important control in the oral flow. It answers **"where is this finding?"** for anything that isn't tied to one specific tooth. The catalogue lives in `components/dental/examination/types.ts` as `ORAL_POSITION_GROUPS` and falls into **four conceptually different groups**.
+The REGION picker is the single most important control in the oral flow. It answers **"where is this finding?"** for anything that isn't tied to one specific tooth. The catalogue lives in `components/dental/examination/types.ts` as `ORAL_POSITION_GROUPS` and falls into **four conceptually different groups**.
 
 ### 5.1 Distribution — "how widespread is it?"
 
@@ -333,7 +333,7 @@ The SITE cell is the key oral-specific control — see §6.
 
 ---
 
-## 10. LOCATION cell (`OralPositionCell`)
+## 10. REGION cell (`OralPositionCell`)
 
 The structured region picker — a multi-select pill trigger + searchable popover. This is the **single most-used control** in the oral flow. (Previously labelled "SITE" — renamed to "LOCATION" because "Oral sites" is one of the *sub-groups* inside the popover and the old label was ambiguous.)
 
