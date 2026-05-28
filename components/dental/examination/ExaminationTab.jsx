@@ -165,10 +165,18 @@ function toDentalPreviewSections(state) {
         if (!text) return;
         ensureTooth(fdi).overallToothNote = text;
     });
-    return Array.from(byTooth.values()).filter((section) => section.treatmentHistory.length > 0 ||
-        section.findings.length > 0 ||
-        section.procedures.length > 0 ||
-        Boolean(section.overallToothNote?.trim()));
+    // Stamp every produced section with the current ISO timestamp. The mental
+    // model: editing ANY field on a tooth in the current visit promotes that
+    // tooth's "last updated" to now. A future multi-visit backend will read
+    // per-tooth update times from a real audit log; for now we apply a single
+    // session-level stamp since all edits happen within the live visit.
+    const stamp = new Date().toISOString();
+    return Array.from(byTooth.values())
+        .filter((section) => section.treatmentHistory.length > 0 ||
+            section.findings.length > 0 ||
+            section.procedures.length > 0 ||
+            Boolean(section.overallToothNote?.trim()))
+        .map((section) => ({ ...section, toothUpdatedAt: stamp }));
 }
 export function ExaminationTab({ patientId, patientAge = 30 }) {
     const { drAgentOpen } = useRxPadChrome();

@@ -43,6 +43,14 @@ export interface RxPreviewDentalSection {
   findings: RxPreviewLine[]
   procedures: RxPreviewLine[]
   overallToothNote?: string
+  /**
+   * ISO date stamp of the most recent edit that touched this tooth (any
+   * diagnosis, finding, procedure, or note change). Used by the print/preview
+   * to surface a per-tooth date next to the tooth label when
+   * `settings.includeHistorical` is on. Falls back to the chart-level
+   * `updatedAt` for teeth that haven't been individually re-stamped yet.
+   */
+  toothUpdatedAt?: string
 }
 
 export interface RxPreviewDentalSnapshot {

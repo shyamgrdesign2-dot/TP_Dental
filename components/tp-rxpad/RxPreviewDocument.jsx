@@ -47,9 +47,15 @@ function dentalSub(label, items, kp) {
         _jsx("div", { style: { paddingLeft: 14, display: "flex", flexDirection: "column", gap: 1, marginTop: 1 }, children: items.map((item, i) => (_jsxs("p", { style: DENTAL_DL, children: [_jsx("span", { style: { color: "#94a3b8" }, children: "•" }), _jsxs("span", { children: [_jsx("span", { style: { fontWeight: 600, color: "#334155" }, children: item.title }), renderMeta(item.metaParts)] })] }, `${kp}-${i}`))) }),
     ] });
 }
-function dentalToothListNode(block) {
+// Tooth-date suffix — small slate-500 chip placed next to the tooth label
+// when historical mode is on. Falls back silently when no date is recorded.
+function toothDateNode(block, showToothDate) {
+    if (!showToothDate || !block?.toothUpdatedAt) return null;
+    return _jsxs("span", { style: { fontSize: 10, fontWeight: 500, color: "#64748b", marginLeft: 6, whiteSpace: "nowrap" }, children: ["· ", formatDate(block.toothUpdatedAt)] });
+}
+function dentalToothListNode(block, showToothDate) {
     return _jsxs("div", { children: [
-        _jsxs("p", { style: { margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }, children: [_jsx("span", { style: { color: "#1e293b" }, children: "•" }), block.toothLabel] }),
+        _jsxs("p", { style: { margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }, children: [_jsx("span", { style: { color: "#1e293b" }, children: "•" }), block.toothLabel, toothDateNode(block, showToothDate)] }),
         _jsxs("div", { style: { paddingLeft: 14, display: "flex", flexDirection: "column", gap: 2, marginTop: 2 }, children: [
             block.treatmentHistory.length ? dentalSub("Past Procedures", block.treatmentHistory, "th") : null,
             block.findings.length ? dentalSub("Findings", block.findings, "fd") : null,
@@ -58,7 +64,7 @@ function dentalToothListNode(block) {
         ] }),
     ] });
 }
-function dentalToothInlineNode(block) {
+function dentalToothInlineNode(block, showToothDate) {
     // Each item: name + optional (metaparts). Item titles stay slate-700 so the
     // doctor's eye lands on the procedure/finding name; metadata is slate-500.
     const fmtItems = (items) => items.map((it) => it.title + (it.metaParts.length ? ` (${it.metaParts.join(" | ")})` : "")).join(", ");
@@ -73,6 +79,7 @@ function dentalToothInlineNode(block) {
     ].filter((s) => s.text);
     return _jsxs("p", { style: { margin: 0, fontSize: 11.5, color: "#334155", lineHeight: 1.45 }, children: [
         _jsx("span", { style: { fontWeight: 700, color: "#0f172a" }, children: `${block.toothLabel}:` }),
+        toothDateNode(block, showToothDate),
         " ",
         ...segs.flatMap((s, i) => [
             i > 0 ? _jsx("span", { style: { color: "#94a3b8" }, children: "; " }, `sep-${i}`) : null,
@@ -94,7 +101,7 @@ function lineCols(row) {
 // One tooth rendered as a self-contained nested table (TP design system styling):
 // a grey tooth header, then a Past Procedures / Findings / Procedures sub-table
 // each with Name | Surfaces | Since | Notes columns, then overall notes.
-function dentalToothTableNode(block) {
+function dentalToothTableNode(block, showToothDate) {
     const wrap = { border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", fontFamily: "Inter, sans-serif", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" };
     const toothHead = { background: "#eef2f7", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#1e293b", borderBottom: "1px solid #e2e8f0" };
     const catSection = { borderTop: "1px solid #dde3ec" };
@@ -112,15 +119,19 @@ function dentalToothTableNode(block) {
         ] }),
     ] })) : null;
     return _jsxs("div", { style: wrap, children: [
-        _jsx("div", { style: toothHead, children: block.toothLabel }),
+        _jsxs("div", { style: toothHead, children: [block.toothLabel, toothDateNode(block, showToothDate)] }),
         catTable("Past Procedures", block.treatmentHistory),
         catTable("Findings", block.findings),
         catTable("Procedures", block.procedures),
         block.overallToothNote ? (_jsxs("div", { style: catSection, children: [_jsx("div", { style: catLabel, children: "Overall Tooth Notes" }), _jsx("div", { style: { padding: "5px 10px", fontSize: 10, color: "#475569" }, children: block.overallToothNote })] })) : null,
     ] });
 }
-function dentalHeaderNode(snapshot, titleSuffix) {
-    return _jsxs("h3", { style: { fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 6px", fontFamily: "Inter, sans-serif" }, children: ["Dental Examination", titleSuffix ? ` ${titleSuffix}` : "", _jsxs("span", { style: { fontWeight: 500, color: "#94a3b8" }, children: [" (", formatDate(snapshot?.dentalUpdatedAt ?? snapshot?.updatedAt ?? new Date().toISOString()), ")"] })] });
+function dentalHeaderNode(snapshot, titleSuffix, hideDate) {
+    return _jsxs("h3", { style: { fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 6px", fontFamily: "Inter, sans-serif" }, children: [
+        "Dental Examination",
+        titleSuffix ? ` ${titleSuffix}` : "",
+        hideDate ? null : _jsxs("span", { style: { fontWeight: 500, color: "#94a3b8" }, children: [" (", formatDate(snapshot?.dentalUpdatedAt ?? snapshot?.updatedAt ?? new Date().toISOString()), ")"] }),
+    ].filter(Boolean) });
 }
 // Flows content blocks across as many A4 sheets as needed. Heights are MEASURED
 // from a hidden replica sheet (not estimated) so the true body capacity and each
@@ -242,14 +253,20 @@ export function RxPreviewDocument({ snapshot, extraNotes, settings, }) {
         pushBlock("medications", (snapshot.medications && snapshot.medications.length) ? _jsx(SectionList, { title: "Medication (Rx)", rows: snapshot.medications, view: view, icon: _jsx(RxMedicalSectionIcon, { name: "Tablets" }) }) : null, secH(snapshot.medications));
         pushBlock("advice", (snapshot.advice && snapshot.advice.length) ? _jsx(SectionList, { title: "Advice", rows: snapshot.advice, view: view, icon: _jsx(RxMedicalSectionIcon, { name: "health care" }) }) : null, secH(snapshot.advice));
         if (dentalBlocks.length) {
-            // Emit the "Dental Examination (date)" header bundled with the first tooth,
-            // then one block per remaining tooth so they paginate across A4 sheets.
-            // Each view renders a tooth differently (list bullets / inline / nested table).
-            const toothNode = (b) => view === "table" ? dentalToothTableNode(b) : view === "inline" ? dentalToothInlineNode(b) : dentalToothListNode(b);
+            // Emit the "Dental Examination" section header bundled with the first
+            // tooth, then one block per remaining tooth so they paginate across
+            // A4 sheets. Each view renders a tooth differently (list bullets /
+            // inline / nested table).
+            //
+            // When `settings.includeHistorical` is on, every tooth carries its
+            // own date (toothUpdatedAt) so the section-level "(date)" is
+            // suppressed — multiple visits would otherwise look like ONE date.
+            const showToothDate = !!settings?.includeHistorical;
+            const toothNode = (b) => view === "table" ? dentalToothTableNode(b, showToothDate) : view === "inline" ? dentalToothInlineNode(b, showToothDate) : dentalToothListNode(b, showToothDate);
             dentalBlocks.forEach((b, i) => {
                 const tooth = toothNode(b);
                 const node = i === 0
-                    ? _jsxs("section", { style: { marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: [dentalHeaderNode(snapshot, undefined), _jsx("div", { style: { marginTop: 4 }, children: tooth })] })
+                    ? _jsxs("section", { style: { marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: [dentalHeaderNode(snapshot, undefined, showToothDate), _jsx("div", { style: { marginTop: 4 }, children: tooth })] })
                     : _jsx("section", { style: { breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: tooth });
                 pushBlock(`dental-${i}`, node, 0);
             });

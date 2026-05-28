@@ -8,32 +8,62 @@
 
 ## Table of Contents
 
-1. [Why a separate subsystem](#1-why-a-separate-subsystem)
-2. [Data model](#2-data-model)
-3. [Region taxonomy — what each group means clinically](#3-region-taxonomy--what-each-group-means-clinically)
-4. [Why this taxonomy matters](#4-why-this-taxonomy-matters)
-5. [End-to-end workflow](#5-end-to-end-workflow)
-6. [Right-column card (`OralRecordsList`)](#6-right-column-card-oralrecordslist)
-7. [Oral Examination panel (entry UI)](#7-oral-examination-panel-entry-ui)
-8. [SITE cell (`OralPositionCell`)](#8-site-cell-oralpositioncell)
-9. [Canvas tags (`OralRegionTag3D`)](#9-canvas-tags-oralregiontag3d)
-10. [Hover broadcast — 2-level model](#10-hover-broadcast--2-level-model)
-11. [Rx Preview rendering (`OralExamReport`)](#11-rx-preview-rendering-oralexamreport)
-12. [Print (Plain vs Historical)](#12-print-plain-vs-historical)
-13. [Files & wiring](#13-files--wiring)
-14. [Clinical glossary](#14-clinical-glossary)
+1. [What is the oral examination?](#1-what-is-the-oral-examination)
+2. [The location catalogue — at a glance](#2-the-location-catalogue--at-a-glance)
+3. [How it differs from per-tooth dental records](#3-how-it-differs-from-per-tooth-dental-records)
+4. [Data model](#4-data-model)
+5. [Location catalogue — each group explained](#5-location-catalogue--each-group-explained)
+6. [Why structured locations matter](#6-why-structured-locations-matter)
+7. [End-to-end workflow](#7-end-to-end-workflow)
+8. [Right-column card (`OralRecordsList`)](#8-right-column-card-oralrecordslist)
+9. [Oral Examination panel (entry UI)](#9-oral-examination-panel-entry-ui)
+10. [LOCATION cell (`OralPositionCell`)](#10-location-cell-oralpositioncell)
+11. [Canvas tags (`OralRegionTag3D`)](#11-canvas-tags-oralregiontag3d)
+12. [Hover broadcast — 2-level model](#12-hover-broadcast--2-level-model)
+13. [Rx Preview rendering (`OralExamReport`)](#13-rx-preview-rendering-oralexamreport)
+14. [Print (Plain vs Historical) + per-tooth dates](#14-print-plain-vs-historical--per-tooth-dates)
+15. [Files & wiring](#15-files--wiring)
+16. [Clinical glossary](#16-clinical-glossary)
 
 ---
 
-## 1. Why a separate subsystem
+## 1. What is the oral examination?
+
+A complete dental visit looks at **two clinically distinct kinds of evidence**:
+
+1. **Per-tooth evidence** — a specific cavity on 16, a crown on 26, attrition on 47. Each finding ties to one FDI tooth, and the doctor reasons about that tooth in isolation.
+2. **Whole-mouth evidence** — generalised gingivitis, calculus on the lower arch, an aphthous ulcer on the buccal mucosa, TMJ tenderness, fluorosis across the whole maxillary arch. These findings don't belong to *one* tooth — they describe the **mouth as a region**.
+
+The **oral examination** is where the second kind lives. It captures findings, past procedures, and planned procedures that are tagged to a **location** (a region of the mouth, a soft-tissue site, an arch, or a tooth surface) instead of a specific tooth. The dentist records the WHAT (the finding or procedure name), the WHERE (one or more locations from a structured catalogue), and optionally the WHEN (since) + a note.
+
+The result is a chart that flows naturally into the printed Rx alongside the per-tooth records and into the dental chart visualisation — without forcing every observation into the per-tooth model.
+
+---
+
+## 2. The location catalogue — at a glance
+
+Every entry in the oral examination is tagged with at least one **location**. The catalogue has **four groups**, totalling 30 picks:
+
+| Group | What it answers | Picks |
+|---|---|---|
+| **Distribution** | How widespread? | Whole mouth · Generalized · Localized |
+| **Oral sites** | Which soft-tissue structure? | Gingiva · Buccal mucosa · Tongue · Floor of mouth · Hard palate · Soft palate · Upper lip · Lower lip · Vestibule · Labial mucosa · TMJ |
+| **Tooth regions** | Which teeth, as a group? | Full mouth · Maxillary · Mandibular · Upper Right · Upper Left · Lower Right · Lower Left · Right arch · Left arch |
+| **Tooth surfaces** | Which face of the tooth? | Mesial · Distal · Buccal/Labial · Lingual/Palatal · Occlusal/Incisal · Cervical · Root |
+
+The picker (the **LOCATION** cell in the entry table) shows all four groups side-by-side with a live search. Items can be combined — e.g. *Generalized + Gingiva* (generalised gingivitis), or *Lower arch + Cervical* (lower-arch cervical staining). [§5](#5-location-catalogue--each-group-explained) walks through every item with clinical context; [§6](#6-why-structured-locations-matter) explains why this beats a free-text field.
+
+---
+
+## 3. How it differs from per-tooth dental records
 
 Per-tooth dental records and oral examination records cover **different clinical domains** and the UI mirrors that distinction:
 
 | | Per-tooth (Dental) | Oral Examination |
 |---|---|---|
-| **Anchor** | A specific FDI tooth (16, 21, 36, …) | A region — full mouth / arch / quadrant / surface / soft-tissue site |
+| **Anchor** | A specific FDI tooth (16, 21, 36, …) | A location — region / arch / quadrant / surface / soft-tissue site |
 | **Mental model** | "What's wrong with tooth 26?" | "What did I find in the gingiva / maxillary arch / whole mouth?" |
-| **Primary axis** | Tooth → kind (Past / Findings / Procedures) | Kind (Past / Findings / Procedures) → region |
+| **Primary axis** | Tooth → kind (Past / Findings / Procedures) | Kind (Past / Findings / Procedures) → location |
 | **Canvas affordance** | Click a tooth → single-tooth view | `+ Oral Examination` CTA → region-level entry panel |
 | **Records card** | One `toothRow` per affected tooth, plus grouped scope cards | **One** "Oral Examination" card (the whole section is a single card) |
 
@@ -41,7 +71,7 @@ These models are kept visually distinct on purpose. The oral records card is the
 
 ---
 
-## 2. Data model
+## 4. Data model
 
 Oral entries live inside the chart-state store (`dental.exam.chart.<patientId>`) alongside per-tooth diagnoses/findings:
 
@@ -71,11 +101,11 @@ Wire-up:
 
 ---
 
-## 3. Region taxonomy — what each group means clinically
+## 5. Location catalogue — each group explained
 
-The SITE picker is the single most important control in the oral flow. It answers **"where is this finding?"** for anything that isn't tied to one specific tooth. The catalog is defined once in `components/dental/examination/types.ts` as `ORAL_POSITION_GROUPS` and falls into **four conceptually different groups**.
+The LOCATION picker is the single most important control in the oral flow. It answers **"where is this finding?"** for anything that isn't tied to one specific tooth. The catalogue lives in `components/dental/examination/types.ts` as `ORAL_POSITION_GROUPS` and falls into **four conceptually different groups**.
 
-### 3.1 Distribution — "how widespread is it?"
+### 5.1 Distribution — "how widespread is it?"
 
 | Item | Clinical meaning | When to pick |
 |---|---|---|
@@ -87,7 +117,7 @@ The SITE picker is the single most important control in the oral flow. It answer
 
 **Pairing rule**: Distribution is **radio-style** (only one of Whole / Generalized / Localized at a time). `Generalized` and `Localized` may be combined with any Site / Tooth Region / Tooth Surface to qualify it (e.g. *"Generalized · Gingiva"* = generalised gingivitis on gingiva specifically). `Whole mouth` is exclusive — picking it clears every other region.
 
-### 3.2 Oral sites — "which soft-tissue structure?"
+### 5.2 Oral sites — "which soft-tissue structure?"
 
 Anatomical landmarks **outside** the teeth themselves — the soft tissue, the supporting structures, the jaw joint.
 
@@ -106,7 +136,7 @@ Anatomical landmarks **outside** the teeth themselves — the soft tissue, the s
 
 **Why this list?** It covers the **non-dental clinical surfaces** that a routine intra-oral exam inspects. The list mirrors the headings on a standard paper soft-tissue exam form. If the finding's natural answer to "where?" is *not* a tooth or arch, it's almost certainly in this list.
 
-### 3.3 Tooth regions — "which teeth, as a group?"
+### 5.3 Tooth regions — "which teeth, as a group?"
 
 When something affects a **set of teeth** but it would be tedious (or clinically inaccurate) to tag every individual tooth. Stored as a region id (`FULL` / `MAXILLARY` / `UR` / `RIGHT_ARCH` / …) but resolves to a list of FDIs on the canvas.
 
@@ -126,7 +156,7 @@ When something affects a **set of teeth** but it would be tedious (or clinically
 
 **Pairing rule**: `Full mouth` is **either/or** with quadrants/arches. Picking a quadrant clears `Full mouth` and vice versa. Multiple quadrants/arches can coexist (e.g. "Upper Right" + "Upper Left" = both upper quadrants).
 
-### 3.4 Tooth surfaces — "which face of the tooth?"
+### 5.4 Tooth surfaces — "which face of the tooth?"
 
 Anatomical surfaces shared across all teeth. Used when a finding lives on a **specific face** but is **not tied to one tooth** — e.g. "generalised cervical staining" tagged with `Generalized` + `Cervical`.
 
@@ -142,7 +172,7 @@ Anatomical surfaces shared across all teeth. Used when a finding lives on a **sp
 
 **Why grouped surfaces (Buccal / Labial, Lingual / Palatal, Occlusal / Incisal)?** Each pair describes the **same anatomical face** under different names depending on whether the tooth is anterior or posterior. Combining them avoids forcing the doctor to remember which terminology applies — the chart shows the right label automatically.
 
-### 3.5 Naming + helper utilities
+### 5.5 Naming + helper utilities
 
 | Symbol | Purpose |
 |---|---|
@@ -151,7 +181,7 @@ Anatomical surfaces shared across all teeth. Used when a finding lives on a **sp
 | `oralPositionShort(id)` | Compact pill text — `Whole mouth` → `Whole mouth`, `Buccal mucosa` → `Buccal muc.`, `Right arch` → `R-arch`, `Full mouth` → `Full` — keeps chips one-line when room allows |
 | `reconcileOralPositions(current, id)` | Toggles `id` in the list, applies the pairing rules above. Always returns a new array |
 
-### 3.6 Clinical reconcile rules — full table
+### 5.6 Clinical reconcile rules — full table
 
 `reconcileOralPositions(current, id)` codifies what's clinically valid:
 
@@ -166,7 +196,7 @@ Anatomical surfaces shared across all teeth. Used when a finding lives on a **sp
 
 ---
 
-## 4. Why this taxonomy matters
+## 6. Why structured locations matter
 
 A single "where?" field with free text would be faster to ship, but quickly becomes useless for any of the downstream needs the oral exam serves:
 
@@ -184,7 +214,7 @@ The taxonomy is also what makes the canvas **alive**: when a doctor tags `RIGHT_
 
 ---
 
-## 5. End-to-end workflow
+## 7. End-to-end workflow
 
 How a typical oral examination plays out in this UI, step by step:
 
@@ -245,7 +275,7 @@ Back on the dentition view, hovering anywhere on the Oral Examination card shows
 
 ---
 
-## 6. Right-column card (`OralRecordsList`)
+## 8. Right-column card (`OralRecordsList`)
 
 Single card per visit. No outer "Oral Records" h3 — the count is inlined into the card title.
 
@@ -289,7 +319,7 @@ When there are no oral entries the card doesn't render. Clicking the card opens 
 
 ---
 
-## 7. Oral Examination panel (entry UI)
+## 9. Oral Examination panel (entry UI)
 
 `OralExamPanel` (`ExaminationTab.jsx`) is the right-column panel when the user is in oral mode. Structure mirrors the per-tooth panel for muscle-memory, but the rows are oral-aware:
 
@@ -303,9 +333,9 @@ The SITE cell is the key oral-specific control — see §6.
 
 ---
 
-## 8. SITE cell (`OralPositionCell`)
+## 10. LOCATION cell (`OralPositionCell`)
 
-The structured region picker — a multi-select pill trigger + searchable popover. This is the **single most-used control** in the oral flow.
+The structured region picker — a multi-select pill trigger + searchable popover. This is the **single most-used control** in the oral flow. (Previously labelled "SITE" — renamed to "LOCATION" because "Oral sites" is one of the *sub-groups* inside the popover and the old label was ambiguous.)
 
 ### Trigger (inside the table cell)
 
@@ -370,7 +400,7 @@ Reuse `ui.surfaceZoneBtn` / `ui.surfaceCheck` / `ui.surfaceCheckOn` so the SITE 
 
 ---
 
-## 9. Canvas tags (`OralRegionTag3D`)
+## 11. Canvas tags (`OralRegionTag3D`)
 
 When `oralEntries.length > 0`, the dentition canvas (`DentitionView`) renders a small pill per affected region. Same visual treatment as the per-tooth treatment tags — **no colour differentiation**.
 
@@ -395,7 +425,7 @@ backdrop-filter: blur(3px)
 
 ### Tooltip placement
 
-Each tag accepts `tooltipSide: 'above' | 'below' | 'left' | 'right'`. The dark expanded tooltip opens on **direct pill hover** (or when the records-card hover broadcast — §10 — forces it open) and radiates AWAY from canvas centre so multiple visible tooltips don't overlap:
+Each tag accepts `tooltipSide: 'above' | 'below' | 'left' | 'right'`. The dark expanded tooltip opens on **direct pill hover** (or when the records-card hover broadcast — §12 — forces it open) and radiates AWAY from canvas centre so multiple visible tooltips don't overlap:
 
 | Region | Side |
 |---|---|
@@ -409,7 +439,7 @@ Tooltip box: `min-width: 200, max-width: 280, rgba(0,0,0,0.82) bg, 3px solid rgb
 
 ---
 
-## 10. Hover broadcast — 2-level model
+## 12. Hover broadcast — 2-level model
 
 The records card on the right column drives canvas highlights via a single `oral-tags-filter` `CustomEvent`. **Two levels** (we used to have three — a per-section "show only this kind" level was removed as noisy):
 
@@ -468,7 +498,7 @@ A parallel piece of state — `oralHighlightFdis` on the canvas — dims the tee
 
 ---
 
-## 11. Rx Preview rendering (`OralExamReport`)
+## 13. Rx Preview rendering (`OralExamReport`)
 
 `OralExamReport({ patientId, chart, view })` in `FlatDentitionChart.jsx` is the printable/preview view. It renders nothing when there are zero entries and no notes. Three view variants:
 
@@ -522,7 +552,7 @@ Table styling: 12px body / 10px ALL-CAPS column headers / 8×12 cell padding / 1
 
 ---
 
-## 12. Print (Plain vs Historical)
+## 14. Print (Plain vs Historical) + per-tooth dates
 
 The "Print Dental Chart" button (`DentalChartPrint.DentalChartPrintButton` — the icon-only button bottom-left of the canvas in dentition view) opens a 320px dropdown:
 
@@ -558,7 +588,28 @@ Print stylesheet (in `PRINT_STYLE`):
 
 ---
 
-## 13. Files & wiring
+### Historical mode — per-tooth date stamps
+
+When **Include past dental history** is on (Preview Settings gear popover or Print Settings drawer), the layout shifts so each visit reads cleanly:
+
+- The single "Dental Examination *(date)*" header is **suppressed** — multiple past visits would otherwise look like one big date stamp.
+- Each tooth section carries its own date label next to the tooth title (e.g. `Upper Right Central Incisor (T11) · 12 May 2026`). The date is the most recent edit timestamp for that tooth.
+- Editing **any** field on a tooth in the current visit (a diagnosis, a finding, a procedure, a note) promotes that tooth's stamp to the current visit's date — the doctor's mental model: "if I touched it today, it's today's record."
+
+Data flow:
+
+| Layer | Behaviour |
+|---|---|
+| Source | `state.toothUpdatedAt[fdi]` (per-tooth ISO string). Falls back to `chart.updatedAt` for teeth that haven't been re-stamped individually yet. |
+| Composer | `toDentalPreviewSections` attaches `toothUpdatedAt` to every `RxPreviewDentalSection`. |
+| Renderer | `dentalToothListNode` / `dentalToothInlineNode` / `dentalToothTableNode` accept `showToothDate`. When true, a `toothDateNode(block, true)` chip (`10px / 500 slate-500`) is appended next to the tooth label. |
+| Header | `dentalHeaderNode(snapshot, suffix, hideDate)` — `hideDate = showToothDate` suppresses the section-level date when per-tooth dates are on. |
+
+When **Include past dental history is off**, the original behaviour is preserved — one section header date, no per-tooth dates. This is the default for fresh visits.
+
+---
+
+## 15. Files & wiring
 
 | File | What lives there |
 |---|---|
@@ -590,7 +641,7 @@ Print stylesheet (in `PRINT_STYLE`):
 
 ---
 
-## 14. Clinical glossary
+## 16. Clinical glossary
 
 Quick reference for non-dental contributors reading this code:
 
