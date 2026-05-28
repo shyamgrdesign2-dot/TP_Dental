@@ -24,6 +24,7 @@ import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer"
 import { TPSplitButton } from "@/components/tp-ui/button-system"
 import { RxPreviewDocument } from "@/components/tp-rxpad/RxPreviewDocument"
 import { getComposedRxPreviewSnapshot } from "@/components/tp-rxpad/rx-preview-composer"
+import { hasHistoricalData } from "@/components/dental/examination/DentalChartPrint"
 import svgPaths from "./svg-gb0jbe9ifm"
 import styles from "./RxpadHeader.module.scss"
 import { getAppointmentPatient } from "@/lib/appointment-patients"
@@ -355,20 +356,29 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                   <div style={{ padding: "4px 8px 8px", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Preview options</div>
                   {[
                     { key: "showDentalChart", label: "Show dental chart", desc: "Include the odontogram in the preview." },
-                    { key: "includeHistorical", label: "Include past dental history", desc: "Adds tooth records and oral examination entries from previous visits, dated per tooth." },
+                    { key: "includeHistorical", label: "Include past dental & oral history", desc: "Adds tooth records and oral examination entries from previous visits, dated per tooth." },
                   ].map((opt) => {
                     const on = opt.key === "showDentalChart" ? previewSettings.showDentalChart !== false : previewSettings[opt.key] === true
+                    // Gate the historical toggle off the same chart-store
+                    // check the Print Dental Chart dropdown uses — a patient
+                    // with no chart data sees a disabled toggle + tooltip.
+                    const historyAvailable = opt.key !== "includeHistorical" || hasHistoricalData(patientId)
+                    const disabled = !historyAvailable
+                    const effectiveOn = disabled ? false : on
                     return (
-                      <label key={opt.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 8px", borderRadius: 8, cursor: "pointer" }}>
+                      <label
+                        key={opt.key}
+                        title={disabled ? "There is no past dental or oral history for this patient." : undefined}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 8px", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.55 : 1 }}>
                         <span style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#334155" }}>{opt.label}</span>
-                          <span style={{ display: "block", fontSize: 12, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>{opt.desc}</span>
+                          <span style={{ display: "block", fontSize: 12, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>{disabled ? "There is no past dental or oral history for this patient." : opt.desc}</span>
                         </span>
                         <span
-                          onClick={(e) => { e.preventDefault(); setPreviewSettings({ ...previewSettings, [opt.key]: !on }) }}
-                          style={{ position: "relative", width: 40, height: 22, borderRadius: 999, background: on ? "var(--tp-blue-500)" : "#cbd5e1", flexShrink: 0, cursor: "pointer", transition: "background 0.15s" }}
+                          onClick={(e) => { e.preventDefault(); if (!disabled) setPreviewSettings({ ...previewSettings, [opt.key]: !on }) }}
+                          style={{ position: "relative", width: 40, height: 22, borderRadius: 999, background: effectiveOn ? "var(--tp-blue-500)" : "#cbd5e1", flexShrink: 0, cursor: disabled ? "not-allowed" : "pointer", transition: "background 0.15s", opacity: disabled ? 0.6 : 1 }}
                         >
-                          <span style={{ position: "absolute", top: 2, left: on ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                          <span style={{ position: "absolute", top: 2, left: effectiveOn ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                         </span>
                       </label>
                     )

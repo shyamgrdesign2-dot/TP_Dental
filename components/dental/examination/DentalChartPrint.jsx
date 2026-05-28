@@ -86,7 +86,9 @@ function PrintRunner({ patientId, mode, includePatient, onDone }) {
 // Returns true if the patient has any chart data worth printing in "historical"
 // mode — per-tooth diagnoses, treatment history entries, oral entries, or oral
 // notes. Reads the same `dental.exam.chart.<patientId>` store the chart uses.
-function hasHistoricalData(patientId) {
+// Exported so the Print Settings drawer + Preview Settings gear popover can
+// gate the "Include past dental & oral history" toggle off the same check.
+export function hasHistoricalData(patientId) {
   if (typeof window === "undefined") return false;
   try {
     const raw = window.localStorage.getItem(`dental.exam.chart.${patientId || "apt-1"}`);

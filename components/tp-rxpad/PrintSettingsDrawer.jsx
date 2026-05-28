@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { CloseCircle, TextalignJustifycenter, RowVertical, Grid1 } from "iconsax-reactjs";
+import { hasHistoricalData } from "@/components/dental/examination/DentalChartPrint";
 
 const VIEWS = [
   { id: "list", label: "List View", desc: "Each item on its own bulleted line", icon: RowVertical },
@@ -13,7 +14,7 @@ const VIEWS = [
   { id: "table", label: "Table", desc: "Items laid out in a table grid", icon: Grid1 },
 ];
 
-export function PrintSettingsDrawer({ open, settings, onChange, onClose }) {
+export function PrintSettingsDrawer({ open, settings, onChange, onClose, patientId }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -24,13 +25,17 @@ export function PrintSettingsDrawer({ open, settings, onChange, onClose }) {
   const view = settings?.view || "list";
   const showChart = settings?.showDentalChart !== false;
   const includeHistorical = settings?.includeHistorical === true;
+  // Gate the Include-past toggle off the same data check the Print Dental
+  // Chart dropdown uses, so a patient with no chart data sees a disabled
+  // toggle (with a tooltip) on every print/preview surface.
+  const historyAvailable = hasHistoricalData(patientId);
   // TP blue is the brand colour for clickable/selected/CTA across the app —
   // resolves to #4B4AD5 in CSS. Used everywhere here in place of the older violet.
   const BLUE = "var(--tp-blue-500)";
   const BLUE_BG = "rgba(75,74,213,0.08)";
-  const Toggle = ({ on, onClick }) => (
-    <span onClick={(e) => { e.preventDefault(); onClick(); }}
-      style={{ position: "relative", width: 40, height: 22, borderRadius: 999, background: on ? BLUE : "#cbd5e1", transition: "background 0.15s", flexShrink: 0, cursor: "pointer" }}>
+  const Toggle = ({ on, onClick, disabled }) => (
+    <span onClick={(e) => { e.preventDefault(); if (!disabled) onClick(); }}
+      style={{ position: "relative", width: 40, height: 22, borderRadius: 999, background: on ? BLUE : "#cbd5e1", transition: "background 0.15s", flexShrink: 0, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1 }}>
       <span style={{ position: "absolute", top: 2, left: on ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
     </span>
   );
@@ -79,12 +84,16 @@ export function PrintSettingsDrawer({ open, settings, onChange, onClose }) {
                 </span>
                 <Toggle on={showChart} onClick={() => onChange({ ...settings, showDentalChart: !showChart })} />
               </label>
-              <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid #e2e8f0", cursor: "pointer" }}>
+              <label
+                title={historyAvailable ? undefined : "There is no past dental or oral history for this patient."}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid #e2e8f0", cursor: historyAvailable ? "pointer" : "not-allowed", opacity: historyAvailable ? 1 : 0.55 }}>
                 <span>
-                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#334155" }}>Include past dental history</span>
-                  <span style={{ display: "block", fontSize: 12, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>Adds tooth records and oral examination entries from previous visits. Each tooth shows the date it was last updated.</span>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#334155" }}>Include past dental &amp; oral history</span>
+                  <span style={{ display: "block", fontSize: 12, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>{historyAvailable
+                    ? "Adds tooth records and oral examination entries from previous visits. Each tooth shows the date it was last updated."
+                    : "There is no past dental or oral history for this patient."}</span>
                 </span>
-                <Toggle on={includeHistorical} onClick={() => onChange({ ...settings, includeHistorical: !includeHistorical })} />
+                <Toggle disabled={!historyAvailable} on={includeHistorical && historyAvailable} onClick={() => onChange({ ...settings, includeHistorical: !includeHistorical })} />
               </label>
             </div>
           </div>
