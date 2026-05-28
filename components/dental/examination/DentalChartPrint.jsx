@@ -88,18 +88,51 @@ function PrintRunner({ patientId, mode, includePatient, onDone }) {
 // notes. Reads the same `dental.exam.chart.<patientId>` store the chart uses.
 // Exported so the Print Settings drawer + Preview Settings gear popover can
 // gate the "Include past dental & oral history" toggle off the same check.
+//
+// IMPORTANT: just navigating to a patient often persists the chart object
+// with empty arrays/sets inside (`{16: [], 21: [], …}` for `toothDiagnoses`
+// and `findingsByTooth`), so a presence-of-keys check produces false positives.
+// We walk the nested structures and only return true when at least one
+// finding / entry actually exists.
 export function hasHistoricalData(patientId) {
   if (typeof window === "undefined") return false;
   try {
     const raw = window.localStorage.getItem(`dental.exam.chart.${patientId || "apt-1"}`);
     if (!raw) return false;
     const c = JSON.parse(raw) || {};
+    // Oral entries / notes
     if (Array.isArray(c.oralEntries) && c.oralEntries.length > 0) return true;
     if (typeof c.oralNotes === "string" && c.oralNotes.trim().length > 0) return true;
+    // Flat per-tooth entries store (used by the entry/multi-tooth flow)
     if (Array.isArray(c.entries) && c.entries.length > 0) return true;
-    if (c.toothDiagnoses && Object.keys(c.toothDiagnoses).length > 0) return true;
-    if (c.findingsByTooth && Object.keys(c.findingsByTooth).length > 0) return true;
-    if (c.treatmentHistoryByTooth && Object.keys(c.treatmentHistoryByTooth).length > 0) return true;
+    // Per-tooth diagnoses — values are arrays or Sets (sometimes serialised
+    // as arrays). Treat any non-empty inner collection as real data.
+    if (c.toothDiagnoses && typeof c.toothDiagnoses === "object") {
+      for (const v of Object.values(c.toothDiagnoses)) {
+        if (Array.isArray(v) && v.length > 0) return true;
+        if (v && typeof v === "object" && Object.keys(v).length > 0) return true;
+      }
+    }
+    // Per-tooth findings — keyed map of arrays.
+    if (c.findingsByTooth && typeof c.findingsByTooth === "object") {
+      for (const v of Object.values(c.findingsByTooth)) {
+        if (Array.isArray(v) && v.length > 0) return true;
+      }
+    }
+    // Per-tooth treatment history details — keyed map of name→detail objects.
+    if (c.treatmentHistoryByTooth && typeof c.treatmentHistoryByTooth === "object") {
+      for (const v of Object.values(c.treatmentHistoryByTooth)) {
+        if (v && typeof v === "object" && Object.keys(v).length > 0) return true;
+      }
+    }
+    // Per-tooth notes — keyed map of strings.
+    if (c.toothNotes && typeof c.toothNotes === "object") {
+      for (const v of Object.values(c.toothNotes)) {
+        if (typeof v === "string" && v.trim().length > 0) return true;
+      }
+    }
+    // Implant teeth marker
+    if (Array.isArray(c.implantTeeth) && c.implantTeeth.length > 0) return true;
     return false;
   } catch { return false; }
 }
