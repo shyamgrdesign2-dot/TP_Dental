@@ -149,7 +149,11 @@ export function Annotations({ toothMesh, findings, zoneNotes, arch, toothPositio
             // surface itself. Override the surface-hugging position with a fixed
             // bbox-extreme + outward offset so it never overlaps the tooth.
             if (zoneId === 'whole') {
-                const yOff = 0.55;
+                // Tight to the tooth — was 0.55 which pushed the WT chip far
+                // into empty canvas space. 0.18 keeps it just outside the
+                // root-tip / occlusal bbox edge so it reads as "this tooth"
+                // without floating.
+                const yOff = 0.18;
                 position = new THREE.Vector3(
                     center.x,
                     arch === 'maxillary' ? bb.min.y - yOff : bb.max.y + yOff,
