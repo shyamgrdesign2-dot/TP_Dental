@@ -59,10 +59,30 @@ function dentalToothListNode(block) {
     ] });
 }
 function dentalToothInlineNode(block) {
+    // Each item: name + optional (metaparts). Item titles stay slate-700 so the
+    // doctor's eye lands on the procedure/finding name; metadata is slate-500.
     const fmtItems = (items) => items.map((it) => it.title + (it.metaParts.length ? ` (${it.metaParts.join(" | ")})` : "")).join(", ");
-    const seg = (label, items) => items.length ? `${label}: ${fmtItems(items)}` : null;
-    const parts = [seg("Past Procedures", block.treatmentHistory), seg("Findings", block.findings), seg("Procedures", block.procedures), block.overallToothNote ? `Notes: ${block.overallToothNote}` : null].filter(Boolean);
-    return _jsxs("p", { style: { margin: 0, fontSize: 11.5, color: "#475569", lineHeight: 1.45 }, children: [_jsx("span", { style: { fontWeight: 700, color: "#1e293b" }, children: `${block.toothLabel}:` }), " ", parts.join("; ")] });
+    // Build a list of {label, items} segments, then render each label as a bold
+    // slate-900 span (was: plain string joined with "; ", which inherited the
+    // paragraph's slate-600 colour and made labels disappear into the body).
+    const segs = [
+        { label: "Past Procedures", text: block.treatmentHistory.length ? fmtItems(block.treatmentHistory) : null },
+        { label: "Findings",        text: block.findings.length          ? fmtItems(block.findings)          : null },
+        { label: "Procedures",      text: block.procedures.length        ? fmtItems(block.procedures)        : null },
+        { label: "Notes",           text: block.overallToothNote || null },
+    ].filter((s) => s.text);
+    return _jsxs("p", { style: { margin: 0, fontSize: 11.5, color: "#334155", lineHeight: 1.45 }, children: [
+        _jsx("span", { style: { fontWeight: 700, color: "#0f172a" }, children: `${block.toothLabel}:` }),
+        " ",
+        ...segs.flatMap((s, i) => [
+            i > 0 ? _jsx("span", { style: { color: "#94a3b8" }, children: "; " }, `sep-${i}`) : null,
+            _jsxs("span", { children: [
+                _jsxs("span", { style: { fontWeight: 700, color: "#1e293b" }, children: [s.label, ":"] }),
+                " ",
+                s.text,
+            ] }, `seg-${i}`),
+        ].filter(Boolean)),
+    ] });
 }
 // Resolve a preview line into table columns. Prefers structured `cols`; falls
 // back to positional metaParts ([surfaces, since, ...note]) for older snapshots.

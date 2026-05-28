@@ -50,14 +50,20 @@ function PrintRunner({ patientId, mode, includePatient, onDone }) {
   useEffect(() => {
     const after = () => onDone();
     window.addEventListener("afterprint", after);
-    // Generous wait so the 32 odontogram WebPs decode, the hidden replica
-    // measurement pass and pagination settle before the browser print dialog
-    // opens. Without this, "historical" can fire print() before images decode
-    // and the chart page renders empty.
-    const t = setTimeout(() => { try { window.print(); } catch {} }, 2200);
+    // Open the system print dialog as soon as the off-screen replica paints.
+    // The 32 WebP teeth (1.1 MB → 81 KB) decode in <100 ms on modern hardware,
+    // and the browser is allowed to keep decoding while the dialog is open —
+    // the printed page only finalises when the user actually hits Print, by
+    // which time everything has settled.
+    //
+    // PLAIN mode = no clinical sections + blank chart, ready instantly.
+    // HISTORICAL mode = small extra wait so the pagination measurement pass
+    // settles before print captures the layout.
+    const delay = mode === "historical" ? 400 : 80;
+    const t = setTimeout(() => { try { window.print(); } catch {} }, delay);
     const fallback = setTimeout(onDone, 60000);
     return () => { clearTimeout(t); clearTimeout(fallback); window.removeEventListener("afterprint", after); };
-  }, [onDone]);
+  }, [onDone, mode]);
   // Historical: full Rx snapshot (clinical sections + dental + oral via chart store).
   // Plain: empty snapshot + blank chart override → only the letterhead + patient + odontogram.
   const isPlain = mode !== "historical";
@@ -77,37 +83,78 @@ function PrintRunner({ patientId, mode, includePatient, onDone }) {
   );
 }
 
+// Returns true if the patient has any chart data worth printing in "historical"
+// mode — per-tooth diagnoses, treatment history entries, oral entries, or oral
+// notes. Reads the same `dental.exam.chart.<patientId>` store the chart uses.
+function hasHistoricalData(patientId) {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(`dental.exam.chart.${patientId || "apt-1"}`);
+    if (!raw) return false;
+    const c = JSON.parse(raw) || {};
+    if (Array.isArray(c.oralEntries) && c.oralEntries.length > 0) return true;
+    if (typeof c.oralNotes === "string" && c.oralNotes.trim().length > 0) return true;
+    if (Array.isArray(c.entries) && c.entries.length > 0) return true;
+    if (c.toothDiagnoses && Object.keys(c.toothDiagnoses).length > 0) return true;
+    if (c.findingsByTooth && Object.keys(c.findingsByTooth).length > 0) return true;
+    if (c.treatmentHistoryByTooth && Object.keys(c.treatmentHistoryByTooth).length > 0) return true;
+    return false;
+  } catch { return false; }
+}
+
 export function DentalChartPrintButton({ patientId }) {
   const [open, setOpen] = useState(false);
   const [includePatient, setIncludePatient] = useState(true);
   const [printReq, setPrintReq] = useState(null);
+  // Re-evaluate every time the dropdown opens so we reflect the latest chart
+  // state without subscribing to a store change channel.
+  const [historicalAvailable, setHistoricalAvailable] = useState(false);
   const rootRef = useRef(null);
   useEffect(() => {
     if (!open) return;
+    setHistoricalAvailable(hasHistoricalData(patientId));
     const onDoc = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  }, [open, patientId]);
 
-  const choose = (mode) => { setOpen(false); setPrintReq({ mode, includePatient }); };
+  const choose = (mode) => {
+    if (mode === "historical" && !historicalAvailable) return; // no-op when disabled
+    setOpen(false);
+    setPrintReq({ mode, includePatient });
+  };
   // A print-option row — icon + title + sub + chevron, all on the even font
   // scale (14 / 12). Hover bg is the standard slate-100 tint used in app menus.
-  const item = (icon, label, sub, mode) => (
-    <button type="button" onClick={() => choose(mode)} style={{ display: "flex", width: "100%", alignItems: "center", gap: 12, textAlign: "left", padding: "12px 14px", border: "none", background: "transparent", cursor: "pointer", borderRadius: 10 }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(100,116,139,0.08)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
-      <span style={{ display: "inline-flex", height: 36, width: 36, alignItems: "center", justifyContent: "center", borderRadius: 8, background: "rgba(75,74,213,0.10)", flexShrink: 0 }}>
-        <TPMedicalIcon name={icon} variant="bulk" size={18} color="var(--tp-blue-500)" />
-      </span>
-      <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", fontFamily: "Inter, sans-serif" }}>{label}</span>
-        <span style={{ fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: "Inter, sans-serif", lineHeight: 1.4 }}>{sub}</span>
-      </span>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: "#94a3b8" }} aria-hidden="true">
-        <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </button>
-  );
+  // `disabled` greys the row + suppresses hover, and the entire row is wrapped
+  // in a tooltip so doctors learn WHY the option is unavailable.
+  const item = (icon, label, sub, mode, opts = {}) => {
+    const { disabled = false, disabledReason = "" } = opts;
+    const btn = (
+      <button type="button" onClick={() => choose(mode)} disabled={disabled} style={{ display: "flex", width: "100%", alignItems: "center", gap: 12, textAlign: "left", padding: "12px 14px", border: "none", background: "transparent", cursor: disabled ? "not-allowed" : "pointer", borderRadius: 10, opacity: disabled ? 0.5 : 1 }}
+        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = "rgba(100,116,139,0.08)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
+        <span style={{ display: "inline-flex", height: 36, width: 36, alignItems: "center", justifyContent: "center", borderRadius: 8, background: "rgba(75,74,213,0.10)", flexShrink: 0 }}>
+          <TPMedicalIcon name={icon} variant="bulk" size={18} color="var(--tp-blue-500)" />
+        </span>
+        <span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", fontFamily: "Inter, sans-serif" }}>{label}</span>
+          <span style={{ fontSize: 12, fontWeight: 400, color: "#64748b", fontFamily: "Inter, sans-serif", lineHeight: 1.4 }}>{sub}</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, color: "#94a3b8" }} aria-hidden="true">
+          <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    );
+    if (disabled && disabledReason) {
+      // span wrapper required so the tooltip still fires on a disabled <button>
+      return (
+        <TPTooltip title={disabledReason} arrow placement="left">
+          <span style={{ display: "block", width: "100%" }}>{btn}</span>
+        </TPTooltip>
+      );
+    }
+    return btn;
+  };
 
   return (
     <div ref={rootRef} style={{ position: "relative" }}>
@@ -115,7 +162,7 @@ export function DentalChartPrintButton({ patientId }) {
         <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 320, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 16px 40px rgba(2,6,23,0.20)", padding: 8, zIndex: 40, fontFamily: "Inter, sans-serif" }}>
           <div style={{ padding: "4px 10px 8px", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Print</div>
           {item("tooth", "Plain dental chart", "Blank odontogram template", "plain")}
-          {item("clipboard-activity", "Historical dental chart", "With recorded findings & history", "historical")}
+          {item("clipboard-activity", "Historical dental chart", "With recorded findings & history", "historical", { disabled: !historicalAvailable, disabledReason: "There is no historical data to print for this patient." })}
           <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 6px 8px 10px", marginTop: 4, borderTop: "1px solid #f1f5f9", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#475569" }}>
             <TPCheckbox size="small" checked={includePatient} onChange={(e) => setIncludePatient(e.target.checked)} sx={{ padding: 0, marginRight: "4px" }} />
             <span style={{ flex: 1 }}>Include patient information</span>
