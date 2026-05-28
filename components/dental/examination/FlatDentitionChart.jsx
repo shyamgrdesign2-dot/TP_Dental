@@ -252,19 +252,18 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   }, [patientId, chartProp]);
   // Uniform tooth height = widest-half-width / aspect-sum, so every tooth is the
   // SAME height while the widest row still fits (responsive to the container).
-  // CENTRE_RESERVE accounts for the divider line + its left/right margins +
-  // inner horizontal padding + per-tooth gap reserve so the chart breathes
-  // properly. Scaling factor 0.65 (was 0.78) shrinks every tooth uniformly so
-  // the lower molars (47/48, 37/38) no longer crowd against their neighbours,
-  // freeing horizontal space that `space-evenly` redistributes as inter-tooth
-  // whitespace AND deeper centre-quadrant gap.
+  // CENTRE_RESERVE = the same gap we use between maxillary and mandibular rows
+  // (8 px column gap) so the right↔left quadrant separation reads as the SAME
+  // visual rhythm as the upper↔lower jaw separation. No inner padding either —
+  // `space-evenly` alone distributes any leftover space cleanly.
   useEffect(() => {
     const measure = () => {
       const w = wrapRef.current?.clientWidth || 660;
-      // 1px divider + (24px margin × 2) + (16px inner pad × 2) + (16 × 6 inter-tooth gap reserve) = ~177
-      const CENTRE_RESERVE = 81;
+      // 1px divider + 8px total margin (4px each side) — matches column gap.
+      const CENTRE_RESERVE = 9;
       const half = (w - CENTRE_RESERVE) / 2;
-      // 0.65 — smaller teeth → more whitespace distributed by `space-evenly`.
+      // 0.65 keeps the chart compact so the trailing molars (28, 38) don't
+      // overflow the container edge.
       const H = Math.max(40, Math.min(80, (half / MAX_HALF_ASPECT_SUM) * 0.65));
       setToothH(H);
     };
@@ -291,21 +290,14 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   const cell = (fdi, arch) => (
     <ChartToothCell key={fdi} fdi={fdi} h={toothH} arch={arch} zones={zonesByTooth[fdi]} st={toothState(fdi, toothDiagnoses, findingsByTooth)} />
   );
-  // The right/left quadrant separation has THREE layered safeguards so the
-  // inner-most tooth (11 in the upper row, 41 in the lower) never visually
-  // grazes the centre divider — even with `space-evenly`, even when the
-  // lower-row tooth glyphs render with their full root:
-  //   1. Divider margin: 24px on each side (48px total around the 1px line).
-  //   2. Inner padding: 16px paddingRight on the left half, 16px paddingLeft
-  //      on the right half — gives the inner tooth a hard reserve even if
-  //      the flex space-evenly math collapses on narrow containers.
-  //   3. CENTRE_RESERVE in the tooth-height calc subtracts all of the above
-  //      from the half-width budget so the teeth stay sized to fit.
+  // Right/left quadrant gap matches the upper/lower jaw gap (8px row gap)
+  // so the chart reads with one consistent rhythm. `space-evenly` keeps
+  // the inner-most tooth (11 / 41) from sitting flush against the divider.
   const row = (fdis, arch) => (
     <div style={{ display: "flex", alignItems: "stretch" }}>
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly", paddingRight: 16 }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
-      <div style={{ width: 1, background: "#e2e8f0", margin: "0 24px" }} />
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly", paddingLeft: 16 }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
+      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
+      <div style={{ width: 1, background: "#e2e8f0", margin: "0 4px" }} />
+      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
     </div>
   );
 
