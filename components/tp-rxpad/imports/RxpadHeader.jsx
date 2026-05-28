@@ -362,7 +362,7 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                     // Gate the historical toggle off the same chart-store
                     // check the Print Dental Chart dropdown uses — a patient
                     // with no chart data sees a disabled toggle + tooltip.
-                    const historyAvailable = opt.key !== "includeHistorical" || hasHistoricalData(patientId)
+                    const historyAvailable = opt.key !== "includeHistorical" || hasHistoricalData(getCurrentPatientId())
                     const disabled = !historyAvailable
                     const effectiveOn = disabled ? false : on
                     return (
