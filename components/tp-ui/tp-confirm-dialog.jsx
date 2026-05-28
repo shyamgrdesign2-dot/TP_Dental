@@ -84,12 +84,10 @@ export function TPConfirmDialog({
                   type: "button",
                   "aria-label": "Close",
                   className: styles.closeBtn,
-                  onClick: (e) => {
-                    if (_onSecondary) {
-                      e.preventDefault();
-                      _onSecondary();
-                    }
-                  },
+                  // X always just dismisses — no callback. Letting Radix's
+                  // built-in close fire (no preventDefault) ensures the
+                  // dialog actually closes; firing onSecondary here would
+                  // wrongly trigger the destructive action.
                   children: _jsxs("svg", {
                     width: 16,
                     height: 16,
@@ -152,12 +150,10 @@ export function TPConfirmDialog({
                 children: _jsx("button", {
                   type: "button",
                   className: secondaryClass,
-                  onClick: (e) => {
-                    if (_onSecondary) {
-                      e.preventDefault();
-                      _onSecondary();
-                    }
-                  },
+                  // Fire the callback (often the destructive action when
+                  // `secondaryTone === "destructive"`) and let Radix's auto-
+                  // close run. No preventDefault — it was swallowing the close.
+                  onClick: () => { if (typeof _onSecondary === "function") _onSecondary(); },
                   children: _secondaryLabel,
                 }),
               }),
@@ -167,10 +163,7 @@ export function TPConfirmDialog({
                   children: _jsx("button", {
                     type: "button",
                     className: tertiaryClass,
-                    onClick: (e) => {
-                      e.preventDefault();
-                      if (typeof onTertiary === "function") onTertiary();
-                    },
+                    onClick: () => { if (typeof onTertiary === "function") onTertiary(); },
                     children: tertiaryLabel,
                   }),
                 }),
@@ -180,11 +173,12 @@ export function TPConfirmDialog({
                   type: "button",
                   className: primaryClass,
                   disabled: primaryDisabled,
-                  onClick: (e) => {
-                    e.preventDefault();
-                    if (!primaryDisabled && typeof _onPrimary === "function") {
-                      _onPrimary();
-                    }
+                  // Same fix — drop preventDefault so the "No, Keep It" /
+                  // safe-cancel primary actually dismisses the dialog when
+                  // there's no custom handler. If `onPrimary` is defined,
+                  // run it and still allow the close.
+                  onClick: () => {
+                    if (!primaryDisabled && typeof _onPrimary === "function") _onPrimary();
                   },
                   children: _primaryLabel,
                 }),
