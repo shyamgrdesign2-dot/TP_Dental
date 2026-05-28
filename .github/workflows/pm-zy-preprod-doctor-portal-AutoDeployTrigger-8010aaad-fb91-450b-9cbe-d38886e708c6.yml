@@ -8,7 +8,7 @@ on:
       [ prod ]
     paths:
       - '**'
-      - '.github/workflows/pm-preprod-doctor-portal-AutoDeployTrigger-8010aaad-fb91-450b-9cbe-d38886e708c6.yml'
+      - '.github/workflows/pm-zy-preprod-doctor-portal-AutoDeployTrigger-8010aaad-fb91-450b-9cbe-d38886e708c6.yml'
 
   # Allow manual trigger
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      REACT_APP_ENV: preprod
+      REACT_APP_ENV: zy-preprod
 
     permissions:
       id-token: write # This is required for requesting the OIDC JWT Token
