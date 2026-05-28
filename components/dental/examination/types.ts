@@ -159,6 +159,169 @@ export const TOOTH_DIAGNOSES = [
 ] as const
 
 // ══════════════════════════════════════════════════════════════
+// ORAL EXAMINATION — region-level (NOT tied to a single tooth)
+// ══════════════════════════════════════════════════════════════
+// Recorded against a region (a quadrant, an arch, or the whole mouth)
+// rather than an individual tooth. Two kinds: soft-tissue/regional
+// "findings" (observations) and regional "procedures".
+export const ORAL_REGIONS = [
+  { id: 'UR', label: 'UR', title: 'Upper right quadrant' },
+  { id: 'UL', label: 'UL', title: 'Upper left quadrant' },
+  { id: 'LR', label: 'LR', title: 'Lower right quadrant' },
+  { id: 'LL', label: 'LL', title: 'Lower left quadrant' },
+  { id: 'RIGHT_ARCH', label: 'R arch', title: "Patient's right arch (UR + LR)" },
+  { id: 'LEFT_ARCH', label: 'L arch', title: "Patient's left arch (UL + LL)" },
+  { id: 'UPPER_ARCH', label: 'Maxillary', title: 'Maxillary arch (UR + UL)' },
+  { id: 'LOWER_ARCH', label: 'Mandibular', title: 'Mandibular arch (LR + LL)' },
+  { id: 'FULL', label: 'Full', title: 'Full mouth — all teeth' },
+] as const
+
+export const ORAL_REGION_LABELS: Record<string, string> = {
+  UR: 'Upper Right', UL: 'Upper Left', LR: 'Lower Right', LL: 'Lower Left',
+  RIGHT_ARCH: 'Right arch', LEFT_ARCH: 'Left arch',
+  UPPER_ARCH: 'Maxillary', LOWER_ARCH: 'Mandibular', FULL: 'Full mouth',
+}
+
+// Oral findings, grouped the way a clinician thinks about the whole oral cavity:
+// periodontal (maps to teeth), soft-tissue/mucosa (oral sites), and functional.
+export const ORAL_FINDING_GROUPS = [
+  { group: 'Periodontal', items: ['Gingivitis', 'Periodontitis', 'Pocket Depth', 'Gingival Recession', 'Bleeding on Probing', 'Calculus', 'Plaque'] },
+  { group: 'Soft tissue / Mucosa', items: ['Ulcer', 'Swelling', 'Pigmentation', 'White Patch', 'Red Patch', 'Coating', 'Mucosal Lesion'] },
+  { group: 'Functional', items: ['Restricted Mouth Opening', 'TMJ Click / Pain', 'Poor Oral Hygiene', 'Xerostomia (Dry Mouth)', 'Speech / Swallowing Difficulty', 'Halitosis'] },
+] as const
+
+export const ORAL_PROCEDURE_GROUPS = [
+  { group: 'Periodontal / Surgical', items: ['Scaling & Polishing', 'Root Planing', 'LANAP', 'Flap Surgery', 'Gingivectomy', 'Operculectomy', 'Crown Lengthening', 'Depigmentation', 'Photodynamic Therapy', 'Full-Mouth Pocket Disinfection', 'Bone Graft'] },
+  { group: 'Soft tissue', items: ['Frenectomy', 'Vestibuloplasty', 'Tori Removal', 'Biopsy', 'Cyst Enucleation'] },
+  { group: 'Prosthetic / Appliance', items: ['Complete Denture', 'Partial Denture', 'Night Guard', 'Teeth Splinting'] },
+] as const
+
+// Flat lists (dedup / iteration helpers).
+export const ORAL_FINDINGS: string[] = ORAL_FINDING_GROUPS.flatMap((g) => [...g.items])
+export const ORAL_PROCEDURES: string[] = ORAL_PROCEDURE_GROUPS.flatMap((g) => [...g.items])
+
+// Site/Location options for an oral finding/procedure row. A row can carry any
+// mix of: a distribution marker, an oral anatomical site (soft tissue — recorded
+// as a label, since the 3D model is teeth-only), a tooth region (which DOES
+// highlight those teeth), and a tooth surface.
+//
+// CLINICAL TAXONOMY NOTE (verified 2026-05):
+//   - "Distribution" is the standard term in oral medicine for extent
+//     (universal across periodontal / oral-pathology charting).
+//   - "Oral sites" covers intra-oral soft-tissue + TMJ landmarks. Could be
+//     renamed "Soft-Tissue Sites" for precision, but "Oral sites" is the
+//     terminology most dentists use day-to-day, so kept.
+//   - "Tooth regions" groups scope subdivisions (full mouth, arches, quadrants).
+//     Alternative naming "Arches & Quadrants" is more anatomically precise but
+//     "Tooth regions" reads better next to "Tooth surfaces" below.
+//   - "Tooth surfaces" matches FDI/ISO standard tooth nomenclature.
+//
+// Verdict: groupings are clinically accurate as-is; renames would be cosmetic
+// at best and break any in-flight muscle memory. Kept as the doctor flagged
+// the option to leave them if they're correct.
+export const ORAL_POSITION_GROUPS = [
+  { group: 'Distribution', items: [
+    { id: 'WHOLE', label: 'Whole mouth' }, { id: 'GENERALIZED', label: 'Generalized' }, { id: 'LOCALIZED', label: 'Localized' },
+  ] },
+  { group: 'Oral sites', items: [
+    { id: 'gingiva', label: 'Gingiva' }, { id: 'buccal_mucosa', label: 'Buccal mucosa' },
+    { id: 'tongue', label: 'Tongue' }, { id: 'floor_mouth', label: 'Floor of mouth' },
+    { id: 'hard_palate', label: 'Hard palate' }, { id: 'soft_palate', label: 'Soft palate' },
+    { id: 'upper_lip', label: 'Upper lip' }, { id: 'lower_lip', label: 'Lower lip' },
+    { id: 'vestibule', label: 'Vestibule' }, { id: 'labial_mucosa', label: 'Labial mucosa' },
+    { id: 'tmj', label: 'TMJ' },
+  ] },
+  { group: 'Tooth regions', items: [
+    { id: 'FULL', label: 'Full mouth' },
+    { id: 'UPPER_ARCH', label: 'Maxillary' }, { id: 'LOWER_ARCH', label: 'Mandibular' },
+    { id: 'UR', label: 'Upper Right' }, { id: 'UL', label: 'Upper Left' },
+    { id: 'LR', label: 'Lower Right' }, { id: 'LL', label: 'Lower Left' },
+    { id: 'RIGHT_ARCH', label: 'Right arch' }, { id: 'LEFT_ARCH', label: 'Left arch' },
+  ] },
+  { group: 'Tooth surfaces', items: [
+    { id: 'mesial', label: 'Mesial' }, { id: 'distal', label: 'Distal' },
+    { id: 'buccal', label: 'Buccal / Labial' }, { id: 'lingual', label: 'Lingual / Palatal' },
+    { id: 'occlusal', label: 'Occlusal / Incisal' }, { id: 'cervical', label: 'Cervical' },
+    { id: 'root', label: 'Root' },
+  ] },
+] as const
+
+export const ORAL_POSITION_LABEL: Record<string, string> =
+  Object.fromEntries(ORAL_POSITION_GROUPS.flatMap((g) => g.items.map((i) => [i.id, i.label])))
+
+// Compact labels for the SITE pills inside the (narrow) table cell, so a row
+// with several sites stays one line tall instead of stacking/overflowing.
+export const ORAL_POSITION_SHORT: Record<string, string> = {
+  WHOLE: 'Whole mouth', GENERALIZED: 'Gen.', LOCALIZED: 'Local.',
+  gingiva: 'Gingiva', buccal_mucosa: 'Buccal muc.', tongue: 'Tongue',
+  floor_mouth: 'Floor', hard_palate: 'Hard pal.', soft_palate: 'Soft pal.',
+  upper_lip: 'Upper lip', lower_lip: 'Lower lip', vestibule: 'Vestibule',
+  labial_mucosa: 'Labial muc.', tmj: 'TMJ',
+  UPPER_ARCH: 'Max.', LOWER_ARCH: 'Mand.', UR: 'UR', UL: 'UL', LR: 'LR', LL: 'LL',
+  RIGHT_ARCH: 'R-arch', LEFT_ARCH: 'L-arch', FULL: 'Full mouth',
+  mesial: 'M', distal: 'D', buccal: 'B/La', lingual: 'L/P',
+  occlusal: 'O/I', cervical: 'Cerv.', root: 'Root',
+}
+export function oralPositionShort(id: string): string {
+  return ORAL_POSITION_SHORT[id] || ORAL_POSITION_LABEL[id] || id
+}
+
+// Distribution markers (how widespread a finding is). Mutually exclusive.
+const ORAL_DISTRIBUTION_IDS = ['WHOLE', 'GENERALIZED', 'LOCALIZED']
+// Tooth-arch / quadrant regions (everything except the "FULL" all-teeth marker).
+const ORAL_TOOTH_REGION_IDS = ['UR', 'UL', 'LR', 'LL', 'RIGHT_ARCH', 'LEFT_ARCH', 'UPPER_ARCH', 'LOWER_ARCH']
+
+/**
+ * Real-world clinical reconcile for the SITE multi-select. Mirrors how a
+ * clinician actually scopes a finding instead of allowing nonsensical combos:
+ *
+ *  • "Whole mouth" is an everything-marker → choosing it clears every other
+ *    site/region/surface (and vice-versa: choosing anything specific drops it).
+ *  • Distribution (Whole / Generalized / Localized) is radio-style — picking one
+ *    replaces the others. Generalized/Localized are qualifiers that still allow
+ *    a specific site (e.g. "Generalized" + "Gingiva").
+ *  • "Full mouth" (tooth regions) clears the per-quadrant/arch picks, and
+ *    picking a quadrant/arch clears "Full mouth" — same either/or as the
+ *    single-tooth whole-tooth-vs-surfaces rule.
+ *
+ * Toggling an already-selected id always just removes it.
+ */
+export function reconcileOralPositions(current: string[], id: string): string[] {
+  const set = new Set(current)
+  if (set.has(id)) { set.delete(id); return [...set] }
+
+  if (id === 'WHOLE') return ['WHOLE'] // whole mouth = nothing else needed
+
+  if (id === 'GENERALIZED' || id === 'LOCALIZED') {
+    ORAL_DISTRIBUTION_IDS.forEach((d) => set.delete(d))
+    set.add(id)
+    return [...set]
+  }
+
+  // Any concrete site / region / surface can't coexist with "Whole mouth".
+  set.delete('WHOLE')
+
+  if (id === 'FULL') {
+    ORAL_TOOTH_REGION_IDS.forEach((r) => set.delete(r))
+    set.add('FULL')
+    return [...set]
+  }
+  if (ORAL_TOOTH_REGION_IDS.includes(id)) set.delete('FULL')
+
+  set.add(id)
+  return [...set]
+}
+
+// Positions that map to a set of teeth (so they highlight the 3D model).
+// 'GENERALIZED' and 'WHOLE' light up the whole mouth; soft-tissue sites do not.
+const ORAL_REGION_POSITION_IDS = new Set([
+  'WHOLE', 'GENERALIZED', 'FULL', 'UPPER_ARCH', 'LOWER_ARCH', 'UR', 'UL', 'LR', 'LL', 'RIGHT_ARCH', 'LEFT_ARCH',
+])
+export function isOralRegionPosition(id: string): boolean {
+  return ORAL_REGION_POSITION_IDS.has(id)
+}
+
+// ══════════════════════════════════════════════════════════════
 // 32-TOOTH CATALOG — FDI notation
 // ══════════════════════════════════════════════════════════════
 //

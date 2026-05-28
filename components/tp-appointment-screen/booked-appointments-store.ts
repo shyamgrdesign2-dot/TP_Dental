@@ -25,7 +25,14 @@ export interface BookedAppointment {
   /** e.g. "10:00 AM" */
   time: string
   doctor: string
+  /** Receptionist remark captured at booking. */
   notes?: string
+  /** Patient display fields — let the listing render a row even when the
+   * patient isn't already in the base queue (standalone bookings). */
+  patientName?: string
+  patientContact?: string
+  patientMeta?: string
+  caseType?: string
   createdAt: string
 }
 

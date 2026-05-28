@@ -23,7 +23,6 @@ const RX_SIDEBAR_IDS = new Set([
   "personalNotes",
   "dental",
   "ophthal",
-  "dentalPlan",
 ])
 
 export function SecondarySidebar() {

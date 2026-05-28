@@ -28,7 +28,7 @@ function RxPadDrAgentAside() {
         "flex shrink-0 flex-col border-tp-slate-200 bg-white",
         "min-h-0 max-h-[min(52vh,560px)] w-full border-t md:h-full md:max-h-none md:w-[clamp(350px,25vw,400px)] md:max-w-[400px] md:border-l md:border-t-0",
       )}
-      aria-label="Dr. Agent"
+      aria-label="VoiceRx"
     >
       <DrAgentPanel
         onClose={() => setDrAgentOpen(false)}

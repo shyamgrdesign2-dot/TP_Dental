@@ -15,6 +15,10 @@ export const PLAN_DRAWER_PANEL_CLASS =
  * services table than the preview / booking drawers and needs more room. */
 export const PLAN_DRAWER_WIDE_PANEL_CLASS =
     "!gap-0 !rounded-none !min-h-0 !w-[min(100vw,880px)] !max-w-[880px] sm:!w-[880px] sm:!max-w-[880px]";
+/** Extra-wide (~80% of viewport) — for drawers that host a full procedures
+ * table and benefit from more horizontal room (e.g. Record visit). */
+export const PLAN_DRAWER_XWIDE_PANEL_CLASS =
+    "!gap-0 !rounded-none !min-h-0 !w-[80vw] !max-w-[80vw] sm:!w-[80vw] sm:!max-w-[80vw]";
 const PLAN_SURFACE_CHIP_CLASS = "inline-flex h-[18px] cursor-default items-center rounded-[4px] px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-white tabular-nums outline-none transition-[filter] duration-150 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tp-blue-500/45 focus-visible:ring-offset-1";
 /** Abbreviated surface pills with hover ring + tooltip (full surface name). */
 export function PlanSurfaceAbbrTags({ surfaces, gapClass = "gap-[3px]", wrap = false }) {
@@ -80,6 +84,21 @@ export function DrawerHeader({ title, onClose, action, titleClassName }) {
 }
 export function computePlanTotal(services) {
     return services.reduce((sum, s) => sum + s.amount, 0);
+}
+// Every tooth a service covers (grouped multi-tooth procedures keep them all).
+export function serviceToothFdis(service) {
+    if (service.toothFdis && service.toothFdis.length > 0)
+        return service.toothFdis;
+    return service.toothFdi ? [service.toothFdi] : [];
+}
+// Compact tooth display for a service row, e.g. "Full", "T11", or "T11, T21, T22".
+export function serviceToothDisplay(service) {
+    const fdis = serviceToothFdis(service);
+    if (fdis.length === 0)
+        return "—";
+    if (fdis.length === 1)
+        return fdis[0] === "full-mouth" ? "Full" : `T${fdis[0]}`;
+    return fdis.map((f) => (f === "full-mouth" ? "Full" : `T${f}`)).join(", ");
 }
 export function computePlanDiscount(services) {
     return services.reduce((sum, s) => sum + s.discount, 0);

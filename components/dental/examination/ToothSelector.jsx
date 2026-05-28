@@ -105,6 +105,7 @@ export function ToothSelector({
     implantTeeth,
     allEntries,
     toothNotes,
+    onEnterOralExam,
 }) {
     const activeTeeth = patientType === 'adult'
         ? TEETH
@@ -166,7 +167,6 @@ export function ToothSelector({
             _jsxs("div", {
                 className: "tooth-chart",
                 children: [
-                    onSelectScope && (_jsx(ExamScopeChipBar, { selectionScope: selectionScope, onSelectScope: onSelectScope, getScopeFdis: getScopeFdis, toothDiagnoses: toothDiagnoses, implantTeeth: implantTeeth, findingsByTooth: findingsByTooth, allEntries: allEntries, toothNotes: toothNotes })),
                     _jsxs("div", {
                         className: "tooth-chart-stack",
                         children: [

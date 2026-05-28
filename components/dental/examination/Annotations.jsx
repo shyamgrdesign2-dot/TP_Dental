@@ -85,16 +85,14 @@ export function Annotations({ toothMesh, findings, zoneNotes, arch, toothPositio
             let rayY;
             switch (zoneId) {
                 case 'whole':
-                    outwardDir = new THREE.Vector3(0, 1, 0);
-                    rayY = bb.max.y + size.y * 0.18;
-                    points.push({
-                        id: `annot-${zoneId}`,
-                        zoneId,
-                        position: new THREE.Vector3(center.x, rayY, center.z),
-                        normal: outwardDir,
-                        findings: zoneFindingsList,
-                    });
-                    continue;
+                    // Whole-tooth tag: pin to the occlusal (chewing) end of the
+                    // tooth so the position is predictable — BELOW the crown for
+                    // maxillary teeth and ABOVE the crown for mandibular teeth.
+                    // Mirrors the 'occlusal' placement so it never lands on a
+                    // random buccal/lingual face.
+                    outwardDir = new THREE.Vector3(0, arch === 'maxillary' ? -1 : 1, 0);
+                    rayY = arch === 'maxillary' ? bb.min.y - 1 : bb.max.y + 1;
+                    break;
                 case 'occlusal':
                     outwardDir = new THREE.Vector3(0, arch === 'maxillary' ? -1 : 1, 0);
                     rayY = arch === 'maxillary' ? bb.min.y - 1 : bb.max.y + 1;
@@ -145,6 +143,19 @@ export function Annotations({ toothMesh, findings, zoneNotes, arch, toothPositio
             else {
                 position = new THREE.Vector3(center.x + outwardDir.x * size.x * 0.4, rayY, center.z + outwardDir.z * size.z * 0.4);
                 normal = outwardDir;
+            }
+            // Whole-tooth marker should sit CLEARLY off the tooth body (below the
+            // crown for maxillary, above for mandibular) — not on the occlusal
+            // surface itself. Override the surface-hugging position with a fixed
+            // bbox-extreme + outward offset so it never overlaps the tooth.
+            if (zoneId === 'whole') {
+                const yOff = 0.55;
+                position = new THREE.Vector3(
+                    center.x,
+                    arch === 'maxillary' ? bb.min.y - yOff : bb.max.y + yOff,
+                    center.z
+                );
+                normal = new THREE.Vector3(0, arch === 'maxillary' ? -1 : 1, 0);
             }
             points.push({
                 id: `annot-${zoneId}`,

@@ -17,6 +17,43 @@ import { ToothIcon } from "@/components/dental/ToothIcon";
 import { tpSectionCardStyle } from "../tokens";
 import { useStickyHeaderState } from "../detail-shared";
 import pv from "./PastVisitsContent.module.scss";
+import { getPlanProcedures, PLAN_PROCEDURES_UPDATED_EVENT } from "@/lib/plan-procedures-store";
+const PROC_STATUS_LABEL = { "not-started": "Planned", planned: "Planned", "in-progress": "In Progress", completed: "Completed", "no-show": "No Show", "not-interested": "Not Interested" };
+// Build a synthetic "from treatment plan" visit out of published procedures so
+// chairside procedures recorded in the dental plan show up in Past Visits.
+function buildPlanProcedureVisit(procs) {
+    if (!procs || procs.length === 0) return null;
+    const byTooth = new Map();
+    for (const p of procs) {
+        const toothLabel = p.toothLabel || "General";
+        if (!byTooth.has(toothLabel)) byTooth.set(toothLabel, []);
+        byTooth.get(toothLabel).push({
+            name: p.name,
+            surface: p.doctor || "",
+            date: p.date || "",
+            status: p.status ? (PROC_STATUS_LABEL[p.status] ?? p.status) : "",
+            notes: p.notes || "",
+        });
+    }
+    const dentalExamination = Array.from(byTooth.entries()).map(([toothLabel, procedures]) => ({
+        toothLabel, treatmentHistory: [], findings: [], procedures, overallToothNote: "",
+    }));
+    return {
+        id: "plan-procedures",
+        dateLabel: "From Treatment Plan",
+        isProcedureTag: true,
+        digitalRx: {
+            symptoms: [], examinations: [], diagnoses: [], dentalExamination,
+            medications: [], advice: "", followUp: "", labInvestigations: [], vitals: {},
+        },
+        writtenRx: [],
+    };
+}
+function readPatientIdFromUrl() {
+    if (typeof window === "undefined") return "apt-1";
+    try { return new URLSearchParams(window.location.search).get("patientId") || "apt-1"; }
+    catch { return "apt-1"; }
+}
 function normalizePointerText(value) {
     return value
         .replace(/\s*[•·]\s*/g, " • ")
@@ -602,7 +639,20 @@ export function PastVisitsContent() {
     const [tabState, setTabState] = useState(() => Object.fromEntries(PAST_VISITS.map((entry) => [entry.id, entry.digitalRx ? "digital" : "written"])));
     const [activeDocument, setActiveDocument] = useState(null);
     const [snackbar, setSnackbar] = useState(null);
-    const orderedVisits = useMemo(() => PAST_VISITS, []);
+    const [planProcs, setPlanProcs] = useState([]);
+    useEffect(() => {
+        const patientId = readPatientIdFromUrl();
+        const load = () => setPlanProcs(getPlanProcedures(patientId));
+        load();
+        window.addEventListener(PLAN_PROCEDURES_UPDATED_EVENT, load);
+        window.addEventListener("storage", load);
+        return () => {
+            window.removeEventListener(PLAN_PROCEDURES_UPDATED_EVENT, load);
+            window.removeEventListener("storage", load);
+        };
+    }, []);
+    const planProcedureVisit = useMemo(() => buildPlanProcedureVisit(planProcs), [planProcs]);
+    const orderedVisits = useMemo(() => (planProcedureVisit ? [planProcedureVisit, ...PAST_VISITS] : PAST_VISITS), [planProcedureVisit]);
     const showCopySnackbar = (message) => {
         setSnackbar({ id: Date.now(), message });
     };
@@ -634,10 +684,10 @@ export function PastVisitsContent() {
         }
     };
     return (_jsxs(_Fragment, { children: [_jsx("div", { className: pv.scrollFlex, "data-sticky-scroll-root": "true", children: _jsx("div", { className: pv.innerStack, children: orderedVisits.map((entry) => {
-                        const expanded = Boolean(expandedState[entry.id]);
+                        const expanded = entry.isProcedureTag ? (expandedState[entry.id] ?? true) : Boolean(expandedState[entry.id]);
                         const hasDigital = Boolean(entry.digitalRx);
                         const hasWritten = entry.writtenRx.length > 0;
-                        const activeTab = tabState[entry.id];
+                        const activeTab = tabState[entry.id] ?? (hasDigital ? "digital" : "written");
                         const showDigital = expanded && hasDigital && activeTab === "digital";
                         const showWritten = expanded && hasWritten && (!hasDigital || activeTab === "written");
                         const diagnosisItems = entry.digitalRx ? entry.digitalRx.diagnoses : [];
@@ -665,7 +715,7 @@ export function PastVisitsContent() {
                                             ...prev,
                                             [entry.id]: !prev[entry.id],
                                         }));
-                                    }, onCopyDate: () => showCopySnackbar(`${entry.dateLabel} details added successfully to RxPad`) }), expanded ? (_jsxs(_Fragment, { children: [hasDigital && hasWritten ? (_jsx(RxTabStrip, { activeTab: activeTab, onSwitch: (tab) => {
+                                    }, onCopyDate: () => showCopySnackbar(`${entry.dateLabel} details added successfully to RxPad`) }), entry.isProcedureTag ? _jsx("div", { style: { padding: "0 14px 6px" }, children: _jsx("span", { style: { display: "inline-flex", alignItems: "center", borderRadius: 5, background: "rgba(139,92,246,0.12)", color: "#7c3aed", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", padding: "2px 7px" }, children: "Procedure" }) }) : null, expanded ? (_jsxs(_Fragment, { children: [hasDigital && hasWritten ? (_jsx(RxTabStrip, { activeTab: activeTab, onSwitch: (tab) => {
                                                 setTabState((prev) => ({ ...prev, [entry.id]: tab }));
                                             } })) : null, showDigital && entry.digitalRx ? (_jsxs(_Fragment, { children: [entry.digitalRx.symptoms.length > 0 ? (_jsx(ListSection, { icon: _jsx(SymptomsIcon, {}), title: "Symptoms", items: entry.digitalRx.symptoms, onCopySection: () => showCopySnackbar("Symptoms added successfully to RxPad"), onCopyItem: (item) => showCopySnackbar(`${item.label} symptom added successfully to RxPad`) })) : null, entry.digitalRx.examinations.length > 0 ? (_jsx(ListSection, { icon: _jsx(ExamIcon, {}), title: "Examination", items: entry.digitalRx.examinations, onCopySection: () => showCopySnackbar("Examination findings added successfully to RxPad"), onCopyItem: (item) => showCopySnackbar(`${item.label} finding added successfully to RxPad`) })) : null, diagnosisItems.length > 0 ? (_jsx(ListSection, { icon: _jsx(DiagnosisIcon, {}), title: "Diagnosis", items: diagnosisItems, onCopySection: () => showCopySnackbar("Diagnoses added successfully to RxPad"), onCopyItem: (item) => showCopySnackbar(`${item.label} diagnosis added successfully to RxPad`) })) : null, entry.digitalRx.labInvestigations.length > 0 ? (_jsx(ListSection, { icon: _jsx(DiagnosisIcon, {}), title: "Lab Investigation", items: entry.digitalRx.labInvestigations.map((item) => ({ label: item, detail: "" })), onCopySection: () => showCopySnackbar("Lab investigations added successfully to RxPad"), onCopyItem: (item) => showCopySnackbar(`${item.label} added successfully to RxPad`) })) : null, medicationItems.length > 0 ? (_jsx(ListSection, { icon: _jsx(PillIcon, {}), title: "Medication (Rx)", items: medicationItems, onCopySection: () => showCopySnackbar("Medications added successfully to RxPad"), onCopyItem: (item) => showCopySnackbar(`${item.label} medication added successfully to RxPad`) })) : null, hasDentalContent ? (_jsx("div", { className: pv.dentalStack, children: dentalToothBlocks.map((block) => (_jsx(DentalToothBlock, { block: block }, `${entry.id}-${block.toothLabel}`))) })) : null, entry.digitalRx.advice.trim() ? (_jsx(AdviceSection, { advice: entry.digitalRx.advice, onCopy: () => showCopySnackbar("Advice added successfully to RxPad") })) : null, entry.digitalRx.followUp.trim() ? (_jsx(FollowUpSection, { followUp: entry.digitalRx.followUp, onCopy: () => showCopySnackbar("Follow-up added successfully to RxPad") })) : null, !hasClinicalContent && !hasDentalContent ? (_jsx("div", { className: pv.emptyClinical, children: _jsx("p", { className: pv.emptyClinicalText, children: "No clinical or dental examination details available for this visit." }) })) : null] })) : null, showWritten ? (_jsx("div", { className: pv.writtenStack, children: entry.writtenRx.map((document) => (_jsx(WrittenRxPreviewCard, { document: document, onOpen: (selectedDocument) => openDocument(entry.dateLabel, selectedDocument), onPreview: (selectedDocument) => {
                                                     openDocument(entry.dateLabel, selectedDocument);

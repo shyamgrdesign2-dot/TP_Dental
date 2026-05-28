@@ -18,6 +18,10 @@ export interface SittingRecord {
   /** ISO timestamp used for timeline ordering when quick-visit records are added. */
   createdAt?: string
   notes?: string
+  /** Optional recall / follow-up interval captured in the quick visit (e.g. "2 weeks"). */
+  followUp?: string
+  /** Procedures performed during this quick visit (also mirrored onto the service). */
+  procedures?: SubProcedure[]
   /**
    * Quick-visit row on the merged timeline.
    * Omit or `"completed"` — saved visit with notes / Rx CTAs.
@@ -38,6 +42,9 @@ export interface AppointmentRecord {
   cancellationReason?: string
   patientCategory?: string
   caseType?: string
+  /** Planned-procedure context so the appointment can tell the story (tag + hover). */
+  serviceName?: string
+  toothLabel?: string
 }
 
 /** Saved when a visit is ended from RxPad with plan + treatment context in the URL. */
@@ -127,8 +134,14 @@ export interface PlanService {
   id: string
   planId: string
   treatment: string         // from TREATMENT_CATALOG
-  toothFdi: string          // single FDI number or "full-mouth"
-  toothLabel: string        // e.g. "Upper Right Third Molar"
+  toothFdi: string          // representative/first FDI (back-compat) or "full-mouth"
+  /**
+   * Every tooth this single procedure covers. A multi-tooth procedure (e.g. a
+   * veneer across 11/21/22) is ONE service spanning all of these teeth — not
+   * one service per tooth. Falls back to [toothFdi] for legacy data.
+   */
+  toothFdis?: string[]
+  toothLabel: string        // e.g. "Upper Right Third Molar" or "3 teeth"
   surfaces: SurfaceId[]     // affected surfaces
   rate: number
   discount: number          // flat ₹ discount

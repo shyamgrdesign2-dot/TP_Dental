@@ -19,7 +19,7 @@ import {
 import { usePlanContext } from "./plan-context";
 import {
     SectionFrame, EmptyState, PlanEmptyIcon, ClipboardTickIcon, formatINR, computePlanTotal,
-    getPlanCompletionStatus, getServiceWorkflowStatus,
+    getPlanCompletionStatus, getServiceWorkflowStatus, serviceToothDisplay,
 } from "./plan-shared";
 import dui from "../dental-ui.module.scss";
 
@@ -106,7 +106,8 @@ function CompletedServiceRow({ service, plan, index }) {
                 className: "px-[8px] py-[9px]",
                 children: _jsx("span", {
                     className: "inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[5px] py-[1px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600",
-                    children: service.toothFdi === "full-mouth" ? "Full" : `T${service.toothFdi}`,
+                    title: serviceToothDisplay(service),
+                    children: serviceToothDisplay(service),
                 }),
             }),
             _jsx("td", { className: "px-[8px] py-[9px] font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: service.completedAt ?? "—" }),

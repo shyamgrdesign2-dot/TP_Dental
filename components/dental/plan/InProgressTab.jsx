@@ -27,9 +27,9 @@ import {
 import { usePlanContext } from "./plan-context";
 import {
     SectionFrame, EmptyState, PlanEmptyIcon, formatINR, computePlanTotal, getServiceWorkflowStatus,
-    buildConsultationRxUrl, CloseSquareIcon, PLAN_DRAWER_PANEL_CLASS,
+    buildConsultationRxUrl, CloseSquareIcon, PLAN_DRAWER_PANEL_CLASS, serviceToothDisplay,
 } from "./plan-shared";
-import { TPSplitButton } from "@/components/tp-ui/button-system";
+import { TPButton } from "@/components/tp-ui/button-system";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer";
 import { Select as TPSelect, SelectContent as TPSelectContent, SelectItem as TPSelectItem, SelectTrigger as TPSelectTrigger, SelectValue as TPSelectValue } from "@/components/ui/select";
@@ -957,7 +957,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
     const appointmentItems = service.appointments ?? [];
     const timelineEntries = buildVisitTimelineEntries(service);
     const serviceRxHref = buildConsultationRxUrl(patientId, plan.id, service.id, undefined, embedInPatientShell, service.treatment);
-    const toothText = service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`;
+    const toothText = serviceToothDisplay(service);
     const surfaceSummary = service.surfaces.length > 0
         ? service.surfaces.map((surface) => formatSurfaceLabel(surface)).join(", ")
         : "All surfaces";
@@ -1272,6 +1272,20 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                                     children: appt.doctor,
                                                                                                 }),
                                                                                                 visitBadge(badgeKind),
+                                                                                                (() => {
+                                                                                                    const procName = appt.serviceName ?? service?.treatment;
+                                                                                                    if (!procName) return null;
+                                                                                                    const toothLbl = appt.toothLabel ?? (service?.toothFdi === "full-mouth" ? "Full Mouth" : service ? `T${service.toothFdi} — ${service.toothLabel}` : "");
+                                                                                                    const title = `Planned Procedure: ${procName}${toothLbl ? `\nTooth: ${toothLbl}` : ""}\nDoctor: ${appt.doctor}`;
+                                                                                                    return _jsxs("span", {
+                                                                                                        title,
+                                                                                                        className: "inline-flex max-w-[220px] items-center gap-[4px] rounded-[6px] bg-[rgba(88,28,135,0.08)] px-[8px] py-[2px] font-['Inter',sans-serif] text-[11px] font-semibold text-[#581C87] cursor-default",
+                                                                                                        children: [
+                                                                                                            _jsx("span", { className: "opacity-70", children: "Planned:" }),
+                                                                                                            _jsx("span", { className: "truncate", children: procName }),
+                                                                                                        ],
+                                                                                                    });
+                                                                                                })(),
                                                                                             ],
                                                                                         }),
                                                                                         _jsxs("div", {
@@ -1319,28 +1333,13 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                                 "View Rx",
                                                                                             ],
                                                                                         }),
-                                                                                        !hasVisitNotes && !isCancelled && _jsx(TPSplitButton, {
+                                                                                        !hasVisitNotes && !isCancelled && _jsx(TPButton, {
                                                                                             size: "sm",
                                                                                             variant: "outline",
                                                                                             theme: "primary",
                                                                                             className: "shadow-none",
-                                                                                            trackClassName: TIMELINE_TYPERX_TRACK_CLASS,
-                                                                                            primaryAction: {
-                                                                                                label: "TypeRx",
-                                                                                                onClick: () => window.location.assign(apptRxHref),
-                                                                                            },
-                                                                                            secondaryActions: [
-                                                                                                {
-                                                                                                    id: "quick-record-visit-form",
-                                                                                                    label: "Quick visit record form",
-                                                                                                    onClick: () => openDrawer({ type: "add-sitting", serviceId: service.id }),
-                                                                                                },
-                                                                                                { id: "quick-record-separator", separator: true },
-                                                                                                { id: "type-rx", label: "TypeRx", onClick: () => window.location.assign(apptRxHref) },
-                                                                                                { id: "voice-rx", label: "VoiceRx", onClick: () => window.location.assign(apptRxHref) },
-                                                                                                { id: "snap-rx", label: "SnapRx", onClick: () => window.location.assign(apptRxHref) },
-                                                                                                { id: "smart-sync", label: "SmartSync", onClick: () => window.location.assign(apptRxHref) },
-                                                                                            ],
+                                                                                            onClick: () => openDrawer({ type: "add-sitting", serviceId: service.id }),
+                                                                                            children: "Add Quick Visit Note",
                                                                                         }),
                                                                                         _jsxs(DropdownMenu, {
                                                                                             children: [
@@ -1519,24 +1518,13 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                                 "View Rx",
                                                                                             ],
                                                                                         }),
-                                                                                        !isCancelledSit && isUpcomingSit && _jsx(TPSplitButton, {
+                                                                                        !isCancelledSit && isUpcomingSit && _jsx(TPButton, {
                                                                                             size: "sm",
                                                                                             variant: "outline",
                                                                                             theme: "primary",
                                                                                             className: "shadow-none",
-                                                                                            trackClassName: TIMELINE_TYPERX_TRACK_CLASS,
-                                                                                            primaryAction: {
-                                                                                                label: "TypeRx",
-                                                                                                onClick: () => window.location.assign(sitRxHref),
-                                                                                            },
-                                                                                            secondaryActions: [
-                                                                                                { id: "quick-record-visit-form", label: "Quick visit record form", onClick: () => openDrawer({ type: "add-sitting", serviceId: service.id }) },
-                                                                                                { id: "quick-record-separator", separator: true },
-                                                                                                { id: "type-rx", label: "TypeRx", onClick: () => window.location.assign(sitRxHref) },
-                                                                                                { id: "voice-rx", label: "VoiceRx", onClick: () => window.location.assign(sitRxHref) },
-                                                                                                { id: "snap-rx", label: "SnapRx", onClick: () => window.location.assign(sitRxHref) },
-                                                                                                { id: "smart-sync", label: "SmartSync", onClick: () => window.location.assign(sitRxHref) },
-                                                                                            ],
+                                                                                            onClick: () => openDrawer({ type: "add-sitting", serviceId: service.id }),
+                                                                                            children: "Add Quick Visit Note",
                                                                                         }),
                                                                                         _jsxs(DropdownMenu, {
                                                                                             children: [
@@ -1775,7 +1763,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                 open: markDoneOpen,
                 onOpenChange: setMarkDoneOpen,
                 title: "Mark as Completed",
-                warning: `This marks ${service.treatment} (${service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`}) as completed. You can revert the status if needed.`,
+                warning: `This marks ${service.treatment} (${service.toothFdi === "full-mouth" ? "Full Mouth" : serviceToothDisplay(service)}) as completed. You can revert the status if needed.`,
                 secondaryLabel: "Cancel",
                 primaryLabel: "Mark Done",
                 primaryTone: "success",
@@ -1924,6 +1912,11 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                                         align: "end",
                                         className: dropdownContentClass,
                                         children: [
+                                            _jsxs(DropdownMenuItem, {
+                                                onClick: () => openDrawer({ type: "edit-plan", planId: plan.id, readOnly: true }),
+                                                className: dropdownItemClass,
+                                                children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "View Plan Builder"],
+                                            }),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
                                                 className: dropdownItemClass,

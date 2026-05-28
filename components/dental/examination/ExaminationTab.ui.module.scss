@@ -865,90 +865,8 @@
   background: #f4f6f9;
 }
 
-// Clear dialog
-.clearDialogTitleRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
-.clearDialogIcon {
-  display: flex;
-  height: 36px;
-  width: 36px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #fef2f2;
-  flex-shrink: 0;
-}
-
-.clearDialogTitle {
-  font-family: "Inter", sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: tp.$slate-900;
-}
-
-.clearDialogDesc {
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  color: tp.$slate-500;
-  line-height: 1.5;
-}
-
-.clearDialogStrong {
-  font-weight: 600;
-  color: tp.$slate-700;
-}
-
-.clearDialogFooter {
-  margin-top: 16px;
-  display: flex;
-  gap: 10px;
-}
-
-.clearDialogCancel {
-  flex: 1;
-  height: 40px;
-  border-radius: 10px;
-  border: 1px solid tp.$slate-200;
-  background: #fff;
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: tp.$slate-700;
-  cursor: pointer;
-
-  &:hover {
-    background: tp.$slate-50;
-  }
-}
-
-.clearDialogAction {
-  flex: 1;
-  height: 40px;
-  border-radius: 10px;
-  border: 0;
-  background: #ef4444;
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  cursor: pointer;
-
-  &:hover {
-    background: #dc2626;
-  }
-}
-
-.clearDialogContent {
-  max-width: 400px;
-  border-radius: 16px;
-  padding: 24px;
-}
-
+// Clear-dialog styles were removed when the destructive confirms migrated to
+// the shared `TPConfirmDialog` molecule (see tp-confirm-dialog.module.scss).
 // Notes textarea wrap
 .notesPad {
   padding: 0 12px 12px;
@@ -1173,12 +1091,34 @@
   position: sticky;
   right: 0;
   z-index: 40;
+  width: 56px;
+  min-width: 50px;
+  max-width: 80px;
   border-left: 1px solid color-mix(in srgb, tp.$slate-200 80%, transparent);
   background: tp.$slate-50;
   padding: 8px 0;
   text-align: center;
   font-weight: 600;
-  box-shadow: -8px 7px 14px -12px rgb(15 23 42 / 0.18);
+}
+
+/* Edge gradient + shadow shown only while the table is scrolled horizontally
+   (content sliding under the sticky action column). `.scrolledEdge` is toggled
+   on the .tableWrap; the sticky cells then get the linear shadow treatment. */
+.scrolledEdge {
+  .thSticky,
+  .tdStickyAct {
+    box-shadow: -8px 7px 14px -12px rgb(15 23 42 / 0.18);
+
+    &::before {
+      content: "";
+      pointer-events: none;
+      position: absolute;
+      inset-block: 0;
+      left: -8px;
+      width: 8px;
+      background: linear-gradient(to left, rgb(15 23 42 / 0.08), transparent);
+    }
+  }
 }
 
 .tbodyRow {
@@ -1349,12 +1289,14 @@
   position: sticky;
   right: 0;
   z-index: 30;
+  width: 56px;
+  min-width: 50px;
+  max-width: 80px;
   border-left: 1px solid color-mix(in srgb, tp.$slate-200 80%, transparent);
   background: #fff;
   padding: 8px 0;
   text-align: center;
   vertical-align: middle;
-  box-shadow: -8px 7px 14px -12px rgb(15 23 42 / 0.18);
   transition: background-color 0.15s ease;
 
   &:hover {
@@ -1369,7 +1311,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  color: tp.$slate-400;
+  color: tp.$slate-700;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -1763,7 +1705,7 @@
   position: relative;
   z-index: 20;
   display: flex;
-  height: 52px;
+  min-height: 52px;
   width: 100%;
   min-width: 0;
   align-items: center;
@@ -1771,7 +1713,9 @@
   gap: 6px;
   border: 0;
   background: transparent;
-  padding: 0 12px;
+  /* Vertical padding lets the cell breathe when pills wrap to multiple lines —
+     the row auto-grows in height while keeping a comfortable top/bottom gap. */
+  padding: 10px 12px;
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
@@ -1865,6 +1809,33 @@
 
   &::-webkit-scrollbar-track {
     background: tp.$slate-100;
+  }
+}
+
+/* SITE popover scroll body — always visible custom scrollbar so the doctor
+   knows there's more to scroll to. Width 8px (thumb + tiny track gutter). */
+.surfacePopoverScroll {
+  overflow-y: scroll; /* `scroll` keeps the track visible even when content fits */
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #{tp.$slate-400} #{tp.$slate-100};
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: tp.$slate-400;
+    border-radius: 9999px;
+    border: 2px solid tp.$slate-100;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: tp.$slate-100;
+    border-radius: 9999px;
+    margin: 4px 0;
   }
 }
 

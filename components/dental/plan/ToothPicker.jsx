@@ -35,15 +35,33 @@ const QUICK_SELECT_GROUPS = [
     { label: "L Arch", getTeeth: (q) => [...q.UL, ...q.LL] },
     { label: "Full", getTeeth: (q) => [...q.UR, ...q.UL, ...q.LR, ...q.LL] },
 ];
-export function ToothPicker({ value, onChange, isPediatric = false, disabled, variant = "default" }) {
-    const [open, setOpen] = useState(false);
+export function ToothPicker({ value, onChange, isPediatric = false, disabled, variant = "default", onOpenChange, autoOpen = false, expandChips = false }) {
+    const [open, setOpenRaw] = useState(false);
+    const setOpen = useCallback((next) => {
+        setOpenRaw((prev) => {
+            const v = typeof next === "function" ? next(prev) : next;
+            if (v !== prev) onOpenChange?.(v);
+            return v;
+        });
+    }, [onOpenChange]);
     const [dropdownStyle, setDropdownStyle] = useState({});
     const [mounted, setMounted] = useState(false);
+    // Becomes true only after the doctor closes (Done) with no teeth picked, so
+    // the neutral "Select here" placeholder turns into a red "required" message.
+    const [requiredError, setRequiredError] = useState(false);
     const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
     const quadrants = isPediatric ? PEDIATRIC_QUADRANTS : ADULT_QUADRANTS;
     const allTeeth = [...quadrants.UR, ...quadrants.UL, ...quadrants.LR, ...quadrants.LL];
     useEffect(() => { setMounted(true); }, []);
+    // Auto-open on mount when requested (e.g. right after the doctor adds a row,
+    // so they can immediately pick teeth). Deferred a tick so the trigger is laid out.
+    useEffect(() => {
+        if (!autoOpen || disabled) return;
+        const t = setTimeout(() => openDropdown(), 30);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoOpen]);
     const toggle = (fdi) => {
         if (value.includes("full-mouth")) {
             onChange([fdi]);
@@ -96,6 +114,10 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
                 return;
             if (dropdownRef.current?.contains(target))
                 return;
+            // Clicking teeth on the 3D dentition (while picking) must NOT close
+            // the picker — those clicks toggle the selection.
+            if (target && typeof target.closest === "function" && (target.closest(".dental-canvas-root") || target.closest('[title^="Tooth "]')))
+                return;
             setOpen(false);
         };
         const reposition = () => openDropdown();
@@ -113,11 +135,17 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
                     ["Upper Left", quadrants.UL],
                     ["Lower Right", quadrants.LR],
                     ["Lower Left", quadrants.LL],
-                ].map(([label, teeth]) => (_jsxs("div", { className: "rounded-[12px] border border-tp-slate-100 bg-tp-slate-50/60 p-[10px]", children: [_jsxs("div", { className: "mb-[8px] flex items-center justify-between", children: [_jsx("span", { className: "font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-500", children: label }), _jsxs("span", { className: "font-['Inter',sans-serif] text-[11px] text-tp-slate-400", children: [teeth.length, " teeth"] })] }), _jsx("div", { className: "flex flex-nowrap gap-[6px] overflow-x-auto min-w-0", children: teeth.map((fdi) => (_jsx(ToothPick, { fdi: fdi, selected: value.includes(fdi), onClick: () => toggle(fdi) }, fdi))) })] }, label))) }), _jsxs("div", { className: "flex flex-wrap items-center justify-end gap-[8px] border-t border-tp-slate-100 pt-[12px]", children: [_jsx("button", { type: "button", onClick: clear, className: "inline-flex h-[34px] items-center rounded-[10px] bg-tp-slate-100 px-[14px] font-['Inter',sans-serif] text-[13px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200", children: "Clear" }), _jsx("button", { type: "button", onClick: () => setOpen(false), className: "inline-flex h-[34px] items-center rounded-[10px] bg-tp-blue-600 px-[14px] font-['Inter',sans-serif] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-700", children: "Done" })] })] })) : null;
+                ].map(([label, teeth]) => (_jsxs("div", { className: "rounded-[12px] border border-tp-slate-100 bg-tp-slate-50/60 p-[10px]", children: [_jsxs("div", { className: "mb-[8px] flex items-center justify-between", children: [_jsx("span", { className: "font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-500", children: label }), _jsxs("span", { className: "font-['Inter',sans-serif] text-[11px] text-tp-slate-400", children: [teeth.length, " teeth"] })] }), _jsx("div", { className: "flex flex-nowrap gap-[6px] overflow-x-auto min-w-0", children: teeth.map((fdi) => (_jsx(ToothPick, { fdi: fdi, selected: value.includes(fdi), onClick: () => toggle(fdi) }, fdi))) })] }, label))) }), _jsxs("div", { className: "flex flex-wrap items-center justify-end gap-[8px] border-t border-tp-slate-100 pt-[12px]", children: [_jsx("button", { type: "button", onClick: clear, className: "inline-flex h-[34px] items-center rounded-[10px] bg-tp-slate-100 px-[14px] font-['Inter',sans-serif] text-[13px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200", children: "Clear" }), _jsx("button", { type: "button", onClick: () => { if (expandChips) setRequiredError(value.length === 0); setOpen(false); }, className: "inline-flex h-[34px] items-center rounded-[10px] bg-tp-blue-600 px-[14px] font-['Inter',sans-serif] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-700", children: "Done" })] })] })) : null;
     const isInline = variant === "inline";
+    const showRequired = expandChips && !open && value.length === 0 && requiredError;
+    const inlineRing = open
+        ? " rounded-[8px] border border-tp-blue-500 shadow-[0_0_0_2px_rgba(75,74,213,0.16)] bg-tp-blue-50/20"
+        : (showRequired ? " rounded-[8px] border border-tp-error-400 bg-tp-error-50/40" : "");
     return (_jsxs("div", { className: isInline ? "" : "relative", children: [_jsxs("button", { ref: triggerRef, type: "button", disabled: disabled, onClick: (e) => { e.stopPropagation(); open ? setOpen(false) : openDropdown(); }, className: isInline
-                    ? "flex h-[52px] w-full items-center justify-between gap-[8px] bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] transition-colors focus:outline-none"
-                    : "inline-flex h-[42px] items-center justify-between gap-[6px] rounded-[10px] border border-tp-slate-200 bg-white px-[10px] font-['Inter',sans-serif] text-[14px] text-tp-slate-700 transition-colors hover:border-tp-blue-300 disabled:opacity-50 min-w-[140px]", children: [value.length > 0 ? (_jsx("span", { className: "flex min-w-0 flex-1 items-center gap-[4px] flex-wrap", children: isInline ? (value.includes("full-mouth") ? (_jsx("span", { className: "inline-flex h-[18px] items-center rounded-[4px] bg-tp-blue-50 px-[6px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-blue-700", children: "Full mouth" })) : value.length <= 3 ? (value.map((v) => (_jsx("span", { className: "inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600", children: `T${v}` }, v)))) : (_jsxs(_Fragment, { children: [value.slice(0, 2).map((v) => (_jsxs("span", { className: "inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600", children: ["T", v] }, v))), _jsxs("span", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-400", children: ["+", value.length - 2] })] }))) : (_jsx(_Fragment, { children: _jsx("span", { children: displayValue }) })) })) : (_jsx("span", { className: `flex items-center gap-[6px] ${isInline ? "flex-1 text-[12px] text-[#a2a2a8]" : "flex-1 text-tp-slate-400"}`, children: isInline ? "—" : (_jsx(_Fragment, { children: _jsx("span", { children: "Select teeth" }) })) })), _jsx(ArrowDown2, { size: 14, color: "currentColor", variant: "Linear" })] }), mounted && typeof document !== "undefined" && dropdown
+                    ? (expandChips
+                        ? `flex min-h-[52px] w-full items-center justify-between gap-[8px] bg-transparent px-[12px] py-[8px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] transition-colors focus:outline-none${inlineRing}`
+                        : `flex h-[52px] w-full items-center justify-between gap-[8px] bg-transparent px-[12px] font-['Inter',sans-serif] text-[14px] leading-[20px] text-[#454551] transition-colors focus:outline-none${inlineRing}`)
+                    : "inline-flex h-[42px] items-center justify-between gap-[6px] rounded-[10px] border border-tp-slate-200 bg-white px-[10px] font-['Inter',sans-serif] text-[14px] text-tp-slate-700 transition-colors hover:border-tp-blue-300 disabled:opacity-50 min-w-[140px]", children: [value.length > 0 ? (_jsx("span", { className: "flex min-w-0 flex-1 items-center gap-[4px] flex-wrap", children: isInline ? (value.includes("full-mouth") ? (_jsx("span", { className: "inline-flex h-[18px] items-center rounded-[4px] bg-tp-blue-50 px-[6px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-blue-700", children: "Full mouth" })) : (expandChips || value.length <= 3) ? (value.map((v) => (_jsx("span", { className: "inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600", children: `T${v}` }, v)))) : (_jsxs(_Fragment, { children: [value.slice(0, 2).map((v) => (_jsxs("span", { className: "inline-flex h-[18px] items-center rounded-[4px] bg-tp-slate-100 px-[5px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600", children: ["T", v] }, v))), _jsxs("span", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-400", children: ["+", value.length - 2] })] }))) : (_jsx(_Fragment, { children: _jsx("span", { children: displayValue }) })) })) : (_jsx("span", { className: `flex items-center gap-[6px] ${isInline ? (showRequired ? "flex-1 text-[12px] font-semibold text-tp-error-500" : "flex-1 text-[12px] text-[#a2a2a8]") : "flex-1 text-tp-slate-400"}`, children: isInline ? (expandChips ? (showRequired ? "Teeth selection required" : "Select here") : "—") : (_jsx(_Fragment, { children: _jsx("span", { children: "Select teeth" }) })) })), _jsx("span", { style: { display: "inline-flex", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s", color: open ? "#4b4ad5" : "currentColor" }, children: _jsx(ArrowDown2, { size: 14, color: "currentColor", variant: "Linear" }) })] }), mounted && typeof document !== "undefined" && dropdown
                 ? createPortal(dropdown, document.body)
                 : null] }));
 }

@@ -18,6 +18,7 @@ export {
   TPDialogContent,
   TPDialogActions,
 } from "./tp-dialog"
+export { TPConfirmDialog } from "./tp-confirm-dialog"
 export { TPTabs, TPTab } from "./tp-tabs"
 export { TPTable, TPTableHead, TPTableBody, TPTableRow, TPTableCell } from "./tp-table"
 export { TPCheckbox } from "./tp-checkbox"

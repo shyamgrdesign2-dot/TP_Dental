@@ -82,6 +82,9 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewSnapshot, setPreviewSnapshot] = useState(null)
+  // Inline Preview-Rx settings — toggled via the gear icon in the drawer header.
+  const [previewSettings, setPreviewSettings] = useState({ view: "list", showDentalChart: true, includeHistorical: false })
+  const [isPreviewSettingsOpen, setIsPreviewSettingsOpen] = useState(false)
 
   const getCurrentPatientId = () => {
     if (patientIdProp) return patientIdProp
@@ -100,6 +103,9 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
   const openEndVisit = () => {
     const pid = getCurrentPatientId()
     pushPlanConsultationFromRxPage(pid)
+    // Mark this patient as having a completed visit so the dental exam shows the
+    // save/collapse controls on the NEXT (return) visit.
+    try { if (typeof window !== "undefined") window.localStorage.setItem(`dental.exam.visited.${pid}`, "1") } catch {}
     const src = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
     const next = new URLSearchParams()
     next.set("patientId", pid)
@@ -310,7 +316,7 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
       <div className={styles.bottomRule} aria-hidden />
       <TPDrawer open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <TPDrawerContent side="right" size="xl" className={styles.drawerContent}>
-          <div className={styles.drawerHeader}>
+          <div className={styles.drawerHeader} style={{ position: "relative" }}>
             <button
               type="button"
               onClick={() => setIsPreviewOpen(false)}
@@ -323,9 +329,56 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
             </button>
             <div className={styles.drawerDivider} aria-hidden />
             <h2 className={styles.drawerTitle}>Preview Rx</h2>
+            {/* Settings gear at the far right of the header — opens a small popover
+                with toggles for chart visibility + historical-data inclusion. */}
+            {/* Match the topbar `.toolGreyAlt` treatment so every settings/gear
+                affordance in the Rx surface reads identically (grey square,
+                no border). Layered margin-left:auto pushes it to the far right
+                of the drawer header. */}
+            <button
+              type="button"
+              aria-label="Preview settings"
+              onClick={() => setIsPreviewSettingsOpen((o) => !o)}
+              className={styles.toolGreyAlt}
+              style={{ marginLeft: "auto", color: isPreviewSettingsOpen ? "var(--tp-blue-500)" : "var(--tp-slate-700)", background: isPreviewSettingsOpen ? "#dcdce4" : undefined }}
+            >
+              <Setting2 size={20} variant={isPreviewSettingsOpen ? "Bold" : "Linear"} />
+            </button>
+            {isPreviewSettingsOpen ? (
+              <>
+                <div
+                  onClick={() => setIsPreviewSettingsOpen(false)}
+                  style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                  aria-hidden
+                />
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 16, zIndex: 41, width: 300, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 16px 40px rgba(2,6,23,0.20)", padding: 10, fontFamily: "Inter, sans-serif" }}>
+                  <div style={{ padding: "4px 8px 8px", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Preview options</div>
+                  {[
+                    { key: "showDentalChart", label: "Show dental chart", desc: "Include the odontogram in the preview." },
+                    { key: "includeHistorical", label: "Include past visits", desc: "Adds dental and oral history from previous visits." },
+                  ].map((opt) => {
+                    const on = opt.key === "showDentalChart" ? previewSettings.showDentalChart !== false : previewSettings[opt.key] === true
+                    return (
+                      <label key={opt.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 8px", borderRadius: 8, cursor: "pointer" }}>
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#334155" }}>{opt.label}</span>
+                          <span style={{ display: "block", fontSize: 12, color: "#94a3b8", marginTop: 1, lineHeight: 1.4 }}>{opt.desc}</span>
+                        </span>
+                        <span
+                          onClick={(e) => { e.preventDefault(); setPreviewSettings({ ...previewSettings, [opt.key]: !on }) }}
+                          style={{ position: "relative", width: 40, height: 22, borderRadius: 999, background: on ? "var(--tp-blue-500)" : "#cbd5e1", flexShrink: 0, cursor: "pointer", transition: "background 0.15s" }}
+                        >
+                          <span style={{ position: "absolute", top: 2, left: on ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </>
+            ) : null}
           </div>
           <div className={styles.drawerBody}>
-            <RxPreviewDocument snapshot={previewSnapshot} />
+            <RxPreviewDocument snapshot={previewSnapshot} settings={previewSettings} />
           </div>
         </TPDrawerContent>
       </TPDrawer>

@@ -13,13 +13,16 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { InfoCircle, Trash, Grid5, Ram, Eraser, Add, Calendar, SearchNormal1 } from "iconsax-reactjs";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, } from "@/components/ui/alert-dialog";
+// AlertDialog primitives removed — all destructive confirms in this module now
+// use the shared `TPConfirmDialog` molecule (imported from tp-ui below).
 import { ExpandIcon } from "./ui-icons";
 import { DentalCanvas } from "./DentalCanvas";
-import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PROCEDURE_CATALOG, QUADRANT_LABELS, getDefaultTreatmentSurfaces } from "./types";
+import { DIAGNOSES, TOOTH_DIAGNOSES, ZONE_INFO, ALL_ZONES, getZoneLabel, TEETH, PEDIATRIC_TEETH, PROCEDURE_CATALOG, QUADRANT_LABELS, getDefaultTreatmentSurfaces, ORAL_FINDINGS, ORAL_PROCEDURES, ORAL_POSITION_GROUPS, ORAL_POSITION_LABEL, oralPositionShort, reconcileOralPositions } from "./types";
+import { getDisabledDiagnoses, isTerminalDiagnosis } from "./DiagnosisMatrix";
 import { MiniToothCanvas } from "./MiniToothCanvas";
 import { MiniScopeCanvas } from "./MiniScopeCanvas";
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons";
+import { TPConfirmDialog, TPTooltip } from "@/components/tp-ui";
 import { saveDentalPreviewSnapshot } from "@/components/tp-rxpad/rx-preview-store";
 import clsx from "clsx";
 import ex from "./ExaminationTab.module.scss";
@@ -28,10 +31,11 @@ import { useBillingCatalog } from "@/lib/billing-catalog-context";
 import { getUniqueDentalBillItems, sortStringsForTypeahead } from "@/lib/billing-catalog";
 import { AddDentalBillItemDrawer } from "@/components/dental/AddDentalBillItemDrawer";
 import { useRxPadChrome } from "@/components/tp-rxpad/rxpad-chrome-context";
-// Score weights per diagnosis/finding severity (out of 100).
-const DIAG_WEIGHT = {
-    Missing: 8, Implant: 2, RCT: 4, Crown: 2, Bridge: 3, Denture: 3,
-};
+// Stable empties so the "happy teeth" oral-records thumbnail always renders the
+// pristine full-mouth (all 32 teeth, no diagnoses/findings) without re-creating
+// identities each render.
+const EMPTY_OBJ = {};
+const EMPTY_SET = new Set();
 /** Accent colors per tooth-level diagnosis — makes each chip visually distinct */
 const PRIMARY_DIAG_COLOR = {
     Implant: "#0891b2", // cyan
@@ -49,36 +53,22 @@ const PRIMARY_DIAG_COLOR = {
     "Root Planing": "#0d9488", // teal
     "Fluoride Treatment": "#06b6d4", // cyan-light
 };
-const FINDING_WEIGHT = {
-    "Cavity/Caries": 3, "Crack": 2, "Fracture": 4, "Erosion": 2, "Abrasion": 1,
-    "Attrition": 1, "Staining": 0.5, "Plaque": 0.5, "Calculus": 1, "Restoration Defect": 2,
-    "NCCL": 1, "Sensitivity": 1, "Resorption": 3, "Recession": 2, "Normal": 0,
-};
-function computeDentalScore(state) {
-    if (!state)
-        return { score: 100, rating: "Excellent", totalDeduction: 0, affectedTeeth: 0, breakdown: { diag: 0, findings: 0 } };
-    let diag = 0, findings = 0;
-    const affected = new Set();
-    for (const [fdi, diagSet] of Object.entries(state.toothDiagnoses)) {
-        diagSet.forEach((d) => { diag += DIAG_WEIGHT[d] ?? 0; affected.add(fdi); });
-    }
-    state.implantTeeth.forEach((fdi) => { diag += DIAG_WEIGHT.Implant; affected.add(fdi); });
-    for (const [fdi, findingsList] of Object.entries(state.findingsByTooth)) {
-        findingsList.forEach((f) => { findings += FINDING_WEIGHT[f.type] ?? 0; affected.add(fdi); });
-    }
-    const totalDeduction = Math.min(100, Math.round(diag + findings));
-    const score = Math.max(0, 100 - totalDeduction);
-    const rating = score >= 90 ? "Excellent" :
-        score >= 75 ? "Good" :
-            score >= 60 ? "Fair" :
-                score >= 40 ? "Needs attention" : "Poor";
-    return { score, rating, totalDeduction, affectedTeeth: affected.size, breakdown: { diag: Math.round(diag), findings: Math.round(findings) } };
-}
-function toPreviewLine(title, metaParts) {
-    return {
+function toPreviewLine(title, metaParts, cols) {
+    const line = {
         title: title.trim(),
         metaParts: metaParts.map((part) => (part ?? "").trim()).filter(Boolean),
     };
+    // Structured columns (Surfaces / Since / Notes) for the table print view. Only
+    // non-empty fields are kept; list/inline/tooltip views keep using metaParts.
+    if (cols) {
+        const clean = {};
+        for (const k of Object.keys(cols)) {
+            const v = (cols[k] ?? "").toString().trim();
+            if (v) clean[k] = v;
+        }
+        if (Object.keys(clean).length) line.cols = clean;
+    }
+    return line;
 }
 function surfaceList(surfaces) {
     if (!surfaces.length)
@@ -104,41 +94,76 @@ function toDentalPreviewSections(state) {
         byTooth.set(fdi, next);
         return next;
     };
+    // surface / since / note recorded for a whole-tooth diagnosis (Past Procedures).
+    const diagMeta = (fdi, name) => {
+        const d = state.treatmentHistoryDetailsByTooth?.[fdi]?.[name];
+        if (!d) return [];
+        return [surfaceList(d.surfaces || []), d.since, d.note];
+    };
+    const diagCols = (fdi, name) => {
+        const d = state.treatmentHistoryDetailsByTooth?.[fdi]?.[name];
+        if (!d) return null;
+        return { surfaces: surfaceList(d.surfaces || []), since: d.since, note: d.note };
+    };
     Object.entries(state.toothDiagnoses).forEach(([fdi, diagnoses]) => {
         if (!diagnoses.size)
             return;
         const block = ensureTooth(fdi);
         diagnoses.forEach((diagnosis) => {
-            block.treatmentHistory.push(toPreviewLine(diagnosis, []));
+            block.treatmentHistory.push(toPreviewLine(diagnosis, diagMeta(fdi, diagnosis), diagCols(fdi, diagnosis)));
         });
     });
     state.implantTeeth.forEach((fdi) => {
         const block = ensureTooth(fdi);
         const exists = block.treatmentHistory.some((row) => row.title.toLowerCase() === "implant");
         if (!exists) {
-            block.treatmentHistory.push(toPreviewLine("Implant", []));
+            block.treatmentHistory.push(toPreviewLine("Implant", diagMeta(fdi, "Implant"), diagCols(fdi, "Implant")));
         }
+    });
+    // The Past Procedures TABLE is driven by treatmentHistoryDetailsByTooth (the
+    // authoritative, additive store). Include EVERY recorded item — not just the
+    // toothDiagnoses set — so all procedures (RCT + Bridge + Denture …) appear.
+    Object.entries(state.treatmentHistoryDetailsByTooth || {}).forEach(([fdi, map]) => {
+        const names = Object.keys(map || {});
+        if (!names.length) return;
+        const block = ensureTooth(fdi);
+        names.forEach((name) => {
+            if (block.treatmentHistory.some((row) => row.title.toLowerCase() === name.toLowerCase())) return;
+            block.treatmentHistory.push(toPreviewLine(name, diagMeta(fdi, name), diagCols(fdi, name)));
+        });
     });
     Object.entries(state.findingsByTooth).forEach(([fdi, findings]) => {
         if (!findings.length)
             return;
         const block = ensureTooth(fdi);
         findings.forEach((finding) => {
-            block.findings.push(toPreviewLine(finding.type, [ZONE_INFO[finding.zoneId]?.label, finding.notes]));
+            const surfaces = ZONE_INFO[finding.zoneId]?.label;
+            block.findings.push(toPreviewLine(finding.type, [surfaces, finding.notes], { surfaces, note: finding.notes }));
         });
     });
     state.allEntries.forEach((entry) => {
         const block = ensureTooth(entry.toothFdi);
         const meta = [surfaceList(entry.surfaces), entry.since, entry.plannedDate, entry.status, entry.notes];
+        const cols = {
+            surfaces: surfaceList(entry.surfaces),
+            since: entry.since,
+            note: [entry.status, entry.plannedDate, entry.notes].map((v) => (v ?? "").toString().trim()).filter(Boolean).join(" · "),
+        };
         if (entry.kind === "finding") {
-            block.findings.push(toPreviewLine(entry.name, meta));
+            block.findings.push(toPreviewLine(entry.name, meta, cols));
             return;
         }
         if (entry.kind === "procedure" || entry.kind === "planned") {
-            block.procedures.push(toPreviewLine(entry.name, meta));
+            block.procedures.push(toPreviewLine(entry.name, meta, cols));
             return;
         }
-        block.treatmentHistory.push(toPreviewLine(entry.name, meta));
+        block.treatmentHistory.push(toPreviewLine(entry.name, meta, cols));
+    });
+    // Overall per-tooth notes (were never carried into the preview/print).
+    Object.entries(state.toothNotes || {}).forEach(([fdi, note]) => {
+        const text = String(note ?? "").trim();
+        if (!text) return;
+        ensureTooth(fdi).overallToothNote = text;
     });
     return Array.from(byTooth.values()).filter((section) => section.treatmentHistory.length > 0 ||
         section.findings.length > 0 ||
@@ -149,6 +174,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
     const { drAgentOpen } = useRxPadChrome();
     const [canvasState, setCanvasState] = useState(null);
     const isSingle = canvasState?.viewMode === "single-tooth";
+    const isOral = canvasState?.viewMode === "oral";
     const containerRef = useRef(null);
     // Separate persisted widths for dentition vs single-tooth. Both draggable 40-60.
     // Defer localStorage read to useEffect so SSR + first client render match.
@@ -210,15 +236,16 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
             window.localStorage.setItem("dental.aside.pct.single", String(singleAsidePct));
         }
     }, [singleAsidePct]);
-    const asidePct = isSingle ? singleAsidePct : dentitionAsidePct;
+    const asidePct = isOral ? 72 : isSingle ? singleAsidePct : dentitionAsidePct;
     const canvasPct = 100 - asidePct;
-    const isGetStarted = !isSingle && !!canvasState &&
+    const isGetStarted = !isSingle && !isOral && !!canvasState &&
         Object.values(canvasState.toothDiagnoses).every((s) => s.size === 0) &&
         canvasState.implantTeeth.size === 0 &&
         Object.values(canvasState.findingsByTooth).every((a) => a.length === 0) &&
         canvasState.allEntries.length === 0 &&
         !Object.values(canvasState.treatmentHistoryDetailsByTooth ?? {}).some((d) => d && Object.keys(d).length > 0) &&
-        !Object.values(canvasState.toothNotes ?? {}).some((n) => String(n ?? "").trim().length > 0);
+        !Object.values(canvasState.toothNotes ?? {}).some((n) => String(n ?? "").trim().length > 0) &&
+        !(Array.isArray(canvasState.oralEntries) && canvasState.oralEntries.length > 0);
     useEffect(() => {
         if (!canvasState)
             return;
@@ -259,7 +286,7 @@ export function ExaminationTab({ patientId, patientAge = 30 }) {
                                 ? "dentalCardExpand 380ms cubic-bezier(0.34, 1.2, 0.64, 1)"
                                 : "dentalCardCollapse 320ms cubic-bezier(0.2, 0.8, 0.2, 1)",
                             transformOrigin: "center top",
-                        }, children: isSingle && canvasState ? (_jsx("div", { className: ex.singleCol, children: _jsx("div", { className: ex.singleCard, children: _jsx(SingleToothPanel, { state: canvasState }) }) })) : (_jsx("div", { className: isGetStarted ? ex.scrollStarted : ex.scrollSplit, children: _jsx(DentitionPanel, { state: canvasState }) })) }, isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"), _jsx("style", { dangerouslySetInnerHTML: {
+                        }, children: isOral && canvasState ? (_jsx("div", { className: ex.singleCol, children: _jsx("div", { className: ex.singleCard, children: _jsx(OralExamPanel, { state: canvasState }) }) })) : isSingle && canvasState ? (_jsx("div", { className: ex.singleCol, children: _jsx("div", { className: ex.singleCard, children: _jsx(SingleToothPanel, { state: canvasState }) }) })) : (_jsx("div", { className: isGetStarted ? ex.scrollStarted : ex.scrollSplit, children: _jsx(DentitionPanel, { state: canvasState }) })) }, isOral ? `oral-${canvasState?.selectionScopeId}` : isSingle ? `single-${canvasState?.selectedTooth?.fdi}` : "dentition"), _jsx("style", { dangerouslySetInnerHTML: {
                     __html: `
           @keyframes dentalCardExpand {
             0%   { opacity: 0; transform: scale(0.72) translateY(40px); }
@@ -319,10 +346,94 @@ function uniquePartList(raw) {
 // Dentition panel: Patient Dental Score + per-tooth summary
 // Clicking any summary row → opens that tooth's single view.
 // ──────────────────────────────────────────────────────────────
+// Map a set of FDIs to a named scope (Maxillary / quadrant / arch / Full) when
+// they exactly fill that zone, with the scope id used to re-open it. Returns
+// null when the teeth don't line up with a recognizable zone.
+function scopeForFdis(fdis, patientType) {
+    const list = patientType === "pediatric" ? PEDIATRIC_TEETH : (patientType === "mixed" ? [...TEETH, ...PEDIATRIC_TEETH] : TEETH);
+    const byQ = { "upper-right": [], "upper-left": [], "lower-left": [], "lower-right": [] };
+    list.forEach((t) => { if (byQ[t.quadrant]) byQ[t.quadrant].push(t.fdi); });
+    const set = new Set(fdis);
+    const eq = (arr) => arr.length > 1 && arr.length === set.size && arr.every((f) => set.has(f));
+    const cand = [
+        ["Full mouth", "FULL", [...byQ["upper-right"], ...byQ["upper-left"], ...byQ["lower-left"], ...byQ["lower-right"]]],
+        ["Maxillary", "UPPER_ARCH", [...byQ["upper-right"], ...byQ["upper-left"]]],
+        ["Mandibular", "LOWER_ARCH", [...byQ["lower-left"], ...byQ["lower-right"]]],
+        ["Right arch", "RIGHT_ARCH", [...byQ["upper-right"], ...byQ["lower-right"]]],
+        ["Left arch", "LEFT_ARCH", [...byQ["upper-left"], ...byQ["lower-left"]]],
+        ["Upper Right", "UR", byQ["upper-right"]],
+        ["Upper Left", "UL", byQ["upper-left"]],
+        ["Lower Left", "LL", byQ["lower-left"]],
+        ["Lower Right", "LR", byQ["lower-right"]],
+    ];
+    const hit = cand.find(([, , arr]) => eq(arr));
+    return hit ? { label: hit[0], scopeId: hit[1] } : null;
+}
+// Collect grouped records (a diagnosis/finding/procedure applied to several
+// teeth at once shares a groupId). Returns one descriptor per group plus the
+// set of FDIs that belong to ANY group (used to bracket-tag individual rows).
+function collectGroups(state) {
+    // Final cards keyed by resolved scope (so explicit groupId groups and
+    // implicit "diagnosis fills a whole scope" groups merge into one card).
+    const byKey = new Map();
+    const ensure = (key, label, scopeId) => {
+        let g = byKey.get(key);
+        if (!g) { g = { key, label, scopeId, fdis: new Set(), diagnoses: new Set(), findings: new Set(), procedures: new Set() }; byKey.set(key, g); }
+        return g;
+    };
+    // 1) Explicit groupId sources (findings / procedures / treatment-history).
+    const raw = new Map();
+    const rawGet = (gid) => { let g = raw.get(gid); if (!g) { g = { fdis: new Set(), diagnoses: new Set(), findings: new Set(), procedures: new Set() }; raw.set(gid, g); } return g; };
+    (state.allEntries || []).forEach((e) => {
+        if (!e.groupId || !e.toothFdi) return;
+        const g = rawGet(e.groupId);
+        g.fdis.add(e.toothFdi);
+        if (e.name) (e.kind === "finding" ? g.findings : g.procedures).add(e.name.trim());
+    });
+    Object.entries(state.findingsByTooth || {}).forEach(([fdi, list]) => {
+        (list || []).forEach((f) => { if (f.groupId) { const g = rawGet(f.groupId); g.fdis.add(fdi); if (f.type) g.findings.add(f.type.trim()); } });
+    });
+    Object.entries(state.treatmentHistoryDetailsByTooth || {}).forEach(([fdi, map]) => {
+        Object.entries(map || {}).forEach(([name, d]) => { if (d?.groupId) { const g = rawGet(d.groupId); g.fdis.add(fdi); g.diagnoses.add(name); } });
+    });
+    raw.forEach((g, gid) => {
+        if (g.fdis.size < 2) return;
+        const scope = scopeForFdis([...g.fdis], state.patientType);
+        const key = scope ? `s:${scope.scopeId}` : `g:${gid}`;
+        const card = ensure(key, scope?.label ?? `${g.fdis.size} teeth`, scope?.scopeId ?? null);
+        g.fdis.forEach((f) => card.fdis.add(f));
+        g.diagnoses.forEach((d) => card.diagnoses.add(d));
+        g.findings.forEach((d) => card.findings.add(d));
+        g.procedures.forEach((d) => card.procedures.add(d));
+    });
+    // 2) Implicit scope-groups: a tooth diagnosis (e.g. Missing) that exactly
+    // fills a recognizable scope is shown as that scope (covers chip-added
+    // diagnoses, which live only in toothDiagnoses with no groupId).
+    const diagToFdis = new Map();
+    Object.entries(state.toothDiagnoses || {}).forEach(([fdi, set]) => {
+        (set instanceof Set ? [...set] : (set || [])).forEach((d) => { if (!diagToFdis.has(d)) diagToFdis.set(d, new Set()); diagToFdis.get(d).add(fdi); });
+    });
+    const implant = state.implantTeeth instanceof Set ? state.implantTeeth : new Set(state.implantTeeth || []);
+    if (implant.size) { if (!diagToFdis.has("Implant")) diagToFdis.set("Implant", new Set()); implant.forEach((f) => diagToFdis.get("Implant").add(f)); }
+    diagToFdis.forEach((fdis, diag) => {
+        if (fdis.size < 2) return;
+        const scope = scopeForFdis([...fdis], state.patientType);
+        if (!scope) return;
+        const card = ensure(`s:${scope.scopeId}`, scope.label, scope.scopeId);
+        fdis.forEach((f) => card.fdis.add(f));
+        card.diagnoses.add(diag);
+    });
+    const groupedFdis = new Set();
+    const labelByFdi = new Map();
+    const cards = [];
+    byKey.forEach((g) => {
+        const fdiArr = [...g.fdis];
+        fdiArr.forEach((f) => { groupedFdis.add(f); if (!labelByFdi.has(f)) labelByFdi.set(f, g.label); });
+        cards.push({ groupId: g.key, label: g.label, scopeId: g.scopeId, fdis: fdiArr, diagnosisParts: [...g.diagnoses], findingParts: [...g.findings], procedureParts: [...g.procedures] });
+    });
+    return { cards, groupedFdis, labelByFdi };
+}
 function DentitionPanel({ state }) {
-    const scoreData = useMemo(() => computeDentalScore(state), [state]);
-    const [showFormula, setShowFormula] = useState(false);
-    const infoBtnRef = useRef(null);
     const summary = useMemo(() => {
         if (!state)
             return [];
@@ -424,7 +535,23 @@ function DentitionPanel({ state }) {
         if (tooth)
             state.onSelectTooth(tooth);
     };
-    return (_jsx(_Fragment, { children: summary.length > 0 ? (_jsxs(_Fragment, { children: [_jsx(ScoreCard, { data: scoreData, infoBtnRef: infoBtnRef, showFormula: showFormula, setShowFormula: setShowFormula }), _jsxs("div", { className: ui.recordsHeader, children: [_jsx("h3", { className: ui.recordsTitle, children: "Tooth records" }), _jsx("span", { className: ui.recordsBadge, children: summary.length })] }), _jsx("div", { className: ui.recordsList, children: summary.map((entry) => {
+    // Scope-level group records (e.g. "Maxillary") + per-tooth bracket labels.
+    const groupInfo = useMemo(() => collectGroups(state || {}), [state]);
+    // Teeth whose records are entirely represented by a scope group card are
+    // NOT listed individually (avoids 16-32 duplicate cards — and, critically,
+    // 16-32 extra WebGL mini-canvases that would exhaust the browser's GL
+    // context budget and blank out the main 3D dentition). Their detail shows
+    // on the group card and on hover.
+    const individualSummary = useMemo(() => summary.filter((e) => !groupInfo.groupedFdis.has(e.fdi)), [summary, groupInfo]);
+    const recordCount = groupInfo.cards.length + individualSummary.length;
+    const hasOral = useMemo(() => Array.isArray(state?.oralEntries) && state.oralEntries.length > 0, [state]);
+    const openScope = (card) => {
+        if (card.scopeId && state?.onSelectScope)
+            state.onSelectScope(card.scopeId);
+        else if (card.fdis?.length)
+            openTooth(card.fdis[0]);
+    };
+    return (_jsx(_Fragment, { children: (summary.length > 0 || hasOral) ? (_jsxs(_Fragment, { children: [_jsx(OralRecordsList, { state: state }), _jsxs("div", { className: ui.recordsHeader, children: [_jsx("h3", { className: ui.recordsTitle, children: "Tooth Records" }), _jsx("span", { className: ui.recordsBadge, children: recordCount })] }), _jsxs("div", { className: ui.recordsList, children: [recordCount === 0 ? _jsxs("div", { className: ui.toothRow, style: { cursor: "default", flexDirection: "column", alignItems: "center", gap: 10, padding: "24px 16px", borderStyle: "dashed", borderColor: "#cbd5e1", background: "#f8fafc", textAlign: "center" }, children: [_jsx(TPMedicalIcon, { name: "tooth", variant: "bulk", size: 56, color: "var(--tp-slate-300)" }), _jsx("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "#334155" }, children: "No tooth records yet" }), _jsx("p", { style: { margin: 0, fontSize: 12, color: "#64748b", lineHeight: 1.4, maxWidth: 240 }, children: "Click any tooth in the 3D canvas to add findings, procedures and notes." })] }, "empty-tooth-records") : null, ...groupInfo.cards.map((card) =>(_jsxs("button", { type: "button", onClick: () => openScope(card), className: clsx(ui.toothRow), style: { borderColor: "rgba(79,70,229,0.4)", background: "rgba(99,102,241,0.05)" }, children: [_jsxs("div", { className: ui.toothRowHeader, children: [_jsx("div", { className: ui.toothThumb, style: { display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(99,102,241,0.12)" }, children: _jsx("span", { style: { fontSize: 16, fontWeight: 800, color: "#4f46e5" }, children: card.fdis.length }) }), _jsxs("div", { className: ui.toothHeaderText, children: [_jsx("span", { className: ui.toothName, children: card.label }), _jsxs("span", { className: ui.toothFdiBelow, children: [card.fdis.length, " teeth"] })] }), _jsx("span", { className: ui.toothChevron, "aria-hidden": true, children: _jsx(ExpandIcon, { size: 17 }) })] }), _jsx("div", { className: ui.toothRowDivider, "aria-hidden": true }), _jsxs("div", { className: ui.toothChips, children: [card.diagnosisParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "clipboard-activity", parts: card.diagnosisParts, title: card.diagnosisParts.join(", "), tone: "violet" })), card.findingParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "diagnosis", parts: card.findingParts, title: card.findingParts.join(", "), tone: "violet" })), card.procedureParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "surgical-scissors-02", parts: card.procedureParts, title: card.procedureParts.join(", "), tone: "violet" }))] })] }, `grp-${card.groupId}`))), ...individualSummary.map((entry) => {
                         const tooth = TEETH.find((t) => t.fdi === entry.fdi);
                         const toothName = tooth ? `${QUADRANT_LABELS[tooth.quadrant]} ${tooth.name}` : "";
                         // Determine thumbnail color by most-severe diagnosis
@@ -445,14 +572,14 @@ function DentitionPanel({ state }) {
                             crownColor = "#9ca3af";
                             rootColor = "#6B7280";
                         }
-                        return (_jsxs("button", { type: "button", onClick: () => openTooth(entry.fdi), onMouseEnter: () => state?.onSetHoveredTooth(entry.fdi), onMouseLeave: () => state?.onSetHoveredTooth(null), className: clsx(ui.toothRow, enterFdis.has(entry.fdi) && ui.toothRowEnter, state?.agentApplyPulseFdis?.has(String(entry.fdi)) && ui.toothRowAgentPulse, state?.hoveredToothFdi === entry.fdi && ui.toothRowActive), children: [_jsxs("div", { className: ui.toothRowHeader, children: [_jsx("div", { className: ui.toothThumb, children: tooth && (_jsx(MiniToothCanvas, { tooth: tooth, size: 52, diagnoses: new Set(entry.diagnoses), isImplant: entry.diagnoses.includes("Implant"), findings: (state?.findingsByTooth?.[entry.fdi] ?? []) })) }), _jsxs("div", { className: ui.toothHeaderText, children: [_jsx("span", { className: ui.toothName, children: toothName }), _jsxs("span", { className: ui.toothFdiBelow, children: ["T", entry.fdi] })] }), _jsx("span", { className: ui.toothChevron, "aria-hidden": true, children: _jsx(ExpandIcon, { size: 17 }) })] }), _jsx("div", { className: ui.toothRowDivider, "aria-hidden": true }), _jsxs("div", { className: ui.toothChips, children: [entry.diagnosisParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "clipboard-activity", parts: entry.diagnosisParts, title: entry.historyTitle, tone: "violet" })), entry.findingParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "diagnosis", parts: entry.findingParts, title: entry.findingsTitle, tone: "violet" })), entry.procedureParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "surgical-scissors-02", parts: entry.procedureParts, title: entry.procedureTitle, tone: "violet" })), Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) && (_jsx(SummaryPill, { icon: "note-2", label: "Notes", title: (state?.toothNotes ?? {})[entry.fdi]?.trim(), tone: "violet" }))] })] }, entry.fdi));
-                    }) })] })) : (
+                        return (_jsxs("button", { type: "button", onClick: () => openTooth(entry.fdi), onMouseEnter: () => state?.onSetHoveredTooth(entry.fdi), onMouseLeave: () => state?.onSetHoveredTooth(null), className: clsx(ui.toothRow, enterFdis.has(entry.fdi) && ui.toothRowEnter, state?.agentApplyPulseFdis?.has(String(entry.fdi)) && ui.toothRowAgentPulse, state?.hoveredToothFdi === entry.fdi && ui.toothRowActive), children: [_jsxs("div", { className: ui.toothRowHeader, children: [_jsx("div", { className: ui.toothThumb, children: tooth && (_jsx(MiniToothCanvas, { tooth: tooth, size: 52, diagnoses: new Set(entry.diagnoses), isImplant: entry.diagnoses.includes("Implant"), findings: (state?.findingsByTooth?.[entry.fdi] ?? []) })) }), _jsxs("div", { className: ui.toothHeaderText, children: [_jsxs("span", { className: ui.toothName, children: [toothName, groupInfo.labelByFdi.get(entry.fdi) && _jsxs("span", { style: { marginLeft: 6, fontSize: 12, fontWeight: 700, color: "#6366f1" }, children: ["(", groupInfo.labelByFdi.get(entry.fdi), ")"] })] }), _jsxs("span", { className: ui.toothFdiBelow, children: ["T", entry.fdi] })] }), _jsx("span", { className: ui.toothChevron, "aria-hidden": true, children: _jsx(ExpandIcon, { size: 17 }) })] }), _jsx("div", { className: ui.toothRowDivider, "aria-hidden": true }), _jsxs("div", { className: ui.toothChips, children: [entry.diagnosisParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "clipboard-activity", parts: entry.diagnosisParts, title: entry.historyTitle, tone: "violet" })), entry.findingParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "diagnosis", parts: entry.findingParts, title: entry.findingsTitle, tone: "violet" })), entry.procedureParts.length > 0 && (_jsx(SummaryPillSegmented, { icon: "surgical-scissors-02", parts: entry.procedureParts, title: entry.procedureTitle, tone: "violet" })), Boolean((state?.toothNotes ?? {})[entry.fdi]?.trim()) && (_jsx(SummaryPill, { icon: "note-2", label: "Notes", title: (state?.toothNotes ?? {})[entry.fdi]?.trim(), tone: "violet" }))] })] }, entry.fdi));
+                    })] })] })) : (
         /* First-time user onboarding — polished educational panel */
-        _jsx("div", { className: ui.onboardCol, children: _jsxs("div", { className: ui.onboardCard, children: [_jsxs("div", { className: ui.onboardHead, children: [_jsx("div", { className: ui.onboardIcon, children: _jsx(TPMedicalIcon, { name: "health care", variant: "bulk", size: 18, color: "#ffffff" }) }), _jsxs("div", { children: [_jsx("h3", { className: ui.onboardTitle, children: "Getting Started" }), _jsx("p", { className: ui.onboardSub, children: "4 simple steps to examine" })] })] }), _jsx("div", { className: ui.stepList, children: [
-                            { step: "1", title: "Select a tooth", desc: "Click any tooth on the 3D model to open its detail view", icon: "tooth" },
-                            { step: "2", title: "Record findings", desc: "Add treatment history, surface findings, and diagnoses", icon: "diagnosis" },
-                            { step: "3", title: "Plan procedures", desc: "Create treatment plans and add clinical notes", icon: "surgical-scissors-02" },
-                            { step: "4", title: "View dental score", desc: "Return to full view to see your score and tooth records", icon: "tooth" },
+        _jsx("div", { className: ui.onboardCol, children: _jsxs("div", { className: ui.onboardCard, children: [_jsxs("div", { className: ui.onboardHead, children: [_jsx("div", { className: ui.onboardIcon, children: _jsx(TPMedicalIcon, { name: "health care", variant: "bulk", size: 18, color: "#ffffff" }) }), _jsxs("div", { children: [_jsx("h3", { className: ui.onboardTitle, children: "Getting Started" }), _jsx("p", { className: ui.onboardSub, children: "4 quick steps — watch the video for details" })] })] }), _jsx("div", { className: ui.stepList, children: [
+                            { step: "1", title: "Select tooth or Oral Exam", desc: "Tap any tooth on the 3D model, or use the + Oral Examination CTA to start.", icon: "tooth" },
+                            { step: "2", title: "Record findings", desc: "Add past procedures, surface findings & planned procedures.", icon: "diagnosis" },
+                            { step: "3", title: "Add notes", desc: "Per-tooth notes or overall oral exam notes.", icon: "surgical-scissors-02" },
+                            { step: "4", title: "Review & print", desc: "Open Preview Rx or End Visit to print the chart.", icon: "health-file-03" },
                         ].map((item, idx, arr) => (_jsxs("div", { className: ui.stepRow, children: [_jsx("div", { className: ui.stepCol, children: _jsx("div", { className: ui.stepCircle, children: _jsx(TPMedicalIcon, { name: item.icon, variant: "bulk", size: 16, color: "#8b5cf6" }) }) }), _jsx("div", { className: ui.stepCard, children: _jsxs("div", { className: ui.stepCardInner, children: [_jsx("p", { className: ui.stepCardTitle, children: item.title }), _jsx("p", { className: ui.stepCardDesc, children: item.desc })] }) }), idx < arr.length - 1 && (_jsx("div", { className: ui.stepConnector, style: {
                                         left: 17,
                                         top: "calc(50% + 17px)",
@@ -489,139 +616,321 @@ function SummaryPillSegmented({ icon, parts, tone, title }) {
         return null;
     return (_jsxs("span", { className: clsx(ui.pill, ui.pillSegmented, t.pillTone), title: tip, children: [_jsx(TPMedicalIcon, { name: icon, variant: "bulk", size: 16, color: t.colour, className: ui.pillIcon }), _jsx("span", { className: ui.pillSegments, children: parts.map((p, i) => (_jsxs(React.Fragment, { children: [i > 0 && _jsx("span", { className: ui.pillSegmentSep, "aria-hidden": true, children: "|" }), _jsx("span", { className: ui.pillSegment, title: p, children: p })] }, `seg-${i}-${p}`))) })] }));
 }
-// ──────────────────────────────────────────────────────────────
-// ScoreCard — full-circle gauge w/ interior gradient disc + animated score
-// ──────────────────────────────────────────────────────────────
-function ScoreCard({ data, infoBtnRef, showFormula, setShowFormula, }) {
-    const { score, rating, affectedTeeth } = data;
-    const zoneIdx = score >= 90 ? 4 : score >= 75 ? 3 : score >= 60 ? 2 : score >= 40 ? 1 : 0;
-    // Original TP palette — red → orange → amber → violet → emerald.
-    const colour = [
-        { accent: "#EF4444", accentDark: "#B91C1C", tint: "#FFE4E6" }, // Off Track — red
-        { accent: "#F97316", accentDark: "#C2410C", tint: "#FFEDD5" }, // Improving — orange
-        { accent: "#F59E0B", accentDark: "#B45309", tint: "#FEF3C7" }, // Good — amber
-        { accent: "#8B5CF6", accentDark: "#6D28D9", tint: "#EDDFF7" }, // Great — violet
-        { accent: "#10B981", accentDark: "#047857", tint: "#D1FAE5" }, // Superb — emerald
-    ][zoneIdx];
-    // Animate score from 0 → target on mount.
-    const [displayScore, setDisplayScore] = useState(0);
-    useEffect(() => {
-        let raf = 0;
-        const start = performance.now();
-        const duration = 900;
-        const tick = (now) => {
-            const t = Math.min(1, (now - start) / duration);
-            // easeOutCubic
-            const eased = 1 - Math.pow(1 - t, 3);
-            setDisplayScore(Math.round(score * eased));
-            if (t < 1)
-                raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
-    }, [score]);
-    // Larger ring circumference for breathing space.
-    const size = 220;
-    const cx = size / 2;
-    const cy = size / 2;
-    const r = 90;
-    const gapDeg = 28;
-    const startA = 90 + gapDeg / 2;
-    const sweepTotal = 360 - gapDeg;
-    const progress = Math.max(0, Math.min(1, displayScore / 100));
-    const endA = startA + sweepTotal * progress;
-    const polar = (a, radius = r) => ({
-        x: cx + radius * Math.cos((a * Math.PI) / 180),
-        y: cy + radius * Math.sin((a * Math.PI) / 180),
-    });
-    const p0 = polar(startA);
-    const pFull = polar(startA + sweepTotal);
-    const pProg = polar(endA);
-    const bgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 1 1 ${pFull.x} ${pFull.y}`;
-    const fgArc = `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${sweepTotal * progress > 180 ? 1 : 0} 1 ${pProg.x} ${pProg.y}`;
-    const gid = `gauge-ring-${zoneIdx}`;
-    const infoIconRef = useRef(null);
-    const [iconAnchor, setIconAnchor] = useState(null);
-    const openTooltip = () => {
-        const r = infoIconRef.current?.getBoundingClientRect();
-        if (!r)
-            return;
-        setIconAnchor({ x: r.left + r.width / 2, y: r.bottom });
-        setShowFormula(true);
-    };
-    const closeTooltip = () => { setShowFormula(false); setIconAnchor(null); };
-    return (_jsxs("div", { ref: infoBtnRef, className: ui.scoreCard, style: {
-            background: `linear-gradient(140deg, ${colour.tint} 0%, ${colour.accent}2b 60%, ${colour.accent}4d 100%)`,
-        }, children: [_jsx("span", { className: ui.scoreRibbon, style: {
-                    background: "rgba(255,255,255,0.98)",
-                    color: colour.accentDark,
-                    borderBottomRightRadius: "14px",
-                    backdropFilter: "blur(6px)",
-                    WebkitBackdropFilter: "blur(6px)",
-                }, children: "Dental score" }), showFormula && iconAnchor && _jsx(ScoreTooltip, { anchor: iconAnchor, data: data }), _jsxs("div", { className: ui.scoreSvgWrap, children: [_jsxs("svg", { width: size, height: size, viewBox: `0 0 ${size} ${size}`, children: [_jsx("defs", { children: _jsxs("linearGradient", { id: gid, x1: "0%", y1: "0%", x2: "100%", y2: "100%", children: [_jsx("stop", { offset: "0%", stopColor: colour.accent, stopOpacity: "0.85" }), _jsx("stop", { offset: "100%", stopColor: colour.accentDark, stopOpacity: "1" })] }) }), _jsx("path", { d: bgArc, stroke: colour.tint, strokeWidth: 14, strokeLinecap: "round", fill: "none" }), progress > 0 && (_jsx("path", { d: fgArc, stroke: `url(#${gid})`, strokeWidth: 14, strokeLinecap: "round", fill: "none" }))] }), _jsxs("div", { className: ui.scoreCenter, style: { gap: 4 }, children: [_jsx("span", { className: ui.scoreHuge, style: {
-                                    fontSize: 42,
-                                    lineHeight: 1,
-                                    color: colour.accentDark,
-                                }, children: displayScore }), _jsx("span", { className: ui.scoreSub, children: "out of 100" }), _jsxs("span", { ref: infoIconRef, onMouseEnter: openTooltip, onMouseLeave: closeTooltip, onClick: openTooltip, className: ui.scoreRatingBtn, style: {
-                                    background: `linear-gradient(135deg, ${colour.tint} 0%, ${colour.accent}22 100%)`,
-                                    color: colour.accentDark,
-                                    border: `1px solid ${colour.accent}33`,
-                                    letterSpacing: "0.6px",
-                                }, children: [rating.toUpperCase(), _jsx(InfoCircle, { size: 14, color: "currentColor", variant: "Linear" })] })] })] })] }));
-}
-function ScoreTooltip({ anchor, data }) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { setMounted(true); }, []);
-    if (!mounted)
-        return null;
-    // Compact black tooltip, anchored below the info icon, arrow points up to icon.
-    const TOOLTIP_W = 220;
-    const TOOLTIP_H_ESTIMATE = 110;
-    const pad = 12;
-    const ARROW = 6;
-    let placeBelow = true;
-    let left = anchor.x - TOOLTIP_W / 2;
-    let top = anchor.y + ARROW + 4;
-    if (typeof window !== "undefined") {
-        if (top + TOOLTIP_H_ESTIMATE + pad > window.innerHeight) {
-            placeBelow = false;
-            top = anchor.y - TOOLTIP_H_ESTIMATE - ARROW - 4;
-        }
-        if (left + TOOLTIP_W + pad > window.innerWidth)
-            left = window.innerWidth - TOOLTIP_W - pad;
-        if (left < pad)
-            left = pad;
-    }
-    const arrowX = Math.max(12, Math.min(TOOLTIP_W - 12, anchor.x - left)) - ARROW;
-    return createPortal(_jsxs("div", { className: ui.tooltipRoot, style: { top, left }, children: [placeBelow && (_jsx("div", { style: {
-                    position: "absolute",
-                    top: -ARROW,
-                    left: arrowX,
-                    width: 0,
-                    height: 0,
-                    borderLeft: `${ARROW}px solid transparent`,
-                    borderRight: `${ARROW}px solid transparent`,
-                    borderBottom: `${ARROW}px solid #0f172a`,
-                } })), _jsxs("div", { className: ui.tooltipPanel, style: { background: "#0f172a", color: "#ffffff" }, children: [_jsx("p", { className: ui.tooltipTitle, children: "How this is calculated" }), _jsx("p", { className: ui.tooltipLead, children: "Starts at 100, decreases with diagnoses & findings." }), _jsxs("div", { className: ui.tooltipStack, children: [_jsx(TooltipRow, { label: "Diagnoses", value: data.breakdown.diag }), _jsx(TooltipRow, { label: "Findings", value: data.breakdown.findings })] }), _jsxs("div", { className: ui.tooltipFooter, children: [_jsx("span", { className: ui.tooltipFooterMuted, children: "Total deducted" }), _jsxs("span", { className: ui.tooltipFooterVal, children: ["\u2212", data.totalDeduction] })] })] }), !placeBelow && (_jsx("div", { style: {
-                    position: "absolute",
-                    bottom: -ARROW,
-                    left: arrowX,
-                    width: 0,
-                    height: 0,
-                    borderLeft: `${ARROW}px solid transparent`,
-                    borderRight: `${ARROW}px solid transparent`,
-                    borderTop: `${ARROW}px solid #0f172a`,
-                } }))] }), document.body);
-}
-function TooltipRow({ label, value }) {
-    return (_jsxs("div", { className: ui.tooltipRow, children: [_jsx("span", { className: ui.tooltipRowLabel, children: label }), _jsxs("span", { className: ui.tooltipRowVal, children: ["\u2212", value] })] }));
-}
 const ARCH_SCOPE_BADGE = {
     RIGHT_ARCH: "R arch",
     LEFT_ARCH: "L arch",
     UPPER_ARCH: "Maxillary",
     LOWER_ARCH: "Mandibular",
 };
+// OralPositionCell — multi-select dropdown of regions + surfaces + overall.
+// Opening or toggling previews the region highlight on the 3D model.
+function OralPositionCell({ value = [], onChange, onHoverPreview }) {
+    const [open, setOpen] = useState(false);
+    const [pos, setPos] = useState(null);
+    const [query, setQuery] = useState("");
+    const btnRef = useRef(null);
+    const popRef = useRef(null);
+    const searchRef = useRef(null);
+    const place = useCallback(() => {
+        const el = btnRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        // Wider panel so all four groups read in a 2-column layout (single view).
+        const w = Math.min(440, Math.max(r.width, 360));
+        // Clamp so the panel never spills past the right viewport edge.
+        const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+        const left = Math.max(8, Math.min(r.left, vw - w - 8));
+        setPos({ top: r.bottom + 4, left, width: w });
+    }, []);
+    useEffect(() => {
+        if (!open) { setQuery(""); return; }
+        place();
+        // Focus the search field so the user can filter immediately.
+        const t = setTimeout(() => searchRef.current?.focus(), 30);
+        const onDoc = (e) => {
+            if (btnRef.current && btnRef.current.contains(e.target)) return;
+            if (popRef.current && popRef.current.contains(e.target)) return;
+            setOpen(false);
+        };
+        const reposition = () => place();
+        document.addEventListener("mousedown", onDoc);
+        window.addEventListener("scroll", reposition, true);
+        window.addEventListener("resize", reposition);
+        return () => {
+            clearTimeout(t);
+            document.removeEventListener("mousedown", onDoc);
+            window.removeEventListener("scroll", reposition, true);
+            window.removeEventListener("resize", reposition);
+        };
+    }, [open, place]);
+    const sel = new Set(value);
+    // Clinical reconcile: "Whole mouth" is exclusive, distribution is radio-style,
+    // "Full mouth" vs quadrants is either/or — see reconcileOralPositions().
+    const toggle = (id) => {
+        const arr = reconcileOralPositions(value, id);
+        onChange(arr);
+        onHoverPreview?.(arr);
+    };
+    // Compact pills wrap up to ~3 lines (≈9 tags). Beyond that we collapse the
+    // tail into a "+N" chip (tooltip lists the rest) so the row never grows past
+    // 3 lines — keeps the table readable on iPad widths too.
+    // Show EVERY selected site as its own pill — wrap to as many lines as needed
+    // so the doctor never loses visibility of what they entered. The row grows
+    // to fit. Font size stays on the even scale (12px). Tooltip on the trigger
+    // (see below) still renders the full label list for screen readers / hover.
+    const shownPills = value;
+    const pillStyle = { fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: "rgba(164,97,216,0.14)", color: "#703A9E", whiteSpace: "nowrap", flexShrink: 0 };
+    // Reuses the dental surface picker's exact UI classes (borderless trigger,
+    // popover, checkbox list) so the SITE cell matches the tooth SURFACES cell.
+    // The cell can collapse pills into "+N" when crowded — wrap the trigger in a
+    // TP tooltip listing every site (full label) so the doctor never loses info.
+    const tooltipTitle = value.length === 0 ? "" : value.map((v) => ORAL_POSITION_LABEL[v] || v).join(", ");
+    return (_jsxs(_Fragment, { children: [
+        _jsx(TPTooltip, { title: tooltipTitle, arrow: true, placement: "top", enterDelay: 250, children: _jsxs("button", { ref: btnRef, type: "button", onClick: () => { const n = !open; setOpen(n); if (n) onHoverPreview?.(value); }, className: clsx(ui.surfaceTriggerBtn, open && ui.surfaceTriggerActive), children: [
+            _jsx("span", { className: ui.surfaceTriggerText, style: { minWidth: 0, flex: 1 }, children: value.length === 0 ? (_jsx("span", { className: ui.surfacePlaceholder, children: "Select site" })) : (_jsx("span", { style: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, rowGap: 4, minWidth: 0 }, children: shownPills.map((v) => (_jsx("span", { style: pillStyle, children: oralPositionShort(v) }, v))) })) }),
+            _jsx("svg", { width: "10", height: "6", viewBox: "0 0 10 6", fill: "none", style: { transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }, children: _jsx("path", { d: "M1 1L5 5L9 1", stroke: "#94a3b8", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }),
+        ] }) }),
+        open && pos && typeof document !== "undefined" && createPortal((() => {
+            const q = query.trim().toLowerCase();
+            const checkSvg = _jsx("svg", { width: "9", height: "9", viewBox: "0 0 10 10", fill: "none", children: _jsx("path", { d: "M2 5L4 7L8 3", stroke: "#fff", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" }) });
+            // Bigger, more readable rows: 14px label, 12px caption (when searching),
+            // generous padding for tap targets. Group headings stay at 12px and ALL CAPS.
+            const renderRow = (it, caption) => { const on = sel.has(it.id); return (_jsx("li", { children: _jsxs("button", { type: "button", onClick: () => toggle(it.id), onMouseEnter: () => onHoverPreview?.([...value.filter((v) => v !== it.id), ...(sel.has(it.id) ? [] : [it.id])]), className: ui.surfaceZoneBtn, style: { padding: "8px 12px", gap: 10 }, children: [
+                _jsx("span", { className: clsx(ui.surfaceCheck, on && ui.surfaceCheckOn), children: on && checkSvg }),
+                _jsxs("span", { style: { display: "flex", flexDirection: "column", minWidth: 0, lineHeight: 1.3, gap: 2 }, children: [
+                    _jsx("span", { className: ui.surfaceMenuLabel, style: { fontSize: 14, color: "#1e293b" }, children: it.label }),
+                    caption ? _jsx("span", { style: { fontSize: 12, color: "#94a3b8" }, children: caption }) : null,
+                ] }),
+            ] }) }, it.id)); };
+            const groupHead = (label) => _jsx("div", { style: { fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", padding: "8px 12px 4px" }, children: label });
+            const filtered = ORAL_POSITION_GROUPS.map((g) => ({ group: g.group, items: g.items.filter((it) => !q || it.label.toLowerCase().includes(q)) })).filter((g) => g.items.length);
+            return _jsxs("div", { ref: popRef, className: ui.surfacePopover, style: { top: pos.top, left: pos.left, width: pos.width, maxHeight: 420, display: "flex", flexDirection: "column", overflow: "hidden", position: "fixed" }, children: [
+                // Sticky search
+                _jsx("div", { style: { padding: "12px 12px 8px", borderBottom: "1px solid #f1f5f9", background: "#fff" }, children: _jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 10px", background: "#f8fafc" }, children: [
+                    _jsx(SearchNormal1, { size: 16, color: "#94a3b8", variant: "Linear" }),
+                    _jsx("input", { ref: searchRef, value: query, onChange: (e) => setQuery(e.target.value), placeholder: "Search sites, regions, surfaces…", style: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: 14, color: "#334155" } }),
+                    query ? _jsx("button", { type: "button", "aria-label": "Clear search", onClick: () => { setQuery(""); searchRef.current?.focus(); }, style: { border: "none", background: "transparent", color: "#94a3b8", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }, children: "×" }) : null,
+                ] }) }),
+                // Body — wrapped in a relative box so a fade-gradient scroll
+                // indicator can hover at the bottom edge, telling the user there's
+                // more content below to scroll to.
+                _jsxs("div", { style: { position: "relative", flex: 1, minHeight: 0 }, children: [
+                _jsx("div", { className: ui.surfacePopoverScroll, style: { padding: "10px 4px", height: "100%" }, children: filtered.length === 0
+                    ? _jsx("div", { style: { padding: "20px 12px", textAlign: "center", color: "#94a3b8", fontSize: 12 }, children: "No matching sites" })
+                    : q
+                        ? _jsx("ul", { className: ui.surfaceZoneList, style: { maxHeight: "none", overflow: "visible" }, children: filtered.flatMap((g) => g.items.map((it) => renderRow(it, g.group))) })
+                        : _jsx("div", { style: { columnCount: 2, columnGap: 8 }, children: filtered.map((g) => (_jsxs("div", { style: { breakInside: "avoid", display: "inline-block", width: "100%", marginBottom: 10, paddingInline: 8 }, children: [
+                            groupHead(g.group),
+                            _jsx("ul", { className: ui.surfaceZoneList, style: { maxHeight: "none", overflow: "visible" }, children: g.items.map((it) => renderRow(it)) }),
+                        ] }, `grp-${g.group}`))) }),
+                }),
+                // Fade gradient at the bottom — signals to the user that there's
+                // more content to scroll. Pointer-events:none so it doesn't block
+                // clicks on the last visible row.
+                _jsx("div", { "aria-hidden": true, style: { position: "absolute", left: 0, right: 0, bottom: 0, height: 28, pointerEvents: "none", background: "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 70%, #fff 100%)", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 4 }, children: _jsx("svg", { width: "14", height: "8", viewBox: "0 0 10 6", fill: "none", children: _jsx("path", { d: "M1 1L5 5L9 1", stroke: "#94a3b8", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) }) }),
+                ] }),
+            ] });
+        })(), document.body),
+    ] }));
+}
+// Shows the sticky action-column edge gradient/shadow ONLY while the table is
+// scrolled horizontally (content tucked under the delete column) — mirrors the
+// Chief Complaints table behaviour. Returns a ref for the .tableWrap + the flag.
+function useStickyActionEdge(depKey) {
+    const wrapRef = useRef(null);
+    const [showEdge, setShowEdge] = useState(false);
+    useEffect(() => {
+        const wrap = wrapRef.current;
+        if (!wrap) { setShowEdge(false); return; }
+        const update = () => {
+            const maxScroll = Math.max(0, wrap.scrollWidth - wrap.clientWidth);
+            const hasOverflow = wrap.scrollWidth > wrap.clientWidth + 1;
+            // Show the edge whenever there is still content hidden to the right
+            // (tucked behind the sticky action column) — i.e. not scrolled fully
+            // to the far end. This includes the initial at-rest state.
+            setShowEdge(hasOverflow && wrap.scrollLeft < maxScroll - 0.5);
+        };
+        update();
+        wrap.addEventListener("scroll", update, { passive: true });
+        window.addEventListener("resize", update);
+        let ro = null;
+        if (typeof ResizeObserver !== "undefined") {
+            ro = new ResizeObserver(update);
+            ro.observe(wrap);
+            const t = wrap.querySelector("table");
+            if (t) ro.observe(t);
+        }
+        return () => {
+            wrap.removeEventListener("scroll", update);
+            window.removeEventListener("resize", update);
+            ro?.disconnect();
+        };
+    }, [depKey]);
+    return { wrapRef, showEdge };
+}
+// OralTable — a dental-findings-style table (Name / Position / Since / Note) for
+// one kind (finding|procedure), plus a catalog of chips to add rows.
+function OralTable({ state, title, kind, catalog, list }) {
+    const { wrapRef, showEdge } = useStickyActionEdge(list.length);
+    const [query, setQuery] = useState("");
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [pos, setPos] = useState(null);
+    const inputRef = useRef(null);
+    const popRef = useRef(null);
+    const has = (name) => list.some((e) => e.name === name);
+    const q = query.trim().toLowerCase();
+    const available = catalog.filter((c) => !has(c));
+    const quickChips = available.slice(0, 8); // ~2 lines of quick picks
+    const matches = q ? available.filter((c) => c.toLowerCase().includes(q)).slice(0, 30) : [];
+    const placeholder = kind === "finding" ? "Search & add oral finding" : kind === "past" ? "Search & add past procedure" : "Search & add oral procedure";
+    const addAndClear = (name) => { if (name) state.onAddOralEntry(kind, name); setQuery(""); setSearchOpen(false); };
+    const place = useCallback(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    }, []);
+    useEffect(() => {
+        if (!searchOpen) return;
+        place();
+        const onDoc = (e) => {
+            if (inputRef.current && inputRef.current.contains(e.target)) return;
+            if (popRef.current && popRef.current.contains(e.target)) return;
+            setSearchOpen(false);
+        };
+        const rp = () => place();
+        document.addEventListener("mousedown", onDoc);
+        window.addEventListener("scroll", rp, true);
+        window.addEventListener("resize", rp);
+        return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("scroll", rp, true); window.removeEventListener("resize", rp); };
+    }, [searchOpen, place]);
+    const showDropdown = searchOpen && q.length > 0;
+    return (_jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 8, padding: "4px 14px 12px" }, children: [
+        list.length > 0 && (_jsx("div", { ref: wrapRef, className: clsx(ui.tableWrap, showEdge && ui.scrolledEdge), children: _jsxs("table", { className: ui.table, children: [
+            _jsxs("colgroup", { children: [_jsx("col", { style: { minWidth: 150 } }), _jsx("col", { style: { width: 220, minWidth: 200 } }), _jsx("col", { style: { width: 120, minWidth: 110 } }), _jsx("col", { style: { minWidth: 130 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }),
+            _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "SITE" }), _jsx("th", { className: ui.th, children: "SINCE" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }),
+            _jsx("tbody", { children: list.map((e) => (_jsxs("tr", { className: ui.tbodyRow, children: [
+                _jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: e.name }) }),
+                _jsx("td", { className: ui.tdPlain, children: _jsx(OralPositionCell, { value: e.surfaces || [], onChange: (arr) => state.onUpdateOralEntry(e.id, { surfaces: arr }), onHoverPreview: (arr) => state.onSetOralHighlight?.(arr) }) }),
+                _jsx("td", { className: ui.tdPlain, children: _jsx(SinceDropdown, { value: e.since || "", onChange: (v) => state.onUpdateOralEntry(e.id, { since: v }) }) }),
+                _jsx("td", { className: ui.tdPlain, children: _jsx("input", { type: "text", value: e.note || "", onChange: (ev) => state.onUpdateOralEntry(e.id, { note: ev.target.value }), placeholder: "Add note…", className: ui.symptomField }) }),
+                _jsx("td", { className: ui.tdStickyAct, children: _jsx("button", { type: "button", onClick: () => state.onRemoveOralEntry(e.id), title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 20, color: "currentColor", strokeWidth: 1.5, variant: "Linear" }) }) }),
+            ] }, e.id))) }),
+        ] }) })),
+        _jsxs("div", { className: ui.searchRel, children: [
+            _jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }),
+            _jsx("input", { ref: inputRef, type: "text", value: query, onChange: (ev) => { setQuery(ev.target.value); setSearchOpen(true); }, onFocus: () => setSearchOpen(true), onKeyDown: (ev) => { if (ev.key === "Enter" && q) { const exact = catalog.find((c) => c.toLowerCase() === q); addAndClear(exact || query.trim()); } else if (ev.key === "Escape") { setSearchOpen(false); } }, placeholder: placeholder, className: ui.searchInput }),
+        ] }),
+        showDropdown && pos && typeof document !== "undefined" && createPortal(_jsx("div", { ref: popRef, style: { position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, maxHeight: 260, overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 10px 30px rgba(2,6,23,0.22)", padding: 6 }, children: matches.length > 0 ? matches.map((name) => (_jsx("button", { type: "button", onClick: () => addAndClear(name), style: { display: "block", width: "100%", textAlign: "left", fontSize: 12.5, padding: "7px 10px", borderRadius: 6, border: "none", background: "transparent", color: "#334155", cursor: "pointer", fontFamily: "Inter, sans-serif" }, onMouseEnter: (e) => { e.currentTarget.style.background = "rgba(99,102,241,0.08)"; }, onMouseLeave: (e) => { e.currentTarget.style.background = "transparent"; }, children: name }, name))) : (_jsx("div", { style: { fontSize: 12, color: "#94a3b8", padding: "8px 10px", fontFamily: "Inter, sans-serif" }, children: "No matches" })) }), document.body),
+        !showDropdown && quickChips.length > 0 && (_jsx("div", { className: ui.chipRow, children: quickChips.map((name) => (_jsx("button", { type: "button", onClick: () => addAndClear(name), className: ui.chipBtn, children: name }, name))) })),
+    ] }));
+}
+function OralExamPanel({ state }) {
+    const entries = Array.isArray(state.oralEntries) ? state.oralEntries : [];
+    const pastProcedures = entries.filter((e) => e.kind === "past");
+    const findings = entries.filter((e) => e.kind === "finding");
+    const procedures = entries.filter((e) => e.kind === "procedure");
+    const notes = state.oralNotes || "";
+    const [activeSection, setActiveSection] = useState("past");
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
+    const hasAnyData = entries.length > 0 || notes.trim().length > 0;
+    useEffect(() => () => { state.onSetOralHighlight?.([]); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // NB: read the stale `activeSection` (not a functional updater) so that the
+    // header's onClick and the accordion's bubbled onClick both resolve to the
+    // same target — otherwise they compose and cancel out (section won't open).
+    const jumpTo = (id) => { if (activeSection === id) setActiveSection(null); else setActiveSection(id); };
+    const clearAll = () => { entries.forEach((e) => state.onRemoveOralEntry(e.id)); state.onUpdateOralNotes?.(""); setShowClearConfirm(false); };
+    return (_jsxs("div", { className: ui.panelRoot, children: [
+        _jsx("header", { className: ui.panelHeader, children: _jsxs("div", { className: ui.panelHeaderRow, children: [
+            _jsxs("div", { className: ui.panelHeaderLeft, style: { minWidth: 0, flex: 1 }, children: [
+                _jsx("div", { className: ui.panelThumb, style: { flexShrink: 0 }, children: _jsx(MiniScopeCanvas, { patientType: state.patientType ?? "adult", scopeType: "full-mouth", fdis: state.selectionScopeFdis ?? [], toothDiagnoses: state.toothDiagnoses, findingsByTooth: state.findingsByTooth, implantTeeth: state.implantTeeth, size: 40 }) }),
+                _jsx("div", { className: ui.panelTitleBlock, style: { minWidth: 0 }, children: _jsx("div", { className: ui.panelTitleRow, children: _jsx("h3", { className: ui.panelTitle, style: { overflow: "visible", maxWidth: "none" }, children: "Oral Examination" }) }) }),
+            ] }),
+            _jsxs("div", { className: ui.panelHeaderActions, children: [
+                _jsx("button", { type: "button", className: ui.panelIconBtn, title: "Template", children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }),
+                _jsx("button", { type: "button", className: ui.panelIconBtn, title: "Save", children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }),
+                _jsx("button", { type: "button", title: "Clear all oral examination data", disabled: !hasAnyData, onClick: () => setShowClearConfirm(true), className: ui.panelIconBtnDanger, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }),
+                _jsx(TPConfirmDialog, { open: showClearConfirm, onOpenChange: setShowClearConfirm, title: "Are you sure you want to clear oral examination?", warning: "This will remove all oral findings, procedures, and notes from this visit. This action cannot be undone.", secondaryLabel: "Yes, Clear All", secondaryTone: "destructive", onSecondary: clearAll, primaryLabel: "No, Keep It" }),
+                _jsx("div", { className: ui.panelDivider }),
+                _jsx("button", { type: "button", onClick: () => state.onBackToDentition(), className: ui.panelCloseBtn, title: "Close panel", children: _jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "18", height: "18", viewBox: "0 0 256 256", children: [_jsx("rect", { width: "256", height: "256", fill: "none" }), _jsx("polyline", { points: "192 104 152 104 152 64", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "208", y1: "48", x2: "152", y2: "104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "64 152 104 152 104 192", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "48", y1: "208", x2: "104", y2: "152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "152 192 152 152 192 152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "208", y1: "208", x2: "152", y2: "152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "104 64 104 104 64 104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "48", y1: "48", x2: "104", y2: "104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" })] }) }),
+            ] }),
+        ] }) }),
+        _jsxs("div", { className: ui.panelBody, children: [
+            _jsx(AccordionWrap, { open: activeSection === "past", fitContent: true, onExpand: () => jumpTo("past"), header: _jsx(SectionHeader, { title: "Past Procedures", count: pastProcedures.length, medicalIcon: "clipboard-activity", onTemplate: activeSection === "past" ? () => { } : undefined, onSave: activeSection === "past" ? () => { } : undefined, onClear: activeSection === "past" ? () => { pastProcedures.forEach((e) => state.onRemoveOralEntry(e.id)); } : undefined, clearDisabled: pastProcedures.length === 0, chevron: activeSection === "past" ? "up" : "down", onClick: () => jumpTo("past"), onChevronClick: () => jumpTo("past") }), children: _jsx(OralTable, { state: state, kind: "past", catalog: ORAL_PROCEDURES, list: pastProcedures }) }),
+            _jsx(AccordionWrap, { open: activeSection === "findings", fitContent: true, onExpand: () => jumpTo("findings"), header: _jsx(SectionHeader, { title: "Findings", count: findings.length, medicalIcon: "diagnosis", onTemplate: activeSection === "findings" ? () => { } : undefined, onSave: activeSection === "findings" ? () => { } : undefined, onClear: activeSection === "findings" ? () => { findings.forEach((e) => state.onRemoveOralEntry(e.id)); } : undefined, clearDisabled: findings.length === 0, chevron: activeSection === "findings" ? "up" : "down", onClick: () => jumpTo("findings"), onChevronClick: () => jumpTo("findings") }), children: _jsx(OralTable, { state: state, kind: "finding", catalog: ORAL_FINDINGS, list: findings }) }),
+            _jsx(AccordionWrap, { open: activeSection === "procedures", fitContent: true, onExpand: () => jumpTo("procedures"), header: _jsx(SectionHeader, { title: "Procedures", count: procedures.length, medicalIcon: "surgical-scissors-02", onTemplate: activeSection === "procedures" ? () => { } : undefined, onSave: activeSection === "procedures" ? () => { } : undefined, onClear: activeSection === "procedures" ? () => { procedures.forEach((e) => state.onRemoveOralEntry(e.id)); } : undefined, clearDisabled: procedures.length === 0, chevron: activeSection === "procedures" ? "up" : "down", onClick: () => jumpTo("procedures"), onChevronClick: () => jumpTo("procedures") }), children: _jsx(OralTable, { state: state, kind: "procedure", catalog: ORAL_PROCEDURES, list: procedures }) }),
+            _jsx(AccordionWrap, { open: activeSection === "notes", fitContent: true, onExpand: () => jumpTo("notes"), header: _jsx(SectionHeader, { title: "Overall Notes", medicalIcon: "note-2", onTemplate: activeSection === "notes" ? () => { } : undefined, onSave: activeSection === "notes" ? () => { } : undefined, onClear: activeSection === "notes" ? () => state.onUpdateOralNotes?.("") : undefined, chevron: activeSection === "notes" ? "up" : "down", onClick: () => jumpTo("notes"), onChevronClick: () => jumpTo("notes") }), children: _jsx("div", { className: ui.notesPad, children: _jsx("textarea", { value: notes, onChange: (e) => state.onUpdateOralNotes?.(e.target.value), placeholder: "General notes for the oral examination…", className: ui.notesArea }) }) }),
+        ] }),
+    ] }));
+}
+function OralRecordsList({ state }) {
+    const entries = Array.isArray(state?.oralEntries) ? state.oralEntries : [];
+    if (entries.length === 0) return null;
+    const pastProcs = entries.filter((e) => e.kind === "past").map((e) => e.name);
+    const findings = entries.filter((e) => e.kind === "finding").map((e) => e.name);
+    const procs = entries.filter((e) => e.kind === "procedure").map((e) => e.name);
+    const overallNotes = (state?.oralNotes || "").trim();
+    // One labeled section row — icon + section name + count chip + the actual
+    // items listed cleanly underneath. Far easier to scan than a flat pill row.
+    // One labeled section row — icon + section name (with count in brackets) +
+    // the items rendered as flat-style tag chips matching the dental tag chips
+    // on the left (no stroke, plain light violet bg, 6px corner radius).
+    const itemTagStyle = { display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 600, color: "#703A9E", background: "rgba(164,97,216,0.16)", padding: "3px 8px", borderRadius: 6, lineHeight: 1.4, whiteSpace: "nowrap", cursor: "default" };
+    // Hover broadcast — DentitionView listens to `oral-tags-filter` and shows
+    // only matching tooltips on the canvas:
+    //   null               → hide everything
+    //   { all: true }      → show every tag (card-level hover)
+    //   { kind }           → show all tags of that kind (section-level hover)
+    //   { kind, name }     → show just that one entry (chip-level hover)
+    // Section / chip handlers also nudge `onSetOralHighlight` so the affected
+    // teeth dim on the dentition.
+    const fire = (detail) => { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("oral-tags-filter", { detail })); };
+    const onCardEnter = () => fire({ all: true });
+    const onCardLeave = () => { fire(null); state?.onSetOralHighlight?.([]); };
+    const onCardClick = () => { fire(null); state?.onSetOralHighlight?.([]); state.onEnterOralExam?.(); };
+    const onSectionEnter = (kind) => fire({ kind });
+    const onSectionLeave = () => fire({ all: true });
+    const onItemEnter = (kind, name) => {
+        const e = entries.find((x) => x.kind === kind && x.name === name);
+        if (e) state?.onSetOralHighlight?.(e.surfaces || []);
+        fire({ kind, name });
+    };
+    const onItemLeave = (kind) => { state?.onSetOralHighlight?.([]); fire({ kind }); };
+    const sectionRow = (icon, label, items, key, kind) => items.length === 0 ? null : (
+        _jsxs("div", { onMouseEnter: () => onSectionEnter(kind), onMouseLeave: onSectionLeave, style: { display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", borderRadius: 10, background: "#f8fafc", border: "1px solid #eef2f7" }, children: [
+            _jsx("span", { style: { display: "inline-flex", height: 32, width: 32, alignItems: "center", justifyContent: "center", borderRadius: 8, background: "rgba(164,97,216,0.12)", flexShrink: 0 }, children: _jsx(TPMedicalIcon, { name: icon, variant: "bulk", size: 16, color: "var(--tp-violet-600)" }) }),
+            _jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 8, minWidth: 0, flex: 1, textAlign: "left" }, children: [
+                _jsxs("span", { style: { fontSize: 14, fontWeight: 700, color: "#0f172a", letterSpacing: "0.1px" }, children: [label, " ", _jsxs("span", { style: { fontWeight: 500, color: "#94a3b8" }, children: ["(", items.length, ")"] })] }),
+                _jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: items.map((it, i) => _jsx("span", { style: itemTagStyle, title: it, onMouseEnter: (ev) => { ev.stopPropagation(); onItemEnter(kind, it); }, onMouseLeave: (ev) => { ev.stopPropagation(); onItemLeave(kind); }, children: it }, `${key}-${i}`)) }),
+            ] }),
+        ] }, key)
+    );
+    const notesRow = !overallNotes ? null : (
+        _jsxs("div", { style: { display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", borderRadius: 10, background: "#f8fafc", border: "1px solid #eef2f7" }, children: [
+            _jsx("span", { style: { display: "inline-flex", height: 32, width: 32, alignItems: "center", justifyContent: "center", borderRadius: 8, background: "rgba(164,97,216,0.12)", flexShrink: 0 }, children: _jsx(TPMedicalIcon, { name: "note-2", variant: "bulk", size: 16, color: "var(--tp-violet-600)" }) }),
+            _jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1, textAlign: "left" }, children: [
+                _jsx("span", { style: { fontSize: 14, fontWeight: 700, color: "#0f172a" }, children: "Oral Notes" }),
+                _jsx("p", { style: { margin: 0, fontSize: 12, color: "#475569", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }, title: overallNotes, children: overallNotes }),
+            ] }),
+        ] }, "notes")
+    );
+    // No outer "Oral Records" header — the card title carries an inline count
+    // chip so a single Oral Examination card represents the whole section.
+    return (_jsx("div", { className: ui.recordsList, style: { marginTop: 4 }, children: _jsxs("button", { type: "button", onMouseEnter: onCardEnter, onMouseLeave: onCardLeave, onClick: onCardClick, className: clsx(ui.toothRow), children: [
+            _jsxs("div", { className: ui.toothRowHeader, children: [
+                _jsx("div", { className: ui.toothThumb, children: _jsx(MiniScopeCanvas, { patientType: "adult", scopeType: "full-mouth", fdis: undefined, toothDiagnoses: EMPTY_OBJ, findingsByTooth: EMPTY_OBJ, implantTeeth: EMPTY_SET, size: 52 }) }),
+                _jsx("div", { className: ui.toothHeaderText, children: _jsxs("span", { className: ui.toothName, style: { display: "inline-flex", alignItems: "center", gap: 8 }, children: ["Oral Examination", _jsx("span", { style: { fontSize: 12, fontWeight: 700, color: "#475569", background: "rgba(100,116,139,0.16)", padding: "1px 8px", borderRadius: 999, lineHeight: 1.4 }, children: entries.length })] }) }),
+                _jsx("span", { className: ui.toothChevron, "aria-hidden": true, children: _jsx(ExpandIcon, { size: 17 }) }),
+            ] }),
+            _jsx("div", { className: ui.toothRowDivider, "aria-hidden": true }),
+            _jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: [
+                sectionRow("clipboard-activity", "Past Procedures", pastProcs, "past", "past"),
+                sectionRow("diagnosis", "Findings", findings, "fnd", "finding"),
+                sectionRow("surgical-scissors-02", "Procedures", procs, "proc", "procedure"),
+                notesRow,
+            ] }),
+        ] }) }));
+}
 function SingleToothPanel({ state }) {
     const isGroupedScope = state.selectionScopeType === "quadrant" || state.selectionScopeType === "full-mouth" || state.selectionScopeType === "arch";
     const entityLabel = isGroupedScope
@@ -662,7 +971,7 @@ function SingleToothPanel({ state }) {
     const diagnosisCount = state.currentToothDiagnoses.size + (state.isImplant ? 1 : 0);
     // Dental charting sections — standard clinical workflow order
     const sections = [
-        { id: "procedures", label: "Treatment History", icon: "clipboard-activity", count: diagnosisCount + procedureCount },
+        { id: "procedures", label: "Past Procedures", icon: "clipboard-activity", count: diagnosisCount + procedureCount },
         { id: "findings", label: "Findings", icon: "diagnosis", count: findingCount },
         { id: "planned", label: "Procedures", icon: "surgical-scissors-02", count: plannedCount },
         { id: "notes", label: isGroupedScope ? "Overall Group Notes" : "Overall Tooth Notes", icon: "note-2" },
@@ -679,7 +988,10 @@ function SingleToothPanel({ state }) {
             sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
         });
     };
-    return (_jsxs("div", { className: ui.panelRoot, children: [_jsx("header", { className: ui.panelHeader, children: _jsxs("div", { className: ui.panelHeaderRow, children: [_jsxs("div", { className: ui.panelHeaderLeft, children: [_jsx("div", { className: ui.panelThumb, children: isGroupedScope ? (_jsx(MiniScopeCanvas, { patientType: state.patientType ?? "adult", scopeType: state.selectionScopeType === "full-mouth" ? "full-mouth" : state.selectionScopeType === "arch" ? "arch" : "quadrant", fdis: state.selectionScopeFdis ?? [], toothDiagnoses: state.toothDiagnoses, findingsByTooth: state.findingsByTooth, implantTeeth: state.implantTeeth, size: 40 })) : (_jsx(MiniToothCanvas, { tooth: state.selectedTooth, size: 40, diagnoses: state.currentToothDiagnoses, isImplant: state.isImplant, findings: state.findings })) }), _jsx("div", { className: ui.panelTitleBlock, children: _jsxs("div", { className: ui.panelTitleRow, children: [_jsx("h3", { className: ui.panelTitle, children: entityLabel }), _jsx("span", { className: ui.panelBadge, children: entityBadge })] }) })] }), _jsxs("div", { className: ui.panelHeaderActions, children: [_jsx("button", { type: "button", className: ui.panelIconBtn, title: "Template", children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", className: ui.panelIconBtn, title: "Save", children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsxs(AlertDialog, { open: showClearConfirm, onOpenChange: setShowClearConfirm, children: [_jsx(AlertDialogTrigger, { asChild: true, children: _jsx("button", { type: "button", title: "Clear all data for this tooth", disabled: !hasAnyData, className: ui.panelIconBtnDanger, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }) }), _jsxs(AlertDialogContent, { className: ui.clearDialogContent, children: [_jsxs(AlertDialogHeader, { children: [_jsxs("div", { className: ui.clearDialogTitleRow, children: [_jsx("div", { className: ui.clearDialogIcon, children: _jsx(Trash, { color: "#ef4444", size: 18, variant: "Bulk" }) }), _jsx(AlertDialogTitle, { className: ui.clearDialogTitle, children: "Clear all data?" })] }), _jsxs(AlertDialogDescription, { className: ui.clearDialogDesc, children: ["This will remove all treatment history, findings, procedures, and notes for", " ", _jsxs("span", { className: ui.clearDialogStrong, children: [entityLabel, " (", entityBadge, ")"] }), ". This action cannot be undone."] })] }), _jsxs(AlertDialogFooter, { className: ui.clearDialogFooter, children: [_jsx(AlertDialogCancel, { className: ui.clearDialogCancel, children: "Cancel" }), _jsx(AlertDialogAction, { onClick: clearAllToothData, className: ui.clearDialogAction, children: "Clear all" })] })] })] }), _jsx("div", { className: ui.panelDivider }), _jsx("button", { type: "button", onClick: tryBack, className: ui.panelCloseBtn, title: "Close panel", children: _jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "18", height: "18", viewBox: "0 0 256 256", children: [_jsx("rect", { width: "256", height: "256", fill: "none" }), _jsx("polyline", { points: "192 104 152 104 152 64", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "208", y1: "48", x2: "152", y2: "104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "64 152 104 152 104 192", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "48", y1: "208", x2: "104", y2: "152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "152 192 152 152 192 152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "208", y1: "208", x2: "152", y2: "152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "104 64 104 104 64 104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "48", y1: "48", x2: "104", y2: "104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" })] }) })] })] }) }), _jsxs("div", { className: ui.panelBody, children: [_jsx("div", { ref: (el) => { sectionRefs.current.procedures = el; }, children: _jsx(AccordionWrap, { open: activeSection === "procedures", onExpand: () => jumpTo("procedures"), header: _jsx(SectionHeader, { title: "Treatment History", count: diagnosisCount + procedureCount, medicalIcon: "clipboard-activity", onTemplate: activeSection === "procedures" ? () => { } : undefined, onSave: activeSection === "procedures" ? () => { } : undefined, onClear: activeSection === "procedures" ? () => {
+    return (_jsxs("div", { className: ui.panelRoot, children: [_jsx("header", { className: ui.panelHeader, children: _jsxs("div", { className: ui.panelHeaderRow, children: [_jsxs("div", { className: ui.panelHeaderLeft, children: [_jsx("div", { className: ui.panelThumb, children: isGroupedScope ? (_jsx(MiniScopeCanvas, { patientType: state.patientType ?? "adult", scopeType: state.selectionScopeType === "full-mouth" ? "full-mouth" : state.selectionScopeType === "arch" ? "arch" : "quadrant", fdis: state.selectionScopeFdis ?? [], toothDiagnoses: state.toothDiagnoses, findingsByTooth: state.findingsByTooth, implantTeeth: state.implantTeeth, size: 40 })) : (_jsx(MiniToothCanvas, { tooth: state.selectedTooth, size: 40, diagnoses: state.currentToothDiagnoses, isImplant: state.isImplant, findings: state.findings })) }), _jsx("div", { className: ui.panelTitleBlock, children: _jsxs("div", { className: ui.panelTitleRow, children: [_jsx("h3", { className: ui.panelTitle, children: entityLabel }), _jsx("span", { className: ui.panelBadge, children: entityBadge })] }) })] }), _jsxs("div", { className: ui.panelHeaderActions, children: [_jsx("button", { type: "button", className: ui.panelIconBtn, title: "Template", children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", className: ui.panelIconBtn, title: "Save", children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx(_Fragment, { children: [
+    _jsx("button", { type: "button", title: "Clear all data for this tooth", disabled: !hasAnyData, onClick: () => setShowClearConfirm(true), className: ui.panelIconBtnDanger, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }, "trigger"),
+    _jsx(TPConfirmDialog, { open: showClearConfirm, onOpenChange: setShowClearConfirm, title: `Are you sure you want to clear all data for ${entityLabel}?`, warning: `This will remove all treatment history, findings, procedures, and notes for ${entityLabel} (${entityBadge}). This action cannot be undone.`, secondaryLabel: "Yes, Clear All", secondaryTone: "destructive", onSecondary: clearAllToothData, primaryLabel: "No, Keep It" }, "dialog"),
+] }), _jsx("div", { className: ui.panelDivider }), _jsx("button", { type: "button", onClick: tryBack, className: ui.panelCloseBtn, title: "Close panel", children: _jsxs("svg", { xmlns: "http://www.w3.org/2000/svg", width: "18", height: "18", viewBox: "0 0 256 256", children: [_jsx("rect", { width: "256", height: "256", fill: "none" }), _jsx("polyline", { points: "192 104 152 104 152 64", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "208", y1: "48", x2: "152", y2: "104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "64 152 104 152 104 192", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "48", y1: "208", x2: "104", y2: "152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "152 192 152 152 192 152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "208", y1: "208", x2: "152", y2: "152", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("polyline", { points: "104 64 104 104 64 104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" }), _jsx("line", { x1: "48", y1: "48", x2: "104", y2: "104", fill: "none", stroke: "currentColor", strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: "16" })] }) })] })] }) }), _jsxs("div", { className: ui.panelBody, children: [_jsx("div", { ref: (el) => { sectionRefs.current.procedures = el; }, children: _jsx(AccordionWrap, { open: activeSection === "procedures", onExpand: () => jumpTo("procedures"), header: _jsx(SectionHeader, { title: "Past Procedures", count: diagnosisCount + procedureCount, medicalIcon: "clipboard-activity", onTemplate: activeSection === "procedures" ? () => { } : undefined, onSave: activeSection === "procedures" ? () => { } : undefined, onClear: activeSection === "procedures" ? () => {
                                     state.currentToothDiagnoses.forEach((d) => state.onToggleToothDiagnosis(d));
                                     if (state.isImplant)
                                         state.onToggleImplant();
@@ -695,11 +1007,13 @@ function SingleToothPanel({ state }) {
 // AccordionWrap — rounded card with animated expand/collapse.
 // Uses a measured height transition so content visibly slides open/shut.
 // ──────────────────────────────────────────────────────────────
-function AccordionWrap({ open, header, children, onExpand, }) {
-    return (_jsxs("div", { className: clsx(ui.accordion, open ? ui.accordionOpen : ui.accordionClosed), onClick: open ? undefined : onExpand, children: [_jsx("div", { className: ui.accordionHeaderSlot, children: header }), _jsx("div", { className: ui.accordionGrid, style: {
+function AccordionWrap({ open, header, children, onExpand, fitContent = false, }) {
+    return (_jsxs("div", { className: clsx(ui.accordion, open ? ui.accordionOpen : ui.accordionClosed), style: open && fitContent ? { flex: '0 0 auto' } : undefined, onClick: open ? undefined : onExpand, children: [_jsx("div", { className: ui.accordionHeaderSlot, children: header }), _jsx("div", { className: ui.accordionGrid, style: {
                     gridTemplateRows: open ? '1fr' : '0fr',
                     opacity: open ? 1 : 0,
-                    flex: open ? '1 1 0%' : '0 0 0px'
+                    // fitContent: size to the content (used by the lighter oral
+                    // sections) instead of stretching to fill the panel body.
+                    flex: open ? (fitContent ? '0 0 auto' : '1 1 0%') : '0 0 0px'
                 }, children: _jsx("div", { className: ui.accordionGridInner, children: children }) })] }));
 }
 // ──────────────────────────────────────────────────────────────
@@ -709,12 +1023,17 @@ function AccordionWrap({ open, header, children, onExpand, }) {
 function SectionHeader({ title, count, medicalIcon, onTemplate, onSave, onClear, clearDisabled, onClick, chevron, onChevronClick, }) {
     const stop = (e) => e.stopPropagation();
     const titleWithCount = typeof count === "number" ? `${title} (${count})` : title;
-    return (_jsxs("header", { onClick: onClick, className: clsx(ui.secHead, onClick && ui.secHeadClick), children: [medicalIcon && (_jsx("span", { className: ui.secIcon, children: _jsx(TPMedicalIcon, { name: medicalIcon, variant: "bulk", size: 22, color: "var(--tp-violet-500)" }) })), _jsx("h4", { className: ui.secTitle, children: titleWithCount }), _jsx("div", { className: ui.secGrow }), _jsxs("div", { className: ui.secActions, onClick: stop, children: [onTemplate && (_jsx("button", { type: "button", title: "Templates", onClick: onTemplate, className: ui.secToolBtn, children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })), onSave && (_jsx("button", { type: "button", title: "Save as template", onClick: onSave, className: ui.secToolBtn, children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })), onClear && (_jsx("button", { type: "button", title: "Clear", onClick: onClear, disabled: clearDisabled, className: ui.secToolBtn, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })), chevron && (_jsx("button", { type: "button", onClick: (e) => { e.stopPropagation(); onChevronClick?.() ?? onClick?.(); }, className: ui.secChevronBtn, children: chevron === "up" ? (_jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", children: _jsx("path", { d: "M19.92 15.05L13.4 8.53c-.77-.77-2.03-.77-2.8 0l-6.52 6.52", stroke: "#334155", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", strokeMiterlimit: "10" }) })) : (_jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", children: _jsx("path", { d: "M19.92 8.95L13.4 15.47c-.77.77-2.03.77-2.8 0L4.08 8.95", stroke: "#64748b", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", strokeMiterlimit: "10" }) })) }))] })] }));
+    // Clear is intercepted with a confirmation prompt — never call onClear directly.
+    const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+    const requestClear = (e) => { e.stopPropagation(); setClearConfirmOpen(true); };
+    const confirmClear = () => { setClearConfirmOpen(false); onClear?.(); };
+    return (_jsxs(_Fragment, { children: [_jsxs("header", { onClick: onClick, className: clsx(ui.secHead, onClick && ui.secHeadClick), children: [medicalIcon && (_jsx("span", { className: ui.secIcon, children: _jsx(TPMedicalIcon, { name: medicalIcon, variant: "bulk", size: 22, color: "var(--tp-violet-500)" }) })), _jsx("h4", { className: ui.secTitle, children: titleWithCount }), _jsx("div", { className: ui.secGrow }), _jsxs("div", { className: ui.secActions, onClick: stop, children: [onTemplate && (_jsx("button", { type: "button", title: "Templates", onClick: onTemplate, className: ui.secToolBtn, children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })), onSave && (_jsx("button", { type: "button", title: "Save as template", onClick: onSave, className: ui.secToolBtn, children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })), onClear && (_jsx("button", { type: "button", title: "Clear", onClick: requestClear, disabled: clearDisabled, className: ui.secToolBtn, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })), chevron && (_jsx("button", { type: "button", onClick: (e) => { e.stopPropagation(); onChevronClick?.() ?? onClick?.(); }, className: ui.secChevronBtn, children: chevron === "up" ? (_jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", children: _jsx("path", { d: "M19.92 15.05L13.4 8.53c-.77-.77-2.03-.77-2.8 0l-6.52 6.52", stroke: "#334155", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", strokeMiterlimit: "10" }) })) : (_jsx("svg", { width: "18", height: "18", viewBox: "0 0 24 24", fill: "none", children: _jsx("path", { d: "M19.92 8.95L13.4 15.47c-.77.77-2.03.77-2.8 0L4.08 8.95", stroke: "#64748b", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", strokeMiterlimit: "10" }) })) }))] })] }), _jsx(TPConfirmDialog, { open: clearConfirmOpen, onOpenChange: setClearConfirmOpen, title: `Are you sure you want to clear ${title.toLowerCase()}?`, warning: `Clearing this section will remove all ${title.toLowerCase()} data from this visit. This action cannot be undone.`, secondaryLabel: `Yes, Clear ${title}`, secondaryTone: "destructive", onSecondary: confirmClear, primaryLabel: "No, Keep It" })] }));
 }
 // ──────────────────────────────────────────────────────────────
 // EntryTab — shared builder + table for Findings and Procedures
 // ──────────────────────────────────────────────────────────────
 function EntryTab({ state, kind }) {
+    const { wrapRef, showEdge } = useStickyActionEdge(0);
     const [activeCell, setActiveCell] = useState(null);
     const [query, setQuery] = useState("");
     const { items: billingItems } = useBillingCatalog();
@@ -876,11 +1195,25 @@ function EntryTab({ state, kind }) {
         return (_jsx("div", { className: ui.missingWrap, children: _jsxs("p", { className: ui.missingText, children: ["Tooth marked as Missing \u2014 no surfaces to ", kind === "finding" ? "examine" : "treat", "."] }) }));
     }
     const hasStatus = kind === "procedure" || kind === "planned";
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [entries.length > 0 && (_jsx("div", { className: ui.tableWrap, children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 150 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { width: 120, minWidth: 110 } }), hasStatus && _jsx("col", { style: { width: 120, minWidth: 110 } }), _jsx("col", { style: { minWidth: 120 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thCenter }), _jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "SURFACES" }), _jsx("th", { className: ui.th, children: kind === "finding" ? "SINCE" : "DATE" }), hasStatus && _jsx("th", { className: ui.th, children: "STATUS" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: entries.map((e) => {
+    // Findings/symptoms record a "SINCE" date; procedures drop the date column
+    // and record who performed them ("Doctor") instead — status + doctor + note
+    // are sufficient for procedures in v0.
+    const hasDate = kind === "finding" || kind === "symptom";
+    const hasDoneBy = false; // Doctor column removed from procedures per request
+    const PROC_DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [entries.length > 0 && (_jsx("div", { ref: wrapRef, className: clsx(ui.tableWrap, showEdge && ui.scrolledEdge), children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 150 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), hasDate && _jsx("col", { style: { width: 120, minWidth: 110 } }), hasStatus && _jsx("col", { style: { width: 120, minWidth: 110 } }), hasDoneBy && _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { minWidth: 120 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thCenter }), _jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "SURFACES" }), hasDate && _jsx("th", { className: ui.th, children: "SINCE" }), hasStatus && _jsx("th", { className: ui.th, children: "STATUS" }), hasDoneBy && _jsx("th", { className: ui.th, children: "Doctor" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: entries.map((e) => {
                                 const isSurfaceActive = isCellActive(e.id, "surfaces");
                                 const isDateActive = isCellActive(e.id, kind === "finding" || kind === "symptom" ? "since" : "date");
                                 const isStatusActive = isCellActive(e.id, "status");
+                                const isDoneByActive = isCellActive(e.id, "doneBy");
                                 const isNoteActive = isCellActive(e.id, "note");
+                                // Entries added across a scope (shared groupId) are read-only in
+                                // the single-tooth view and badged with the scope — editing one
+                                // tooth would desync the group. Editable from the scope view.
+                                const groupScope = (!isGroupedScope && e.groupId)
+                                    ? (scopeForFdis([...new Set((state.allEntries || []).filter((x) => x.groupId === e.groupId).map((x) => x.toothFdi).filter(Boolean))], state.patientType)?.label ?? null)
+                                    : null;
+                                const lockStyle = groupScope ? { pointerEvents: "none", opacity: 0.6 } : undefined;
                                 const activateSurfaceCell = () => {
                                     setCellActive(e.id, "surfaces");
                                     state.onSetMultiSelectZones(e.surfaces);
@@ -888,13 +1221,13 @@ function EntryTab({ state, kind }) {
                                 };
                                 return (_jsxs("tr", { onMouseEnter: () => { if (!isSurfaceActive)
                                         state.onSetHighlightZones(e.surfaces); }, onMouseLeave: () => { if (!isSurfaceActive)
-                                        state.onSetHighlightZones([]); }, className: ui.tbodyRow, children: [_jsx("td", { className: clsx(ui.td, ui.tdGrip), children: _jsx("span", { className: ui.gripIcon, children: _jsxs("svg", { width: "8", height: "16", viewBox: "0 0 8 16", fill: "currentColor", children: [_jsx("circle", { cx: "2", cy: "3", r: "1.2" }), _jsx("circle", { cx: "2", cy: "8", r: "1.2" }), _jsx("circle", { cx: "2", cy: "13", r: "1.2" }), _jsx("circle", { cx: "6", cy: "3", r: "1.2" }), _jsx("circle", { cx: "6", cy: "8", r: "1.2" }), _jsx("circle", { cx: "6", cy: "13", r: "1.2" })] }) }) }), _jsx("td", { className: clsx(ui.td, ui.tdHover), onClick: (ev) => ev.stopPropagation(), children: _jsx(EditableNameCell, { value: e.name, catalog: catalog, onCommit: (v) => { if (v.trim())
-                                                    state.onUpdateEntry(e.id, { name: v.trim() }); }, onFocusActivate: () => setCellActive(e.id, "name") }) }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isSurfaceActive ? ui.tdActive : ui.tdHover), onClick: (ev) => ev.stopPropagation(), children: [isSurfaceActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx(SurfaceCellDropdown, { entry: e, arch: state.selectedTooth.arch, toothPosition: state.selectedTooth.position, mode: kind === "finding" ? "finding" : kind === "symptom" ? "symptom" : "treatment", isActive: isSurfaceActive, onActivate: activateSurfaceCell, onDeactivate: () => {
+                                        state.onSetHighlightZones([]); }, className: ui.tbodyRow, children: [_jsx("td", { className: clsx(ui.td, ui.tdGrip), children: _jsx("span", { className: ui.gripIcon, children: _jsxs("svg", { width: "8", height: "16", viewBox: "0 0 8 16", fill: "currentColor", children: [_jsx("circle", { cx: "2", cy: "3", r: "1.2" }), _jsx("circle", { cx: "2", cy: "8", r: "1.2" }), _jsx("circle", { cx: "2", cy: "13", r: "1.2" }), _jsx("circle", { cx: "6", cy: "3", r: "1.2" }), _jsx("circle", { cx: "6", cy: "8", r: "1.2" }), _jsx("circle", { cx: "6", cy: "13", r: "1.2" })] }) }) }), _jsx("td", { className: clsx(ui.td, ui.tdHover), onClick: (ev) => ev.stopPropagation(), children: _jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }, children: [_jsx(EditableNameCell, { value: e.name, catalog: catalog, onCommit: (v) => { if (v.trim())
+                                                    state.onUpdateEntry(e.id, { name: v.trim() }); }, onFocusActivate: () => setCellActive(e.id, "name") }), groupScope && _jsxs("span", { title: `Added via ${groupScope} — manage it from the ${groupScope} scope view`, style: { fontSize: 10.5, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 5, padding: "1px 6px", whiteSpace: "nowrap", cursor: "help" }, children: ["· ", groupScope] })] }) }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isSurfaceActive ? ui.tdActive : ui.tdHover), style: lockStyle, onClick: (ev) => ev.stopPropagation(), children: [isSurfaceActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx(SurfaceCellDropdown, { entry: e, arch: state.selectedTooth.arch, toothPosition: state.selectedTooth.position, mode: kind === "finding" ? "finding" : kind === "symptom" ? "symptom" : "treatment", isActive: isSurfaceActive, onActivate: activateSurfaceCell, onDeactivate: () => {
                                                         if (state.selectedZone === "whole")
                                                             state.onClearSelectedZone();
                                                         clearCellActive(e.id, "surfaces");
-                                                    }, onToggleZone: state.onToggleZoneMultiSelect, onHover: state.onSetHighlightZones, multiSelectZones: state.multiSelectZones })] }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isDateActive ? ui.tdActive : ui.tdHover), onClick: (ev) => ev.stopPropagation(), children: [isDateActive ? _jsx("span", { className: ui.cellFocusRing }) : null, kind === "finding" || kind === "symptom" ? (_jsx(SinceDropdown, { value: e.since ?? "", onChange: (v) => state.onUpdateEntry(e.id, { since: v || undefined }), onFocusActivate: () => setCellActive(e.id, "since"), onBlurDeactivate: () => clearCellActive(e.id, "since") })) : (_jsxs("div", { className: ui.dateCellInner, children: [!e.plannedDate && (_jsxs("div", { className: ui.datePlaceholderRow, children: [_jsx("span", { className: ui.datePlaceholderText, children: "DD/MM/YYYY" }), _jsx(Calendar, { size: 14, color: "#94a3b8", variant: "Linear" })] })), _jsx("input", { type: "date", value: e.plannedDate ?? "", onChange: (ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined }), onFocus: () => setCellActive(e.id, "date"), onBlur: () => clearCellActive(e.id, "date"), className: clsx(ui.dateInput, e.plannedDate ? ui.dateInputFilled : ui.dateInputEmpty) })] }))] }), hasStatus && (_jsxs("td", { className: clsx(ui.td, ui.tdRel, isStatusActive && ui.tdActive), onClick: (ev) => ev.stopPropagation(), children: [isStatusActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsxs("select", { value: e.status ?? "planned", onChange: (ev) => state.onUpdateEntry(e.id, { status: ev.target.value }), onFocus: () => setCellActive(e.id, "status"), onBlur: () => clearCellActive(e.id, "status"), className: ui.selectNative, children: [_jsx("option", { value: "planned", children: "Planned" }), _jsx("option", { value: "in-progress", children: "In progress" }), _jsx("option", { value: "completed", children: "Completed" })] })] })), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isNoteActive ? ui.tdActive : ui.tdHover), onClick: (ev) => ev.stopPropagation(), children: [isNoteActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx("input", { type: "text", value: e.notes ?? "", onChange: (ev) => state.onUpdateEntry(e.id, { notes: ev.target.value }), onFocus: () => setCellActive(e.id, "note"), onBlur: () => clearCellActive(e.id, "note"), placeholder: "e.g. Monitor at next visit", className: ui.noteInput })] }), _jsx("td", { className: ui.tdStickyAct, onClick: (ev) => ev.stopPropagation(), children: _jsx("button", { type: "button", onClick: () => { if (activeSurfaceRowId === e.id)
-                                                    setActiveCell(null); state.onRemoveEntry(e.id); }, title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 14, color: "currentColor", variant: "Linear" }) }) })] }, e.id));
+                                                    }, onToggleZone: state.onToggleZoneMultiSelect, onHover: state.onSetHighlightZones, multiSelectZones: state.multiSelectZones })] }), hasDate && (_jsxs("td", { className: clsx(ui.td, ui.tdRel, isDateActive ? ui.tdActive : ui.tdHover), style: lockStyle, onClick: (ev) => ev.stopPropagation(), children: [isDateActive ? _jsx("span", { className: ui.cellFocusRing }) : null, kind === "finding" || kind === "symptom" ? (_jsx(SinceDropdown, { value: e.since ?? "", onChange: (v) => state.onUpdateEntry(e.id, { since: v || undefined }), onFocusActivate: () => setCellActive(e.id, "since"), onBlurDeactivate: () => clearCellActive(e.id, "since") })) : (_jsxs("div", { className: ui.dateCellInner, children: [!e.plannedDate && (_jsxs("div", { className: ui.datePlaceholderRow, children: [_jsx("span", { className: ui.datePlaceholderText, children: "DD/MM/YYYY" }), _jsx(Calendar, { size: 14, color: "#94a3b8", variant: "Linear" })] })), _jsx("input", { type: "date", value: e.plannedDate ?? "", onChange: (ev) => state.onUpdateEntry(e.id, { plannedDate: ev.target.value || undefined }), onFocus: () => setCellActive(e.id, "date"), onBlur: () => clearCellActive(e.id, "date"), className: clsx(ui.dateInput, e.plannedDate ? ui.dateInputFilled : ui.dateInputEmpty) })] }))] })), hasStatus && (_jsxs("td", { className: clsx(ui.td, ui.tdRel, isStatusActive && ui.tdActive), style: lockStyle, onClick: (ev) => ev.stopPropagation(), children: [isStatusActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsxs("select", { value: e.status ?? "planned", onChange: (ev) => state.onUpdateEntry(e.id, { status: ev.target.value }), onFocus: () => setCellActive(e.id, "status"), onBlur: () => clearCellActive(e.id, "status"), className: ui.selectNative, children: [_jsx("option", { value: "planned", children: "Planned" }), _jsx("option", { value: "in-progress", children: "In progress" }), _jsx("option", { value: "completed", children: "Completed" })] })] })), hasDoneBy && (_jsxs("td", { className: clsx(ui.td, ui.tdRel, isDoneByActive && ui.tdActive), style: lockStyle, onClick: (ev) => ev.stopPropagation(), children: [isDoneByActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx("select", { value: e.doneBy ?? PROC_DOCTORS[0], onChange: (ev) => state.onUpdateEntry(e.id, { doneBy: ev.target.value }), onFocus: () => setCellActive(e.id, "doneBy"), onBlur: () => clearCellActive(e.id, "doneBy"), className: ui.selectNative, children: PROC_DOCTORS.map((d) => _jsx("option", { value: d, children: d }, d)) })] })), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isNoteActive ? ui.tdActive : ui.tdHover), style: lockStyle, onClick: (ev) => ev.stopPropagation(), children: [isNoteActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx("input", { type: "text", value: e.notes ?? "", onChange: (ev) => state.onUpdateEntry(e.id, { notes: ev.target.value }), onFocus: () => setCellActive(e.id, "note"), onBlur: () => clearCellActive(e.id, "note"), placeholder: "e.g. Monitor at next visit", className: ui.noteInput })] }), _jsx("td", { className: ui.tdStickyAct, onClick: (ev) => ev.stopPropagation(), children: _jsx("button", { type: "button", onClick: () => { if (groupScope) return; if (activeSurfaceRowId === e.id)
+                                                    setActiveCell(null); state.onRemoveEntry(e.id); }, disabled: Boolean(groupScope), title: groupScope ? `Managed via ${groupScope}` : "Remove", className: ui.removeRowBtn, style: groupScope ? { opacity: 0.35, cursor: "not-allowed" } : undefined, children: _jsx(Trash, { size: 20, color: "currentColor", strokeWidth: 1.5, variant: "Linear" }) }) })] }, e.id));
                             }) })] }) })), _jsxs("div", { className: clsx(entries.length > 0 ? ui.searchBlock : ui.searchBlockFirst), children: [_jsxs("div", { className: ui.searchRel, children: [_jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }), _jsx("input", { ref: searchInputRef, type: "text", value: query, onChange: (e) => { setQuery(e.target.value); setSearchOpen(true); }, onFocus: () => setSearchOpen(true), onKeyDown: (e) => {
                                     if (e.key === "Enter" && queryTrim) {
                                         const match = catalog.find((c) => c.toLowerCase() === queryTrim.toLowerCase());
@@ -1197,7 +1530,8 @@ function SurfaceCellDropdown({ entry, arch, toothPosition, isActive, mode, onAct
             onActivate();
         onToggleZone("whole");
     };
-    return (_jsxs(_Fragment, { children: [_jsxs("button", { ref: anchorRef, type: "button", onClick: () => {
+    const surfTooltipTitle = shown.length === 0 ? "" : (isWholeTooth ? "Whole tooth" : shown.map((z) => getZoneLabel(z, arch, toothPosition)).join(", "));
+    return (_jsxs(_Fragment, { children: [_jsx(TPTooltip, { title: surfTooltipTitle, arrow: true, placement: "top", enterDelay: 250, children: _jsxs("button", { ref: anchorRef, type: "button", onClick: () => {
                     if (open) {
                         setOpen(false);
                         onDeactivate?.();
@@ -1205,7 +1539,7 @@ function SurfaceCellDropdown({ entry, arch, toothPosition, isActive, mode, onAct
                     }
                     onActivate();
                     setOpen(true);
-                }, className: ui.surfaceTriggerBtn, children: [_jsx("span", { className: ui.surfaceTriggerText, children: shown.length === 0 ? (_jsx("span", { className: ui.surfacePlaceholder, children: "Select surface" })) : isWholeTooth ? (_jsxs("span", { className: ui.surfaceInlineRow, children: [_jsx("span", { className: ui.surfaceDot8, style: { background: ZONE_INFO.whole.color } }), "Whole tooth"] })) : (_jsx(SurfaceDots, { surfaces: shown, arch: arch, toothPosition: toothPosition })) }), _jsx("svg", { width: "10", height: "6", viewBox: "0 0 10 6", fill: "none", style: { transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }, children: _jsx("path", { d: "M1 1L5 5L9 1", stroke: "#94a3b8", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) })] }), open && pos && typeof document !== "undefined" && createPortal(_jsxs("div", { ref: popoverRef, className: ui.surfacePopover, style: { top: pos.top, left: pos.left, width: pos.width }, children: [_jsx("div", { className: ui.surfacePopoverPad, children: _jsxs("div", { className: ui.surfaceHint, children: [_jsx(InfoCircle, { size: 13, color: "var(--tp-amber-700)", variant: "Bold" }), _jsxs("span", { className: ui.surfaceHintText, children: ["Tap the ", _jsx("span", { className: ui.surfaceHintBold, children: "3D tooth" }), " to select surfaces, or pick from the list below"] })] }) }), _jsxs("ul", { className: ui.surfaceZoneList, children: [_jsx("li", { children: _jsxs("button", { type: "button", onClick: clickWholeTooth, className: ui.surfaceZoneBtn, children: [_jsx("span", { className: clsx(ui.surfaceCheck, isWholeTooth && ui.surfaceCheckOn), children: isWholeTooth && (_jsx("svg", { width: "9", height: "9", viewBox: "0 0 10 10", fill: "none", children: _jsx("path", { d: "M2 5L4 7L8 3", stroke: "#fff", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" }) })) }), _jsx("span", { className: ui.surfaceDot8, style: { background: ZONE_INFO.whole.color } }), _jsx("span", { className: clsx(ui.surfaceMenuLabel, ui.surfaceMenuStrong), children: "Whole tooth" })] }) }), _jsx("li", { className: ui.surfaceListRule }), ALL_ZONES.map((z) => {
+                }, className: ui.surfaceTriggerBtn, children: [_jsx("span", { className: ui.surfaceTriggerText, children: shown.length === 0 ? (_jsx("span", { className: ui.surfacePlaceholder, children: "Select surface" })) : isWholeTooth ? (_jsxs("span", { className: ui.surfaceInlineRow, children: [_jsx("span", { className: ui.surfaceDot8, style: { background: ZONE_INFO.whole.color } }), "Whole tooth"] })) : (_jsx(SurfaceDots, { surfaces: shown, arch: arch, toothPosition: toothPosition })) }), _jsx("svg", { width: "10", height: "6", viewBox: "0 0 10 6", fill: "none", style: { transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }, children: _jsx("path", { d: "M1 1L5 5L9 1", stroke: "#94a3b8", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) })] }) }), open && pos && typeof document !== "undefined" && createPortal(_jsxs("div", { ref: popoverRef, className: ui.surfacePopover, style: { top: pos.top, left: pos.left, width: pos.width }, children: [_jsx("div", { className: ui.surfacePopoverPad, children: _jsxs("div", { className: ui.surfaceHint, children: [_jsx(InfoCircle, { size: 13, color: "var(--tp-amber-700)", variant: "Bold" }), _jsxs("span", { className: ui.surfaceHintText, children: ["Tap the ", _jsx("span", { className: ui.surfaceHintBold, children: "3D tooth" }), " to select surfaces, or pick from the list below"] })] }) }), _jsxs("ul", { className: ui.surfaceZoneList, children: [_jsx("li", { children: _jsxs("button", { type: "button", onClick: clickWholeTooth, className: ui.surfaceZoneBtn, children: [_jsx("span", { className: clsx(ui.surfaceCheck, isWholeTooth && ui.surfaceCheckOn), children: isWholeTooth && (_jsx("svg", { width: "9", height: "9", viewBox: "0 0 10 10", fill: "none", children: _jsx("path", { d: "M2 5L4 7L8 3", stroke: "#fff", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" }) })) }), _jsx("span", { className: ui.surfaceDot8, style: { background: ZONE_INFO.whole.color } }), _jsx("span", { className: clsx(ui.surfaceMenuLabel, ui.surfaceMenuStrong), children: "Whole tooth" })] }) }), _jsx("li", { className: ui.surfaceListRule }), ALL_ZONES.map((z) => {
                                 const checked = shown.includes(z);
                                 const label = getZoneLabel(z, arch, toothPosition);
                                 return (_jsx("li", { children: _jsxs("button", { type: "button", onClick: () => toggle(z), onMouseEnter: () => onHover([z]), onMouseLeave: () => onHover(shown), className: ui.surfaceZoneBtn, children: [_jsx("span", { className: clsx(ui.surfaceCheck, checked && ui.surfaceCheckOn), children: checked && (_jsx("svg", { width: "9", height: "9", viewBox: "0 0 10 10", fill: "none", children: _jsx("path", { d: "M2 5L4 7L8 3", stroke: "#fff", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" }) })) }), _jsx("span", { className: ui.surfaceDot8, style: { background: ZONE_INFO[z].color } }), _jsx("span", { className: ui.surfaceMenuLabel, children: label })] }) }, z));
@@ -1301,12 +1635,9 @@ function SurfaceDots({ surfaces, arch, toothPosition, }) {
         const label = getZoneLabel(z, arch, toothPosition);
         return label[0];
     };
-    const shown = surfaces.slice(0, 4);
-    const overflow = surfaces.length - shown.length;
-    const overflowTitle = overflow > 0
-        ? surfaces.slice(4).map((z) => getZoneLabel(z, arch, toothPosition)).join(", ")
-        : undefined;
-    return (_jsxs("div", { className: ui.dotsRow, children: [shown.map((z) => (_jsx("span", { title: getZoneLabel(z, arch, toothPosition), className: ui.dotsAbbr, style: { background: ZONE_INFO[z].color }, children: abbr(z) }, z))), overflow > 0 && (_jsxs("span", { title: overflowTitle, className: ui.dotsMore, children: ["+", overflow] }))] }));
+    // Show EVERY surface — wrap to as many rows as needed. The trigger button's
+    // TPTooltip carries the full labels for the doctor.
+    return (_jsx("div", { className: ui.dotsRow, style: { flexWrap: "wrap", rowGap: 4 }, children: surfaces.map((z) => (_jsx("span", { className: ui.dotsAbbr, style: { background: ZONE_INFO[z].color, flexShrink: 0 }, children: abbr(z) }, z))) }));
 }
 const DENTAL_SYMPTOM_CATALOG = [
     "Tooth pain", "Sensitivity to cold", "Sensitivity to hot", "Sensitivity to sweet",
@@ -1371,6 +1702,7 @@ function SymptomSurfacePicker({ surfaces, arch, toothPosition, mode = "symptom",
                     }) }) }), document.body)] }));
 }
 function DentalSymptomsBody({ rows, onUpdateRows, state }) {
+    const { wrapRef, showEdge } = useStickyActionEdge(rows.length);
     const [query, setQuery] = useState("");
     const [activeRowId, setActiveRowId] = useState(null);
     const [searchOpen, setSearchOpen] = useState(false);
@@ -1407,9 +1739,9 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }) {
         onUpdateRows(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     };
     const removeRow = (id) => onUpdateRows(rows.filter((r) => r.id !== id));
-    return (_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [rows.length > 0 && (_jsx("div", { className: ui.tableWrap, children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { minWidth: 140 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { width: 100, minWidth: 90 } }), _jsx("col", { style: { width: 140, minWidth: 140 } }), _jsx("col", { style: { minWidth: 110 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thUpper, children: "NAME" }), _jsx("th", { className: ui.thUpper, children: "SURFACES" }), _jsx("th", { className: ui.thUpper, children: "SINCE" }), _jsx("th", { className: ui.thUpper, children: "SEVERITY" }), _jsx("th", { className: ui.thUpper, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: rows.map((r) => {
+    return (_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [rows.length > 0 && (_jsx("div", { ref: wrapRef, className: clsx(ui.tableWrap, showEdge && ui.scrolledEdge), children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { minWidth: 140 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { width: 100, minWidth: 90 } }), _jsx("col", { style: { width: 140, minWidth: 140 } }), _jsx("col", { style: { minWidth: 110 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thUpper, children: "NAME" }), _jsx("th", { className: ui.thUpper, children: "SURFACES" }), _jsx("th", { className: ui.thUpper, children: "SINCE" }), _jsx("th", { className: ui.thUpper, children: "SEVERITY" }), _jsx("th", { className: ui.thUpper, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: rows.map((r) => {
                                 const isRowActive = activeRowId === r.id;
-                                return (_jsxs("tr", { className: ui.tbodyRowInteractive, onClick: () => setActiveRowId(isRowActive ? null : r.id), children: [_jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: r.name }) }), _jsx("td", { className: ui.tdPlain, onClick: (ev) => ev.stopPropagation(), children: _jsx(SymptomSurfacePicker, { surfaces: r.surfaces, arch: state.selectedTooth.arch, toothPosition: state.selectedTooth.position, onChange: (next) => updateRow(r.id, { surfaces: next }) }, r.id) }), _jsx("td", { className: ui.tdPlain, children: _jsx("input", { type: "text", value: r.since, onChange: (e) => updateRow(r.id, { since: e.target.value }), placeholder: "e.g. 5 days", className: ui.symptomField }) }), _jsx("td", { className: ui.tdPlain, children: _jsxs("select", { value: r.severity, onChange: (e) => updateRow(r.id, { severity: e.target.value }), className: clsx(ui.symptomSelect, r.severity ? ui.symptomSelectFilled : ui.symptomSelectEmpty), children: [_jsx("option", { value: "", className: ui.optionMuted, children: "e.g. Moderate" }), _jsx("option", { value: "Mild", children: "Mild" }), _jsx("option", { value: "Moderate", children: "Moderate" }), _jsx("option", { value: "Severe", children: "Severe" })] }) }), _jsx("td", { className: ui.tdPlain, children: _jsx("input", { type: "text", value: r.note, onChange: (e) => updateRow(r.id, { note: e.target.value }), placeholder: "e.g. Worsens at night", className: ui.symptomField }) }), _jsx("td", { className: ui.tdStickyAct, children: _jsx("button", { type: "button", onClick: (ev) => { ev.stopPropagation(); removeRow(r.id); }, title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 14, color: "currentColor", variant: "Linear" }) }) })] }, r.id));
+                                return (_jsxs("tr", { className: ui.tbodyRowInteractive, onClick: () => setActiveRowId(isRowActive ? null : r.id), children: [_jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: r.name }) }), _jsx("td", { className: ui.tdPlain, onClick: (ev) => ev.stopPropagation(), children: _jsx(SymptomSurfacePicker, { surfaces: r.surfaces, arch: state.selectedTooth.arch, toothPosition: state.selectedTooth.position, onChange: (next) => updateRow(r.id, { surfaces: next }) }, r.id) }), _jsx("td", { className: ui.tdPlain, children: _jsx("input", { type: "text", value: r.since, onChange: (e) => updateRow(r.id, { since: e.target.value }), placeholder: "e.g. 5 days", className: ui.symptomField }) }), _jsx("td", { className: ui.tdPlain, children: _jsxs("select", { value: r.severity, onChange: (e) => updateRow(r.id, { severity: e.target.value }), className: clsx(ui.symptomSelect, r.severity ? ui.symptomSelectFilled : ui.symptomSelectEmpty), children: [_jsx("option", { value: "", className: ui.optionMuted, children: "e.g. Moderate" }), _jsx("option", { value: "Mild", children: "Mild" }), _jsx("option", { value: "Moderate", children: "Moderate" }), _jsx("option", { value: "Severe", children: "Severe" })] }) }), _jsx("td", { className: ui.tdPlain, children: _jsx("input", { type: "text", value: r.note, onChange: (e) => updateRow(r.id, { note: e.target.value }), placeholder: "e.g. Worsens at night", className: ui.symptomField }) }), _jsx("td", { className: ui.tdStickyAct, children: _jsx("button", { type: "button", onClick: (ev) => { ev.stopPropagation(); removeRow(r.id); }, title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 20, color: "currentColor", strokeWidth: 1.5, variant: "Linear" }) }) })] }, r.id));
                             }) })] }) })), _jsx("div", { className: ui.searchBlockTop, children: _jsxs("div", { className: ui.searchRel, children: [_jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }), _jsx("input", { ref: searchInputRef, type: "text", value: query, onChange: (e) => {
                                 setQuery(e.target.value);
                                 setSearchOpen(true);
@@ -1422,6 +1754,7 @@ function DentalSymptomsBody({ rows, onUpdateRows, state }) {
                             ] }))] }) })] }));
 }
 function PrimaryDiagnosisBody({ state }) {
+    const { wrapRef, showEdge } = useStickyActionEdge(0);
     const [activeCell, setActiveCell] = useState(null);
     const [query, setQuery] = useState("");
     const [searchOpen, setSearchOpen] = useState(false);
@@ -1457,6 +1790,34 @@ function PrimaryDiagnosisBody({ state }) {
         const orphans = keys.filter((k) => !activeRows.includes(k)).sort((a, b) => a.localeCompare(b));
         return [...activeRows, ...orphans];
     }, [activeRows, state.currentTreatmentHistoryDetails]);
+    // Diagnoses on THIS tooth that were applied across a whole scope (e.g. RCT
+    // on all of Mandibular). Such rows are read-only here and badged with the
+    // scope, because editing one tooth would desync the group.
+    const isGroupedScopeView = state.selectionScopeType === "quadrant" || state.selectionScopeType === "full-mouth" || state.selectionScopeType === "arch";
+    // Diagnosis chips that can't apply to the current tooth (e.g. RCT/Crown on a
+    // Missing/Extracted tooth) are disabled rather than silently reclassifying.
+    const disabledDiags = getDisabledDiagnoses(state.currentToothDiagnoses instanceof Set ? state.currentToothDiagnoses : new Set(state.currentToothDiagnoses || []));
+    const groupedDiag = useMemo(() => {
+        const map = new Map();
+        // In the scope view itself the doctor SHOULD edit the group, so only
+        // lock+badge grouped diagnoses when drilled into a single tooth.
+        if (isGroupedScopeView) return map;
+        const curFdi = state.selectedTooth?.fdi;
+        const byName = {};
+        Object.entries(state.toothDiagnoses || {}).forEach(([fdi, set]) => {
+            const arr = set instanceof Set ? [...set] : (set || []);
+            arr.forEach((d) => { (byName[d] = byName[d] || []).push(fdi); });
+        });
+        const implant = state.implantTeeth instanceof Set ? state.implantTeeth : new Set(state.implantTeeth || []);
+        implant.forEach((f) => { (byName["Implant"] = byName["Implant"] || []).push(f); });
+        Object.entries(byName).forEach(([name, fdis]) => {
+            const uniq = [...new Set(fdis)];
+            if (uniq.length < 2 || !uniq.includes(curFdi)) return;
+            const scope = scopeForFdis(uniq, state.patientType);
+            if (scope) map.set(name, scope.label);
+        });
+        return map;
+    }, [isGroupedScopeView, state.toothDiagnoses, state.implantTeeth, state.selectedTooth, state.patientType]);
     const filteredCatalog = useMemo(() => {
         const q = query.toLowerCase().trim();
         const activeSet = new Set(activeRows.map((r) => r.toLowerCase()));
@@ -1479,7 +1840,27 @@ function PrimaryDiagnosisBody({ state }) {
     }, [searchOpen, filteredCatalog, query]);
     // Track most recently added diagnosis so we can auto-open its Since dropdown.
     const [lastAddedName, setLastAddedName] = useState(null);
-    const addDiagnosis = (name) => {
+    // Conflict guard: a "terminal" diagnosis (Missing / Extraction) means the
+    // tooth is gone, so applying it wipes every other record. If the tooth
+    // already carries data we hold the action behind a confirm dialog.
+    const [pendingTerminal, setPendingTerminal] = useState(null);
+    const curDiagSet = state.currentToothDiagnoses instanceof Set ? state.currentToothDiagnoses : new Set(state.currentToothDiagnoses || []);
+    const conflictToothLabel = state.selectedTooth
+        ? `${QUADRANT_LABELS[state.selectedTooth.quadrant] ?? ""} ${state.selectedTooth.name} (T${state.selectedTooth.fdi})`.trim()
+        : "This tooth";
+    // Human-readable list of what applying `name` would discard.
+    const describeExistingData = (name) => {
+        const parts = [];
+        [...curDiagSet].filter((d) => d !== name).forEach((d) => parts.push(d));
+        if (state.isImplant && name !== "Implant") parts.push("Implant");
+        const findingCount = Array.isArray(state.findings) ? state.findings.length : 0;
+        if (findingCount > 0) parts.push(`${findingCount} surface finding${findingCount > 1 ? "s" : ""}`);
+        const procCount = Array.isArray(state.currentToothEntries) ? state.currentToothEntries.length : 0;
+        if (procCount > 0) parts.push(`${procCount} procedure${procCount > 1 ? "s" : ""}`);
+        if ((state.currentToothNotes || "").trim()) parts.push("notes");
+        return parts;
+    };
+    const performAddDiagnosis = (name) => {
         if (name === "Implant")
             state.onToggleImplant();
         else
@@ -1494,6 +1875,29 @@ function PrimaryDiagnosisBody({ state }) {
         setLastAddedName(name);
         setQuery("");
         setSearchOpen(false);
+    };
+    // Wipe every record on the tooth, then set only the terminal diagnosis, so a
+    // "Missing"/"Extraction" tooth is left clean (no orphan treatment-history
+    // rows, findings, procedures or notes).
+    const applyTerminalCleanly = (name) => {
+        state.onClearTreatmentHistoryDetails?.();
+        (state.currentToothEntries || []).forEach((e) => state.onRemoveEntry?.(e.id));
+        state.onUpdateToothNotes?.("");
+        performAddDiagnosis(name);
+    };
+    const addDiagnosis = (name) => {
+        // Terminal diagnosis on a tooth that already has data → confirm first,
+        // since applying it removes all of that existing data.
+        if (isTerminalDiagnosis(name) && !curDiagSet.has(name)) {
+            const existing = describeExistingData(name);
+            if (existing.length > 0) {
+                setPendingTerminal({ name, existing });
+                setQuery("");
+                setSearchOpen(false);
+                return;
+            }
+        }
+        performAddDiagnosis(name);
     };
     const removeRow = (name) => {
         const isDiagnosisRow = activeRows.includes(name);
@@ -1539,9 +1943,11 @@ function PrimaryDiagnosisBody({ state }) {
         }
     }, [activeRowName, activeRowSurfaces, state.multiSelectZones]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => () => { state.onSetMultiSelectActive(false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-    return (_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [displayRows.length > 0 && (_jsx("div", { className: ui.tableWrap, children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 120 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { minWidth: 140 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thCenter }), _jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "SURFACES" }), _jsx("th", { className: ui.th, children: "SINCE" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: displayRows.map((name) => { const isOrphanHistoryRow = !activeRows.includes(name);
+    return (_jsxs("div", { "data-rx-module-root": true, className: ui.entryRoot, children: [_jsx(TPConfirmDialog, { open: !!pendingTerminal, onOpenChange: (o) => { if (!o) setPendingTerminal(null); }, title: `Are you sure you want to mark as ${pendingTerminal?.name}?`, warning: `${conflictToothLabel} already has ${(pendingTerminal?.existing ?? []).join(", ")}. Marking it as ${pendingTerminal?.name} will remove all existing data for this tooth. This action cannot be undone.`, secondaryLabel: `Yes, Mark as ${pendingTerminal?.name}`, secondaryTone: "destructive", onSecondary: () => { const n = pendingTerminal?.name; setPendingTerminal(null); if (n) applyTerminalCleanly(n); }, primaryLabel: "No, Keep It" }), displayRows.length > 0 && (_jsx("div", { ref: wrapRef, className: clsx(ui.tableWrap, showEdge && ui.scrolledEdge), children: _jsxs("table", { className: ui.table, children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 36, minWidth: 36 } }), _jsx("col", { style: { minWidth: 120 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { width: 140, minWidth: 120 } }), _jsx("col", { style: { minWidth: 140 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.thCenter }), _jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "SURFACES" }), _jsx("th", { className: ui.th, children: "SINCE" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }), _jsx("tbody", { children: displayRows.map((name) => { const isOrphanHistoryRow = !activeRows.includes(name);
                                 const color = PRIMARY_DIAG_COLOR[name] ?? "#4b4ad5";
                                 const d = state.currentTreatmentHistoryDetails[name] ?? { since: "", note: "", surfaces: [] };
+                                const groupScope = groupedDiag.get(name);
+                                const lockStyle = groupScope ? { pointerEvents: "none", opacity: 0.6 } : undefined;
                                 const isSurfaceActive = isCellActive(name, "surfaces");
                                 const isSinceActive = isCellActive(name, "since");
                                 const isNoteActive = isCellActive(name, "note");
@@ -1552,7 +1958,7 @@ function PrimaryDiagnosisBody({ state }) {
                                 };
                                 return (_jsxs("tr", { onMouseEnter: () => { if (!isSurfaceActive)
                                         state.onSetHighlightZones(d.surfaces ?? []); }, onMouseLeave: () => { if (!isSurfaceActive)
-                                        state.onSetHighlightZones([]); }, className: ui.tbodyRow, children: [isOrphanHistoryRow ? _jsx("td", { className: clsx(ui.td, ui.tdGrip), "aria-hidden": true }) : _jsx("td", { className: clsx(ui.td, ui.tdGrip), children: _jsx("span", { className: ui.gripIcon, children: _jsxs("svg", { width: "8", height: "16", viewBox: "0 0 8 16", fill: "currentColor", children: [_jsx("circle", { cx: "2", cy: "3", r: "1.2" }), _jsx("circle", { cx: "2", cy: "8", r: "1.2" }), _jsx("circle", { cx: "2", cy: "13", r: "1.2" }), _jsx("circle", { cx: "6", cy: "3", r: "1.2" }), _jsx("circle", { cx: "6", cy: "8", r: "1.2" }), _jsx("circle", { cx: "6", cy: "13", r: "1.2" })] }) }) }), isOrphanHistoryRow ? _jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: name }) }) : _jsx("td", { className: ui.tdPlain, children: _jsx(DiagnosisNameCell, { name: name, color: color, activeRows: activeRows, onSwap: (next) => {
+                                        state.onSetHighlightZones([]); }, className: ui.tbodyRow, children: [isOrphanHistoryRow ? _jsx("td", { className: clsx(ui.td, ui.tdGrip), "aria-hidden": true }) : _jsx("td", { className: clsx(ui.td, ui.tdGrip), children: _jsx("span", { className: ui.gripIcon, children: _jsxs("svg", { width: "8", height: "16", viewBox: "0 0 8 16", fill: "currentColor", children: [_jsx("circle", { cx: "2", cy: "3", r: "1.2" }), _jsx("circle", { cx: "2", cy: "8", r: "1.2" }), _jsx("circle", { cx: "2", cy: "13", r: "1.2" }), _jsx("circle", { cx: "6", cy: "3", r: "1.2" }), _jsx("circle", { cx: "6", cy: "8", r: "1.2" }), _jsx("circle", { cx: "6", cy: "13", r: "1.2" })] }) }) }), isOrphanHistoryRow ? _jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: name }) }) : _jsx("td", { className: ui.tdPlain, children: _jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }, children: [_jsx(DiagnosisNameCell, { name: name, color: color, activeRows: activeRows, onSwap: (next) => {
                                                     if (next === name)
                                                         return;
                                                     const currentDetails = state.currentTreatmentHistoryDetails[name];
@@ -1573,11 +1979,11 @@ function PrimaryDiagnosisBody({ state }) {
                                                     });
                                                     if (activeCell?.rowId === name)
                                                         setActiveCell({ rowId: next, colKey: activeCell.colKey });
-                                                } }) }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isSurfaceActive && ui.tdActive), onClick: (ev) => ev.stopPropagation(), children: [isSurfaceActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx(SurfaceCellDropdown, { entry: { id: name, toothFdi: state.selectedTooth.fdi, kind: "procedure", name, surfaces: d.surfaces ?? [] }, arch: state.selectedTooth.arch, toothPosition: state.selectedTooth.position, mode: "treatment", isActive: isSurfaceActive, onActivate: activateSurfaceCell, onDeactivate: () => {
+                                                } }), groupScope && _jsxs("span", { title: `Added via ${groupScope} — manage it from the ${groupScope} scope view`, style: { fontSize: 10.5, fontWeight: 700, color: "#6366f1", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 5, padding: "1px 6px", whiteSpace: "nowrap", cursor: "help" }, children: ["· ", groupScope] })] }) }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isSurfaceActive && ui.tdActive), style: lockStyle, onClick: (ev) => ev.stopPropagation(), children: [isSurfaceActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx(SurfaceCellDropdown, { entry: { id: name, toothFdi: state.selectedTooth.fdi, kind: "procedure", name, surfaces: d.surfaces ?? [] }, arch: state.selectedTooth.arch, toothPosition: state.selectedTooth.position, mode: "treatment", isActive: isSurfaceActive, onActivate: activateSurfaceCell, onDeactivate: () => {
                                                         if (state.selectedZone === "whole")
                                                             state.onClearSelectedZone();
                                                         clearCellActive(name, "surfaces");
-                                                    }, onToggleZone: state.onToggleZoneMultiSelect, onHover: state.onSetHighlightZones, multiSelectZones: state.multiSelectZones })] }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isSinceActive && ui.tdActive), children: [isSinceActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx(SinceDropdown, { value: d.since ?? "", onChange: (v) => state.onUpdateTreatmentHistoryDetail(name, { since: v }), autoOpen: lastAddedName === name, onFocusActivate: () => setActiveCell({ rowId: name, colKey: "since" }), onBlurDeactivate: () => clearCellActive(name, "since") })] }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isNoteActive ? ui.tdActive : ui.tdHover), children: [isNoteActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx("input", { type: "text", value: d.note ?? "", onChange: (e) => state.onUpdateTreatmentHistoryDetail(name, { note: e.target.value }), onFocus: () => setActiveCell({ rowId: name, colKey: "note" }), onBlur: () => clearCellActive(name, "note"), placeholder: "e.g. Monitor at next visit", className: ui.primaryNoteInput })] }), _jsx("td", { className: ui.tdStickyAct, children: _jsx("button", { type: "button", onClick: () => removeRow(name), title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 14, color: "currentColor", variant: "Linear" }) }) })] }, name));
+                                                    }, onToggleZone: state.onToggleZoneMultiSelect, onHover: state.onSetHighlightZones, multiSelectZones: state.multiSelectZones })] }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isSinceActive && ui.tdActive), style: lockStyle, children: [isSinceActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx(SinceDropdown, { value: d.since ?? "", onChange: (v) => state.onUpdateTreatmentHistoryDetail(name, { since: v }), autoOpen: lastAddedName === name, onFocusActivate: () => setActiveCell({ rowId: name, colKey: "since" }), onBlurDeactivate: () => clearCellActive(name, "since") })] }), _jsxs("td", { className: clsx(ui.td, ui.tdRel, isNoteActive ? ui.tdActive : ui.tdHover), style: lockStyle, children: [isNoteActive ? _jsx("span", { className: ui.cellFocusRing }) : null, _jsx("input", { type: "text", value: d.note ?? "", onChange: (e) => state.onUpdateTreatmentHistoryDetail(name, { note: e.target.value }), onFocus: () => setActiveCell({ rowId: name, colKey: "note" }), onBlur: () => clearCellActive(name, "note"), placeholder: "e.g. Monitor at next visit", className: ui.primaryNoteInput })] }), _jsx("td", { className: ui.tdStickyAct, children: _jsx("button", { type: "button", onClick: () => { if (!groupScope) removeRow(name); }, disabled: Boolean(groupScope), title: groupScope ? `Managed via ${groupScope}` : "Remove", className: ui.removeRowBtn, style: groupScope ? { opacity: 0.35, cursor: "not-allowed" } : undefined, children: _jsx(Trash, { size: 20, color: "currentColor", strokeWidth: 1.5, variant: "Linear" }) }) })] }, name));
                             }) })] }) })), _jsxs("div", { className: ui.searchBlockTop, children: [_jsxs("div", { className: ui.searchRel, children: [_jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }), _jsx("input", { ref: searchInputRef, type: "text", value: query, onChange: (e) => {
                                     setQuery(e.target.value);
                                     setSearchOpen(true);
@@ -1597,6 +2003,7 @@ function PrimaryDiagnosisBody({ state }) {
                                 ] }), document.body)] }), query.length === 0 && (_jsx("div", { className: ui.diagQuickChips, children: ["Implant", "RCT", "Missing", "Crown", "Bridge", "Denture", "Extraction"].map(chip => {
                             if (activeRows.includes(chip))
                                 return null;
-                            return (_jsx("button", { type: "button", onClick: () => addDiagnosis(chip), className: ui.chipBtn, children: chip }, chip));
+                            const chipDisabled = disabledDiags.has(chip);
+                            return (_jsx("button", { type: "button", disabled: chipDisabled, onClick: () => { if (!chipDisabled) addDiagnosis(chip); }, title: chipDisabled ? "Not applicable — tooth is marked Missing/Extraction. Remove that first." : undefined, className: ui.chipBtn, style: chipDisabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined, children: chip }, chip));
                         }) }))] })] }));
 }

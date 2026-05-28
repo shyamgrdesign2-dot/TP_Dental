@@ -4,9 +4,9 @@ import { memo, useMemo, useRef, useState, useCallback, useEffect, useLayoutEffec
 import * as THREE from 'three';
 import { useGLTF, Html, Center } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { TEETH, PEDIATRIC_TEETH, ARCH_POSITIONS, PEDIATRIC_ARCH_POSITIONS, ZONE_INFO, getZoneLabel, QUADRANT_LABELS } from './types';
+import { TEETH, PEDIATRIC_TEETH, ARCH_POSITIONS, PEDIATRIC_ARCH_POSITIONS, ZONE_INFO, getZoneLabel, QUADRANT_LABELS, isOralRegionPosition, ORAL_POSITION_LABEL } from './types';
 import { cloneSceneWithUniqueMaterials, injectShader, getDentalShaderVariantKey, ImplantScrew, prewarmDentalShaderProgram, PreparedStump, RootCanals, getDirsForTooth, } from './Tooth';
-const ArchTooth = memo(function ArchTooth({ tooth, archPose, toothScale = 1, diagnoses, findings, treatmentHistoryTags, showTreatmentTags = true, isImplant, isHovered, isPinned, agentPulse = false, onHover, onClick, onPin, }) {
+const ArchTooth = memo(function ArchTooth({ tooth, archPose, toothScale = 1, diagnoses, findings, treatmentHistoryTags, showTreatmentTags = true, isImplant, isHovered, isPinned, agentPulse = false, highlightActive = false, inHighlight = false, onHover, onClick, onPin, }) {
     const { gl, camera } = useThree();
     const gltf = useGLTF(tooth.modelPath);
     const implantGltf = useGLTF('/models/implant.glb');
@@ -227,10 +227,13 @@ const ArchTooth = memo(function ArchTooth({ tooth, archPose, toothScale = 1, dia
             window.clearTimeout(lateRetry);
         };
     }, [clonedScene, tooth, isImplant, isMissing, isCrown, isRCT, isBridge, isDenture, gl, camera]);
-    // Hover glow on state change (avoid per-frame traversals across all teeth).
+    // Hover glow + oral-region highlight/dim on state change (avoid per-frame
+    // traversals across all teeth). Region highlight: teeth in the active oral
+    // region glow teal; teeth outside it fade so the region stands out.
     useEffect(() => {
         if (!meshRef.current)
             return;
+        const dim = highlightActive && !inHighlight;
         meshRef.current.traverse((obj) => {
             const m = obj;
             if (m.isMesh && m.material && !Array.isArray(m.material)) {
@@ -241,13 +244,19 @@ const ArchTooth = memo(function ArchTooth({ tooth, archPose, toothScale = 1, dia
                     mat.emissiveIntensity = 0.32;
                     mat.emissive.set('#4a9eff');
                 }
+                else if (highlightActive && inHighlight) {
+                    mat.emissiveIntensity = 0.38;
+                    mat.emissive.set('#14b8a6');
+                }
                 else {
                     mat.emissiveIntensity = 0;
                     mat.emissive.set('#000000');
                 }
+                mat.transparent = true;
+                mat.opacity = dim ? 0.22 : 1;
             }
         });
-    }, [isHovered]);
+    }, [isHovered, highlightActive, inHighlight]);
     /** Two clear wobble cycles (~1s) when AI applies scan — strong enough to notice, then stops. */
     const pulseStartRef = useRef(null);
     const hadPulseRef = useRef(false);
@@ -324,7 +333,33 @@ const ArchTooth = memo(function ArchTooth({ tooth, archPose, toothScale = 1, dia
                             backdropFilter: 'blur(3px)', letterSpacing: '0.01em',
                         }, children: d }, d))) }) }))] }));
 });
-export default function DentitionView({ patientType, visibleFdis, disableSelection = false, layoutMode = 'split', showGuides = false, showScopeHotspots = false, onSelectScope, toothDiagnoses, findingsByTooth, implantTeeth, onSelectTooth, onHoverTooth, externalHoveredFdi, allEntries, toothNotes, agentPulseFdis, showTreatmentTags = true, }) {
+// Scope detection for tag consolidation: when a diagnosis covers exactly a
+// recognizable zone (whole Mandibular, a quadrant, etc.), the dentition shows
+// it ONCE — a single "RCT · Mandibular" tag on a front-centre representative
+// tooth — instead of repeating it on every tooth in the zone.
+const SCOPE_QUAD_DEFS = [
+    ['Mandibular', ['lower-left', 'lower-right']],
+    ['Maxillary', ['upper-right', 'upper-left']],
+    ['Right arch', ['upper-right', 'lower-right']],
+    ['Left arch', ['upper-left', 'lower-left']],
+    ['Upper Right', ['upper-right']],
+    ['Upper Left', ['upper-left']],
+    ['Lower Left', ['lower-left']],
+    ['Lower Right', ['lower-right']],
+];
+function detectScopeForDiag(fdis, teethList) {
+    const byQ = { 'upper-right': [], 'upper-left': [], 'lower-left': [], 'lower-right': [] };
+    teethList.forEach((t) => { if (byQ[t.quadrant]) byQ[t.quadrant].push(t.fdi); });
+    const set = new Set(fdis);
+    const eq = (arr) => arr.length > 1 && arr.length === set.size && arr.every((f) => set.has(f));
+    const all = [...byQ['upper-right'], ...byQ['upper-left'], ...byQ['lower-left'], ...byQ['lower-right']];
+    if (eq(all)) return 'Full mouth';
+    for (const [label, quads] of SCOPE_QUAD_DEFS) {
+        if (eq(quads.flatMap((q) => byQ[q]))) return label;
+    }
+    return null;
+}
+export default function DentitionView({ patientType, visibleFdis, disableSelection = false, layoutMode = 'split', showGuides = false, showScopeHotspots = false, onSelectScope, toothDiagnoses, findingsByTooth, implantTeeth, onSelectTooth, onHoverTooth, externalHoveredFdi, allEntries, toothNotes, agentPulseFdis, showTreatmentTags = true, highlightFdis, oralEntries = [], oralForceShowAll = false, treatmentHistoryDetailsByTooth = {}, }) {
     const USE_SPLIT_QUADRANT_EXPERIMENT = layoutMode === 'split';
     const [hoveredTooth, setHoveredToothInternal] = useState(null);
     // Wrap setter to also notify parent.
@@ -335,6 +370,9 @@ export default function DentitionView({ patientType, visibleFdis, disableSelecti
     // Merge externally-driven hover (e.g. from summary card hover).
     const effectiveHovered = externalHoveredFdi ?? hoveredTooth;
     const [pinnedTooth, setPinnedTooth] = useState(null);
+    // Hovering an oral-exam tag highlights that region's teeth (quadrant / arch /
+    // full mouth) the same way the table-row hover does.
+    const [hoverOralFdis, setHoverOralFdis] = useState(null);
     // Clear pinned tooltip on background tap / ESC
     useEffect(() => {
         const onDoc = (e) => {
@@ -419,6 +457,27 @@ export default function DentitionView({ patientType, visibleFdis, disableSelecti
     }, [USE_SPLIT_QUADRANT_EXPERIMENT, activeTeeth, isMixed, isPediatricOnly]);
     const sceneScale = isPediatricOnly ? [0.85, 0.85, 0.85] : [1, 1, 1];
     const visibleTeeth = useMemo(() => activeTeeth.filter((tooth) => !visibleFdis || visibleFdis.includes(tooth.fdi)), [activeTeeth, visibleFdis]);
+    // Consolidate scope-wide diagnoses into a single representative tag.
+    const groupTags = useMemo(() => {
+        const diagToFdis = {};
+        Object.entries(toothDiagnoses || {}).forEach(([fdi, set]) => {
+            const arr = set instanceof Set ? [...set] : (set || []);
+            arr.forEach((d) => { (diagToFdis[d] = diagToFdis[d] || []).push(fdi); });
+        });
+        if (implantTeeth) (implantTeeth instanceof Set ? [...implantTeeth] : implantTeeth).forEach((f) => { (diagToFdis['Implant'] = diagToFdis['Implant'] || []).push(f); });
+        const suppressed = new Set();
+        const repLabels = {};
+        Object.entries(diagToFdis).forEach(([diag, fdis]) => {
+            const uniq = [...new Set(fdis)];
+            if (uniq.length < 2) return;
+            const scope = detectScopeForDiag(uniq, activeTeeth);
+            if (!scope) return;
+            const rep = ['41', '31', '11', '21'].find((f) => uniq.includes(f)) ?? uniq.slice().sort()[Math.floor(uniq.length / 2)];
+            uniq.forEach((f) => suppressed.add(`${f}:${diag}`));
+            (repLabels[rep] = repLabels[rep] || []).push(`${diag} · ${scope}`);
+        });
+        return { suppressed, repLabels };
+    }, [toothDiagnoses, implantTeeth, activeTeeth]);
     const contentCenter = useMemo(() => {
         if (visibleTeeth.length === 0)
             return [0, 0, 0];
@@ -430,6 +489,69 @@ export default function DentitionView({ patientType, visibleFdis, disableSelecti
         }, [0, 0, 0]);
         return [sum[0] / visibleTeeth.length, sum[1] / visibleTeeth.length, sum[2] / visibleTeeth.length];
     }, [activePositions, visibleTeeth]);
+    // Oral-exam region tags anchored in 3D (so they rotate/zoom with the model).
+    // Each region group's tag sits at the centroid of that region's teeth.
+    // Per-group anchor offsets — small in-bounds nudges so tags land ON or
+    // BETWEEN the affected teeth (within the dentition frame), never drifting
+    // outside the visible canvas. FULL/WHOLE/GENERALIZED sit at canvas centre;
+    // arches/quadrants are gently biased toward their region's centroid.
+    const GROUP_TAG_OFFSET = {
+        FULL: [0, 0, 0], WHOLE: [0, 0, 0], GENERALIZED: [0, 0, 0],
+        UPPER_ARCH: [0, 0.6, 0], LOWER_ARCH: [0, -0.6, 0],
+        RIGHT_ARCH: [-0.6, 0, 0], LEFT_ARCH: [0.6, 0, 0],
+        UR: [-0.8, 0.6, 0], UL: [0.8, 0.6, 0], LR: [-0.8, -0.6, 0], LL: [0.8, -0.6, 0],
+    };
+    // Tooltip placement side per region — each tooltip radiates AWAY from the
+    // pill (and away from canvas centre) so multiple visible tooltips never
+    // cover other pills/tooltips when the doctor hovers the records card.
+    const GROUP_TIP_SIDE = {
+        FULL: 'below', WHOLE: 'below', GENERALIZED: 'below',
+        UPPER_ARCH: 'above', LOWER_ARCH: 'below',
+        RIGHT_ARCH: 'left', LEFT_ARCH: 'right',
+        UR: 'above', UL: 'above',
+        LR: 'below', LL: 'below',
+    };
+    const oralTagGroups = useMemo(() => {
+        if (!oralEntries || oralEntries.length === 0) return [];
+        const groups = {};
+        oralEntries.forEach((e) => {
+            const regionPos = (e.surfaces || []).find((p) => isOralRegionPosition(p) && !['WHOLE', 'GENERALIZED', 'FULL'].includes(p));
+            const key = regionPos || 'FULL';
+            (groups[key] = groups[key] || []).push(e);
+        });
+        const quadOf = { UR: 'upper-right', UL: 'upper-left', LR: 'lower-right', LL: 'lower-left' };
+        const archOf = {
+            RIGHT_ARCH: ['upper-right', 'lower-right'], LEFT_ARCH: ['upper-left', 'lower-left'],
+            UPPER_ARCH: ['upper-right', 'upper-left'], LOWER_ARCH: ['lower-right', 'lower-left'],
+        };
+        const fdisFor = (key) => {
+            if (quadOf[key]) return visibleTeeth.filter((t) => t.quadrant === quadOf[key]).map((t) => t.fdi);
+            if (archOf[key]) return visibleTeeth.filter((t) => archOf[key].includes(t.quadrant)).map((t) => t.fdi);
+            return visibleTeeth.map((t) => t.fdi); // FULL / whole-mouth
+        };
+        return Object.entries(groups).map(([key, list]) => {
+            const fdis = fdisFor(key).filter((f) => activePositions[f]);
+            if (fdis.length === 0) return null;
+            const sum = fdis.reduce((a, f) => {
+                const p = activePositions[f].position;
+                return [a[0] + p[0], a[1] + p[1], a[2] + p[2]];
+            }, [0, 0, 0]);
+            const off = GROUP_TAG_OFFSET[key] || [0, 0, 0];
+            return { key, list, fdis, label: ORAL_POSITION_LABEL[key] || key, position: [sum[0] / fdis.length + off[0], sum[1] / fdis.length + off[1], sum[2] / fdis.length + 0.6 + off[2]] };
+        }).filter(Boolean);
+    }, [oralEntries, visibleTeeth, activePositions]);
+    // Hover broadcast from the right-side OralRecordsList — three levels:
+    //   { all: true }      → force-show every tag's tooltip
+    //   { kind }           → show tooltips of that kind (Past/Findings/Procedures)
+    //   { kind, name }     → show JUST that one entry's tooltip
+    //   null               → hide everything
+    const [oralFilter, setOralFilter] = useState(null);
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const onFilter = (ev) => { setOralFilter(ev?.detail ?? null); };
+        window.addEventListener('oral-tags-filter', onFilter);
+        return () => window.removeEventListener('oral-tags-filter', onFilter);
+    }, []);
     // Keep the dentition stack slightly lower so it aligns with the split drag-handle midpoint.
     // Shift the arch group upward so lower teeth don't overlap the scope bar
     // that sits at the bottom of the canvas (absolute bottom: 16px).
@@ -455,12 +577,90 @@ export default function DentitionView({ patientType, visibleFdis, disableSelecti
     return (_jsxs("group", { scale: sceneScale, position: [-contentCenter[0], -contentCenter[1] + frameVerticalOffset, -contentCenter[2]], children: [guideSegments && (_jsxs("lineSegments", { renderOrder: 1, children: [_jsx("bufferGeometry", { children: _jsx("bufferAttribute", { attach: "attributes-position", args: [guideSegments, 3] }) }), _jsx("lineBasicMaterial", { color: "#94a3b8", transparent: true, opacity: 0.35 })] })), visibleTeeth.map((tooth) => {
                 const isPrimaryTooth = ['5', '6', '7', '8'].includes(tooth.fdi[0]);
                 const findings = findingsByTooth[tooth.fdi] || [];
+                // Grouped (scope-wide) diagnoses are suppressed here — they're shown
+                // once as a banner at the top of the dentition, not on each tooth.
                 const treatmentHistoryTags = Array.from(new Set([
                     ...(toothDiagnoses[tooth.fdi] ? Array.from(toothDiagnoses[tooth.fdi]) : []),
                     ...(implantTeeth.has(tooth.fdi) ? ['Implant'] : []),
-                ]));
-                return (_jsx(ArchTooth, { tooth: tooth, archPose: activePositions[tooth.fdi], toothScale: isMixed && isPrimaryTooth ? 0.85 : 1, diagnoses: toothDiagnoses[tooth.fdi], findings: findings, treatmentHistoryTags: treatmentHistoryTags, showTreatmentTags: showTreatmentTags, isImplant: implantTeeth.has(tooth.fdi), isHovered: effectiveHovered === tooth.fdi, isPinned: pinnedTooth === tooth.fdi, agentPulse: Boolean(agentPulseFdis?.has?.(tooth.fdi)), onHover: setHoveredTooth, onClick: disableSelection ? () => { } : onSelectTooth, onPin: setPinnedTooth }, `${patientType}-${layoutMode}-${tooth.fdi}-${[...(toothDiagnoses[tooth.fdi] || [])].join(',')}-${implantTeeth.has(tooth.fdi)}`));
-            }), showScopeHotspots && onSelectScope && (_jsxs(_Fragment, { children: [_jsx(ScopeHotspot, { label: "UR", position: [-3.2, 1.2, -2.8], onClick: () => onSelectScope('UR') }), _jsx(ScopeHotspot, { label: "UL", position: [3.2, 1.2, -2.8], onClick: () => onSelectScope('UL') }), _jsx(ScopeHotspot, { label: "LR", position: [-3.2, -1.2, -2.8], onClick: () => onSelectScope('LR') }), _jsx(ScopeHotspot, { label: "LL", position: [3.2, -1.2, -2.8], onClick: () => onSelectScope('LL') }), _jsx(ScopeHotspot, { label: "Full", position: [0, 0, -3.2], onClick: () => onSelectScope('FULL'), emphasized: true })] })), activeTooth && (_jsx(DentitionTooltip, { tooth: activeTooth, archPose: activePositions[activeTooth.fdi], findings: findingsByTooth[activeTooth.fdi] || [], diagnoses: toothDiagnoses[activeTooth.fdi], isImplant: implantTeeth.has(activeTooth.fdi), allEntries: allEntries, toothNotes: toothNotes }))] }));
+                    ...Object.keys(treatmentHistoryDetailsByTooth[tooth.fdi] || {}),
+                ])).filter((d) => !groupTags.suppressed.has(`${tooth.fdi}:${d}`));
+                return (_jsx(ArchTooth, { tooth: tooth, archPose: activePositions[tooth.fdi], toothScale: isMixed && isPrimaryTooth ? 0.85 : 1, diagnoses: toothDiagnoses[tooth.fdi], findings: findings, treatmentHistoryTags: treatmentHistoryTags, showTreatmentTags: showTreatmentTags, isImplant: implantTeeth.has(tooth.fdi), isHovered: effectiveHovered === tooth.fdi, isPinned: pinnedTooth === tooth.fdi, agentPulse: Boolean(agentPulseFdis?.has?.(tooth.fdi)), highlightActive: Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).size > 0), inHighlight: Boolean((hoverOralFdis || highlightFdis) && (hoverOralFdis || highlightFdis).has(tooth.fdi)), onHover: setHoveredTooth, onClick: disableSelection ? () => { } : onSelectTooth, onPin: setPinnedTooth }, `${patientType}-${layoutMode}-${tooth.fdi}-${[...(toothDiagnoses[tooth.fdi] || [])].join(',')}-${implantTeeth.has(tooth.fdi)}`));
+            }), showScopeHotspots && onSelectScope && (_jsxs(_Fragment, { children: [_jsx(ScopeHotspot, { label: "UR", position: [-3.2, 1.2, -2.8], onClick: () => onSelectScope('UR') }), _jsx(ScopeHotspot, { label: "UL", position: [3.2, 1.2, -2.8], onClick: () => onSelectScope('UL') }), _jsx(ScopeHotspot, { label: "LR", position: [-3.2, -1.2, -2.8], onClick: () => onSelectScope('LR') }), _jsx(ScopeHotspot, { label: "LL", position: [3.2, -1.2, -2.8], onClick: () => onSelectScope('LL') }), _jsx(ScopeHotspot, { label: "Full", position: [0, 0, -3.2], onClick: () => onSelectScope('FULL'), emphasized: true })] })), activeTooth && (_jsx(DentitionTooltip, { tooth: activeTooth, archPose: activePositions[activeTooth.fdi], findings: findingsByTooth[activeTooth.fdi] || [], diagnoses: toothDiagnoses[activeTooth.fdi], isImplant: implantTeeth.has(activeTooth.fdi), allEntries: allEntries, toothNotes: toothNotes, treatmentHistoryDetails: treatmentHistoryDetailsByTooth[activeTooth.fdi] })), oralTagGroups.map((g) => {
+                // Apply the unified `oralFilter` from the records card:
+                //   { all: true }    → keep all entries, force-show tooltip
+                //   { kind }         → keep entries of that kind only
+                //   { kind, name }   → keep just that one entry
+                //   null             → no filter, no force
+                let list = g.list;
+                let hideTag = false;
+                let forceFiltered = false;
+                if (oralFilter) {
+                    if (oralFilter.all) {
+                        forceFiltered = true;
+                    } else if (oralFilter.kind) {
+                        list = g.list.filter((e) => e.kind === oralFilter.kind && (!oralFilter.name || e.name === oralFilter.name));
+                        if (list.length === 0) hideTag = true;
+                        else forceFiltered = true;
+                    }
+                }
+                return _jsx(OralRegionTag3D, { position: g.position, list: list, label: g.label, hideTag: hideTag, tooltipSide: GROUP_TIP_SIDE[g.key] || 'below', forceShowAll: forceFiltered || oralForceShowAll, onHover: (on) => setHoverOralFdis(on ? new Set(g.fdis) : null) }, g.key);
+            })] }));
+}
+// OralRegionTag3D — oral-exam tag anchored in 3D (drei Html) so it tracks the
+// camera like the per-tooth treatment tags. Soft transparent violet pill; hover
+// (or forceShowAll from the records-card hover) reveals the entry tooltip.
+// Per-side tooltip placement: lets each region's tooltip radiate AWAY from the
+// pill (above/below/left/right) so multiple visible tags never overlap each
+// other when the user hovers the records card.
+const TIP_PLACEMENTS = {
+    below: {
+        tip: { top: 'calc(100% + 14px)', left: '50%', transform: 'translateX(-50%)' },
+        leader: { bottom: '100%', left: '50%', width: 0, height: 14, borderLeft: '1px dashed rgba(148,163,184,0.5)', transform: 'translateX(-50%)' },
+    },
+    above: {
+        tip: { bottom: 'calc(100% + 14px)', left: '50%', transform: 'translateX(-50%)' },
+        leader: { top: '100%', left: '50%', width: 0, height: 14, borderLeft: '1px dashed rgba(148,163,184,0.5)', transform: 'translateX(-50%)' },
+    },
+    right: {
+        tip: { left: 'calc(100% + 14px)', top: '50%', transform: 'translateY(-50%)' },
+        leader: { right: '100%', top: '50%', height: 0, width: 14, borderTop: '1px dashed rgba(148,163,184,0.5)', transform: 'translateY(-50%)' },
+    },
+    left: {
+        tip: { right: 'calc(100% + 14px)', top: '50%', transform: 'translateY(-50%)' },
+        leader: { left: '100%', top: '50%', height: 0, width: 14, borderTop: '1px dashed rgba(148,163,184,0.5)', transform: 'translateY(-50%)' },
+    },
+};
+function OralRegionTag3D({ position, list, label, forceShowAll = false, onHover, hideTag = false, tooltipSide = 'below' }) {
+    const [hover, setHover] = useState(false);
+    // Early-out before any list[0] access — when the parent filtered the list
+    // empty (per-chip hover with no match) we render nothing.
+    if (hideTag || !list || list.length === 0) return null;
+    const showTip = hover || forceShowAll;
+    const firstName = list[0]?.name ?? "";
+    const tagLabel = list.length > 1 ? `${firstName} +${list.length - 1}` : firstName;
+    const siteOf = (e) => ((e.surfaces || []).map((p) => ORAL_POSITION_LABEL[p] || p).join(', ') || 'Whole mouth');
+    const metaOf = (e) => [siteOf(e), (e.since || '').trim() ? `since ${e.since.trim()}` : '', (e.note || '').trim()].filter(Boolean).join(' | ');
+    const setHov = (v) => { setHover(v); onHover?.(v); };
+    // Group the region's entries into the same boxed sections as the tooth tooltip.
+    const groups = { past: [], findings: [], procedures: [] };
+    list.forEach((e) => { if (e.kind === 'past') groups.past.push(e); else if (e.kind === 'procedure') groups.procedures.push(e); else groups.findings.push(e); });
+    const secHeadStyle = { fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#cbd5e1', marginBottom: '4px', fontWeight: 600 };
+    const secBox = (title, items) => items.length ? (_jsxs("div", { style: { background: 'rgba(255,255,255,0.06)', borderRadius: 6, padding: '7px 9px' }, children: [_jsx("div", { style: secHeadStyle, children: title }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: 3 }, children: items.map((e) => (_jsxs("div", { style: { fontSize: 11, lineHeight: 1.35 }, children: [_jsx("span", { style: { fontWeight: 700 }, children: e.name }), (() => { const m = metaOf(e); return m ? _jsxs("span", { style: { color: '#cbd5e1', fontWeight: 400 }, children: [" (", m, ")"] }) : null; })()] }, e.id))) })] })) : null;
+    // Same dark-slate transparent pill as the per-tooth treatment tags — no
+    // colour differentiation between dental and oral tags, one consistent
+    // canvas palette.
+    return (_jsx(Html, { position: position, center: true, zIndexRange: showTip ? [500, 300] : [40, 10], style: { pointerEvents: 'auto', whiteSpace: 'nowrap' }, children: _jsxs("div", { onMouseEnter: () => setHov(true), onMouseLeave: () => setHov(false), style: { position: 'relative', display: 'inline-block' }, children: [
+        _jsx("div", { style: { display: 'inline-flex', alignItems: 'center', padding: '2px 7px', borderRadius: 4, background: 'rgba(107,114,128,0.78)', color: '#fff', fontFamily: 'Inter, sans-serif', fontSize: 10, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', lineHeight: 1.3, cursor: 'default' }, children: tagLabel }),
+        showTip && (() => { const placement = TIP_PLACEMENTS[tooltipSide] || TIP_PLACEMENTS.below; return (_jsxs("div", { style: { position: 'absolute', ...placement.tip, minWidth: 200, maxWidth: 280, background: 'rgba(0,0,0,0.82)', color: '#fff', borderRadius: 8, borderLeft: '3px solid rgba(255,255,255,0.35)', padding: '10px 13px', boxShadow: '0 4px 18px rgba(0,0,0,0.45)', fontFamily: "'Inter', sans-serif", whiteSpace: 'normal', pointerEvents: 'none', textAlign: 'left' }, children: [
+            // dotted leader line on the appropriate side, pointing back to the tag
+            _jsx("div", { style: { position: 'absolute', ...placement.leader } }),
+            _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 7, paddingBottom: 8, marginBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' }, children: [
+                _jsx("span", { style: { color: '#fff', background: 'rgba(255,255,255,0.16)', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 700, flexShrink: 0 }, children: "Oral" }),
+                _jsx("span", { style: { fontWeight: 700, fontSize: 12, color: '#f1f5f9' }, children: label || 'Oral Examination' }),
+            ] }),
+            _jsxs("div", { style: { display: 'flex', flexDirection: 'column', gap: 8 }, children: [secBox('Past Procedures', groups.past), secBox('Findings', groups.findings), secBox('Procedures', groups.procedures)] }),
+        ] })); })(),
+    ] }) }));
 }
 function ScopeHotspot({ label, position, onClick, emphasized = false, }) {
     return (_jsx(Html, { position: position, transform: true, occlude: true, zIndexRange: [220, 80], children: _jsx("button", { type: "button", onClick: onClick, style: {
@@ -492,7 +692,7 @@ function ScopeHotspot({ label, position, onClick, emphasized = false, }) {
 // DentitionTooltip — camera-relative tooltip that stays fixed on
 // screen regardless of tooth rotation. Only the leader line updates.
 // ══════════════════════════════════════════════════════════════
-function DentitionTooltip({ tooth, archPose, findings, diagnoses, isImplant, allEntries, toothNotes, }) {
+function DentitionTooltip({ tooth, archPose, findings, diagnoses, isImplant, allEntries, toothNotes, treatmentHistoryDetails = {}, }) {
     const tooltipRef = useRef(null);
     const connectorRef = useRef(null);
     const { camera, gl, size } = useThree();
@@ -709,8 +909,63 @@ function DentitionTooltip({ tooth, archPose, findings, diagnoses, isImplant, all
         }
         return Array.from(m.entries());
     }, [findings, findingEntries]);
-    const treatmentHistory = [...diagLabels].filter(Boolean);
+    // Past Procedures = union of toothDiagnoses + the (authoritative, additive)
+    // treatment-history detail store, so every recorded item shows — not just
+    // the latest. Deduped case-insensitively.
+    const treatmentHistory = (() => {
+        const seen = new Set();
+        const out = [];
+        const add = (n) => { if (!n) return; const k = n.toLowerCase(); if (seen.has(k)) return; seen.add(k); out.push(n); };
+        diagLabels.forEach(add);
+        Object.keys(treatmentHistoryDetails || {}).forEach(add);
+        return out;
+    })();
+    // surface / since / note recorded for a whole-tooth diagnosis.
+    const thMeta = (name) => {
+        const d = treatmentHistoryDetails?.[name];
+        if (!d) return '';
+        const surfs = (d.surfaces || []);
+        const surfLabel = surfs.includes('whole')
+            ? 'Whole tooth'
+            : surfs.map((z) => getZoneLabel(z, tooth.arch, tooth.position)).join(', ');
+        const bits = [];
+        if (surfLabel) bits.push(surfLabel);
+        if ((d.since || '').trim()) bits.push(`since ${d.since.trim()}`);
+        if ((d.note || '').trim()) bits.push(d.note.trim());
+        return bits.join(' | ');
+    };
     const procedureSummary = [...procedureEntries, ...plannedEntries, ...symptomEntries];
+    // Shared "(surfaces · since · status · note)" formatter so Findings and
+    // Procedures read exactly like Past Procedures — item name + bracket meta.
+    const surfacesLabel = (surfs) => {
+        const arr = surfs || [];
+        if (arr.includes('whole')) return 'Whole tooth';
+        return arr.map((z) => getZoneLabel(z, tooth.arch, tooth.position)).join(', ');
+    };
+    const findingRows = useMemo(() => {
+        const m = new Map();
+        const ensure = (name) => { if (!m.has(name)) m.set(name, { surfaces: new Set(), since: '', note: '' }); return m.get(name); };
+        for (const f of findings) { if (!f?.type) continue; const r = ensure(f.type); if (f.zoneId) r.surfaces.add(f.zoneId); }
+        for (const e of findingEntries) { const r = ensure(e.name); (e.surfaces || []).forEach((s) => r.surfaces.add(s)); if (!r.since && e.since) r.since = e.since; if (!r.note && e.notes) r.note = e.notes; }
+        return [...m.entries()].map(([name, r]) => {
+            const bits = [];
+            const surf = surfacesLabel([...r.surfaces]);
+            if (surf) bits.push(surf);
+            if ((r.since || '').trim()) bits.push(`since ${r.since.trim()}`);
+            if ((r.note || '').trim()) bits.push(r.note.trim());
+            return { name, meta: bits.join(' | ') };
+        });
+    }, [findings, findingEntries, tooth.arch, tooth.position]);
+    const procedureRows = procedureSummary.map((e) => {
+        const bits = [];
+        const surf = surfacesLabel(e.surfaces || []);
+        if (surf) bits.push(surf);
+        if (e.status) bits.push(e.status);
+        if ((e.since || '').trim()) bits.push(`since ${e.since.trim()}`);
+        if (e.plannedDate) bits.push(e.plannedDate);
+        if ((e.notes || '').trim()) bits.push(e.notes.trim());
+        return { id: e.id, name: e.name, meta: bits.join(' | ') };
+    });
     // Has any content across all 4 sections?
     const hasContent = treatmentHistory.length > 0 ||
         groupedFindings.length > 0 ||
@@ -757,30 +1012,13 @@ function DentitionTooltip({ tooth, archPose, findings, diagnoses, isImplant, all
                                     }, children: ["T", tooth.fdi] }), _jsxs("span", { style: { fontWeight: 600, color: '#f1f5f9', flexShrink: 0 }, children: [QUADRANT_LABELS[tooth.quadrant], " ", tooth.name] })] }), treatmentHistory.length > 0 && (_jsxs("div", { style: {
                                 marginBottom: (groupedFindings.length > 0 || procedureSummary.length > 0 || noteText) ? '8px' : 0,
                                 background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
-                            }, children: [_jsx("div", { style: sectionHeadingStyle, children: "Treatment History" }), _jsx("div", { style: { display: 'flex', gap: '4px', flexWrap: 'wrap' }, children: treatmentHistory.map(d => (_jsx("span", { style: {
-                                            fontSize: `${bodySize}px`, fontWeight: 600, padding: isTiny ? '2px 6px' : '2px 8px', borderRadius: '10px',
-                                            background: 'rgba(148,163,184,0.3)', color: '#f1f5f9',
-                                        }, children: d }, d))) })] })), groupedFindings.length > 0 && (_jsxs("div", { style: {
-                                marginBottom: (procedureSummary.length > 0 || noteText) ? '8px' : 0,
+                            }, children: [_jsx("div", { style: sectionHeadingStyle, children: "Past Procedures" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '3px' }, children: treatmentHistory.map(d => { const meta = thMeta(d); return (_jsxs("div", { style: { fontSize: `${bodySize}px`, color: '#f1f5f9', lineHeight: 1.35 }, children: [_jsx("span", { style: { fontWeight: 700 }, children: d }), meta ? _jsxs("span", { style: { color: '#cbd5e1', fontWeight: 400 }, children: [" (", meta, ")"] }) : null] }, d)); }) })] })), findingRows.length > 0 && (_jsxs("div", { style: {
+                                marginBottom: (procedureRows.length > 0 || noteText) ? '8px' : 0,
                                 background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
-                            }, children: [_jsx("div", { style: sectionHeadingStyle, children: "Findings" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '4px' }, children: groupedFindings.map(([zid, types]) => {
-                                        const zc = ZONE_INFO[zid]?.color || '#888';
-                                        const zl = zid === 'whole' ? 'Whole Tooth' : getZoneLabel(zid, tooth.arch, tooth.position);
-                                        return (_jsxs("div", { style: { fontSize: `${bodySize}px`, display: 'flex', gap: '8px', alignItems: 'baseline', lineHeight: 1.35 }, children: [_jsx("span", { style: {
-                                                        width: '7px', height: '7px', borderRadius: '50%', background: zc,
-                                                        flexShrink: 0, marginTop: '3px',
-                                                    } }), _jsx("span", { style: { fontWeight: 600, color: zc, minWidth: '56px' }, children: zl }), _jsx("span", { style: { color: '#e2e8f0' }, children: types.join(', ') })] }, zid));
-                                    }) })] })), procedureSummary.length > 0 && (_jsxs("div", { style: {
+                            }, children: [_jsx("div", { style: sectionHeadingStyle, children: "Findings" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '3px' }, children: findingRows.map((r) => (_jsxs("div", { style: { fontSize: `${bodySize}px`, color: '#f1f5f9', lineHeight: 1.35 }, children: [_jsx("span", { style: { fontWeight: 700 }, children: r.name }), r.meta ? _jsxs("span", { style: { color: '#cbd5e1', fontWeight: 400 }, children: [" (", r.meta, ")"] }) : null] }, r.name))) })] })), procedureRows.length > 0 && (_jsxs("div", { style: {
                                 marginBottom: noteText ? '8px' : 0,
                                 background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
-                            }, children: [_jsx("div", { style: sectionHeadingStyle, children: "Procedures" }), _jsx("div", { style: { display: 'flex', gap: '4px', flexWrap: 'wrap' }, children: procedureSummary.map((entry) => (_jsx("span", { style: {
-                                            fontSize: `${bodySize}px`,
-                                            fontWeight: 600,
-                                            padding: isTiny ? '2px 6px' : '2px 8px',
-                                            borderRadius: '10px',
-                                            background: entry.kind === 'planned' ? 'rgba(59,130,246,0.22)' : entry.kind === 'symptom' ? 'rgba(236,72,153,0.22)' : 'rgba(148,163,184,0.3)',
-                                            color: '#f1f5f9',
-                                        }, children: entry.name }, entry.id))) })] })), noteText && (_jsxs("div", { style: {
+                            }, children: [_jsx("div", { style: sectionHeadingStyle, children: "Procedures" }), _jsx("div", { style: { display: 'flex', flexDirection: 'column', gap: '3px' }, children: procedureRows.map((r) => (_jsxs("div", { style: { fontSize: `${bodySize}px`, color: '#f1f5f9', lineHeight: 1.35 }, children: [_jsx("span", { style: { fontWeight: 700 }, children: r.name }), r.meta ? _jsxs("span", { style: { color: '#cbd5e1', fontWeight: 400 }, children: [" (", r.meta, ")"] }) : null] }, r.id))) })] })), noteText && (_jsxs("div", { style: {
                                 background: 'rgba(255,255,255,0.06)', borderRadius: '6px', padding: sectionPad,
                             }, children: [_jsx("div", { style: sectionHeadingStyle, children: "Notes" }), _jsxs("div", { style: { fontSize: `${bodySize}px`, color: '#e2e8f0', fontStyle: 'italic', lineHeight: 1.4 }, children: ["\u201C", noteText.length > (isTiny ? 64 : 80) ? noteText.slice(0, isTiny ? 64 : 80) + '…' : noteText, "\u201D"] })] })), !hasContent && (_jsx("div", { style: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }, children: "Click on the tooth to start adding details" }))] })] }) }));
 }

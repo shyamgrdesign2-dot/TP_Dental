@@ -42,11 +42,11 @@ export function DrAgentFab({ onClick, hasNudge = false }: DrAgentFabProps) {
   return (
     <div
       className="group fixed z-40 cursor-pointer"
-      style={{ bottom: 32, right: 0, width: 56, height: 230 }}
+      style={{ top: "50%", right: 0, width: 56, height: 230, transform: "translateY(-50%)" }}
       onClick={onClick}
       role="button"
       tabIndex={0}
-      aria-label="Open Dr. Agent"
+      aria-label="Open VoiceRx"
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") onClick()
       }}
@@ -54,7 +54,7 @@ export function DrAgentFab({ onClick, hasNudge = false }: DrAgentFabProps) {
       {/* Tooltip — appears on hover, left of tag */}
       <div className="pointer-events-none absolute right-[64px] top-1/2 -translate-y-1/2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
         <div className="relative whitespace-nowrap rounded-[6px] bg-tp-slate-800 px-[8px] py-[4px] text-[12px] font-medium text-white shadow-lg">
-          Open Dr. Agent
+          Open VoiceRx
           <div className="absolute right-[-4px] top-1/2 -translate-y-1/2 border-[4px] border-transparent border-l-tp-slate-800" />
         </div>
       </div>
@@ -164,7 +164,7 @@ export function DrAgentFab({ onClick, hasNudge = false }: DrAgentFabProps) {
                 lineHeight: 1,
               }}
             >
-              Dr. Agent
+              VoiceRx
             </span>
           </div>
         </div>

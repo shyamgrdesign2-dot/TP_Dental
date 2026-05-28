@@ -1,0 +1,196 @@
+/* TPConfirmDialog — TP-styled "Are you sure?" modal.
+   Pixel-mirrored from VoiceRx ConfirmDialog molecule. */
+
+.content {
+  /* Override the default tailwind padding/border applied by AlertDialogContent
+     so the structure below (header / divider / body / footer) lays out cleanly. */
+  width: 480px;
+  max-width: 94vw;
+  padding: 0 !important;
+  gap: 0 !important;
+  border: 0 !important;
+  overflow: hidden;
+  border-radius: 14px;
+  background-color: var(--tp-slate-0, #ffffff);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.15);
+  font-family: Inter, sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tp-slate-900, #171725);
+  margin: 0;
+}
+
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background-color: var(--tp-slate-900, #171725);
+  color: var(--tp-slate-0, #ffffff);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background-color: var(--tp-slate-700, #454551);
+  }
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--tp-slate-100, #f1f1f5);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+}
+
+.warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: 10px;
+  background-color: var(--tp-warning-50, #fffbeb);
+  padding: 14px 16px;
+}
+
+.warningIcon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.warningText {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--tp-slate-700, #454551);
+  margin: 0;
+}
+
+.description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--tp-slate-600, #545460);
+  margin: 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--tp-slate-100, #f1f1f5);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+
+%btnBase {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: Inter, sans-serif;
+  border-radius: 8px;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+/* Primary solid — TP blue */
+.primary {
+  @extend %btnBase;
+  background-color: var(--tp-blue-500, #4b4ad5);
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: var(--tp-blue-600, #3d3cb8);
+  }
+}
+
+/* Primary destructive solid — TP red/error */
+.primaryDestructive {
+  @extend %btnBase;
+  background-color: var(--tp-error-500, #dc2626);
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: var(--tp-error-600, #b91c1c);
+  }
+}
+
+/* Secondary link — quiet TP blue */
+.secondary {
+  @extend %btnBase;
+  background-color: transparent;
+  color: var(--tp-blue-500, #4b4ad5);
+  padding: 0 12px;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(75, 74, 213, 0.08);
+  }
+}
+
+/* Secondary destructive link — red text with underline (matches reference) */
+.secondaryDestructive {
+  @extend %btnBase;
+  background-color: transparent;
+  color: var(--tp-error-500, #dc2626);
+  padding: 0 12px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+
+  &:hover:not(:disabled) {
+    color: var(--tp-error-600, #b91c1c);
+    background-color: transparent;
+  }
+}
+
+/* Tertiary — outlined TP blue (sits between cancel and primary) */
+.tertiary {
+  @extend %btnBase;
+  background-color: transparent;
+  color: var(--tp-blue-500, #4b4ad5);
+  border: 1px solid var(--tp-blue-500, #4b4ad5);
+
+  &:hover:not(:disabled) {
+    background-color: rgba(75, 74, 213, 0.08);
+  }
+}
+
+/* Tertiary destructive — outlined red (e.g. "Go back without saving") */
+.tertiaryDestructive {
+  @extend %btnBase;
+  background-color: transparent;
+  color: var(--tp-error-500, #dc2626);
+  border: 1px solid var(--tp-error-500, #dc2626);
+
+  &:hover:not(:disabled) {
+    background-color: rgba(220, 38, 38, 0.08);
+  }
+}

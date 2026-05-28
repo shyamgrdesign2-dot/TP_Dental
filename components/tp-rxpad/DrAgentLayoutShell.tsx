@@ -3,7 +3,10 @@
 import { Suspense, useEffect, type ReactNode } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { DrAgentFab } from "@/components/tp-rxpad/dr-agent/shell/DrAgentFab"
+// NOTE: `DrAgentFab` is intentionally NOT imported here. The VoiceRx launcher
+// is only rendered inside `TPRxPadShell` (mounted by `/rxpad`). All other
+// routes (appointments, patient-detail, treatment-plan, end-visit, …) keep
+// the *panel* mountable via context but never expose the floating tab.
 import { DrAgentPanel } from "@/components/tp-rxpad/dr-agent/DrAgentPanel"
 import { useRxPadChrome } from "@/components/tp-rxpad/rxpad-chrome-context"
 
@@ -46,7 +49,7 @@ function LegacyDrAgentChrome() {
           />
         </aside>
       ) : null}
-      {!open ? <DrAgentFab onClick={() => setOpen(true)} /> : null}
+      {/* VoiceRx FAB removed — launcher lives only inside /rxpad. */}
     </>
   )
 }
@@ -76,7 +79,7 @@ function PushDrAgentChrome() {
           />
         </aside>
       ) : null}
-      {!open ? <DrAgentFab onClick={() => setOpen(true)} /> : null}
+      {/* VoiceRx FAB removed — launcher lives only inside /rxpad. */}
     </>
   )
 }

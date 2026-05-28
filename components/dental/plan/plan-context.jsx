@@ -9,6 +9,7 @@ import { TPSnackbar } from "@/components/tp-ui/tp-snackbar";
  */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
 import { PLAN_CONSULTATION_FLUSH_EVENT, PLAN_CONSULTATION_QUEUE_PREFIX } from "@/lib/plan-consultation-queue";
+import { savePlanProcedures } from "@/lib/plan-procedures-store";
 import { genId } from "./plan-types";
 import { getMockPlans } from "./plan-mock-data";
 // ─── Reducer ────────────────────────────────────────────────
@@ -245,6 +246,12 @@ function planReducer(state, action) {
                             ...s,
                             status: s.status === "planned" ? "in-progress" : s.status,
                             sittings: [...s.sittings, action.sitting],
+                            // Procedures recorded in the quick visit also join the
+                            // service's procedure history so they surface in the
+                            // timeline and bill (story stays connected).
+                            procedures: action.procedures && action.procedures.length
+                                ? [...s.procedures, ...action.procedures]
+                                : s.procedures,
                         }
                         : s),
                 })),
@@ -388,6 +395,38 @@ export function PlanProvider({ patientId, children, onNavigateTab, initialDrawer
     }, [state.plans]);
     const openDrawer = (drawer) => dispatch({ type: "SET_DRAWER", drawer });
     const closeDrawer = () => dispatch({ type: "SET_DRAWER", drawer: { type: "closed" } });
+    // Publish recorded procedures so Past Visits / Patient Detail Rx can surface
+    // them (the treatment plan is the source of truth for "what was done").
+    useEffect(() => {
+        const toothLabelFor = (svc) => {
+            const fdis = svc.toothFdis && svc.toothFdis.length > 0 ? svc.toothFdis : (svc.toothFdi ? [svc.toothFdi] : []);
+            if (fdis.length === 0) return svc.toothLabel || "";
+            if (fdis[0] === "full-mouth") return "Full Mouth";
+            if (fdis.length === 1) return `${svc.toothLabel || ""} (T${fdis[0]})`.trim();
+            return `${svc.toothLabel || `${fdis.length} teeth`} (${fdis.map((f) => `T${f}`).join(", ")})`;
+        };
+        const out = [];
+        for (const p of state.plans) {
+            for (const svc of p.services) {
+                const fdis = svc.toothFdis && svc.toothFdis.length > 0 ? svc.toothFdis : (svc.toothFdi ? [svc.toothFdi] : []);
+                for (const proc of svc.procedures ?? []) {
+                    out.push({
+                        id: proc.id,
+                        name: proc.name,
+                        doctor: proc.doctor,
+                        date: proc.date,
+                        status: proc.status,
+                        notes: proc.notes,
+                        toothLabel: toothLabelFor(svc),
+                        toothFdis: fdis,
+                        treatment: svc.treatment,
+                        planName: p.name,
+                    });
+                }
+            }
+        }
+        savePlanProcedures(patientId, out);
+    }, [state.plans, patientId]);
     const hasInProgressPlan = inProgressPlans.length > 0;
     const value = useMemo(() => ({
         patientId,

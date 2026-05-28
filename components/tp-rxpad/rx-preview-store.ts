@@ -1,6 +1,14 @@
+export interface RxPreviewLineCols {
+  surfaces?: string
+  since?: string
+  note?: string
+}
+
 export interface RxPreviewLine {
   title: string
   metaParts: string[]
+  /** Structured columns for the table print view (Surfaces / Since / Notes). */
+  cols?: RxPreviewLineCols
 }
 
 export interface RxPreviewSnapshot {

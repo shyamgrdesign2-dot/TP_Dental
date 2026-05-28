@@ -76,6 +76,17 @@ export interface InitialToothState {
   implantTeeth?: string[]
   /** Per-tooth surface findings: FDI → zoneId → finding types */
   findingsByTooth?: Record<string, Array<{ zoneId: string; type: string }>>
+  /** Region-level oral examination entries — same shape as the runtime store */
+  oralEntries?: Array<{
+    id: string
+    kind: 'past' | 'finding' | 'procedure'
+    name: string
+    surfaces: string[]
+    since?: string
+    note?: string
+  }>
+  /** Free-text notes for the oral exam section */
+  oralNotes?: string
 }
 
 /**
@@ -86,9 +97,10 @@ export const INITIAL_TOOTH_STATE: Record<string, InitialToothState> = {
   "apt-new": {},
   "apt-1": {},
   "apt-2": {},
-  // Anjali Patel — returning patient with an active restoration on 26, a
-  // completed RCT + crown on 36, and an early caries lesion on 16 that's
-  // been monitored since last visit.
+  // Anjali Patel — returning patient with both per-tooth records AND oral
+  // examination data (gingivitis under control, recent scaling, light staining).
+  // Represents the "regular user" seed so the dentition view shows tooth +
+  // oral records, not the first-time onboarding card.
   "apt-6": {
     toothDiagnoses: {
       "26": ["Filling"],
@@ -102,6 +114,16 @@ export const INITIAL_TOOTH_STATE: Record<string, InitialToothState> = {
       ],
       "47": [{ zoneId: "cervical", type: "Staining" }],
     },
+    oralEntries: [
+      // Past procedures already in her record from earlier visits.
+      { id: "ap-op-1", kind: "past",      name: "Scaling & Polishing", surfaces: ["WHOLE"],       since: "6 months" },
+      // Current findings noted at today's visit.
+      { id: "ap-of-1", kind: "finding",   name: "Mild Gingivitis",     surfaces: ["gingiva", "GENERALIZED"], note: "Localized to lower anteriors" },
+      { id: "ap-of-2", kind: "finding",   name: "Calculus",            surfaces: ["LOWER_ARCH"],  note: "Mostly lingual" },
+      // Procedures planned for this visit.
+      { id: "ap-pp-1", kind: "procedure", name: "Scaling & Polishing", surfaces: ["WHOLE"] },
+    ],
+    oralNotes: "Patient reports improved home-care routine. Advise interdental brushes and recall in 6 months.",
   },
 }
 

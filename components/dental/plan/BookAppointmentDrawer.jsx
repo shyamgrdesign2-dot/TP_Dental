@@ -12,6 +12,7 @@ import {
 } from "@/components/tp-appointment-screen/booked-appointments-store";
 import { useDirtyDrawerGuard } from "./use-dirty-drawer-guard";
 import { TPConfirmDialog } from "@/components/ui/tp-confirm-dialog";
+import { AddAppointmentDrawer } from "@/components/appointments/AddAppointmentDrawer";
 
 const DOCTORS = ["Dr. Sheela B R", "Dr. Shyam GR", "Dr. Riya Kapoor"];
 const PATIENT_CATEGORIES = [
@@ -141,6 +142,11 @@ export function BookAppointmentDrawer() {
                     patientCategory,
                     caseType,
                     status: "scheduled",
+                    // Planned-procedure context so the appointment tells the story.
+                    serviceName: service?.treatment,
+                    toothLabel: service?.toothFdi === "full-mouth"
+                        ? "Full Mouth"
+                        : service ? `T${service.toothFdi} — ${service.toothLabel}` : undefined,
                 },
             });
             if (resolvedPatientId) {
@@ -384,4 +390,58 @@ export function BookAppointmentDrawer() {
             }),
         ],
     });
+}
+
+// Bridge: route NEW plan bookings to the replicated AddAppointment sidebar,
+// while keeping the legacy drawer for editing an existing appointment.
+function NewPlanBooking() {
+    const { state, closeDrawer, findService, dispatch, patientId, showSnackbar } = usePlanContext();
+    const drawer = state.drawer;
+    const isOpen = drawer.type === "book-appointment" && !drawer.appointmentId;
+    const serviceId = isOpen ? drawer.serviceId : undefined;
+    const service = serviceId ? findService(serviceId) : undefined;
+    const toothLabel = service
+        ? (service.toothFdi === "full-mouth"
+            ? "Full Mouth"
+            : `T${service.toothFdi} — ${service.toothLabel}`)
+        : undefined;
+    const context = isOpen
+        ? {
+            patientId,
+            serviceId,
+            serviceName: service?.treatment,
+            toothLabel,
+            onBooked: ({ id, date, time, doctor, caseType, notes }) => {
+                if (serviceId) {
+                    dispatch({
+                        type: "ADD_APPOINTMENT",
+                        serviceId,
+                        appointment: {
+                            id: id || genId("appt"),
+                            date,
+                            time,
+                            doctor,
+                            notes,
+                            caseType,
+                            status: "scheduled",
+                            serviceName: service?.treatment,
+                            toothLabel,
+                        },
+                    });
+                }
+                showSnackbar?.("Appointment booked successfully.");
+            },
+        }
+        : undefined;
+    return _jsx(AddAppointmentDrawer, { open: isOpen, onClose: closeDrawer, context });
+}
+export function PlanBookAppointmentBridge() {
+    const { state } = usePlanContext();
+    const drawer = state.drawer;
+    // Editing an existing appointment keeps the legacy drawer (consultation
+    // links, cancellation, etc.); new bookings use the replica sidebar.
+    if (drawer.type === "book-appointment" && drawer.appointmentId) {
+        return _jsx(BookAppointmentDrawer, {});
+    }
+    return _jsx(NewPlanBooking, {});
 }

@@ -16,6 +16,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm";
 import { BOOKED_APPT_EVENT, computeDateKey, formatHumanDate, loadBookedAppointments, } from "./booked-appointments-store";
+import { AddAppointmentDrawer } from "@/components/appointments/AddAppointmentDrawer";
 const REF_LOGO = "/assets/b38df11ad80d11b9c1d530142443a18c2f53d406.png";
 const REF_AVATAR = "/assets/52cb18088c5b8a5db6a7711c9900d7d08a1bac42.png";
 /** Shown in header avatar + profile menu (keep in sync with the profile image). */
@@ -191,8 +192,16 @@ function mergeBookedAppointments(baseQueue, bookedList) {
     const extras = [];
     let nextSerial = baseQueue.length + 1;
     for (const booked of bookedList) {
-        const template = templateByPatient.get(booked.patientId);
-        if (!template) continue;
+        // Use an existing queue row as a template when the patient is already
+        // listed; otherwise synthesize a minimal row so standalone bookings
+        // still appear on the listing.
+        const template = templateByPatient.get(booked.patientId) ?? {
+            name: booked.patientName || "Patient",
+            gender: "", age: "",
+            contact: booked.patientContact || "",
+            visitType: "Follow-up",
+            hasVideo: false,
+        };
         extras.push({
             ...template,
             id: booked.id,
@@ -201,13 +210,15 @@ function mergeBookedAppointments(baseQueue, bookedList) {
             slotDate: formatHumanDate(booked.date),
             dateKey: computeDateKey(booked.date),
             visitBadge: { text: "Scheduled", tone: "info" },
-            visitType: template.visitType,
+            visitType: booked.caseType || template.visitType,
             status: "queue",
-            // Tag the row so UI can show why it was added, if it wants to.
-            bookedFromPlan: true,
+            // Tag the row so UI can show why it was added. Only plan-linked
+            // bookings get the "Via Dental Plan" tag; standalone bookings don't.
+            bookedFromPlan: Boolean(booked.serviceId && booked.serviceId !== "standalone"),
             bookedServiceName: booked.serviceName,
             bookedToothLabel: booked.toothLabel,
             bookedDoctor: booked.doctor,
+            bookedNotes: booked.notes,
         });
     }
     return [...baseQueue, ...extras];
@@ -307,6 +318,7 @@ export function DrAgentPage() {
     const [filterMounted, setFilterMounted] = useState(false);
     const [snackbarMessage, setSnackbarMessage] = useState(null);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [addApptOpen, setAddApptOpen] = useState(false);
     useEffect(() => { setFilterMounted(true); }, []);
     useEffect(() => {
         if (appointmentViewMode === "calendar") {
@@ -464,7 +476,7 @@ export function DrAgentPage() {
 
             <div className={styles.bannerWrap}>
               <AppointmentBanner title="Your Appointments" actions={<>
-                    <Button variant="outline" theme="primary" size="md" surface="dark" className={styles.addApptBtn} leftIcon={<Plus size={20} strokeWidth={1.5}/>}>
+                    <Button variant="outline" theme="primary" size="md" surface="dark" className={styles.addApptBtn} leftIcon={<Plus size={20} strokeWidth={1.5}/>} onClick={() => setAddApptOpen(true)}>
                       Add Appointment
                     </Button>
                     <Button variant="solid" theme="primary" size="md" surface="dark" className={styles.startWalkInBtn} leftIcon={<Flash size={24} variant="Linear" strokeWidth={1.5}/>}>
@@ -632,6 +644,11 @@ export function DrAgentPage() {
                                           {row.visitBadge.text}
                                         </TPTag>
                                       </div>)}
+                                    {row.bookedFromPlan && (<div className={styles.mt1} title={row.bookedToothLabel ? `${row.bookedServiceName ?? "Procedure"} — ${row.bookedToothLabel}` : undefined}>
+                                        <TPTag color="violet" variant="light" size="sm">
+                                          {row.bookedServiceName ? `Via Dental Plan · ${row.bookedServiceName}` : "Via Dental Plan"}
+                                        </TPTag>
+                                      </div>)}
                                   </div>
                                 </td>
 
@@ -643,6 +660,9 @@ export function DrAgentPage() {
                                         {row.hasVideo && (<VideoConsultTooltip>
                                             <Video size={13} variant="Bulk" color="var(--tp-violet-500)"/>
                                           </VideoConsultTooltip>)}
+                                        {row.bookedNotes && (<span title={`Receptionist remark: ${row.bookedNotes}`} aria-label="Receptionist remark" style={{ cursor: "help", display: "inline-flex", alignItems: "center", marginLeft: 6, color: "var(--tp-slate-400)" }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                          </span>)}
                                       </span>
                                     </div>
                                     <p className={clsx(styles.slotDate, styles.mt1)}>
@@ -665,11 +685,8 @@ export function DrAgentPage() {
                 ]} variant="outline" theme="primary" size="md"/>
                                     </div>
 
-                                    <button type="button" aria-label="AI action" className={styles.aiActionBtn} style={{
-                    background: "linear-gradient(135deg, rgba(213,101,234,0.25) 0%, rgba(103,58,172,0.25) 45%, rgba(26,25,148,0.25) 100%)",
-                }}>
-                                      <AiSparkIcon />
-                                    </button>
+                                    {/* AI sparkle action removed from the appointments queue — the
+                                        VoiceRx surface is now only reachable from inside the Rx page itself. */}
 
                                     <button type="button" aria-label="More options" className={styles.moreBtn}>
                                       <MoreVertical size={20} strokeWidth={1.5}/>
@@ -699,6 +716,7 @@ export function DrAgentPage() {
             setSnackbarOpen(false);
             setSnackbarMessage(null);
         }}/>
+      <AddAppointmentDrawer open={addApptOpen} onClose={() => setAddApptOpen(false)}/>
     </div>);
 }
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -1054,11 +1072,7 @@ function WeekDayCalendarGrid({ mode, weekDays, cursorDate, events, onEdit, onSta
                         <button type="button" onClick={() => onStart(event.row)} className={styles.typeRxBtn}>
                           TypeRx
                         </button>
-                        <button type="button" aria-label="AI action" className={styles.aiMini} style={{
-                            background: "linear-gradient(135deg, rgba(213,101,234,0.25) 0%, rgba(103,58,172,0.25) 45%, rgba(26,25,148,0.25) 100%)",
-                        }}>
-                          <span className={styles.aiMiniScale}><AiSparkIcon /></span>
-                        </button>
+                        {/* AI sparkle removed from calendar event chips — VoiceRx now lives only inside the Rx page. */}
                       </div>
                     </div>
                   </div>);

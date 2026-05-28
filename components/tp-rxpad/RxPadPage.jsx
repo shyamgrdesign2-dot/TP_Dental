@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import clsx from "clsx"
 import { RxPad } from "@/components/rx/rxpad/RxPad"
 import { ExaminationTab } from "@/components/dental/examination/ExaminationTab"
-import { TPRxPadSecondarySidebar, TPRxPadShell, TPRxPadTopNav } from "@/components/tp-ui"
+import { TPConfirmDialog, TPRxPadSecondarySidebar, TPRxPadShell, TPRxPadTopNav } from "@/components/tp-ui"
 import { useRxPadChrome } from "@/components/tp-rxpad/rxpad-chrome-context"
 import styles from "./RxPadPage.module.scss"
 
@@ -97,13 +97,23 @@ function RxPadInner() {
   const patientId = searchParams?.get("patientId") ?? "apt-1"
   const returnTo = searchParams?.get("returnTo")
 
-  const handleRxBack = useCallback(() => {
+  // Back from the Rx page is treated as "abandoning" the current Rx draft —
+  // confirm before navigating away so an accidental tap doesn't lose work.
+  const [isBackConfirmOpen, setIsBackConfirmOpen] = useState(false)
+  const performRxBack = useCallback(() => {
     if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
       router.push(returnTo)
       return
     }
     router.push("/appointments")
   }, [returnTo, router])
+  const handleRxBack = useCallback(() => {
+    setIsBackConfirmOpen(true)
+  }, [])
+  const handleConfirmBack = useCallback(() => {
+    setIsBackConfirmOpen(false)
+    performRxBack()
+  }, [performRxBack])
   const [activeTab, setActiveTab] = useState("base")
   const { setRxPadExamTab } = useRxPadChrome()
 
@@ -244,6 +254,7 @@ function RxPadInner() {
     : `${-activeIndex * panelPct}%`
 
   return (
+    <>
     <TPRxPadShell
         topNav={
           <TPRxPadTopNav
@@ -321,6 +332,22 @@ function RxPadInner() {
           </div>
         </div>
       </TPRxPadShell>
+      <TPConfirmDialog
+        open={isBackConfirmOpen}
+        onOpenChange={setIsBackConfirmOpen}
+        title="Are you sure you want to go back?"
+        warning="Going back, all the details from this session won't be saved. Save as draft to resume later."
+        // Destructive option (left, red underlined link) — discards the draft.
+        secondaryLabel="Discard & Go Back"
+        secondaryTone="destructive"
+        onSecondary={handleConfirmBack}
+        // Safe primary (right, blue solid) — saves as draft then navigates.
+        // TODO: when the save-draft API lands, replace handleConfirmBack with
+        // a saveDraftAndBack helper.
+        primaryLabel="Save as Draft"
+        onPrimary={handleConfirmBack}
+      />
+    </>
   )
 }
 

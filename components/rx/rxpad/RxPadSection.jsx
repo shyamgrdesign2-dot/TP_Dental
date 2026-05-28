@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import clsx from "clsx"
 import { Search, XCircle } from "lucide-react"
 import { Eraser, Grid5, Ram, Trash } from "iconsax-reactjs"
+import { TPConfirmDialog } from "@/components/tp-ui"
 import styles from "./RxPadSection.module.scss"
 
 export function RxPadSection({
@@ -17,6 +18,10 @@ export function RxPadSection({
   clearDisabled = false,
   autofillLabel,
 }) {
+  // Confirm before destructive clear — never invoke onClearClick directly.
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+  const requestClear = () => setClearConfirmOpen(true)
+  const confirmClear = () => { setClearConfirmOpen(false); onClearClick?.() }
   return (
     <div className={styles.section}>
       <div className={styles.headerRow}>
@@ -41,7 +46,7 @@ export function RxPadSection({
               type="button"
               className={styles.iconBtn}
               title="Clear"
-              onClick={onClearClick}
+              onClick={requestClear}
               disabled={clearDisabled}
             >
               <Eraser color="var(--tp-slate-700)" size={18} strokeWidth={1.5} variant="Linear" />
@@ -49,6 +54,16 @@ export function RxPadSection({
           </div>
         ) : null}
       </div>
+      <TPConfirmDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title={`Are you sure you want to clear ${title.toLowerCase()}?`}
+        warning={`Clearing this section will remove all ${title.toLowerCase()} data from this visit. This action cannot be undone.`}
+        secondaryLabel={`Yes, Clear ${title}`}
+        secondaryTone="destructive"
+        onSecondary={confirmClear}
+        primaryLabel="No, Keep It"
+      />
       {autofillLabel ? (
         <div className={styles.autofillWrap}>
           <button type="button" className={styles.autofillBtn}>

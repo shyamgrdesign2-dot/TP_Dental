@@ -57,12 +57,7 @@ const NAV_ITEMS = [
   { id: "pastVisits", label: "Past Visits", icon: { kind: "iconsax", Icon: Note1 } },
   { id: "vitals", label: "Vitals", icon: { kind: "medical", name: "Heart Rate" } },
   { id: "history", label: "Medical History", icon: { kind: "medical", name: "clipboard-activity" } },
-  {
-    id: "dentalPlan",
-    label: "Dental Plan",
-    icon: { kind: "medical", name: "surgical-scissors-02" },
-    navigateTo: "/treatment-plan",
-  },
+  // Dental Plan hidden for v0 — no doctor-facing entry point.
   { id: "medicalRecords", label: "Records", icon: { kind: "medical", name: "health-file-03" } },
   { id: "labResults", label: "Lab Results", icon: { kind: "medical", name: "Lab" } },
   { id: "personalNotes", label: "Personal Notes", icon: { kind: "iconsax", Icon: DocumentText } },

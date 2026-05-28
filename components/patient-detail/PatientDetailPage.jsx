@@ -2,6 +2,24 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getPlanProcedures, PLAN_PROCEDURES_UPDATED_EVENT } from "@/lib/plan-procedures-store";
+
+const PROC_STATUS_LABEL = { "not-started": "Planned", planned: "Planned", "in-progress": "In Progress", completed: "Completed", "no-show": "No Show", "not-interested": "Not Interested" };
+function usePlanProcedures() {
+  const [procs, setProcs] = useState([]);
+  useEffect(() => {
+    const pid = (() => { try { return new URLSearchParams(window.location.search).get("patientId") || "apt-1"; } catch { return "apt-1"; } })();
+    const load = () => setProcs(getPlanProcedures(pid));
+    load();
+    window.addEventListener(PLAN_PROCEDURES_UPDATED_EVENT, load);
+    window.addEventListener("storage", load);
+    return () => {
+      window.removeEventListener(PLAN_PROCEDURES_UPDATED_EVENT, load);
+      window.removeEventListener("storage", load);
+    };
+  }, []);
+  return procs;
+}
 import clsx from "clsx";
 import {
   Add,
@@ -216,6 +234,7 @@ function HistorySectionCards() {
 function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
   const isDigital = rxTab === "digital";
   const docKind = isDigital ? "digital Rx" : "transcript";
+  const planProcedures = usePlanProcedures();
 
   return (
     <CardShell className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -390,6 +409,20 @@ function DigitalRxPanel({ visitIndex, setVisitIndex, rxTab, setRxTab }) {
                 ))}
               </ol>
             </section>
+            {planProcedures.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Procedures</h4>
+                  <span className="inline-flex items-center rounded-[5px] bg-tp-violet-50 px-[7px] py-[2px] font-sans text-[10.5px] font-bold uppercase tracking-[0.3px] text-tp-violet-600">From treatment plan</span>
+                </div>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 font-sans text-[12px] leading-relaxed text-tp-slate-600">
+                  {planProcedures.map((p) => {
+                    const meta = [p.toothLabel, p.doctor, p.date, p.status ? (PROC_STATUS_LABEL[p.status] ?? p.status) : "", p.notes].filter(Boolean).join(", ");
+                    return <li key={p.id}>{p.name}{meta ? ` (${meta})` : ""}</li>;
+                  })}
+                </ol>
+              </section>
+            )}
             <section>
               <h4 className="font-sans text-[14px] font-medium text-tp-slate-900">Advice</h4>
               <ol className="mt-2 list-decimal space-y-1 pl-5 font-sans text-[12px] text-tp-slate-600">
@@ -456,12 +489,7 @@ const NAV_CONFIG = [
     placeholderKey: "certificates",
   },
   { id: "add-edit-bill", label: "Add/Edit Bill", bannerTitle: "Add/Edit Bill", kind: "placeholder", placeholderKey: "bill" },
-  {
-    id: "dental-plan",
-    label: "Dental plan",
-    bannerTitle: "Dental treatment plan",
-    kind: "dental-plan",
-  },
+  // Dental plan hidden for v0 — no doctor-facing entry point.
   {
     id: "ipd-discharge",
     label: "IPD Discharge Summary",

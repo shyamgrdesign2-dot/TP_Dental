@@ -19,7 +19,7 @@ import {
     DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePlanContext } from "./plan-context";
-import { SectionFrame, EmptyState, PlanEmptyIcon, formatINR, computePlanTotal, PlanSurfaceAbbrTags } from "./plan-shared";
+import { SectionFrame, EmptyState, PlanEmptyIcon, formatINR, computePlanTotal, PlanSurfaceAbbrTags, serviceToothDisplay, serviceToothFdis } from "./plan-shared";
 import dui from "../dental-ui.module.scss";
 
 const dropdownContentClass = "w-[220px] rounded-[10px] border border-tp-slate-100/70 bg-white p-1";
@@ -171,8 +171,12 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                         _jsx("td", {
                                             className: "px-[8px] py-[9px]",
                                             children: _jsx("span", {
-                                                className: "inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[5px] py-[1px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600",
-                                                children: svc.toothFdi === "full-mouth" ? "Full" : `T${svc.toothFdi}`,
+                                                className: "inline-flex flex-wrap items-center gap-[3px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600",
+                                                title: serviceToothDisplay(svc),
+                                                children: serviceToothFdis(svc).map((f) => _jsx("span", {
+                                                    className: "inline-flex items-center rounded-[4px] bg-tp-slate-100 px-[5px] py-[1px]",
+                                                    children: f === "full-mouth" ? "Full" : `T${f}`,
+                                                }, f)),
                                             }),
                                         }),
                                         _jsx("td", {
@@ -181,7 +185,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                                 ? _jsx(PlanSurfaceAbbrTags, { surfaces: svc.surfaces })
                                                 : _jsx("span", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-300", children: "\u2014" }),
                                         }),
-                                        _jsx("td", { className: "px-[8px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] text-tp-slate-600", children: formatINR(svc.rate) }),
+                                        _jsx("td", { className: "px-[8px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] text-tp-slate-600", children: serviceToothFdis(svc).length > 1 ? _jsxs("span", { children: [formatINR(svc.rate), _jsxs("span", { className: "text-[11px] text-tp-slate-400", children: [" ×", serviceToothFdis(svc).length] })] }) : formatINR(svc.rate) }),
                                         _jsx("td", {
                                             className: "px-[8px] py-[9px] text-right font-['Inter',sans-serif] text-[12px] text-tp-slate-400",
                                             children: svc.discount > 0 ? `-${formatINR(svc.discount)}` : "—",

@@ -139,6 +139,9 @@ export function AddEditPlanDrawer() {
     const drawer = state.drawer;
     const isOpen = drawer.type === "add-plan" || drawer.type === "edit-plan";
     const isEdit = drawer.type === "edit-plan";
+    // Read-only "View Plan Builder" — opened for active plans to protect
+    // activated pricing. All mutations are gated so nothing can change/persist.
+    const readOnly = isEdit && drawer.readOnly === true;
     const editPlanId = isEdit ? drawer.planId : null;
     const editPlan = editPlanId ? state.plans.find((p) => p.id === editPlanId) : null;
     const [planName, setPlanName] = useState("");
@@ -194,9 +197,18 @@ export function AddEditPlanDrawer() {
             setAdditionalDiscount(editPlan.additionalDiscount ? String(editPlan.additionalDiscount) : "");
             const grouped = new Map();
             for (const svc of editPlan.services) {
+                // Grouped services already carry every tooth in toothFdis; fall
+                // back to the legacy single toothFdi for older data.
+                const svcTeeth = svc.toothFdis?.length ? svc.toothFdis : [svc.toothFdi];
+                // svc.discount is the whole-line discount (per-tooth × count); the
+                // row editor works in per-tooth terms, so divide it back out.
+                const perToothDiscount = svcTeeth.length > 0 ? Math.round((svc.discount || 0) / svcTeeth.length) : (svc.discount || 0);
                 const existing = grouped.get(svc.treatment);
                 if (existing) {
-                    existing.teeth.push(svc.toothFdi);
+                    for (const fdi of svcTeeth) {
+                        if (!existing.teeth.includes(fdi))
+                            existing.teeth.push(fdi);
+                    }
                     for (const s of svc.surfaces) {
                         if (!existing.surfaces.includes(s))
                             existing.surfaces.push(s);
@@ -206,10 +218,10 @@ export function AddEditPlanDrawer() {
                     grouped.set(svc.treatment, {
                         id: genId("row"),
                         treatment: svc.treatment,
-                        teeth: [svc.toothFdi],
+                        teeth: [...svcTeeth],
                         surfaces: [...svc.surfaces],
                         rate: svc.rate,
-                        discount: svc.discount,
+                        discount: perToothDiscount,
                         discountType: "flat",
                         procedureDate: svc.procedureDate ?? "",
                         notes: svc.notes ?? "",
@@ -277,6 +289,7 @@ export function AddEditPlanDrawer() {
         return () => document.removeEventListener("mousedown", handler);
     }, [searchOpen]);
     const addTreatmentRow = (treatmentName, teeth = [], surfaces = [], billItemFromCatalog = null) => {
+        if (readOnly) return;
         const nextSurfaces = surfaces.length > 0 ? surfaces : getDefaultPlanSurfaces(treatmentName);
         const exists = rows.find((r) => r.treatment === treatmentName);
         if (!exists) {
@@ -296,12 +309,15 @@ export function AddEditPlanDrawer() {
         // Don't focus search input — user asked not to activate input on tag click
     };
     const updateRow = (id, patch) => {
+        if (readOnly) return;
         setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     };
     const removeRow = (id) => {
+        if (readOnly) return;
         setRows((prev) => prev.filter((r) => r.id !== id));
     };
     const clearAllRows = () => {
+        if (readOnly) return;
         setRows([]);
     };
     const handleSearchKeyDown = (e) => {
@@ -364,32 +380,37 @@ export function AddEditPlanDrawer() {
         const d = Number.isFinite(raw) && raw > 0 ? raw : 0;
         return Math.min(row.rate, d);
     };
-    const fanOutServices = () => {
+    // Build ONE service per row. When a procedure spans several teeth (e.g. a
+    // veneer across 11/21/22) it stays a single grouped line item carrying every
+    // tooth — NOT one service per tooth. Billing is per-tooth rate × tooth count.
+    const buildServices = () => {
         const services = [];
         const planId = editPlanId ?? genId("plan");
         for (const row of rows) {
             if (!row.treatment)
                 continue;
             const teeth = row.teeth.length > 0 ? row.teeth : ["full-mouth"];
-            const discAmt = computeDiscount(row);
-            for (const fdi of teeth) {
-                services.push({
-                    id: genId("svc"),
-                    planId,
-                    treatment: row.treatment,
-                    toothFdi: fdi,
-                    toothLabel: fdiToLabel(fdi),
-                    surfaces: [...row.surfaces],
-                    rate: row.rate,
-                    discount: discAmt,
-                    amount: Math.max(0, row.rate - discAmt),
-                    status: "planned",
-                    sittings: [],
-                    procedures: [],
-                    procedureDate: row.procedureDate?.trim() || undefined,
-                    notes: row.notes?.trim() || undefined,
-                });
-            }
+            const count = teeth.length;
+            const discPerTooth = computeDiscount(row);
+            const lineDiscount = discPerTooth * count;
+            const lineAmount = Math.max(0, (row.rate - discPerTooth) * count);
+            services.push({
+                id: genId("svc"),
+                planId,
+                treatment: row.treatment,
+                toothFdi: teeth[0],
+                toothFdis: [...teeth],
+                toothLabel: count === 1 ? fdiToLabel(teeth[0]) : `${count} teeth`,
+                surfaces: [...row.surfaces],
+                rate: row.rate,
+                discount: lineDiscount,
+                amount: lineAmount,
+                status: "planned",
+                sittings: [],
+                procedures: [],
+                procedureDate: row.procedureDate?.trim() || undefined,
+                notes: row.notes?.trim() || undefined,
+            });
         }
         return services;
     };
@@ -397,7 +418,7 @@ export function AddEditPlanDrawer() {
     const handleSave = () => {
         if (!planName.trim() || rows.length === 0)
             return;
-        const services = fanOutServices();
+        const services = buildServices();
         if (isEdit && editPlanId) {
             dispatch({
                 type: "UPDATE_PLAN",
@@ -458,6 +479,7 @@ export function AddEditPlanDrawer() {
     });
     // Clear error when user types
     const handleNameChange = (e) => {
+        if (readOnly) return;
         setPlanName(e.target.value);
         if (showNameError && e.target.value.trim())
             setShowNameError(false);
@@ -477,7 +499,7 @@ export function AddEditPlanDrawer() {
             e.preventDefault();
     };
     return (_jsxs(_Fragment, { children: [_jsxs(TPDrawer, { open: isOpen, onOpenChange: (open) => { if (!open) guard.attemptClose(); }, children: [_jsxs(TPDrawerContent, { side: "right", size: "lg", className: `${PLAN_DRAWER_WIDE_PANEL_CLASS} flex flex-col`, onPointerDownOutside: blockPlanSheetDismissFromPortals, onInteractOutside: blockPlanSheetDismissFromPortals, onFocusOutside: (e) => { if (catalogDentalDrawerOpen)
-                e.preventDefault(); }, style: { background: "#F4F5F7" }, children: [_jsx(DrawerHeader, { title: isEdit ? "Edit Plan" : "Create Treatment Plan", onClose: () => guard.attemptClose(), action: _jsxs("div", { className: "flex items-center gap-[10px]", children: [_jsx("button", { type: "button", title: "Templates", className: iconBtnClass, children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Save as template", className: iconBtnClass, children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Erase", onClick: clearAllRows, disabled: rows.length === 0, className: iconBtnClass, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("div", { className: "w-px self-stretch bg-[linear-gradient(180deg,rgba(226,226,234,0.1)_0%,rgba(226,226,234,1)_50%,rgba(226,226,234,0.1)_100%)] mx-[2px]" }), _jsx("button", { type: "button", onClick: handleSaveWithValidation, className: "h-[42px] min-w-[120px] rounded-[12px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm", children: isEdit ? "Save Changes" : "Create Plan" })] }) }), _jsxs("div", { className: "flex-1 overflow-y-auto px-[24px] pt-[20px] pb-[24px] space-y-[20px]", style: { background: "#F4F5F7" }, children: [_jsxs("div", { children: [_jsxs("label", { className: "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]", children: ["Plan Name ", _jsx("span", { className: "text-tp-error-500", children: "*" })] }), _jsx("input", { ref: nameInputRef, type: "text", value: planName, onChange: handleNameChange, placeholder: "e.g., Wisdom Tooth Removal", className: `w-full h-[42px] rounded-[10px] border bg-white px-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-300 focus:outline-none focus:ring-2 transition-colors ${showNameError
+                e.preventDefault(); }, style: { background: "#F4F5F7" }, children: [_jsx(DrawerHeader, { title: readOnly ? "Plan Builder" : (isEdit ? "Edit Plan" : "Create Treatment Plan"), onClose: () => guard.attemptClose(), action: readOnly ? _jsx("span", { className: "inline-flex items-center gap-[6px] rounded-[8px] bg-tp-slate-100 px-[10px] py-[6px] font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-500", children: "View only" }) : _jsxs("div", { className: "flex items-center gap-[10px]", children: [_jsx("button", { type: "button", title: "Templates", className: iconBtnClass, children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Save as template", className: iconBtnClass, children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Erase", onClick: clearAllRows, disabled: rows.length === 0, className: iconBtnClass, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("div", { className: "w-px self-stretch bg-[linear-gradient(180deg,rgba(226,226,234,0.1)_0%,rgba(226,226,234,1)_50%,rgba(226,226,234,0.1)_100%)] mx-[2px]" }), _jsx("button", { type: "button", onClick: handleSaveWithValidation, className: "h-[42px] min-w-[120px] rounded-[12px] px-[20px] font-['Inter',sans-serif] text-[14px] font-semibold text-white bg-tp-blue-600 hover:bg-tp-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm", children: isEdit ? "Save Changes" : "Create Plan" })] }) }), _jsxs("div", { className: "flex-1 overflow-y-auto px-[24px] pt-[20px] pb-[24px] space-y-[20px]", style: { background: "#F4F5F7" }, children: [_jsxs("div", { children: [_jsxs("label", { className: "block font-['Inter',sans-serif] text-[12px] font-semibold text-tp-slate-600 mb-[6px]", children: ["Plan Name ", _jsx("span", { className: "text-tp-error-500", children: "*" })] }), _jsx("input", { ref: nameInputRef, type: "text", value: planName, onChange: handleNameChange, readOnly: readOnly, placeholder: "e.g., Wisdom Tooth Removal", className: `w-full h-[42px] rounded-[10px] border bg-white px-[14px] font-['Inter',sans-serif] text-[14px] text-tp-slate-800 placeholder:text-tp-slate-300 focus:outline-none focus:ring-2 transition-colors ${showNameError
                                             ? "border-tp-error-400 focus:ring-tp-error-500/30 focus:border-tp-error-400"
         : "border-tp-slate-200 focus:ring-tp-blue-500/30 focus:border-tp-blue-400"}` }), showNameError && (_jsxs("p", { className: "mt-[6px] font-['Inter',sans-serif] text-[12px] text-tp-error-500 flex items-center gap-[5px]", children: [_jsxs("svg", { width: "14", height: "14", viewBox: "0 0 24 24", fill: "none", children: [_jsx("circle", { cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "1.5" }), _jsx("path", { d: "M12 8v5", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }), _jsx("circle", { cx: "12", cy: "16", r: "0.75", fill: "currentColor" })] }), "Please enter a plan name to create a plan."] }))] }), _jsxs("div", { className: "rounded-[16px] bg-white overflow-hidden", children: [_jsxs("header", { className: "flex items-center gap-[10px] px-[16px] py-[14px]", children: [_jsx(TPMedicalIcon, { name: "first-aid", variant: "bulk", size: 22, color: "var(--tp-violet-500)" }), _jsx("h3", { className: "font-['Inter',sans-serif] text-[16px] font-semibold text-tp-slate-900", children: "Services" }), rows.length > 0 && (_jsx("span", { className: "inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-tp-slate-100 px-[6px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600 tabular-nums", children: rows.length })), _jsxs("div", { className: "ml-auto flex items-center gap-[8px]", children: [_jsx("button", { type: "button", title: "Templates", className: iconBtnClass, children: _jsx(Grid5, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Save as template", className: iconBtnClass, children: _jsx(Ram, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) }), _jsx("button", { type: "button", title: "Clear all", onClick: clearAllRows, disabled: rows.length === 0, className: iconBtnClass, children: _jsx(Eraser, { color: "currentColor", size: 16, strokeWidth: 1.5, variant: "Linear" }) })] })] }), rows.length > 0 && (_jsx("div", { className: "px-[14px] py-[12px]", children: _jsx("div", { className: "rounded-[10px] border border-tp-slate-200 overflow-hidden w-full overflow-x-auto min-w-0", children: _jsxs("table", { className: "w-full min-w-[880px] max-w-full table-fixed font-['Inter',sans-serif] text-[14px]", children: [_jsxs("colgroup", { children: [_jsx("col", { style: { width: 40, minWidth: 36 } }), _jsx("col", { style: { minWidth: 132, maxWidth: 200 } }), _jsx("col", { style: { width: 104, minWidth: 96 } }), _jsx("col", { style: { width: 108, minWidth: 100 } }), _jsx("col", { style: { width: 118, minWidth: 108 } }), _jsx("col", { style: { minWidth: 112, maxWidth: 200 } }), _jsx("col", { style: { width: 88, minWidth: 76 } }), _jsx("col", { style: { width: 72, minWidth: 64 } }), _jsx("col", { style: { width: 84, minWidth: 72 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }), _jsx("thead", { children: _jsxs("tr", { className: "h-[38px] bg-tp-slate-50 text-left font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: [_jsx("th", { className: "border-r border-tp-slate-100 px-0 py-2 text-center font-semibold" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Service" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Teeth" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Surfaces" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Surgery date" }), _jsx("th", { className: "border-r border-tp-slate-100 px-3 py-2 text-left font-semibold uppercase tracking-[0.5px]", children: "Notes" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-right font-semibold uppercase tracking-[0.5px]", children: "Rate" }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-right font-semibold uppercase tracking-[0.5px]", children: "Disc." }), _jsx("th", { className: "border-r border-tp-slate-100 px-4 py-2 text-right font-semibold uppercase tracking-[0.5px]", children: "Amount" }), _jsx("th", { className: "sticky right-0 z-40 border-l border-tp-slate-200/80 bg-tp-slate-50 px-0 py-2 text-center font-semibold shadow-[-8px_7px_14px_-12px_rgba(15,23,42,0.18)]" })] }) }), _jsx("tbody", { children: rows.map((row, idx) => {
                                                             const teethCount = Math.max(1, row.teeth.length);
@@ -503,7 +525,9 @@ export function AddEditPlanDrawer() {
                 pattern: "[0-9]*",
                 autoComplete: "off",
                 value: additionalDiscount,
+                readOnly: readOnly,
                 onChange: (e) => {
+                    if (readOnly) return;
                     const v = e.target.value.replace(/\D/g, "");
                     setAdditionalDiscount(v);
                 },
