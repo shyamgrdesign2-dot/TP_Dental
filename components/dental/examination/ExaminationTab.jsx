@@ -804,6 +804,10 @@ function OralTable({ state, title, kind, catalog, list }) {
     const [query, setQuery] = useState("");
     const [searchOpen, setSearchOpen] = useState(false);
     const [pos, setPos] = useState(null);
+    // Custom dental-service drawer state — only used for procedures + past
+    // procedures (findings just get added as a plain custom name).
+    const [customDrawerOpen, setCustomDrawerOpen] = useState(false);
+    const [customDrawerInitial, setCustomDrawerInitial] = useState("");
     const inputRef = useRef(null);
     const popRef = useRef(null);
     const has = (name) => list.some((e) => e.name === name);
@@ -811,8 +815,29 @@ function OralTable({ state, title, kind, catalog, list }) {
     const available = catalog.filter((c) => !has(c));
     const quickChips = available.slice(0, 8); // ~2 lines of quick picks
     const matches = q ? available.filter((c) => c.toLowerCase().includes(q)).slice(0, 30) : [];
+    const queryTrim = query.trim();
+    // Exact match across the FULL catalog (not just `available`) so we don't
+    // offer "Add" when the typed text is already on the chart as another row.
+    const catalogExact = !!queryTrim && catalog.some((c) => c.toLowerCase() === q);
+    const alreadyAdded = !!queryTrim && list.some((e) => e.name.toLowerCase() === q);
+    const showAddCustom = !!queryTrim && !catalogExact && !alreadyAdded;
+    // Procedures + past procedures route the custom name through the dental
+    // bill-item drawer (so the doctor can set price/code/notes once and have
+    // it reusable). Findings just add the typed text directly — they aren't
+    // a chargeable service.
+    const usesBillItemDrawer = kind === "past" || kind === "procedure";
     const placeholder = kind === "finding" ? "Search & add oral finding" : kind === "past" ? "Search & add past procedure" : "Search & add oral procedure";
     const addAndClear = (name) => { if (name) state.onAddOralEntry(kind, name); setQuery(""); setSearchOpen(false); };
+    const onAddCustom = () => {
+        if (!queryTrim) return;
+        setSearchOpen(false);
+        if (usesBillItemDrawer) {
+            setCustomDrawerInitial(queryTrim);
+            setCustomDrawerOpen(true);
+        } else {
+            addAndClear(queryTrim);
+        }
+    };
     const place = useCallback(() => {
         const el = inputRef.current;
         if (!el) return;
@@ -850,8 +875,22 @@ function OralTable({ state, title, kind, catalog, list }) {
             _jsx("span", { className: ui.searchIconAbs, children: _jsx(SearchNormal1, { size: 14, color: "currentColor", variant: "Linear" }) }),
             _jsx("input", { ref: inputRef, type: "text", value: query, onChange: (ev) => { setQuery(ev.target.value); setSearchOpen(true); }, onFocus: () => setSearchOpen(true), onKeyDown: (ev) => { if (ev.key === "Enter" && q) { const exact = catalog.find((c) => c.toLowerCase() === q); addAndClear(exact || query.trim()); } else if (ev.key === "Escape") { setSearchOpen(false); } }, placeholder: placeholder, className: ui.searchInput }),
         ] }),
-        showDropdown && pos && typeof document !== "undefined" && createPortal(_jsx("div", { ref: popRef, style: { position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, maxHeight: 260, overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 10px 30px rgba(2,6,23,0.22)", padding: 6 }, children: matches.length > 0 ? matches.map((name) => (_jsx("button", { type: "button", onClick: () => addAndClear(name), style: { display: "block", width: "100%", textAlign: "left", fontSize: 12.5, padding: "7px 10px", borderRadius: 6, border: "none", background: "transparent", color: "#334155", cursor: "pointer", fontFamily: "Inter, sans-serif" }, onMouseEnter: (e) => { e.currentTarget.style.background = "rgba(99,102,241,0.08)"; }, onMouseLeave: (e) => { e.currentTarget.style.background = "transparent"; }, children: name }, name))) : (_jsx("div", { style: { fontSize: 12, color: "#94a3b8", padding: "8px 10px", fontFamily: "Inter, sans-serif" }, children: "No matches" })) }), document.body),
+        showDropdown && pos && typeof document !== "undefined" && createPortal(_jsxs("div", { ref: popRef, style: { position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, maxHeight: 260, overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 10px 30px rgba(2,6,23,0.22)", padding: 6 }, children: [
+            matches.length > 0
+                ? matches.map((name) => (_jsx("button", { type: "button", onClick: () => addAndClear(name), style: { display: "block", width: "100%", textAlign: "left", fontSize: 12.5, padding: "7px 10px", borderRadius: 6, border: "none", background: "transparent", color: "#334155", cursor: "pointer", fontFamily: "Inter, sans-serif" }, onMouseEnter: (e) => { e.currentTarget.style.background = "rgba(99,102,241,0.08)"; }, onMouseLeave: (e) => { e.currentTarget.style.background = "transparent"; }, children: name }, name)))
+                : (!showAddCustom && _jsx("div", { style: { fontSize: 12, color: "#94a3b8", padding: "8px 10px", fontFamily: "Inter, sans-serif" }, children: "No matches" })),
+            // Add Custom row — appears below `matches` whenever the typed
+            // text isn't already in the catalog and isn't already added to
+            // this row's list. Mirrors the per-tooth EntryTab affordance so
+            // doctors get the same workflow on both surfaces.
+            showAddCustom && _jsx("button", { type: "button", className: ui.popoverAdd, onMouseDown: (e) => e.preventDefault(), onClick: onAddCustom, children: usesBillItemDrawer
+                ? _jsxs("span", { className: ui.popoverAddInner, children: [_jsx(Add, { size: 16, color: "var(--tp-blue-600)", variant: "Bold" }), _jsxs("span", { children: ["Add \"", queryTrim, "\" as custom dental service"] })] })
+                : _jsxs("span", { className: ui.popoverAddInner, children: [_jsx(Add, { size: 14, color: "currentColor", variant: "Linear" }), " Add \"", queryTrim, "\""] }) }),
+        ] }), document.body),
         !showDropdown && quickChips.length > 0 && (_jsx("div", { className: ui.chipRow, children: quickChips.map((name) => (_jsx("button", { type: "button", onClick: () => addAndClear(name), className: ui.chipBtn, children: name }, name))) })),
+        // Drawer for entering full custom dental-service metadata (price,
+        // code, notes). Only mounted when `usesBillItemDrawer` is true.
+        usesBillItemDrawer && _jsx(AddDentalBillItemDrawer, { open: customDrawerOpen, onOpenChange: setCustomDrawerOpen, initialName: customDrawerInitial, onSaved: (item) => { addAndClear(item.name); } }),
     ] }));
 }
 function OralExamPanel({ state }) {
