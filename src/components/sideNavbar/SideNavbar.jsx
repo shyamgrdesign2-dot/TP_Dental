@@ -717,12 +717,21 @@ function getPastVisitAdditionalNotesSource(payload = {}) {
   return legacyArray(payload.others).filter((item) => !isPastVisitModuleContentItem(item));
 }
 
-function legacyAdviceText(value) {
-  if (typeof value === "string") return value;
+function buildPastVisitAdviceRows(value) {
   return legacyArray(value)
-    .map((item) => firstLegacyText(item, ["advice", "notes", "name", "label", "title"]))
-    .filter(Boolean)
-    .join(" ");
+    .map((item) => {
+      const label = typeof item === "string" || typeof item === "number"
+        ? String(item).trim()
+        : firstLegacyText(item, ["advice_name", "advice", "notes", "note", "name", "lineItem", "label", "title"]);
+      if (!label) return null;
+      return {
+        ...(isObject(item) ? item : {}),
+        payload: item,
+        label,
+        detail: "",
+      };
+    })
+    .filter(Boolean);
 }
 
 function getPastVisitLookupList(source, key) {
@@ -914,6 +923,7 @@ function buildPastVisitDigitalRx(consultation) {
     ["symptom_name", "name", "title", "label"],
     ["since", "duration", "severity", "note", "notes"]
   );
+  const legacyAdviceRows = buildPastVisitAdviceRows(legacyConsultation.advice);
   const digitalRx = {
     symptoms: legacySymptomRows,
     symptomsPayload: legacySymptomsPayload.length
@@ -944,7 +954,7 @@ function buildPastVisitDigitalRx(consultation) {
     moduleContents: buildPastVisitModuleRows(legacyConsultation.moduleContents || legacyConsultation.module_contents),
     moduleContentSections: buildPastVisitModuleSections(legacyConsultation.moduleContents || legacyConsultation.module_contents),
     moduleContentsPayload: legacyArray(legacyConsultation.moduleContents || legacyConsultation.module_contents),
-    advice: legacyAdviceText(legacyConsultation.advice) || legacyConsultation.visit_advice || "",
+    advice: legacyAdviceRows.length ? legacyAdviceRows : buildPastVisitAdviceRows(legacyConsultation.visit_advice),
     labInvestigations: legacyVisitRows(
       legacyConsultation.investigation || legacyConsultation.investigations,
       ["investigation_name", "test_name", "name", "title", "label"],
@@ -961,7 +971,7 @@ function buildPastVisitDigitalRx(consultation) {
     digitalRx.medicalHistory.length ||
     digitalRx.surgeries.length ||
     digitalRx.moduleContents.length ||
-    digitalRx.advice ||
+    digitalRx.advice.length ||
     digitalRx.labInvestigations.length ||
     digitalRx.followUp ||
     digitalRx.additionalNotes;
@@ -1304,8 +1314,12 @@ function buildPastVisitSectionPayload(visitItem, sectionKey) {
       }));
       return rows.length ? { ...base, digitization: { surgeries: rows } } : null;
     }
-    case "advice":
-      return rx.advice ? { ...base, digitization: { advice: [rx.advice] } } : null;
+    case "advice": {
+      const rows = pastVisitRows(rx.advice).map((item) => ({
+        advice_name: item.label,
+      }));
+      return rows.length ? { ...base, digitization: { advice: rows } } : null;
+    }
     case "investigations": {
       const rows = pastVisitRows(rx.labInvestigations).map((item) => ({
         investigation_name: item.label,
@@ -1839,7 +1853,7 @@ function buildDigitalRx(payload) {
       };
     }),
     medicationsPayload: medicationPayload,
-    advice: toArray(p.advice).map((item) => (typeof item === "string" ? item : item?.advice_name || item?.notes || item?.note || item?.name || item?.lineItem || item?.label || "")).filter(Boolean).join(" "),
+    advice: buildPastVisitAdviceRows(p.advice).map((item) => ({ ...item, fresh: true })),
     labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).map((item) => (typeof item === "string" ? item : item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label)).filter(Boolean),
     medicalHistory: buildPastVisitMedicalHistoryRows(p.medicalHistory || p.medical_history),
     medicalHistorySections: buildPastVisitMedicalHistorySections(p.medicalHistory || p.medical_history),
@@ -3135,7 +3149,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                       onCopyRow={(moduleSection, row) => handleCopyCustomModuleRow(visitItem, moduleSection, row)}
                     />
                   ) : null}
-                  {rx.advice ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><p className="snv-section-text">{rx.advice}</p></RxSection> : null}
+                  {hasListData(rx.advice) ? <RxSection title="Advice" icon={<RxSectionIcon src={RX_SECTION_ICONS.advice} />} onCopy={() => handleCopySection(visitItem, "advice", "Advice")}><BulletList items={rx.advice} /></RxSection> : null}
                   {hasListData(rx.labInvestigations) ? <RxSection title="Investigations" icon={<RxSectionIcon src={RX_SECTION_ICONS.investigations} />} onCopy={() => handleCopySection(visitItem, "investigations", "Investigations")}><BulletList items={rx.labInvestigations} /></RxSection> : null}
                   {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
                   {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />} onCopy={() => handleCopySection(visitItem, "followUp", "Follow Up")}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}

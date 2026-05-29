@@ -78,6 +78,60 @@ const getMedicationGroupKey = (item) => {
   return `voice:${item?.voice_rx_group_id || item?.unique_id || ""}`;
 };
 
+const getRawMedicineFrequencyText = (medicine) => (
+  [
+    medicine?.frequency,
+    medicine?.freq,
+    medicine?.frequencyText,
+    medicine?.frequency_text,
+    medicine?.tmm_freq_type_name,
+  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || ""
+);
+
+const isNumericMedicineFrequencyText = (value) => /^(?!-)[\d.\s-]+$/.test(String(value || "").trim());
+
+const isExactMedicineFrequencyTitle = (value, frequencyList = []) => {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return frequencyList.some(
+    (item) => item?.tmf_block !== 0 && String(item?.tmf_title || "").trim() === text
+  );
+};
+
+const appendMedicineFrequencyToNotes = (notes, frequency) => {
+  const current = String(notes || "").trim();
+  const frequencyText = String(frequency || "").trim();
+  const frequencyNote = `Frequency: ${frequencyText}`;
+  if (!frequencyText || current.includes(frequencyText) || current.includes(frequencyNote)) return current;
+  return current ? `${current} | ${frequencyNote}` : frequencyNote;
+};
+
+const moveUnmatchedMedicineFrequenciesToNotes = (rows = [], frequencyList = []) => rows.map((row) => {
+  const rawFrequency = getRawMedicineFrequencyText(row);
+  if (!rawFrequency) return row;
+
+  const normalizedFrequency = String(row?.tmm_freq_type_name || "").trim();
+  const canUseFrequencyField =
+    isNumericMedicineFrequencyText(normalizedFrequency) ||
+    isExactMedicineFrequencyTitle(rawFrequency, frequencyList) ||
+    isExactMedicineFrequencyTitle(normalizedFrequency, frequencyList);
+
+  if (canUseFrequencyField) return row;
+
+  return {
+    ...row,
+    tmm_freq_type_name: "",
+    tmm_freq_type: 0,
+    tmf_block: 0,
+    tmf_block_val: "",
+    tcm_tmm_freq_morning: 0,
+    tcm_tmm_freq_afternoon: 0,
+    tcm_tmm_freq_evening: 0,
+    tcm_tmm_freq_night: 0,
+    tmm_remarks: appendMedicineFrequencyToNotes(row?.tmm_remarks || row?.notes || row?.note, rawFrequency),
+  };
+});
+
 const isVoiceRxUngroundedMedication = (item) => (
   !!item?.voice_rx_from_module && !hasMedicineMasterId(item?.tmm_id)
 );
@@ -226,10 +280,11 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
   const applyVoiceMedication = useCallback((nextMedicines) => {
-    if (nextMedicines.length > 0) {
-      setMedicationData(nextMedicines);
+    const normalizedMedicines = moveUnmatchedMedicineFrequenciesToNotes(nextMedicines, frequencyList);
+    if (normalizedMedicines.length > 0) {
+      setMedicationData(normalizedMedicines);
     }
-  }, [setMedicationData]);
+  }, [frequencyList, setMedicationData]);
   const medicationVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(medicationData, "medications"),
     [medicationData]

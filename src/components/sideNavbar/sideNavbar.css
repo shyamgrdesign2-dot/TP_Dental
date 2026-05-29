@@ -911,8 +911,12 @@
   top: 0;
   z-index: 8;
   min-height: 58px;
-  border-radius: 9px 9px 0 0;
+  border-radius: 9px;
   box-shadow: 0 1px 0 rgba(226, 226, 234, 0.85);
+}
+
+.snv-date-card-sticky:not(:has(.snv-date-card-body)) .snv-date-card-header-sticky {
+  border-radius: 9px 9px 0 0;
 }
 
 .snv-date-toggle-btn {

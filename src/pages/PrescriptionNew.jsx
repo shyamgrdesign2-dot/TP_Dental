@@ -312,10 +312,123 @@ function mergeCopiedCustomModules(prevContents = [], copiedModules = []) {
   return nextContents;
 }
 
+function getRawMedicineFrequencyText(medicine) {
+  return firstNonEmpty(
+    medicine?.frequency,
+    medicine?.freq,
+    medicine?.frequencyText,
+    medicine?.frequency_text,
+    medicine?.tmm_freq_type_name
+  ) || "";
+}
+
+function hasMedicineFrequencyBlockValues(medicine) {
+  return [
+    medicine?.tcm_tmm_freq_morning,
+    medicine?.tcm_tmm_freq_afternoon,
+    medicine?.tcm_tmm_freq_evening,
+    medicine?.tcm_tmm_freq_night,
+  ].some((value) => value !== undefined && value !== null && String(value).trim() !== "" && String(value) !== "0");
+}
+
+function formatMedicineFrequencyBlock(medicine) {
+  const morning = medicine?.tcm_tmm_freq_morning && medicine.tcm_tmm_freq_morning != 0
+    ? medicine.tcm_tmm_freq_morning
+    : "0";
+  const afternoon = medicine?.tcm_tmm_freq_afternoon && medicine.tcm_tmm_freq_afternoon != 0
+    ? medicine.tcm_tmm_freq_afternoon
+    : "0";
+  const evening = medicine?.tcm_tmm_freq_evening && medicine.tcm_tmm_freq_evening != 0
+    ? medicine.tcm_tmm_freq_evening
+    : "";
+  const night = medicine?.tcm_tmm_freq_night && medicine.tcm_tmm_freq_night != 0
+    ? medicine.tcm_tmm_freq_night
+    : "0";
+
+  return evening ? `${morning} - ${afternoon} - ${evening} - ${night}` : `${morning} - ${afternoon} - ${night}`;
+}
+
+function getMedicineFrequencyDisplay(medicine, frequencyList = []) {
+  const rawFrequency = getRawMedicineFrequencyText(medicine);
+  const frequencyObjById = frequencyList.find((x) => x.tmf_id == medicine?.tmm_freq_type);
+  const frequencyObjByExactTitle = rawFrequency
+    ? frequencyList.find((x) => String(x?.tmf_title || "").trim() === String(rawFrequency).trim())
+    : undefined;
+  const frequencyObj = frequencyObjById || frequencyObjByExactTitle;
+
+  if (medicine?.tmf_block == 0 && hasMedicineFrequencyBlockValues(medicine)) {
+    return {
+      label: formatMedicineFrequencyBlock(medicine),
+      blockValue: frequencyObj?.tmf_block_val || "",
+    };
+  }
+
+  if (frequencyObj) {
+    return {
+      label: frequencyObj.tmf_title,
+      blockValue: frequencyObj.tmf_block_val || "",
+    };
+  }
+
+  return {
+    label: rawFrequency,
+    blockValue: "",
+  };
+}
+
+function isNumericMedicineFrequencyText(value) {
+  return /^(?!-)[\d.\s-]+$/.test(String(value || "").trim());
+}
+
+function isExactMedicineFrequencyTitle(value, frequencyList = []) {
+  const text = String(value || "").trim();
+  if (!text) return false;
+  return frequencyList.some(
+    (item) => item?.tmf_block !== 0 && String(item?.tmf_title || "").trim() === text
+  );
+}
+
+function appendMedicineFrequencyToNotes(notes, frequency) {
+  const current = String(notes || "").trim();
+  const frequencyText = String(frequency || "").trim();
+  const frequencyNote = `Frequency: ${frequencyText}`;
+  if (!frequencyText || current.includes(frequencyText) || current.includes(frequencyNote)) return current;
+  return current ? `${current} | ${frequencyNote}` : frequencyNote;
+}
+
+function moveUnmatchedMedicineFrequenciesToNotes(rows = [], frequencyList = []) {
+  return rows.map((row) => {
+    const rawFrequency = getRawMedicineFrequencyText(row);
+    if (!rawFrequency) return row;
+
+    const normalizedFrequency = String(row?.tmm_freq_type_name || "").trim();
+    const canUseFrequencyField =
+      isNumericMedicineFrequencyText(normalizedFrequency) ||
+      isExactMedicineFrequencyTitle(rawFrequency, frequencyList) ||
+      isExactMedicineFrequencyTitle(normalizedFrequency, frequencyList);
+
+    if (canUseFrequencyField) return row;
+
+    return {
+      ...row,
+      tmm_freq_type_name: "",
+      tmm_freq_type: 0,
+      tmf_block: 0,
+      tmf_block_val: "",
+      tcm_tmm_freq_morning: 0,
+      tcm_tmm_freq_afternoon: 0,
+      tcm_tmm_freq_evening: 0,
+      tcm_tmm_freq_night: 0,
+      tmm_remarks: appendMedicineFrequencyToNotes(row?.tmm_remarks || row?.notes || row?.note, rawFrequency),
+    };
+  });
+}
+
 function PrescriptionNewRxPadCopyListener() {
   const { lastCopyRequest, publishSignal } = useRxPadSync();
   const dispatch = useDispatch();
   const { selectedVitalsList, patientBirthWeight } = useSelector((state) => state.vitals);
+  const { frequencyList } = useSelector((state) => state.doctors);
   const {
     patient_data,
     pamId,
@@ -371,7 +484,10 @@ function PrescriptionNewRxPadCopyListener() {
     const medications = firstNonEmpty(digitization.medications, payload.medications);
     appendRows(
       setMedicationData,
-      normalizeModuleRows({ medications: toArray(medications) }, "medications")
+      moveUnmatchedMedicineFrequenciesToNotes(
+        normalizeModuleRows({ medications: toArray(medications) }, "medications"),
+        frequencyList
+      )
     );
 
     const investigations = firstNonEmpty(
@@ -526,6 +642,7 @@ function PrescriptionNewRxPadCopyListener() {
     copyCustomModuleContentsToRxPad,
     consultationDate,
     dispatch,
+    frequencyList,
     lastCopyRequest,
     pamId,
     patientBirthWeight,
@@ -1530,39 +1647,15 @@ function PrescriptionNew() {
           const unitObj = e?.medicineUnit
             ? e?.medicineUnit.find((x) => x.tmu_id == e.tmm_unit)
             : null;
-          const frequencyObj = frequencyList.find(
-            (x) => x.tmf_id == e.tmm_freq_type
-          );
+          const frequencyDisplay = getMedicineFrequencyDisplay(e, frequencyList);
           const timingObj = timingList.find((x) => x.tmt_id == e.tmm_time);
 
           return {
             ...e,
             tmm_unit_name:
               unitObj && unitObj !== undefined ? unitObj.tmu_title : "",
-            tmm_freq_type_name:
-              e.tmf_block == 0
-                ? `${
-                    e.tcm_tmm_freq_morning && e.tcm_tmm_freq_morning != 0
-                      ? e.tcm_tmm_freq_morning + " - "
-                      : "0 -"
-                  }${
-                    e.tcm_tmm_freq_afternoon && e.tcm_tmm_freq_afternoon != 0
-                      ? e.tcm_tmm_freq_afternoon + " - "
-                      : "0 -"
-                  }${
-                    e.tcm_tmm_freq_evening && e.tcm_tmm_freq_evening != 0
-                      ? e.tcm_tmm_freq_evening + " - "
-                      : ""
-                  }${
-                    e.tcm_tmm_freq_night && e.tcm_tmm_freq_night != 0
-                      ? e.tcm_tmm_freq_night
-                      : "0"
-                  }`
-                : frequencyObj !== undefined
-                ? frequencyObj.tmf_title
-                : "",
-            tmf_block_val:
-              frequencyObj !== undefined ? frequencyObj.tmf_block_val : "",
+            tmm_freq_type_name: frequencyDisplay.label,
+            tmf_block_val: frequencyDisplay.blockValue,
             tmm_time_name: timingObj !== undefined ? timingObj.tmt_title : "",
             tmm_dosage_unit_name: `${
               e.tmm_dosage
@@ -2972,6 +3065,7 @@ function PrescriptionNew() {
           onClose={handleDrawerMedicalHistory}
           open={medicalHistoryDrawer}
           width="75%"
+          zIndex={1100}
         >
           <MedicalHistoryBox
             key={`medical-history-${medicalHistoryInitialActiveKey}`}
@@ -3036,7 +3130,7 @@ function PrescriptionNew() {
             open={obstetricDrawer}
             width="100%"
             push={false}
-            zIndex={100}
+            zIndex={1100}
           >
             <Obstetric
               obstetricDetails={obstetricDetails}
