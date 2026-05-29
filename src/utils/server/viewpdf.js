@@ -640,12 +640,6 @@ const styles = StyleSheet.create({
   },
 });
 
-const module_id =
-  !isProductionEnv()
-    ? "6874956bc1abf17f6932cb32"
-    : "68624471353771e0a587fed6";
-const um_id = !isProductionEnv() ? "493" : "12028";
-
 /** Custom module labels/values in PDF: keep user casing and spacing; only normalize NBSP. */
 const formatCustomModuleColumnTitle = (value = "") =>
   value == null || value === "" ? "" : String(value).replace(/\u00A0/g, " ");
@@ -4142,12 +4136,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 : 0
                               : 0,
                         }}
-                        break={
-                          option?.id == module_id &&
-                          caseManagerData?.doctor_data?.um_id == um_id
-                            ? true
-                            : false
-                        }
                       >
                         {option?.id === 1 &&
                         option?.enable === "Y" &&
