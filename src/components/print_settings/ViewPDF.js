@@ -319,9 +319,6 @@ const styles = StyleSheet.create({
     },
 });
 
-const module_id = !isProductionEnv() ? '6874956bc1abf17f6932cb32' : '68624471353771e0a587fed6';
-const um_id = !isProductionEnv() ? '493' : '12028';
-
 const AI_FLOW_MEDICINE_UNIT_MAP = { 2: 'Tablet', 3: 'mg', 4: 'ml', 5: 'gm', 6: 'Capsule', 7: 'Sachet', 8: 'Injection', 9: 'Drop', 14: 'Drops' };
 
 function parseAiFrequencyLeadingPattern(fullRaw) {
@@ -2112,7 +2109,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 <View key={option.id} style={{
                                     marginTop: index === 0 ? (printSettings?.header_footer?.show_patient_info === 'first' ||
                                         !printSettings?.header_footer?.show_patient_info) ? PX_TO_PT * 15 : 0 : 0
-                                }} break={option?.id == module_id && caseManagerData?.doctor_data?.um_id == um_id ? true : false}>
+                                }}>
                                 {option?.id === 1 && option?.enable === 'Y' && option?.custom_status === 'Y' ? (
                                     <>
                                         {caseManagerData.symptoms.length > 0 && (
