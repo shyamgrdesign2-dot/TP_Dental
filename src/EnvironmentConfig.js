@@ -536,11 +536,11 @@ const zyPreprod = {
     "https://pm-medicalhistory-preprod.tatvacare.in/api/v1/gynec-history",
   obstetric_api_url:
     "https://pm-medicalhistory-preprod.tatvacare.in/api/v1/obstetric-history",
-  zydus_ict_lab_result_api_url: "https://pm-ict-proxy.tatvacare.in",
+  zydus_ict_lab_result_api_url: "https://pm-ict-proxy-preprod.tatvacare.in",
   zydus_api_url: `https://pm-ingest-webhook-preprod.tatvacare.in`,
   mission_hospital_business_id: "7821776311505768",
   zydus_business_id: "368451724046474",
-  zydus_proxy_url: "https://pm-ict-proxy.tatvacare.in",
+  zydus_proxy_url: "https://pm-ict-proxy-preprod.tatvacare.in",
   rx_digitization: "https://pm-rxdigitization-preprod.tatvacare.in",
   visit_api_url: "https://pm-visit-integration-preprod.tatvacare.in",
   lab_params_api_url: "https://pm-patient-docs-preprod.tatvacare.in",
