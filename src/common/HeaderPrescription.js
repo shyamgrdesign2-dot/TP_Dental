@@ -109,6 +109,36 @@ function getEditableSelection(element) {
     };
 }
 
+async function getConsentForVoicePrescriptionPayload() {
+    let userIp = "";
+    try {
+        const ipResponse = await fetch("https://api.ipify.org?format=json");
+        const ipData = await ipResponse.json();
+        userIp = ipData?.ip || "";
+    } catch (error) {
+        console.warn("[voice-rx-2/consent] Could not fetch IP:", error?.message || error);
+    }
+    return {
+        timestamp: Date.now(),
+        ip: userIp || "0.0.0.0",
+        given: true,
+    };
+}
+
+function normalizeVoiceHistoryForStore(history) {
+    if (!Array.isArray(history)) return [];
+    return history.map((entry) => {
+        if (!entry || typeof entry !== "object") return entry;
+        const digitize = Array.isArray(entry.digitize)
+            ? (entry.digitize.find((item) => item && typeof item === "object") || {})
+            : (entry.digitize || {});
+        return {
+            ...entry,
+            digitize,
+        };
+    });
+}
+
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false }) {
 
     const { profile, siteId, storeCode, customizedPadLeftList, customizedPadRightList, opthalModuleAutoAdded } = useSelector((state) => state.doctors);
@@ -2104,6 +2134,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                     };
                     dispatch(updateVoiceEditedData(voiceEditedData));
                     try {
+                        const consentPayload = await getConsentForVoicePrescriptionPayload();
                         await storeVoicePrescription({
                             patientId: patient_data?.patient_unique_id,
                             doctorId: profile?.doctor_unique_id,
@@ -2111,16 +2142,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                             appointmentId: patient_data?.pam_id ?? pamId,
                             sessionId: voiceDigitization.sessionId,
                             payload: {
-                                history: voiceDigitization.history,
+                                history: normalizeVoiceHistoryForStore(voiceDigitization.history),
                                 digitizeData: voiceDigitization.digitizeData || {},
                                 editedData: voiceEditedData,
                                 clinicNotes: voiceDigitization.clinicNotes || {},
                                 soap: voiceDigitization.soap || null,
                                 version: "v3",
-                                consent: {
-                                    timestamp: Date.now(),
-                                    given: true,
-                                },
+                                consent: consentPayload,
                             },
                         });
                     } catch (error) {

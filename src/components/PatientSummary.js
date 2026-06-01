@@ -10,7 +10,7 @@ import styles from "./PatientSummary.module.scss";
 import { viewCaseManager } from "../redux/caseManagerSlice";
 import ApiVitals from "../api/services/ApiVitals";
 import ApiCaseManager from "../api/services/ApiCaseManager";
-import { getGenRx, getAmbientRx, copyAmbientRx } from "../api/services/ApiGenRx";
+import { getGenRx, getAmbientRx, copyVoiceRx, copyAmbientRx } from "../api/services/ApiGenRx";
 import { getSnapRxDigitization } from "../pages/snapRx/services/snapRxService";
 import { getClinicName, getTokenData, isValidMongoId, trackEvent } from "../utils/utils";
 import { setShowSCPopup } from "../redux/ddxSlice";
@@ -445,7 +445,8 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                       followUp: prescriptionData.followUp || prescriptionData.follow_up_date || latestPrescription.follow_up_date || "",
                       vaccinations: prescriptionData.vaccinations || latestPrescription.vaccinations || [],
                       labInvestigation: prescriptionData.labInvestigation || prescriptionData.tests || latestPrescription.investigation || [],
-                      version: response.data?.version
+                      version: response.data?.version,
+                      voiceRxMode: hasConversation ? "ambient" : "voice"
                     };
 
                     digitizedData = mergedData;
@@ -1330,8 +1331,9 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                 if (isSnapRx || isSmartRx) {
                   return null;
                 }
-                // Repeat Rx only for version v2 (Voice/Ambient)
-                if (lastPrescriptionData?.version?.trim?.()?.toLowerCase() !== "v2") {
+                const normalizedVersion = lastPrescriptionData?.version?.trim?.()?.toLowerCase();
+                const isRepeatableVoiceVersion = normalizedVersion === "v2" || normalizedVersion === "v3";
+                if (!isRepeatableVoiceVersion) {
                   return null;
                 }
                 
@@ -1348,15 +1350,19 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                     const newAppointmentId = viewCaseManagerData?.tcm_id ?? 0;
                     if (!rxId || !patient_data) return;
                     try {
-                      const copyResponse = await copyAmbientRx(rxId, newAppointmentId);
-                      if (!copyResponse?.success) {
-                        console.error("[PatientSummary Repeat Rx] Copy API failed", copyResponse?.error);
-                        return;
+                      let copiedRxId = rxId;
+                      if (normalizedVersion === "v2") {
+                        const copyRx = lastPrescriptionData?.voiceRxMode === "ambient" ? copyAmbientRx : copyVoiceRx;
+                        const copyResponse = await copyRx(rxId, newAppointmentId);
+                        if (!copyResponse?.success) {
+                          console.error("[PatientSummary Repeat Rx] Copy API failed", copyResponse?.error);
+                          return;
+                        }
+                        copiedRxId = copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id || rxId;
                       }
-                      const copiedRxId = copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id || rxId;
                       const repeatCaseManagerData = {
                         ...lastPrescriptionData,
-                        smart_prescription_filename: copiedRxId,
+                        smart_prescription_filename: normalizedVersion === "v3" ? "" : copiedRxId,
                         tcm_id: 0,
                         consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
                       };
@@ -1365,7 +1371,7 @@ const PatientSummary = ({ patientData, hideSymptomsBanner }) => {
                           patient_data: patient_data,
                           send_path: "voice_rx_consult",
                           caseManagerData: repeatCaseManagerData,
-                          ...(shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {})
+                          ...((normalizedVersion === "v3" || shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB)) ? { isVoiceRxNewUiFlow: true } : {})
                         }
                       });
                     } catch (error) {

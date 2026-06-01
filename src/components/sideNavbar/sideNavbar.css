@@ -915,7 +915,7 @@
   box-shadow: 0 1px 0 rgba(226, 226, 234, 0.85);
 }
 
-.snv-date-card-sticky:not(:has(.snv-date-card-body)) .snv-date-card-header-sticky {
+.snv-date-card-header-sticky.snv-date-card-header-expanded {
   border-radius: 9px 9px 0 0;
 }
 

@@ -2834,7 +2834,7 @@ function DateCard({ title, subtitle, subtitleMeta, expanded, onToggle, onCopy, c
 
   return (
     <article ref={cardRef} className={`snv-date-card ${fresh ? "snv-fresh-card" : ""} ${stickyHeader ? "snv-date-card-sticky" : ""}`}>
-      <div ref={headerRef} className={`snv-date-card-header ${stickyHeader ? "snv-date-card-header-sticky" : ""}`}>
+      <div ref={headerRef} className={`snv-date-card-header ${stickyHeader ? "snv-date-card-header-sticky" : ""} ${expanded ? "snv-date-card-header-expanded" : ""}`}>
         <button type="button" className="snv-date-toggle-btn" onClick={onToggle}>
           <span className="snv-date-title-wrap">
             <span className="snv-date-title">{title}</span>
