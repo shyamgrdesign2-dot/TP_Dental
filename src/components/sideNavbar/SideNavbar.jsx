@@ -1138,6 +1138,7 @@ function pastVisitMedicationName(item) {
     item?.groundedMedicineName,
     item?.groundingMedicineName,
     item?.refinedName,
+    item?.lineItem,
     item?.name,
     item?.title,
     item?.label
@@ -1153,7 +1154,7 @@ function findMedicineUnitTitle(item) {
 
 function buildPastVisitDoseText(item) {
   const dosage = firstTextValue(item?.dosage, item?.tmm_dosage);
-  if (!dosage) return "";
+  if (!dosage) return firstTextValue(item?.tmm_dosage_unit_name);
   return [dosage, findMedicineUnitTitle(item)].filter(Boolean).join(" ");
 }
 
@@ -1172,8 +1173,8 @@ function frequencySlotText(value) {
 }
 
 function buildPastVisitFrequencyText(item, frequencyList = []) {
-  if (firstTextValue(item?.frequency, item?.frequencyText, item?.frequency_text)) {
-    return firstTextValue(item?.frequency, item?.frequencyText, item?.frequency_text);
+  if (firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text)) {
+    return firstTextValue(item?.frequency, item?.freq, item?.frequencyText, item?.frequency_text);
   }
 
   if (String(item?.tmf_block ?? "").trim() === "0") {
@@ -1251,7 +1252,7 @@ function buildPastVisitMedicationRows(items, lookups = {}) {
       ...item,
       payload: item,
       label: item.tmm_medicine_name || item.name,
-      detail: valueText([item.dosage, item.frequency, item.schedule, item.duration, item.notes, item.displayQuantity]),
+      detail: uniqueValueText([item.dosage, item.frequency, item.schedule, item.duration, item.notes, item.displayQuantity]),
     }));
 }
 
@@ -1679,6 +1680,20 @@ function valueText(values) {
   return values.filter(hasValue).map((value) => String(value).trim()).join(", ");
 }
 
+function uniqueValueText(values) {
+  const seen = new Set();
+  return values
+    .filter(hasValue)
+    .map((value) => String(value).trim())
+    .filter((value) => {
+      const key = value.toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(", ");
+}
+
 function firstObject(...values) {
   return values.find(isObject) || {};
 }
@@ -1843,12 +1858,12 @@ function buildDigitalRx(payload) {
       fresh: true,
     })),
     medications: medicationPayload.map((item) => {
-      const itemObject = isObject(item) ? item : {};
+      const normalizedMedication = normalizePastVisitMedicationRow(item) || {};
       return {
-        ...itemObject,
+        ...normalizedMedication,
         payload: item,
-        label: itemObject.name || itemObject.medicine_name || itemObject.tmm_medicine_name || itemObject.groundedMedicineName || itemObject.refinedName || itemObject.lineItem || itemObject.label || String(item || ""),
-        detail: valueText([itemObject.dosage, itemObject.tmm_dosage_unit_name, itemObject.frequency, itemObject.tmm_freq_type_name, itemObject.schedule, itemObject.tmm_time_name, itemObject.duration, itemObject.tmm_days_duration_type, itemObject.notes, itemObject.note, itemObject.quantity, itemObject.detail]),
+        label: normalizedMedication.tmm_medicine_name || normalizedMedication.name || String(item || ""),
+        detail: uniqueValueText([normalizedMedication.dosage, normalizedMedication.frequency, normalizedMedication.schedule, normalizedMedication.duration, normalizedMedication.notes, normalizedMedication.displayQuantity]),
         fresh: true,
       };
     }),

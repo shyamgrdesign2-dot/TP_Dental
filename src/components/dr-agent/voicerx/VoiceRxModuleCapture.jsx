@@ -674,6 +674,14 @@ function normalizeDosageText(dosage) {
   };
 }
 
+function appendDosageToMedicineName(name, dosage) {
+  const medicineName = String(name || "").trim();
+  const dosageText = String(dosage || "").trim();
+  if (!medicineName || !dosageText) return medicineName;
+  if (medicineName.toLowerCase().includes(dosageText.toLowerCase())) return medicineName;
+  return `${medicineName} ${dosageText}`;
+}
+
 function firstTextValue(...values) {
   for (const value of values) {
     if (Array.isArray(value)) {
@@ -823,17 +831,20 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
       case "medications": {
         const frequency = normalizeFrequencyText(row?.frequency || row?.tmm_freq_type_name || row?.frequencyText || row?.frequency_text);
         const duration = normalizeDurationText(row?.duration || row?.tmm_days_duration_type);
+        const dosageText = firstTextValue(row?.dosage, row?.dosage_text, row?.dose);
         const medicineName = firstTextValue(
           row?.tmm_medicine_name,
           row?.tm_medicine_name,
           row?.medicine_name,
+          row?.medicine,
           row?.dm_name,
           row?.dm_names,
           row?.name,
           row?.title,
           name
         );
-        const dosage = normalizeDosageText(row?.tmm_dosage ?? row?.dosage ?? "");
+        const medicineNameWithDosage = appendDosageToMedicineName(medicineName, dosageText);
+        const dosage = normalizeDosageText(row?.tmm_dosage ?? "");
         const tmmId = hasMedicineMasterId(row?.tmm_id) ? row.tmm_id : 0;
         const voiceGroupId = row?.voice_rx_group_id || row?.unique_id || createModuleVoiceId();
         return {
@@ -841,9 +852,9 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           tmm_id: tmmId,
           voice_rx_group_id: voiceGroupId,
           voice_rx_from_module: true,
-          voice_rx_original_name: medicineName,
+          voice_rx_original_name: medicineNameWithDosage,
           tcm_tmr_type: row?.tcm_tmr_type || "M",
-          tmm_medicine_name: medicineName,
+          tmm_medicine_name: medicineNameWithDosage,
           tmm_generic: row?.tmm_generic || "",
           tmm_company: row?.tmm_company || "",
           tmm_type: row?.tmm_type || 0,
@@ -864,8 +875,8 @@ export function normalizeModuleRows(responseJson, moduleApiName) {
           tmm_unit_name: row?.tmm_unit_name || "",
           tmm_freq_type_name: row?.tmm_freq_type_name || frequency.label,
           tmf_block_val: row?.tmf_block_val || "",
-          tmm_time_name: row?.tmm_time_name || row?.schedule || "",
-          tmm_dosage_unit_name: row?.tmm_dosage_unit_name || dosage.label,
+          tmm_time_name: row?.tmm_time_name || row?.schedule || row?.when || "",
+          tmm_dosage_unit_name: !dosageText ? (row?.tmm_dosage_unit_name || row?.unitPerDose || "") : "",
           tmm_days_duration_type: row?.tmm_days_duration_type || duration.label,
           quantity: row?.quantity ?? 0,
           unique_id: row?.unique_id || createModuleVoiceId(),

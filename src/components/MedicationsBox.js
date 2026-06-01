@@ -88,6 +88,15 @@ const getRawMedicineFrequencyText = (medicine) => (
   ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || ""
 );
 
+const getRawMedicineScheduleText = (medicine) => (
+  [
+    medicine?.schedule,
+    medicine?.when,
+    medicine?.timing,
+    medicine?.tmm_time_name,
+  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || ""
+);
+
 const isNumericMedicineFrequencyText = (value) => /^(?!-)[\d.\s-]+$/.test(String(value || "").trim());
 
 const isExactMedicineFrequencyTitle = (value, frequencyList = []) => {
@@ -98,12 +107,27 @@ const isExactMedicineFrequencyTitle = (value, frequencyList = []) => {
   );
 };
 
-const appendMedicineFrequencyToNotes = (notes, frequency) => {
+const findExactMedicineTiming = (value, timingList = []) => {
+  const text = String(value || "").trim();
+  if (!text || text === "None") return null;
+  return timingList.find(
+    (item) => String(item?.tmt_title || "").trim().toLowerCase() === text.toLowerCase()
+  ) || null;
+};
+
+const appendMedicineTextToNotes = (notes, value) => {
   const current = String(notes || "").trim();
-  const frequencyText = String(frequency || "").trim();
-  const frequencyNote = `Frequency: ${frequencyText}`;
-  if (!frequencyText || current.includes(frequencyText) || current.includes(frequencyNote)) return current;
-  return current ? `${current} | ${frequencyNote}` : frequencyNote;
+  const text = String(value || "").trim();
+  if (!text || current.includes(text)) return current;
+  return current ? `${current} | ${text}` : text;
+};
+
+const appendMedicineFrequencyToNotes = (notes, frequency) => {
+  return appendMedicineTextToNotes(notes, frequency);
+};
+
+const appendMedicineScheduleToNotes = (notes, schedule) => {
+  return appendMedicineTextToNotes(notes, schedule);
 };
 
 const moveUnmatchedMedicineFrequenciesToNotes = (rows = [], frequencyList = []) => rows.map((row) => {
@@ -129,6 +153,27 @@ const moveUnmatchedMedicineFrequenciesToNotes = (rows = [], frequencyList = []) 
     tcm_tmm_freq_evening: 0,
     tcm_tmm_freq_night: 0,
     tmm_remarks: appendMedicineFrequencyToNotes(row?.tmm_remarks || row?.notes || row?.note, rawFrequency),
+  };
+});
+
+const moveUnmatchedMedicineSchedulesToNotes = (rows = [], timingList = []) => rows.map((row) => {
+  const rawSchedule = getRawMedicineScheduleText(row);
+  if (!rawSchedule || String(rawSchedule).trim() === "None") return row;
+
+  const timingObj = findExactMedicineTiming(rawSchedule, timingList);
+  if (timingObj) {
+    return {
+      ...row,
+      tmm_time: timingObj.tmt_id,
+      tmm_time_name: timingObj.tmt_title,
+    };
+  }
+
+  return {
+    ...row,
+    tmm_time: 0,
+    tmm_time_name: "",
+    tmm_remarks: appendMedicineScheduleToNotes(row?.tmm_remarks || row?.notes || row?.note, rawSchedule),
   };
 });
 
@@ -280,11 +325,14 @@ function MedicationsBox({ showVoiceRxModule }) {
 
   const { patient_data, medicationData, setMedicationData, pillupSwitch, setPillupSwitch, tcmId } = useContext(CashManagerContext);
   const applyVoiceMedication = useCallback((nextMedicines) => {
-    const normalizedMedicines = moveUnmatchedMedicineFrequenciesToNotes(nextMedicines, frequencyList);
+    const normalizedMedicines = moveUnmatchedMedicineSchedulesToNotes(
+      moveUnmatchedMedicineFrequenciesToNotes(nextMedicines, frequencyList),
+      timingList
+    );
     if (normalizedMedicines.length > 0) {
       setMedicationData(normalizedMedicines);
     }
-  }, [frequencyList, setMedicationData]);
+  }, [frequencyList, setMedicationData, timingList]);
   const medicationVoicePreviousContext = useMemo(
     () => moduleRowsToPreviousContext(medicationData, "medications"),
     [medicationData]

@@ -389,11 +389,18 @@ function isExactMedicineFrequencyTitle(value, frequencyList = []) {
 }
 
 function appendMedicineFrequencyToNotes(notes, frequency) {
+  return appendMedicineTextToNotes(notes, frequency);
+}
+
+function appendMedicineScheduleToNotes(notes, schedule) {
+  return appendMedicineTextToNotes(notes, schedule);
+}
+
+function appendMedicineTextToNotes(notes, value) {
   const current = String(notes || "").trim();
-  const frequencyText = String(frequency || "").trim();
-  const frequencyNote = `Frequency: ${frequencyText}`;
-  if (!frequencyText || current.includes(frequencyText) || current.includes(frequencyNote)) return current;
-  return current ? `${current} | ${frequencyNote}` : frequencyNote;
+  const text = String(value || "").trim();
+  if (!text || current.includes(text)) return current;
+  return current ? `${current} | ${text}` : text;
 }
 
 function moveUnmatchedMedicineFrequenciesToNotes(rows = [], frequencyList = []) {
@@ -424,11 +431,51 @@ function moveUnmatchedMedicineFrequenciesToNotes(rows = [], frequencyList = []) 
   });
 }
 
+function getRawMedicineScheduleText(medicine) {
+  return [
+    medicine?.schedule,
+    medicine?.when,
+    medicine?.timing,
+    medicine?.tmm_time_name,
+  ].find((value) => value !== undefined && value !== null && String(value).trim() !== "") || "";
+}
+
+function findExactMedicineTiming(value, timingList = []) {
+  const text = String(value || "").trim();
+  if (!text || text === "None") return null;
+  return timingList.find(
+    (item) => String(item?.tmt_title || "").trim().toLowerCase() === text.toLowerCase()
+  ) || null;
+}
+
+function moveUnmatchedMedicineSchedulesToNotes(rows = [], timingList = []) {
+  return rows.map((row) => {
+    const rawSchedule = getRawMedicineScheduleText(row);
+    if (!rawSchedule || String(rawSchedule).trim() === "None") return row;
+
+    const timingObj = findExactMedicineTiming(rawSchedule, timingList);
+    if (timingObj) {
+      return {
+        ...row,
+        tmm_time: timingObj.tmt_id,
+        tmm_time_name: timingObj.tmt_title,
+      };
+    }
+
+    return {
+      ...row,
+      tmm_time: 0,
+      tmm_time_name: "",
+      tmm_remarks: appendMedicineScheduleToNotes(row?.tmm_remarks || row?.notes || row?.note, rawSchedule),
+    };
+  });
+}
+
 function PrescriptionNewRxPadCopyListener() {
   const { lastCopyRequest, publishSignal } = useRxPadSync();
   const dispatch = useDispatch();
   const { selectedVitalsList, patientBirthWeight } = useSelector((state) => state.vitals);
-  const { frequencyList } = useSelector((state) => state.doctors);
+  const { frequencyList, timingList } = useSelector((state) => state.doctors);
   const {
     patient_data,
     pamId,
@@ -484,9 +531,12 @@ function PrescriptionNewRxPadCopyListener() {
     const medications = firstNonEmpty(digitization.medications, payload.medications);
     appendRows(
       setMedicationData,
-      moveUnmatchedMedicineFrequenciesToNotes(
-        normalizeModuleRows({ medications: toArray(medications) }, "medications"),
-        frequencyList
+      moveUnmatchedMedicineSchedulesToNotes(
+        moveUnmatchedMedicineFrequenciesToNotes(
+          normalizeModuleRows({ medications: toArray(medications) }, "medications"),
+          frequencyList
+        ),
+        timingList
       )
     );
 
@@ -660,6 +710,7 @@ function PrescriptionNewRxPadCopyListener() {
     setSurgeriesData,
     setSymptomsData,
     setVitalsData,
+    timingList,
     vitalsData,
   ]);
 
