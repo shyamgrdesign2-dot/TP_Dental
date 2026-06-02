@@ -832,7 +832,7 @@ export const getHmTypeIndicator = (item, isChikitsalayAccessable = false) => {
   if (!item) return '';
   const hmType = item.tmm_hm_type || item.hm_type || item.metadata?.tmm_hm_type || item.metadata?.hm_type;
   const umId = item.um_id ?? item.metadata?.um_id;
-  if (hmType == 1) return 'Z';
+  if (hmType == 1 && Number(umId) === 0) return 'Z';
   if (hmType == 2 ) return 'A';
   if (hmType == 15 && Number(umId) === 0 && isChikitsalayAccessable) return 'VC';
   return '';

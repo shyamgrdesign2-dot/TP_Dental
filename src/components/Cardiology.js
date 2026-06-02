@@ -20,6 +20,10 @@ import {
   camelToSentence,
 } from "../utils/utils";
 import {
+  formatVitalDisplayForUi,
+  hasVitalsAndBodyCompositionData,
+} from "../utils/symptomCollectorVitalsMerge";
+import {
   EXTRA_OPTIONS,
   FETCH_SMART_RX,
   GB_ISCRIBE,
@@ -1978,11 +1982,19 @@ function Cardiology(props) {
       );
     }
 
-    const hasVitalsContent = (obj) =>
-      obj && typeof obj === "object" && Object.values(obj).some((val) => val != null && String(val).trim() !== "");
+    const hasVitalsContent = (obj) => {
+      if (!obj || typeof obj !== "object") return false;
+      if (Array.isArray(obj)) {
+        return obj.some(reading => 
+          reading && typeof reading === "object" && 
+          Object.values(reading).some(val => formatVitalDisplayForUi(val) !== "")
+        );
+      }
+      return Object.values(obj).some(val => formatVitalDisplayForUi(val) !== "");
+    };
     const vitalsObj =
       type === "vitals"
-        ? ([data?.vitals, data?.vitalsAndBodyComposition].find(hasVitalsContent) || {})
+        ? (data?.vitalsAndBodyComposition ?? data?.vitals ?? {})
         : data?.vitals || data?.vitalsAndBodyComposition || {};
     const arrayForType =
       type === "examination" || type === "examinations"
@@ -2003,17 +2015,32 @@ function Cardiology(props) {
           )}
           {/* Handle vitals: old (vitals) or new (vitalsAndBodyComposition) */}
           {type === "vitals" &&
-             Object.entries(vitalsObj)
-               .filter(([key, value]) => value != null && String(value).trim())
-               .map(([key, value]) => (
-                 <li key={key}>
-                   <div className="medicine-item">
-                     <span>{key}</span>
-                     <span className="separator">:</span>
-                     <span>{value}</span>
-                   </div>
-                 </li>
-               ))}
+            (Array.isArray(vitalsObj)
+              ? vitalsObj.flatMap((reading, index) =>
+                  Object.entries(reading || {})
+                    .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
+                    .map(([key, value]) => (
+                      <li key={`${index}-${key}`}>
+                        <div className="medicine-item">
+                          <span>{key}</span>
+                          <span className="separator">:</span>
+                          <span>{formatVitalDisplayForUi(value)}</span>
+                        </div>
+                      </li>
+                    ))
+                )
+              : Object.entries(vitalsObj)
+                  .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
+                  .map(([key, value]) => (
+                    <li key={key}>
+                      <div className="medicine-item">
+                        <span>{key}</span>
+                        <span className="separator">:</span>
+                        <span>{formatVitalDisplayForUi(value)}</span>
+                      </div>
+                    </li>
+                  ))
+            )}
 
           {/* Handle array types: support old (examination, tests) and new (examinations, labInvestigation) */}
           {type !== "vitals" &&
@@ -2471,13 +2498,13 @@ function Cardiology(props) {
         {/* Handle vitals type separately */}
         {type === "vitalsAndBodyComposition" &&
           Object.entries(genRxData?.vitalsAndBodyComposition || {})
-            .filter(([key, value]) => value != null && String(value).trim() !== "") // Filter out empty or falsy values
+            .filter(([, value]) => formatVitalDisplayForUi(value) !== "")
             .map(([key, value]) => (
               <li key={key}>
                 <div className="medicine-item">
                   <span>{key}</span>
                   <span className="separator">:</span>
-                  <span>{value}</span>
+                  <span>{formatVitalDisplayForUi(value)}</span>
                 </div>
               </li>
             ))}
@@ -3120,7 +3147,7 @@ function Cardiology(props) {
     typeof data === "object" &&
     ((data.vitals && Object.values(data.vitals).some((v) => v != null && String(v).trim() !== "")) ||
       (data.vitalsAndBodyComposition &&
-        Object.values(data.vitalsAndBodyComposition).some((v) => v != null && String(v).trim() !== "")));
+        hasVitalsAndBodyCompositionData(data.vitalsAndBodyComposition)));
 
   // Medical history grouped by type (Medical condition, Family History, Lifestyle, Surgical History, etc.); uses name, duration, relation, enable, notes in parentheses (no lineItem). Each type stacked one after another. No partition lines; same text style as rest of digitised sections.
   const renderMedicalHistoryGroupedByType = (data) => {

@@ -194,7 +194,13 @@ body {
     .textcolor-29 {
         color: #92929D;
     }
-    table, p, div, span, tr, th, td{
+    table:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
+    p:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
+    div:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
+    span:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
+    tr:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
+    th:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)),
+    td:where(:not(.jodit-wysiwyg, .jodit-wysiwyg *)) {
         font-family: 'Poppins' !important;
         color: $maincolor !important;
     }

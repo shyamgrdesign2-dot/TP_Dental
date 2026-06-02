@@ -50,8 +50,13 @@ import {
 import { placeIctOrder } from "../redux/appointmentsSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { errorMessage, getClinicName, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, getSupportedMimeType, removeBeforeWhiteSpace, getHmTypeIndicator, getClinic, stopAllActiveRecorders } from "../utils/utils";
-import { ensureMedicationGroundedForRxSave } from "../utils/medicationRxPayload";
-import { CheckOutlined, CloseOutlined, PlusOutlined } from "@ant-design/icons";
+import { vitalScalarString } from "../utils/symptomCollectorVitalsMerge";
+import {
+  ensureLabInvestigationMetadataForRxSave,
+  ensureMedicationGroundedForRxSave,
+  mergeVoiceApiPrescriptionWithPrior,
+  preparePreviousContextRxItems,
+} from "../utils/medicationRxPayload";
 
 import CommonModal from "../common/CommonModal";
 import ProfilePopover from "../common/ProfilePopover";
@@ -959,7 +964,7 @@ const ConsultationDrawer = ({
             const validatedPrescriptionData = validatePrescriptionData(prescriptionData);
             if (validatedPrescriptionData) {
               setPrescriptionData((prev) => {
-                const next = validatedPrescriptionData;
+                const next = mergeVoiceApiPrescriptionWithPrior(prev, validatedPrescriptionData);
                 const labResults = (Array.isArray(next?.labResults) && next.labResults.length > 0)
                   ? next.labResults
                   : (Array.isArray(prev?.labResults) && prev.labResults.length > 0 ? prev.labResults : []);
@@ -1473,23 +1478,25 @@ const ConsultationDrawer = ({
       return false;
     }
 
-    const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'fib4', 'waist_circumference'];
-    const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
-      if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
-      const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
-      const result = {};
-      CANONICAL_VITAL_KEYS.forEach((key) => {
-        const v = actual[key];
-        if (v !== undefined && v !== null && v !== '' && String(v).trim() !== '') {
-          result[key] = v;
+      const CANONICAL_VITAL_KEYS = ['temperature', 'pulse', 'respRate', 'respiratoryRate', 'bloodPressure', 'systolic', 'diastolic', 'spo2', 'ofc', 'headCircumference', 'height', 'weight', 'BMI', 'BMR', 'BSA', 'general_rbs', 'generalRBS', 'fib4', 'waist_circumference', 'waistCircumference', 'randomBloodSugar'];
+      const normalizeVitalsForPrescription = (vitalsAndBodyComposition) => {
+        if (!vitalsAndBodyComposition || typeof vitalsAndBodyComposition !== 'object') return {};
+        const actual = vitalsAndBodyComposition._doc || vitalsAndBodyComposition;
+        const result = {};
+        CANONICAL_VITAL_KEYS.forEach((key) => {
+          const v = actual[key];
+          const s = vitalScalarString(v);
+          if (s !== '') {
+            result[key] = s;
+          }
+        });
+        const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
+        const grbs = vitalScalarString(generalRBSVal);
+        if (grbs !== '') {
+          result.general_rbs = grbs;
         }
-      });
-      const generalRBSVal = actual.generalRBS ?? actual.genralRBS ?? result.general_rbs ?? actual['General RBS'];
-      if (generalRBSVal !== undefined && generalRBSVal !== null && String(generalRBSVal).trim() !== '') {
-        result.general_rbs = String(generalRBSVal).trim();
-      }
-      return result;
-    };
+        return result;
+      };
 
     const deepClean = (obj) => {
       if (obj === null || typeof obj !== 'object') {
@@ -1587,7 +1594,7 @@ const ConsultationDrawer = ({
           } else if (item.metadata?.um_id !== undefined) {
             mappedItem.um_id = item.metadata.um_id;
           }
-          return mappedItem;
+          return ensureLabInvestigationMetadataForRxSave(mappedItem);
         })
       : [];
     
@@ -1694,7 +1701,7 @@ const ConsultationDrawer = ({
     if (!data || typeof data !== "object") return false;
     const hasArray = (arr) => Array.isArray(arr) && arr.length > 0;
     const hasVitals = (v) => v && typeof v === "object" && Object.keys(v).some((k) => !["tcv_id", "tcbc_id", "dev_unique_id", "pam_id"].includes(k) && v[k] != null && String(v[k]).trim() !== "");
-    if (hasArray(data.symptoms) || hasArray(data.surgeries) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
+    if (hasArray(data.symptoms) || hasArray(data.surgeries) || hasArray(data.medications) || hasArray(data.medicalHistory) || hasArray(data.diagnosis) || hasArray(data.labInvestigation) || hasArray(data.labResults) || hasArray(data.vaccinations)) return true;
     if (hasVitals(data.vitalsAndBodyComposition)) return true;
     if (data.followUp && String(data.followUp).trim()) return true;
     if (hasArray(data.others) || (data.advice && (typeof data.advice === "string" ? data.advice.trim() : hasArray(data.advice)))) return true;
@@ -1702,9 +1709,14 @@ const ConsultationDrawer = ({
   };
 
   const mapPrescriptionDataToDigitizeData = (prescriptionData) => {
-    if (!prescriptionData || typeof prescriptionData !== "object") return prescriptionData;
-    const v = prescriptionData.vitalsAndBodyComposition;
-    if (!v || typeof v !== "object") return { ...prescriptionData };
+    if (!prescriptionData || typeof prescriptionData !== "object") {
+      return preparePreviousContextRxItems(prescriptionData);
+    }
+
+    const withRxItems = preparePreviousContextRxItems(prescriptionData);
+    const v = withRxItems.vitalsAndBodyComposition;
+    if (!v || typeof v !== "object") return withRxItems;
+
     const mapped = { ...v };
     if (mapped.respRate !== undefined) {
       mapped.respiratoryRate = mapped.respRate;
@@ -1725,7 +1737,7 @@ const ConsultationDrawer = ({
       delete mapped.general_rbs;
       delete mapped["General RBS"];
     }
-    return { ...prescriptionData, vitalsAndBodyComposition: mapped };
+    return { ...withRxItems, vitalsAndBodyComposition: mapped };
   };
 
   const handleVoiceDigitize = async (
@@ -2133,8 +2145,9 @@ const ConsultationDrawer = ({
                 const labResults = (Array.isArray(finalPrescriptionData.labResults) && finalPrescriptionData.labResults.length > 0)
                   ? finalPrescriptionData.labResults
                   : (Array.isArray(prevData?.labResults) && prevData.labResults.length > 0 ? prevData.labResults : []);
+                const mergedPrescription = mergeVoiceApiPrescriptionWithPrior(prevData, finalPrescriptionData);
                 return {
-                  ...finalPrescriptionData,
+                  ...mergedPrescription,
                   labResults,
                   dynamicFields: mergedDynamicFields,
                 };
@@ -2476,7 +2489,11 @@ const ConsultationDrawer = ({
                 }
 
                 setPrescriptionData((prev) => {
-                  return { ...validatedPrescriptionDataForDictate, labResults: labResultsToUse };
+                  const merged = mergeVoiceApiPrescriptionWithPrior(
+                    prev,
+                    validatedPrescriptionDataForDictate
+                  );
+                  return { ...merged, labResults: labResultsToUse };
                 });   
                 
                 // Convert API medicalHistory format to CashManagerContext format and populate it
@@ -2700,6 +2717,11 @@ const ConsultationDrawer = ({
 
           return ensureMedicationGroundedForRxSave({ ...item, quantity });
         }),
+        labInvestigation: Array.isArray(prescriptionData?.labInvestigation)
+          ? prescriptionData.labInvestigation.map((item) =>
+              ensureLabInvestigationMetadataForRxSave(item)
+            )
+          : [],
       };
 
       const editedDataForApi = { ...updatedPrescriptionData };
@@ -3824,6 +3846,12 @@ const ConsultationDrawer = ({
           getInvestigationAndMedicine(sendInvestigationAndMedicine)
         );
         if (actionIM.meta.requestStatus === "fulfilled") {
+          const cmInvestigations = actionIM?.payload?.investigation ?? [];
+          const investigationList = cmInvestigations.map((item) => ({
+            serviceName: String(item?.investigation_name ?? "").trim(),
+            serviceCode: String(item?.service_code ?? "").trim(),
+          }));
+
           let zydusSendData = {
             action: tcmId == 0 ? "add" : "edit",
             tcmId: action?.payload?.tcm_id,
@@ -3835,9 +3863,7 @@ const ConsultationDrawer = ({
             doctorCode: patient_data?.employeeId,
             storeCode: storeCode,
             duplicateCheck: 1,
-            investigationList:
-              prescriptionData?.labInvestigation?.map((item) => item.name) ||
-              [],
+            investigationList,
             medicineList:
               sanitizedMedications.map(({ name, notes }, index) => {
                 const quantityValue =

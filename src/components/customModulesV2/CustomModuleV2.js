@@ -1564,7 +1564,7 @@ const CustomModuleV2 = ({ module }) => {
                 key={field.fieldName}
                 className="custom-module-v2__table-header-cell"
               >
-                {field.fieldLabel.toUpperCase()}
+                {field.fieldLabel ?? field.fieldName}
               </th>
             ))}
             <th className="custom-module-v2__table-header-cell custom-module-v2__table-header-cell--action">

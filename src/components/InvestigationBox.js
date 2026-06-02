@@ -28,7 +28,8 @@ import {
   deleteTemplate,
   getInvestigationTemplates,
   getFrequentlySearchedInvestigation,
-  searchInvestigation
+  searchInvestigation,
+  singleTemplateDetails,
 } from "../redux/investigationSlice";
 
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -372,15 +373,23 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
     }
   };
 
-  const onTemplateSelected = (template) => {
+  const onTemplateSelected = async (template) => {
     window.Moengage.track_event("investigation_template_used", {
       "template_name": template.tit_template_name
     });
-    const updatedData = template.investigation.map(e => {
-      return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
-    })
-    setInvestigationData([...investigationData, ...updatedData]);
-    showHideTemplatesListPopover();
+    const action = await dispatch(singleTemplateDetails(template.tit_id));
+    if (action.meta.requestStatus === "fulfilled") {
+      const rows = Array.isArray(action.payload) ? action.payload : [];
+      const updatedData = rows.map((e) => ({
+        ...e,
+        unique_id: uuidv4(),
+        note: e.note ? e.note : "",
+      }));
+      setInvestigationData([...investigationData, ...updatedData]);
+      showHideTemplatesListPopover();
+    } else {
+      errorMessage(action.error);
+    }
   };
 
   const onDeleteTemplateClicked = async (tit_id) => {
@@ -627,14 +636,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx}) {
                                 onSelect={(data, e) => onSelectChild(data, e, index)}
                               />
                             </div>
-                            {(item?.hm_type === 1 && item?.um_id === 0) && (
-                              <span
-                                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0"
-                                style={{ width: 18, height: 18, background: "#c44ea2" }}
-                              >
-                                Z
-                              </span>
-                            )}
                             {supplementaryIndicator && (
                               <span
                                 className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${

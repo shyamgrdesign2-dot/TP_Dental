@@ -1158,7 +1158,6 @@ function MedicationsBox() {
                             <div className="fontroboto fw-medium p-2 pe-3">
                               <div className="d-flex align-items-center flex-wrap gap-1">
                                 <label className="mb-0">{item.tmm_medicine_name}</label>
-                                {renderHmTypeBadge(item)}
                               </div>
                               <Tooltip placement="bottom" title={item.tmm_generic}>
                                 <div className="text-truncate fw-normal me-1">{item.tmm_generic}</div>
@@ -1305,7 +1304,7 @@ function MedicationsBox() {
         </DragDropContext>
       </>
     );
-  }, [medicationData, frequencyPopOver, renderHmTypeBadge]);
+  }, [medicationData, frequencyPopOver]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {

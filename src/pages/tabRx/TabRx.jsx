@@ -558,6 +558,7 @@ function TabRx() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
@@ -1946,6 +1947,7 @@ function TabRx() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find((x) => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -2131,6 +2133,7 @@ function TabRx() {
             labParamsData={labParamsData}
             handleGenRx={handleGenRx}
             selectedCarePlan={selectedCarePlan}
+            hasExistingCarePlan={hasExistingCarePlan}
             handleVideoConsult={
               isVideoConsultAvailable ? handleVideoConsult : null
             }

@@ -50,7 +50,12 @@ import OphthalmologyListView from "../../components/print_settings/ophthalmology
 import OphthalmologyTableView from "../../components/print_settings/ophthalmology/table";
 import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
+import { isProductionEnv } from "../environment";
 import { ASSETS } from "../../assets";
+import { getUploadedFilePublicUrl } from "../../pages/smartSync/services/templateUtils";
+
+const getSmartSyncUploadedFileUri = (file) =>
+  getUploadedFilePublicUrl(file) || file?.fileUrl || file?.showFile || null;
 
 const PX_TO_PT = 0.75;
 
@@ -637,17 +642,9 @@ const styles = StyleSheet.create({
   },
 });
 
-const module_id =
-  process.env?.NODE_ENV !== "prod"
-    ? "6874956bc1abf17f6932cb32"
-    : "68624471353771e0a587fed6";
-const um_id = process.env?.NODE_ENV !== "prod" ? "493" : "12028";
-
-const formatCustomModuleColumnTitle = (value = "") => {
-  return String(value || "")
-    .trim()
-    .toUpperCase();
-};
+/** Custom module labels/values in PDF: keep user casing and spacing; only normalize NBSP. */
+const formatCustomModuleColumnTitle = (value = "") =>
+  value == null || value === "" ? "" : String(value).replace(/\u00A0/g, " ");
 
 const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const {
@@ -935,19 +932,24 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const isRxDigitizePrintLike = !!(
     isDigitisedPrintConfig || caseManagerData?.isRxDigitize
   );
-  const cvtExtHosPatientMapEnabled = shouldUseCvtExtHosDigitisedPatientMapping(
-    isCvtExtHosAccessableFromGB ?? caseManagerData?.isCvtExtHosAccessableFromGB,
-    isRxDigitizePrintLike,
-  );
   const tokenData = getDecodedToken()?.result;
   const hospitalBusinessId =
     props?.hospitalBusinessId ??
     tokenData?.hospital_business_id ??
     caseManagerData?.hospital_business_id;
 
-  const showMissionHospitalLogo =
-    !!isCvtExtHosAccessableFromGB &&
-    Object.values(EXTERNAL_HOSPITAL_BUSINESS_IDS).includes(String(hospitalBusinessId));
+  const isExternalHospitalBusinessId = Object.values(
+    EXTERNAL_HOSPITAL_BUSINESS_IDS,
+  ).includes(String(hospitalBusinessId));
+
+  const isCvtExtHosAccessableForPrint =
+    !!(isCvtExtHosAccessableFromGB ?? caseManagerData?.isCvtExtHosAccessableFromGB) &&
+    isExternalHospitalBusinessId;
+
+  const cvtExtHosPatientMapEnabled =  !!(isCvtExtHosAccessableFromGB ?? caseManagerData?.isCvtExtHosAccessableFromGB) &&
+    isExternalHospitalBusinessId;
+
+  const showMissionHospitalLogo = isCvtExtHosAccessableForPrint;
 
   const patientDataShow = (id) => {
     if (cvtExtHosPatientMapEnabled) {
@@ -1118,15 +1120,14 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     editedData = null,
   } = smartRxData || {};
   const isSnapRx = uploaded_files?.[0]?.filename?.includes("snap_rx");
+  const hasUploadedFileWithUri =
+    Array.isArray(uploaded_files) &&
+    uploaded_files.some((file) => !!getSmartSyncUploadedFileUri(file));
   const isSmartSyncPrescription = isRxDigitizeBool
-    ? !!(uploaded_files && uploaded_files.length && uploaded_files[0]?.fileUrl)
+    ? hasUploadedFileWithUri
     : isVoiceRxDigitizeBool
       ? !!(history && history.length)
-      : !!(
-          uploaded_files &&
-          uploaded_files.length &&
-          uploaded_files[0]?.fileUrl
-        );
+      : hasUploadedFileWithUri;
   const shouldWrapSmartSyncPrescription =
     isSmartSyncPrescription && !isRxDigitizeBool && !isVoiceRxDigitizeBool;
   const digitizedData = isVoiceRxDigitizeBool
@@ -1421,6 +1422,15 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   };
 
   const showConsultSectionsWhenRx = !rx || (rx && isSnapRx) || caseManagerData?.isCustomSSRX === "1";
+
+  const hasVitalsOrBirthWeight =
+    caseManagerData?.vitals?.length > 0 || caseManagerData?.patient_birth_weight;
+
+  // Blank SmartSync (isCustomSSRX "0") often prints with rx=true; vitals must still render when present.
+  const shouldShowVitalsInPrint =
+    showConsultSectionsWhenRx ||
+    caseManagerData?.isCustomSSRX === "1" ||
+    (caseManagerData?.isCustomSSRX === "0" && !!hasVitalsOrBirthWeight);
 
   const getFrequencyLanguageTitles = (languageId) => {
     const languageMap = {
@@ -1768,7 +1778,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   }
 
   const getCustomModuleName = (id) => {
-    const customModule = customModules?.modules?.find(
+    const customModuleList = Array.isArray(customModules) ? customModules : customModules?.modules;
+    const customModule = customModuleList?.find(
       (module) => module?.module_id === id,
     );
     return customModule?.name
@@ -2176,6 +2187,22 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     });
   };
 
+  const hasBlankSmartSyncCanvas =
+    caseManagerData?.isCustomSSRX === "0" &&
+    isSmartSyncPrescription &&
+    Array.isArray(uploaded_files) &&
+    uploaded_files.some((file) => !!getSmartSyncUploadedFileUri(file)) &&
+    !isSnapRx &&
+    !isDigitizedFlow();
+
+  const shouldRenderMainPrescriptionPage =
+    hasAnyData(caseManagerData, rx) &&
+    (!isCvtExtHosAccessableForPrint ||
+      isRxDigitizeBool ||
+      caseManagerData?.vitals?.length > 0 ||
+      caseManagerData?.patient_birth_weight ||
+      hasBlankSmartSyncCanvas);
+
   return (
     <Document>
       {uploaded_files.length > 0 &&
@@ -2205,12 +2232,12 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                   height: "100%",
                   objectFit: "contain",
                 }}
-                source={{ uri: item.fileUrl }}
+                source={{ uri: getSmartSyncUploadedFileUri(item) }}
               />
             </View>
           </Page>
         ))}
-      {hasAnyData(caseManagerData, rx) && (!isCvtExtHosAccessableFromGB || isRxDigitizeBool || caseManagerData?.vitals?.length > 0 || caseManagerData?.patient_birth_weight) && (
+      {shouldRenderMainPrescriptionPage && (
         <Page
           size="A4"
           style={[
@@ -2312,8 +2339,8 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                       {printSettings?.logo_enable === "Y" &&
                         <View
                           style={{
-                            width: isCvtExtHosAccessableFromGB ? 130 : 82,
-                            height: isCvtExtHosAccessableFromGB ? 90 : 82,
+                            width: isCvtExtHosAccessableForPrint ? 130 : 82,
+                            height: isCvtExtHosAccessableForPrint ? 90 : 82,
                             overflow: "hidden",
                             marginHorizontal: 16,
                           }}
@@ -2360,7 +2387,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 : printSettings?.header_footer?.header?.clinic_info
                                     ?.header}
                             </Text>
-                            {/* {!cvtExtHosPatientMapEnabled &&  */}
+                            {!cvtExtHosPatientMapEnabled && 
                               <Text
                                 style={[styles.subTitle, { marginTop: PX_TO_PT * 4 }]}
                               >
@@ -2371,7 +2398,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   : printSettings?.header_footer?.header?.clinic_info
                                       ?.subheader}
                               </Text>
-                            {/* } */}
+                            }
                           </View>
                         )}
                       </View>
@@ -3867,9 +3894,36 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                     )}
                   </View>
                 )}
+                {/* {hasBlankSmartSyncCanvas &&
+                  uploaded_files
+                    ?.filter((item) => getSmartSyncUploadedFileUri(item))
+                    ?.map((item, i) => (
+                    <View key={`blank-smartsync-canvas-${i}`}>
+                      <View
+                        style={{
+                          marginTop: PX_TO_PT * 15,
+                          width: "100%",
+                          height: 800,
+                        }}
+                      >
+                        <Image
+                          style={{ width: "100%", height: "100%" }}
+                          source={{ uri: getSmartSyncUploadedFileUri(item) }}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    </View>
+                  ))} */}
                 {printSettings?.prescription?.case_option?.map(
                   (option, index) => {
-                    if (isCvtExtHosAccessableFromGB && !isRxDigitizeBool && option?.id !== 7) return null;
+                    if (
+                      isCvtExtHosAccessableForPrint &&
+                      !isRxDigitizeBool &&
+                      option?.id !== 7 &&
+                      option?.id !== 11
+                    ) {
+                      return null;
+                    }
                     const hasOption11Enabled =
                       printSettings?.prescription?.case_option?.some(
                         (o) =>
@@ -4107,12 +4161,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 : 0
                               : 0,
                         }}
-                        break={
-                          option?.id == module_id &&
-                          caseManagerData?.doctor_data?.um_id == um_id
-                            ? true
-                            : false
-                        }
                       >
                         {option?.id === 1 &&
                         option?.enable === "Y" &&
@@ -9196,7 +9244,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                           option?.enable === "Y" &&
                           option?.custom_status === "Y" ? (
                           <>
-                            {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
+                            {shouldShowVitalsInPrint &&
                               (caseManagerData?.vitals?.length > 0 ||
                                 patientBirthWeight) &&
                               (option?.format === "inline" ? (
@@ -9221,7 +9269,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     Vitals & Body Composition:&nbsp;
                                   </Text>
 
-                                  {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
+                                  {shouldShowVitalsInPrint &&
                                     patientBirthWeight && (
                                       <>
                                         <Text
@@ -9461,7 +9509,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     }}
                                   >
                                     Vitals & Body Composition:&nbsp;
-                                    {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
+                                    {shouldShowVitalsInPrint &&
                                       patientBirthWeight && (
                                         <>
                                           <Text
@@ -9701,7 +9749,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                     });
                                   const hasAnyData =
                                     hasVitalsData ||
-                                    ((showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
+                                    (shouldShowVitalsInPrint &&
                                       patientBirthWeight);
 
                                   if (!hasAnyData) {
@@ -9726,7 +9774,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                         }}
                                       >
                                         Vitals & Body Composition:&nbsp;
-                                        {(showConsultSectionsWhenRx || caseManagerData?.isCustomSSRX === "1") &&
+                                        {shouldShowVitalsInPrint &&
                                           patientBirthWeight && (
                                             <>
                                               <Text
@@ -13605,14 +13653,16 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                               ))}
                           </>
                         ) : option?.id === 11 &&
-                          option?.enable === "Y" &&
-                          option?.custom_status === "Y" ? (
+                          ((option?.enable === "Y" &&
+                            option?.custom_status === "Y") ||
+                            hasBlankSmartSyncCanvas) ? (
                           <>
                             {/* When SmartRx section is enabled, render SmartRx files inline at this position */}
                             {isSmartSyncPrescription &&
                               caseManagerData.isCustomSSRX === "0" &&
                               !isSnapRx &&
                               !isDigitizedFlow() &&
+                              // !hasBlankSmartSyncCanvas &&
                               uploaded_files?.map((item, i) => (
                                 <View key={i}>
                                   <View
@@ -13624,7 +13674,9 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                   >
                                     <Image
                                       style={{ width: "100%", height: "100%" }}
-                                      source={{ uri: item.fileUrl }}
+                                      source={{
+                                        uri: getSmartSyncUploadedFileUri(item),
+                                      }}
                                       resizeMode="contain"
                                     />
                                   </View>
@@ -15380,7 +15432,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   fontWeight: 500,
                                                 }}
                                               >
-                                                {entry.value}
+                                                {normalizePdfText(entry.value)}
                                               </Text>
                                               {idx <
                                                 fieldEntries.length - 1 && (
@@ -15607,7 +15659,7 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                                   fontWeight: 500,
                                                 }}
                                               >
-                                                {entry.value}
+                                                {normalizePdfText(entry.value)}
                                               </Text>
                                               {idx <
                                                 fieldEntries.length - 1 && (
