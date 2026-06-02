@@ -239,7 +239,7 @@ function formatConsultationAsPrintViewNotes(consultation) {
 }
 
 function symptomsToHtmlList(symptoms) {
-  if (!symptoms || symptoms.length === 0) return "&#8203;";
+  if (!symptoms || symptoms.length === 0) return "<p><br></p>";
 
   const seenIds = new Set();
   const seenFallback = new Set();
@@ -429,7 +429,7 @@ export function buildReportContentFromGroupedData(
     ? symptoms.filter((s) => healthCheckupTcmIds.has(s.tcm_id))
     : [];
   const chiefHtml =
-    healthCheckupSymptoms.length > 0 ? symptomsToHtmlList(healthCheckupSymptoms) : "<p>&#8203;</p>";
+    healthCheckupSymptoms.length > 0 ? symptomsToHtmlList(healthCheckupSymptoms) : "<p><br></p>";
   const chiefSection = `
 <div class="print-section-group">
 <h2 class="report-section-title">Chief Complaints:</h2>
@@ -609,7 +609,7 @@ ${consultationRows}
   const impressionSection = `
 <div class="print-section-group print-page-break">
 <h2 class="report-section-title">${impressionText}</h2>
-<table class="report-section-box"><tbody><tr><td><p>&#8203;</p></td></tr></tbody></table>
+<table class="report-section-box"><tbody><tr><td><p><br></p></td></tr></tbody></table>
 </div>`;
 
   // Advice
@@ -621,11 +621,11 @@ ${consultationRows}
 <div class="print-section-group">
 <h2 class="report-section-title">Advice</h2>
 <table class="report-section-box"><tbody><tr><td>
-${adviceText ? adviceText.split('\n').map(line => `<p>${escapeHtml(line)}</p>`).join('') : "<p>&#8203;</p>"}
+${adviceText ? adviceText.split('\n').map(line => `<p>${escapeHtml(line)}</p>`).join('') : "<p><br></p>"}
 </td></tr></tbody></table>
 </div>`;
 
-  const generalRecHtml = formatReportText(GENERAL_RECOMMENDATIONS_TEXT) || "<p>&#8203;</p>";
+  const generalRecHtml = formatReportText(GENERAL_RECOMMENDATIONS_TEXT) || "<p><br></p>";
   const generalRecSection = `
 <div class="print-section-group print-page-break">
 <h2 class="report-section-title">General Recommendations</h2>

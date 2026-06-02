@@ -369,6 +369,19 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       }
 
       const prevChildCount = firstPageContainer.childNodes.length;
+
+      // Sections with print-page-break always start on a new page via @media print CSS.
+      // Mirror that guarantee here: once page 1 has content, send these directly to
+      // restPagesContainer so hasRestPages becomes true and the repeating header shows.
+      const hasPrintPageBreak = chunkNodes.some(
+        (n) => n.nodeType === Node.ELEMENT_NODE && n.classList?.contains("print-page-break")
+      );
+      if (hasPrintPageBreak && prevChildCount > 0) {
+        clones.forEach((c) => restPagesContainer.appendChild(c));
+        spillToRestPages = true;
+        return;
+      }
+
       clones.forEach((c) => firstPageContainer.appendChild(c));
       const firstPageHeight = firstPageTable.getBoundingClientRect().height;
 

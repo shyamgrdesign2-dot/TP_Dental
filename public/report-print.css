@@ -294,7 +294,7 @@ table {
 .smart-editor-editable table:not(.report-patient-table):not(.report-section-box) th {
   height: 32px !important;
   min-height: 32px !important;
-  vertical-align: middle;
+  vertical-align: top;
 }
 
 .report-data-table {
