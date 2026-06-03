@@ -66,7 +66,14 @@ const UploadDocument = ({
   const patient_data = state?.patient_data || patientData;
   const { uploadDocCategories, allUploadedDocs, patientUploadedDocs } =
     useSelector((state) => state.uploadDoc);
-  const documentOptions = uploadDocCategories.map((item) => {
+
+  const clinicUploadCategoryNames = ["Clinics_Pathology", "Clinics_Radiology"];
+  const categoriesForUpload = uploadDocCategories.filter(
+    (item) =>
+      item && !clinicUploadCategoryNames.includes(item.category_name)
+  );
+
+  const documentOptions = categoriesForUpload.map((item) => {
     return {
       label: item.category_name,
       value: item.category_id,

@@ -437,8 +437,10 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   const getAllDocumentCategories = useCallback(async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
-  }, [dispatch]);
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
+  }, [dispatch, isChikitsalayAccessable]);
 
   const handleFileUpload = (event, record) => {
     const files = event.target.files;

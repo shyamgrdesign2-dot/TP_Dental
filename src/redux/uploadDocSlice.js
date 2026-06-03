@@ -68,15 +68,19 @@ const uploadDocSlice = createSlice({
       state.allUploadedDocs = [];
     },
     setUploadDocCategories: (state, action) => {
+      const { categories, isChikitsalayAccessable } = action.payload ?? {};
       const categoriesOrder = [
         "Pathology",
         "Radiology",
         "Prescription",
+        ...(isChikitsalayAccessable
+          ? ["Clinics_Pathology", "Clinics_Radiology"]
+          : []),
         "Other",
       ];
-      if (action?.payload?.length > 0) {
+      if (categories?.length > 0) {
         const reorderedCategories = categoriesOrder.map((name) =>
-          action.payload.find((category) => category.category_name === name)
+          categories.find((category) => category.category_name === name)
         );
         state.uploadDocCategories = reorderedCategories;
       }

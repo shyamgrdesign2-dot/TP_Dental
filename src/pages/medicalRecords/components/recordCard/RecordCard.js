@@ -30,6 +30,7 @@ const {
   documentEdit: edit,
   trash,
   alerticon: alertIcon,
+  viewMore: viewMoreIcon,
 } = ASSETS.images;
 const closeIcon = ASSETS.mobile.close2;
 
@@ -57,6 +58,7 @@ const RecordCard = ({
     investigation_date,
     category_id,
     display_name,
+    dicom_url
   } = cardData || {};
 
   let thumbnailUrl = thumbnail_url;
@@ -260,8 +262,25 @@ const RecordCard = ({
     }
   };
 
+  const handleDicomPreview = () => {
+    window.open(dicom_url, "_blank");
+  };
+
   const getMenuItems = () => {
     return [
+      dicom_url && {
+        label: (
+          <div 
+            onClick={handleDicomPreview}
+            className="d-flex align-items-center"
+          >
+            {/* <i className="icon-right iconrotate180" style={{ width: 16, height: 16 }} /> */}
+            <img src={viewMoreIcon} alt="preview" className="me-2" style={{ width: 22, height: 20 }} />
+            View Image
+          </div>
+        ),
+        key: "preview",
+      },
       {
         label: (
           <div
@@ -275,7 +294,7 @@ const RecordCard = ({
         ),
         key: "download",
       },
-      !url?.startsWith(config.zydus_proxy_url) && {
+      !url?.startsWith(config.zydus_proxy_url) && !dicom_url && {
         label: (
           <div onClick={handleEdit}>
             <img src={edit} alt="edit" className="me-2" />
@@ -284,7 +303,7 @@ const RecordCard = ({
         ),
         key: "edit",
       },
-      !url?.startsWith(config.zydus_proxy_url) && {
+      !url?.startsWith(config.zydus_proxy_url) && !dicom_url && {
         label: (
           <div onClick={toggleDeletePopup}>
             <img src={trash} alt="delete" className="me-2" />
