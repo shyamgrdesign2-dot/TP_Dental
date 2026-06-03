@@ -11,7 +11,7 @@ import { getUtmParams } from "../../../components/userOnboarding/services/userDa
 import { Spin } from "antd";
 import { ASSETS } from "../../../assets";
 import { lazyRetry } from "../../../utils/lazyRetry";
-import { isZyPreprodEnv } from "../../../utils/environment";
+import { isZyPreprodOrZyProdEnv } from "../../../utils/environment";
 const Carousel = React.lazy(() =>
   lazyRetry(() => import("./OnboardCarousel"))
 );
@@ -39,7 +39,7 @@ const Logo = ASSETS.images.websiteImages.logo;
 const WebStructureBg = ASSETS.images.webstructure;
 
 const Onboarding = () => {
-  const isSignupDisabled = isZyPreprodEnv();
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
   const defaultAuthView = isSignupDisabled ? "loginOTP" : "signup";
   const [view, setView] = useState(defaultAuthView);
   const [mobileNumber, setMobileNumber] = useState("");

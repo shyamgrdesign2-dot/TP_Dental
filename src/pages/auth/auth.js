@@ -6,10 +6,10 @@ import SetPassword from "./components/SetPassword";
 import "./auth.scss";
 import Signup from "./components/Signup";
 import ClinicSetup from "./components/ClinicSetup";
-import { isZyPreprodEnv } from "../../utils/environment";
+import { isZyPreprodOrZyProdEnv } from "../../utils/environment";
 
 const AuthContainer = () => {
-  const isSignupDisabled = isZyPreprodEnv();
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
   const [currentView, setCurrentView] = useState("loginWithOtp"); // Default to login with OTP
   const [reason, setReason] = useState("");
   const [mobileNumber, setMobileNumber] = useState(null);

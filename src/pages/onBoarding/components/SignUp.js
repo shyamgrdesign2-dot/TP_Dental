@@ -13,7 +13,7 @@ import {
 import { GB_DISABLE_MSG91_OTP_FLOW } from "../../../utils/constants";
 import { AISENSY_SCRIPT_CONTAINER,AISENSY_SCRIPT_ID,AISENSY_SCRIPT_SRC } from "../../../utils/constants";
 import { ASSETS } from "../../../assets";
-import { isZyPreprodEnv } from "../../../utils/environment";
+import { isZyPreprodOrZyProdEnv } from "../../../utils/environment";
 const {
   abdmLogo,
   nhaLogo,
@@ -23,7 +23,7 @@ const MicrosoftPartner = ASSETS.images.onboardPageIcons.microsoft;
 const rightGroup = ASSETS.images.onboardPageIcons.rightGroup;
 
 const SignUp = ({ onViewChange, isLoginFlow, mobileNumber: initialMobileNumber }) => {
-  const isSignupDisabled = isZyPreprodEnv();
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
   const effectiveIsLoginFlow = isSignupDisabled ? true : isLoginFlow;
   const [mobileNumber, setMobileNumber] = useState(initialMobileNumber || "");
   const [error, setError] = useState(null);
