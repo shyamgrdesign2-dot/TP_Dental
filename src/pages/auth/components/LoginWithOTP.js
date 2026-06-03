@@ -4,10 +4,10 @@ import { checkPediaExists, validateUser, verifyAccessToken } from "../authServic
 import "../auth.scss"; // Assuming the provided styles are in this CSS file
 import { isMobile } from "react-device-detect";
 import { Spin } from "antd";
-import { isZyPreprodEnv } from "../../../utils/environment";
+import { isZyPreprodOrZyProdEnv } from "../../../utils/environment";
 
 const LoginWithOTP = ({ reason, handleView, number }) => {
-  const isSignupDisabled = isZyPreprodEnv();
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
   const navigate = useNavigate();
   const [mobileNumber, setMobileNumber] = useState(
     number === "null" ? "" : number
