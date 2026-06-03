@@ -357,6 +357,8 @@ Font.register({
 });
 
 const widthOfA4PageInPts = 595;
+const CM_TO_PT = 28.35;
+const FOOTER_CONTENT_GAP = PX_TO_PT * 5;
 export const getMedicineFreqDosageFormat = (freqDosage, is_dosage_decimal) => {
   if (!!is_dosage_decimal) {
     return freqDosage;
@@ -638,12 +640,6 @@ const styles = StyleSheet.create({
     color: "#454551",
   },
 });
-
-const module_id =
-  process.env?.NODE_ENV !== "prod"
-    ? "6874956bc1abf17f6932cb32"
-    : "68624471353771e0a587fed6";
-const um_id = process.env?.NODE_ENV !== "prod" ? "493" : "12028";
 
 /** Custom module labels/values in PDF: keep user casing and spacing; only normalize NBSP. */
 const formatCustomModuleColumnTitle = (value = "") =>
@@ -1798,7 +1794,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
     letterheadFormat,
     headerFooter,
     position,
-    defaultValue,
   ) => {
     const marginType =
       letterheadFormat === 0
@@ -1809,8 +1804,11 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
             ? "margin"
             : null;
 
-    return marginType && headerFooter?.[marginType]?.[position] >= 0
-      ? (headerFooter?.[marginType]?.[position] || defaultValue) * 25
+    const rawMarginValue = headerFooter?.[marginType]?.[position];
+    const marginValue = rawMarginValue === "" ? NaN : Number(rawMarginValue);
+
+    return marginType && Number.isFinite(marginValue) && marginValue >= 0
+      ? marginValue * CM_TO_PT
       : PX_TO_PT * 30;
   };
 
@@ -1831,36 +1829,74 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
   const isOwnLetterheadFirstPageOnly =
     printSettings?.letterhead_format === 2 && showMode === "first";
 
+  const getFooterTextRenderHeight = (footer) => {
+    const hasFooterText = showMissionHospitalLogo || !!footer?.title;
+    if (!hasFooterText) return 0;
+
+    const footerFontSize = PX_TO_PT * (footer?.font_size || 12);
+    return PX_TO_PT * 2 + PX_TO_PT * 8 + footerFontSize * 1.2;
+  };
+
+  const getFooterImageRenderHeightForWidth = (paddingLeft = 0, paddingRight = 0) => {
+    const footerWidth = Number(fileFooter?.footerWidth);
+    const footerHeight = Number(fileFooter?.footerHeight);
+    const availableWidth = Math.max(
+      0,
+      widthOfA4PageInPts - ((paddingLeft || 0) + (paddingRight || 0)),
+    );
+
+    if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
+      return (footerHeight / footerWidth) * availableWidth;
+    }
+
+    return Number.isFinite(fileFooter?.renderedFooterImageHeight)
+      ? fileFooter.renderedFooterImageHeight
+      : 0;
+  };
+
   const calculatePadding = () => {
     const { letterhead_format, header_footer, whatsapp_letterhead_format } =
       printSettings || {};
     const footer = header_footer?.footer;
-    const hasFooterDimensions =
-      Number.isFinite(fileFooter?.footerHeight) &&
-      Number.isFinite(fileFooter?.footerWidth) &&
-      fileFooter?.footerWidth > 0;
+
+    const getReservedBottomPadding = ({
+      letterheadFormat,
+      whatsappLetterheadFormat,
+      paddingLeft,
+      paddingRight,
+    }) => {
+      const bottomMargin = getMarginByFormat(
+        letterheadFormat,
+        header_footer,
+        "bottom",
+      );
+      const footerHeight =
+        mode !== NORMAL
+          ? whatsappLetterheadFormat === 1 && fileFooter?.imageShow
+            ? getFooterImageRenderHeightForWidth(paddingLeft, paddingRight)
+            : whatsappLetterheadFormat === 0
+              ? getFooterTextRenderHeight(footer)
+              : 0
+          : letterheadFormat === 1 && fileFooter?.imageShow
+            ? getFooterImageRenderHeightForWidth(paddingLeft, paddingRight)
+            : letterheadFormat === 0
+              ? getFooterTextRenderHeight(footer)
+              : 0;
+
+      return bottomMargin + footerHeight + FOOTER_CONTENT_GAP;
+    };
 
     if (mode !== NORMAL) {
       return {
         paddingTop: PX_TO_PT * 30,
-        paddingBottom:
-          whatsapp_letterhead_format === 1
-            ? fileFooter?.imageShow
-              ? fileFooter?.renderedFooterImageHeight + PX_TO_PT * 30
-              : getMarginByFormat(
-                  letterhead_format,
-                  header_footer,
-                  "bottom",
-                  0.5,
-                ) + 5
-            : getMarginByFormat(
-                letterhead_format,
-                header_footer,
-                "bottom",
-                0.5,
-              ) + 5,
         paddingLeft: PX_TO_PT * 30,
         paddingRight: PX_TO_PT * 30,
+        paddingBottom: getReservedBottomPadding({
+          letterheadFormat: letterhead_format,
+          whatsappLetterheadFormat: whatsapp_letterhead_format,
+          paddingLeft: PX_TO_PT * 30,
+          paddingRight: PX_TO_PT * 30,
+        }),
       };
     }
 
@@ -1882,24 +1918,18 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
       letterhead_format === 2
         ? isOwnLetterheadFirstPageOnly
           ? userBottomMargin
-          : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) +
-            5
-        : letterhead_format === 1
-          ? fileFooter?.imageShow
-            ? hasFooterDimensions
-              ? (fileFooter?.footerHeight / fileFooter?.footerWidth) *
-                  (widthOfA4PageInPts - (paddingLeft + paddingRight)) +
-                paddingTop
-              : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) +
-                5
-            : getMarginByFormat(
-                letterhead_format,
-                header_footer,
-                "bottom",
-                0.5,
-              ) + 5
-          : getMarginByFormat(letterhead_format, header_footer, "bottom", 0.5) +
-            5;
+          : getReservedBottomPadding({
+              letterheadFormat: letterhead_format,
+              whatsappLetterheadFormat: whatsapp_letterhead_format,
+              paddingLeft,
+              paddingRight,
+            })
+        : getReservedBottomPadding({
+            letterheadFormat: letterhead_format,
+            whatsappLetterheadFormat: whatsapp_letterhead_format,
+            paddingLeft,
+            paddingRight,
+          });
 
     return {
       paddingTop,
@@ -1911,21 +1941,10 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
 
   const paddingStyles = calculatePadding();
   const getFooterImageRenderHeight = () => {
-    const footerWidth = Number(fileFooter?.footerWidth);
-    const footerHeight = Number(fileFooter?.footerHeight);
-    const availableWidth = Math.max(
-      0,
-      widthOfA4PageInPts -
-        ((paddingStyles?.paddingLeft || 0) + (paddingStyles?.paddingRight || 0)),
+    return getFooterImageRenderHeightForWidth(
+      paddingStyles?.paddingLeft,
+      paddingStyles?.paddingRight,
     );
-
-    if (footerWidth > 0 && footerHeight > 0 && availableWidth > 0) {
-      return (footerHeight / footerWidth) * availableWidth;
-    }
-
-    return Number.isFinite(fileFooter?.renderedFooterImageHeight)
-      ? fileFooter.renderedFooterImageHeight
-      : 0;
   };
 
   if (
@@ -4141,12 +4160,6 @@ const ViewPDF = ({ mode = NORMAL, ...props }) => {
                                 : 0
                               : 0,
                         }}
-                        break={
-                          option?.id == module_id &&
-                          caseManagerData?.doctor_data?.um_id == um_id
-                            ? true
-                            : false
-                        }
                       >
                         {option?.id === 1 &&
                         option?.enable === "Y" &&

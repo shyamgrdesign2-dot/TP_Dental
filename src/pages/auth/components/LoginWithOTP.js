@@ -4,8 +4,10 @@ import { checkPediaExists, validateUser, verifyAccessToken } from "../authServic
 import "../auth.scss"; // Assuming the provided styles are in this CSS file
 import { isMobile } from "react-device-detect";
 import { Spin } from "antd";
+import { isZyPreprodOrZyProdEnv } from "../../../utils/environment";
 
 const LoginWithOTP = ({ reason, handleView, number }) => {
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
   const navigate = useNavigate();
   const [mobileNumber, setMobileNumber] = useState(
     number === "null" ? "" : number
@@ -549,7 +551,9 @@ const LoginWithOTP = ({ reason, handleView, number }) => {
             </button>
 
             <br />
-            <p>Don't have an account? <a href="/login?view=signup">Sign up</a> </p>
+            {!isSignupDisabled && (
+              <p>Don't have an account? <a href="/login?view=signup">Sign up</a> </p>
+            )}
           </>
         )}
       </div>

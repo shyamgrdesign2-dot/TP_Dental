@@ -13,6 +13,7 @@ import {
 import { GB_DISABLE_MSG91_OTP_FLOW } from "../../../utils/constants";
 import { AISENSY_SCRIPT_CONTAINER,AISENSY_SCRIPT_ID,AISENSY_SCRIPT_SRC } from "../../../utils/constants";
 import { ASSETS } from "../../../assets";
+import { isZyPreprodOrZyProdEnv } from "../../../utils/environment";
 const {
   abdmLogo,
   nhaLogo,
@@ -22,6 +23,8 @@ const MicrosoftPartner = ASSETS.images.onboardPageIcons.microsoft;
 const rightGroup = ASSETS.images.onboardPageIcons.rightGroup;
 
 const SignUp = ({ onViewChange, isLoginFlow, mobileNumber: initialMobileNumber }) => {
+  const isSignupDisabled = isZyPreprodOrZyProdEnv();
+  const effectiveIsLoginFlow = isSignupDisabled ? true : isLoginFlow;
   const [mobileNumber, setMobileNumber] = useState(initialMobileNumber || "");
   const [error, setError] = useState(null);
   const [errorType, setErrorType] = useState(null);
@@ -38,8 +41,8 @@ const SignUp = ({ onViewChange, isLoginFlow, mobileNumber: initialMobileNumber }
   const [showTooltip, setShowTooltip] = useState(false);
 useEffect(() => {
   // Aisensy Integration
-  aisensybotInjection(isLoginFlow);
-}, [isLoginFlow]);
+  aisensybotInjection(effectiveIsLoginFlow);
+}, [effectiveIsLoginFlow]);
 
 useEffect(() => {
   return () => {
@@ -460,8 +463,8 @@ useEffect(() => {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const campaign = searchParams.get("utm_campaign");
-    setIsFromCampaign(!!campaign);
-  }, []);
+    setIsFromCampaign(!!campaign && !isSignupDisabled);
+  }, [isSignupDisabled]);
 
   const handleGetStarted = async () => {
     if (!scriptLoaded) {
@@ -481,9 +484,9 @@ useEffect(() => {
       setPrimaryBtnLoading(true);
 
       // First check user status
-      const response = isLoginFlow ? await validateUser(mobileNumber) : await checkPediaExists({mbl_no: `91${mobileNumber}`});
+      const response = effectiveIsLoginFlow ? await validateUser(mobileNumber) : await checkPediaExists({mbl_no: `91${mobileNumber}`});
 
-      const { message } = isLoginFlow ? response : response.data;
+      const { message } = effectiveIsLoginFlow ? response : response.data;
 
       switch (message) {
         case "Doctor exists!":
@@ -491,7 +494,7 @@ useEffect(() => {
           // For campaign URLs or login flow, proceed with OTP
           
           setIsFromCampaign(false);
-          if (isFromCampaign || !isLoginFlow) {
+          if (isFromCampaign || !effectiveIsLoginFlow) {
             setErrorType("inputFiled");
             // Clear UTM params from URL before redirecting
             const currentUrl = new URL(window.location.href);
@@ -567,23 +570,27 @@ useEffect(() => {
         case "Doctor does not exists!":
         case "Doctor not onboarded":
         case "User does not exists":
-          if (isLoginFlow) {
+          if (effectiveIsLoginFlow) {
             setError(
-              <>
-                User does not exist. Please{' '}
-                <span 
-                  onClick={() => {
-                    onViewChange("signup", mobileNumber, false);
-                    focusInput();
-                    setError(null);
-                    setErrorType(null);
-                  }}
-                  className="login-link"
-                >
-                  sign up
-                </span>
-                {' '}
-              </>
+              isSignupDisabled ? (
+                "User does not exist."
+              ) : (
+                <>
+                  User does not exist. Please{" "}
+                  <span 
+                    onClick={() => {
+                      onViewChange("signup", mobileNumber, false);
+                      focusInput();
+                      setError(null);
+                      setErrorType(null);
+                    }}
+                    className="login-link"
+                  >
+                    sign up
+                  </span>
+                  {" "}
+                </>
+              )
             );
             setErrorType("inputFiled");
           } else {
@@ -773,7 +780,7 @@ useEffect(() => {
     <div className="signup-form-wrapper">
       <div className="signup-form-container">
         <h2 style={{ margin: captchaVerifivation === "false" ? "1rem 0 1rem 0" : "1rem 0 3rem 0" }}>
-          {isLoginFlow ? (
+          {effectiveIsLoginFlow ? (
             "Welcome Doctor!"
           ) : (
             <>
@@ -838,18 +845,18 @@ useEffect(() => {
                 className="get-started-btn"
                 disabled={(!isValidMobileNumber(mobileNumber) || isButtonDisabled)}
               >
-                {isLoginFlow ? "Login via OTP" : "Get Started"}
+                {effectiveIsLoginFlow ? "Login via OTP" : "Get Started"}
               </Button>
              : null}
               {
                 !isMsg91Disabled ? (
                   <>
-                {isLoginFlow ? <div className="divider">or</div> : <div style={{height: "2rem"}}></div>}
+                {effectiveIsLoginFlow ? <div className="divider">or</div> : <div style={{height: "2rem"}}></div>}
                   </>
                 )
                 : null}
 
-            {isLoginFlow && (
+            {effectiveIsLoginFlow && (
               <Button
                 type="primary"
                 loading={secondaryBtnLoading}
@@ -862,8 +869,9 @@ useEffect(() => {
             )}
 
             <div className="login-link">
-              {isLoginFlow ? (
-                <>
+              {effectiveIsLoginFlow ? (
+                !isSignupDisabled && (
+                  <>
                   Not an existing user?{" "}
                   <span onClick={() => {
                     onViewChange("signup");
@@ -871,7 +879,8 @@ useEffect(() => {
                   }}>
                     <>Signup {isFromCampaign && <>for free</>}</>
                   </span>
-                </>
+                  </>
+                )
               ) : (
                 <>
                   Already have an Account?{" "}
