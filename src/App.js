@@ -32,7 +32,11 @@ import { lazyRetry } from "./utils/lazyRetry";
 import PatientDetails from "./pages/PatientDetails";
 import MobilePatientDetails from "./pages/mobile/PatientDetails/PatientDetails";
 import useRouteTracking from "./hooks/useRouteTracking";
-import { isProductionEnv } from "./utils/environment";
+import { isProdEnv, isProductionEnv } from "./utils/environment";
+import {
+  getNormalizedPhoneNumber,
+  syncPhoneAndCheckZydusAccountUser,
+} from "./utils/zydusAccountRouting";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
@@ -374,17 +378,46 @@ function App() {
     if (token) {
       try {
         const decodedToken = jwtDecode(token);
+        const phoneNumber = decodedToken?.result?.mobile_no;
         growthbook?.setAttributes({
           doctorId: decodedToken?.result?.doctor_unique_id,
           id: `${decodedToken?.result?.user_id}`,
           hos_business_id: `${decodedToken?.result?.hospital_business_id}`,
           clinic_id: `${decodedToken?.result?.clinic_id}`,
+          doctor_phone: phoneNumber,
+          doctor_phone_normalized: getNormalizedPhoneNumber(phoneNumber),
         });
       } catch (e) {
         console.log(e);
       }
     }
   }, []);
+
+  useEffect(() => {
+    const logoutZydusUserFromNormalProd = async () => {
+      if (!isProdEnv() || isLoginPage || isReceptionist) return;
+
+      const token = authToken || getToken();
+      if (!token) return;
+
+      try {
+        const decodedToken = jwtDecode(token);
+        const phoneNumber = decodedToken?.result?.mobile_no;
+        if (!phoneNumber) return;
+
+        const isZydusAccountUser =
+          await syncPhoneAndCheckZydusAccountUser(growthbook, phoneNumber);
+
+        if (isZydusAccountUser) {
+          handleLogout();
+        }
+      } catch (error) {
+        console.error("Error checking Zydus account user:", error);
+      }
+    };
+
+    logoutZydusUserFromNormalProd();
+  }, [authToken, isLoginPage, isReceptionist, location.pathname]);
 
   useEffect(() => {
     // Handle authToken in URL (e.g. from Medeco redirect)

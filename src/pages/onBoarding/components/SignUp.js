@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import { useFeatureIsOn, useGrowthBook } from "@growthbook/growthbook-react";
 import { Input, Button, Form, Spin } from "antd";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import "./Onboarding.scss";
@@ -13,7 +13,11 @@ import {
 import { GB_DISABLE_MSG91_OTP_FLOW } from "../../../utils/constants";
 import { AISENSY_SCRIPT_CONTAINER,AISENSY_SCRIPT_ID,AISENSY_SCRIPT_SRC } from "../../../utils/constants";
 import { ASSETS } from "../../../assets";
-import { isZyPreprodOrZyProdEnv } from "../../../utils/environment";
+import { isProdEnv, isZyPreprodOrZyProdEnv } from "../../../utils/environment";
+import {
+  getZydusProdLoginUrl,
+  syncPhoneAndCheckZydusAccountUser,
+} from "../../../utils/zydusAccountRouting";
 const {
   abdmLogo,
   nhaLogo,
@@ -24,6 +28,7 @@ const rightGroup = ASSETS.images.onboardPageIcons.rightGroup;
 
 const SignUp = ({ onViewChange, isLoginFlow, mobileNumber: initialMobileNumber }) => {
   const isSignupDisabled = isZyPreprodOrZyProdEnv();
+  const growthbook = useGrowthBook();
   const effectiveIsLoginFlow = isSignupDisabled ? true : isLoginFlow;
   const [mobileNumber, setMobileNumber] = useState(initialMobileNumber || "");
   const [error, setError] = useState(null);
@@ -466,6 +471,23 @@ useEffect(() => {
     setIsFromCampaign(!!campaign && !isSignupDisabled);
   }, [isSignupDisabled]);
 
+  const redirectZydusUserFromNormalProd = async () => {
+    if (!isProdEnv() || !effectiveIsLoginFlow) return false;
+
+    const isZydusAccountUser = await syncPhoneAndCheckZydusAccountUser(
+      growthbook,
+      mobileNumber
+    );
+
+    if (!isZydusAccountUser) return false;
+
+    const zydusLoginUrl = getZydusProdLoginUrl();
+    if (!zydusLoginUrl) return false;
+
+    window.location.replace(zydusLoginUrl);
+    return true;
+  };
+
   const handleGetStarted = async () => {
     if (!scriptLoaded) {
       setError("OTP service is initializing. Please try again in a moment.");
@@ -482,6 +504,10 @@ useEffect(() => {
     try {
       setIsButtonDisabled(true);
       setPrimaryBtnLoading(true);
+
+      if (await redirectZydusUserFromNormalProd()) {
+        return;
+      }
 
       // First check user status
       const response = effectiveIsLoginFlow ? await validateUser(mobileNumber) : await checkPediaExists({mbl_no: `91${mobileNumber}`});
@@ -662,6 +688,10 @@ useEffect(() => {
     try {
       setIsButtonDisabled(true);
       setSecondaryBtnLoading(true);
+
+      if (await redirectZydusUserFromNormalProd()) {
+        return;
+      }
 
       const response = await validateUser(mobileNumber);
       const { message, passwordSet } = response;
