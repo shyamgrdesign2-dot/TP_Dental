@@ -1151,22 +1151,22 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            // <AutoComplete
-            //   // defaultValue={searchParentQuery}
-            //   value={searchParentQuery}
-            //   onSearch={onSearchParent}
-            //   options={parentSearchOptions}
-            //   className="autocomplete-custom w-100"
-            //   onSelect={onSelectParent}
-            //   defaultActiveFirstOption={true}
-            //   popupClassName={!searchParentQuery && "boxpopup"}
-            // >
-            //   <Input
-            //     placeholder="Search Investigation"
-            //     prefix={<i className="icon-search"></i>}
-            //   />
-            // </AutoComplete>
-            null
+            !canShowVoiceRxNewRows && (
+              <AutoComplete
+                value={searchParentQuery}
+                onSearch={onSearchParent}
+                options={parentSearchOptions}
+                className="autocomplete-custom w-100"
+                onSelect={onSelectParent}
+                defaultActiveFirstOption={true}
+                popupClassName={!searchParentQuery && "boxpopup"}
+              >
+                <Input
+                  placeholder={`Search ${INVESTIGATION_TITLE}`}
+                  prefix={<i className="icon-search"></i>}
+                />
+              </AutoComplete>
+            )
           )}
         </div>
       </div>
