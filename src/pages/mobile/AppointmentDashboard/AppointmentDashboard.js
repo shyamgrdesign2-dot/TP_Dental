@@ -31,7 +31,6 @@ import {
 import { EVENTS } from '../../../utils/events';
 import { isChrome, isSafari } from 'react-device-detect';
 import { getDecodedToken, useLocalStorage } from '../../../utils/localStorage';
-import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
 import { env } from '../../../EnvironmentConfig';
 import { jwtDecode } from 'jwt-decode';
 import { generateBillToken } from '../../opdBilling/service';
@@ -63,7 +62,6 @@ const showDateFormat = 'DD-MM-YYYY';
 
 function AppointmentDashboard() {
   const navigate = useNavigate();
-  const navigateVoiceRx = useVoiceRxNavigation();
   const dispatch = useDispatch();
   const { isMobile, isPWA } = useDeviceType();
   const scrollContainerRef = useRef(null);
@@ -446,15 +444,13 @@ function AppointmentDashboard() {
         patient_id: record?.patient_unique_id,
       });
     }
-    navigateVoiceRx(
-      {
+    navigate('/voice-rx-consult', { 
+      state: { 
         patient_data: record,
         isFromTabView: true 
-      },
-      {},
-      "mobile_appointment_consult"
-    );
-  }, [navigateVoiceRx, profile]);
+      } 
+    });
+  }, [navigate, profile]);
 
   // Handle patient details click
   const handlePatientDetailsClick = useCallback((record) => {
@@ -1079,3 +1075,4 @@ function AppointmentDashboard() {
 }
 
 export default AppointmentDashboard;
+

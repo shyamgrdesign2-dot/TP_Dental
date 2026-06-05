@@ -16,7 +16,7 @@ import { clearSearch, searchPatients } from "../redux/appointmentsSlice";
 import { isNumeric, isAlphabet, getClinicName, isVoiceRxFree, shouldMonetizationDisabled } from "../utils/utils";
 import { resetVaccineState } from "../redux/vaccineSlice";
 
-import { GB_ISCRIBE, GB_SNAP_RX, GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX,GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, PAID } from "../utils/constants";
+import { GB_ISCRIBE, GB_SNAP_RX, GB_CVT_EXT_HOS, NEO_NATOLOGISTS_DP_ID, S_VOICE_RX,GB_VOICE_RX_FREE, PAID } from "../utils/constants";
 import { resetGrowthChartState } from "../redux/growthChartSlice";
 import { resetObstetricState } from "../redux/obstetricSlice";
 import { resetUploadDocState } from "../redux/uploadDocSlice";
@@ -64,7 +64,6 @@ function WalkInConsultation() {
     GB_SNAP_RX
   );
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const tp_monetization_enable = !shouldMonetizationDisabled();
@@ -581,14 +580,11 @@ function WalkInConsultation() {
       source: "Patient Selected",
     });
     
-    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
-      state: {
+    // Navigate to Voice Rx Doctor Consult Page
+    navigate("/voice-rx-consult", {
+      state: { 
         patient_data: patient,
-        isFromTabView: isMobileOnly,
-        ...(isVoiceRxNewFromGB && {
-          isVoiceRxNewUiFlow: true,
-          voiceRxEntryPoint: "walk_in_patient_selected",
-        }),
+        isFromTabView: isMobileOnly
       },
     });
   };

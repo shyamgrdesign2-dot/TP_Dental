@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
+import { isMobile } from "react-device-detect";
 
 import Header from "../common/Header";
 import SidebarDoctor from "../common/SidebarDoctor";

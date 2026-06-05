@@ -107,7 +107,6 @@ import CommonModal from "../../common/CommonModal";
 import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
-import { useVoiceRxNavigation } from "../../utils/voiceRxNavigation";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
   errorMessage,
@@ -268,7 +267,6 @@ function TabRx() {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const navigateVoiceRx = useVoiceRxNavigation();
   const { state } = location;
 
   // Create a combined module list that includes both user's modules and hospital-wide modules
@@ -1993,15 +1991,13 @@ function TabRx() {
       clinic_name,
     });
 
-    navigateVoiceRx(
-      {
+    navigate("/voice-rx-consult", {
+      state: {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
       },
-      {},
-      "tab_rx_header"
-    );
+    });
   };
 
   const handleVideoConsult = async () => {

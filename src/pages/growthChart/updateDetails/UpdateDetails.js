@@ -19,7 +19,6 @@ export default function UpdateDetails({
   parentalDetails,
   setShow,
   setParentalDetails,
-  onGrowthUpdated,
 }) {
   const { state } = useLocation();
   const { patient_data } = state;
@@ -79,7 +78,6 @@ export default function UpdateDetails({
                 gestation_period_days: parentalDetails?.gestation_period_days,
               }
         );
-        onGrowthUpdated?.();
       }, 1000);
     }
   };
@@ -113,7 +111,6 @@ export default function UpdateDetails({
                 gestation_period_days: parentalDetails?.gestation_period_days,
               }
         );
-        onGrowthUpdated?.();
       }, 1000);
     }
   };

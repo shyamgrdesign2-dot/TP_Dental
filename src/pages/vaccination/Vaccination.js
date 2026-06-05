@@ -38,7 +38,7 @@ import { getDecodedToken } from "../../utils/localStorage.js";
 import { ASSETS } from "../../assets";
 const closeFill = ASSETS.images.closefill;
 
-function Vaccination({ handleDrawerVaccination, source, onVaccinationUpdated }) {
+function Vaccination({ handleDrawerVaccination, source }) {
   const [isFixed, setIsFixed] = useState(false);
   const [selectAll, setSelectAll] = useState(false);
   const [selectedCards, setSelectedCards] = useState([]);
@@ -727,7 +727,6 @@ function Vaccination({ handleDrawerVaccination, source, onVaccinationUpdated }) 
             printVaccineCategory={printVaccineCategory}
             setPrintVaccineCategory={setPrintVaccineCategory}
             source={source}
-            onVaccinationUpdated={onVaccinationUpdated}
           />
         )}
         <div

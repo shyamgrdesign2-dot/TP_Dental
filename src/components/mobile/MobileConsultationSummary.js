@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 
 import { S_AMBIENT_VOICE_RX } from '../../utils/constants';
-import { useVoiceRxNavigation } from '../../utils/voiceRxNavigation';
 import PatientDetailsBottomSheet from './PatientDetailsBottomSheet';
 import './MobileConsultationSummary.scss';
 import { ASSETS } from "../../assets";
@@ -27,7 +26,6 @@ const fullScreenIcon = ASSETS.mobile.fullScreen;
 function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxClick, mobileRxData, queries = [] }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const navigateVoiceRx = useVoiceRxNavigation();
 
   const { state } = location;
   // Merge mobileRxData (from Rx Pad) with location.state
@@ -61,7 +59,9 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
   const isAmbientMode = mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX;
 
   const handleBack = () => {
-    navigateVoiceRx({ patient_data }, {}, "mobile_consultation_summary_back");
+    navigate('/voice-rx-consult', {
+      state: { patient_data }
+    });
   };
 
   const getPatientAge = () => {
@@ -375,3 +375,4 @@ function MobileConsultationSummary({ onOpenRxPad, onTypedInputSubmit, onVoiceRxC
 }
 
 export default MobileConsultationSummary;
+
