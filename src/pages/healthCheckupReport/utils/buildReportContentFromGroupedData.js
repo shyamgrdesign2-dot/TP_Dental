@@ -597,7 +597,7 @@ ${radiologyRows}
   const consultationsSection = `
 <div class="print-section-group print-page-break">
 <h2 class="report-section-title">Consultations</h2>
-<table class="report-data-table report-consultations">
+<table class="report-data-table">
   <thead><tr><th><p><strong>DEPARTMENT & DOCTOR NAME</strong></p></th><th><p><strong>NOTES</strong></p></th></tr></thead>
   <tbody>
 ${consultationRows}
