@@ -507,7 +507,7 @@ const SCPopup = ({
 
   const handleAutofill = () => {
     const payloads = buildSelectedData();
-    if (Object.keys(payloads?.voicePayload?.vitalsAndBodyComposition).length > 0) {
+    if (payloads?.voicePayload?.vitalsAndBodyComposition && Object.keys(payloads?.voicePayload?.vitalsAndBodyComposition).length > 0) {
       onAddUpdateClicked(payloads.voicePayload.vitalsAndBodyComposition);
     }
     if (!payloads) return;
