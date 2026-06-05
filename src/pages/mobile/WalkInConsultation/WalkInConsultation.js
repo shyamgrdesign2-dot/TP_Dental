@@ -16,7 +16,6 @@ import {
   isAlphabet 
 } from '../../../utils/utils';
 import { getDecodedToken } from '../../../utils/localStorage';
-import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
 import { getProfile } from '../../../redux/doctorsSlice';
 import { ASSETS } from "../../../assets";
 const arrowLeftIcon = ASSETS.mobile.arrowLeft;
@@ -25,7 +24,6 @@ const PATIENT_LIST_PAGE_SIZE = 25;
 
 function WalkInConsultation() {
   const navigate = useNavigate();
-  const navigateVoiceRx = useVoiceRxNavigation();
   const dispatch = useDispatch();
   const decodedToken = getDecodedToken();
   const observer = useRef();
@@ -167,15 +165,13 @@ function WalkInConsultation() {
   }, [navigate]);
 
   const handleVoiceRx = useCallback((patient) => {
-    navigateVoiceRx(
-      {
+    navigate('/voice-rx-consult', {
+      state: { 
         patient_data: patient,
         isFromTabView: true
-      },
-      {},
-      "mobile_walk_in_patient_selected"
-    );
-  }, [navigateVoiceRx]);
+      }
+    });
+  }, [navigate]);
 
   const handleAddNewPatient = useCallback(() => {
     // Same logic as web version
@@ -305,3 +301,4 @@ function WalkInConsultation() {
 }
 
 export default React.memo(WalkInConsultation);
+

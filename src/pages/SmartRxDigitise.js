@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Row, Col, Spin, message } from "antd";
+import { Row, Col, Spin } from "antd";
 import { isMobile } from "react-device-detect";
 import { jwtDecode } from "jwt-decode";
 // import { errorMessage } from "../utils/utils";
@@ -787,24 +787,6 @@ function SmartRxDigitise() {
           }
         );
       } else {
-        const resolvedAppointmentId =
-          pam_id ??
-          state?.appointmentId ??
-          patient_data?.pam_id ??
-          patient_data?.appointmentId;
-        const normalizedAppointmentId = String(resolvedAppointmentId ?? "").trim();
-        const isValidAppointmentId =
-          resolvedAppointmentId !== undefined &&
-          resolvedAppointmentId !== null &&
-          normalizedAppointmentId !== "" &&
-          Number.isFinite(Number(normalizedAppointmentId));
-
-        if (!isValidAppointmentId) {
-          setIsLoading(false);
-          message.error("Appointment ID is missing. Please reopen the visit and try again.");
-          return;
-        }
-
         const formData = new FormData();
         const cleanedToken = token.replace(/['"]+/g, "");
 
@@ -838,7 +820,7 @@ function SmartRxDigitise() {
         // Append other required fields
         formData.append("doctorId", tokenData.user_id);
         formData.append("patientId", patient_data.patient_unique_id);
-        formData.append("appointmentId", normalizedAppointmentId);
+        formData.append("appointmentId", pam_id || patient_data?.pam_id);
         formData.append("caseId", tcm_id);
 
         // Append ocrModelSelected only if isCustomSSRX is true

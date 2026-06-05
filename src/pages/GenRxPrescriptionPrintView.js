@@ -10,7 +10,6 @@ import {
   errorMessage,
   getClinicName,
   isApollo,
-  isValidMongoId,
   trackEvent,
   sendMessageToParent
 } from "../utils/utils";
@@ -18,9 +17,8 @@ import api from "../api/services/axiosService";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
-import { GB_VOICE_RX_NEW_UI, WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
+import { WHATS_APP_API, WTSAP_ERR_MESSAGE, S_AMBIENT_VOICE_RX, S_VOICE_RX, LANGUAGE_LIST } from "../utils/constants";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../utils/constants";
-import { useFeatureIsOn } from "@growthbook/growthbook-react";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -63,7 +61,6 @@ function GenRxPrescriptionPrintView() {
 
   const { loading } = useSelector((state) => state.caseManager);
   const { profile, defaultPrintSettings } = useSelector((state) => state.doctors);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
@@ -400,9 +397,6 @@ function GenRxPrescriptionPrintView() {
           state: {
             patient_data,
             caseManagerData: action.payload,
-            ...(isVoiceRxNewFromGB && isValidMongoId(action.payload?.smart_prescription_filename || rxId)
-              ? { isVoiceRxNewUiFlow: true }
-              : {}),
           },
         });
       } else {

@@ -70,7 +70,6 @@ const UpdateVaccine = ({
   setCardClicked,
   setLoading,
   source,
-  onVaccinationUpdated,
 }) => {
   const dispatch = useDispatch();
   const { TextArea } = Input;
@@ -322,7 +321,6 @@ const UpdateVaccine = ({
       if (updateVaccineRes?.every((res) => res?.status === 201)) {
         setShowSuccess(true);
         getVaccineDetails(true);
-        if (onVaccinationUpdated) onVaccinationUpdated();
         setTimeout(() => {
           setShow(false);
           setSelectedCards([]);
@@ -447,7 +445,6 @@ const UpdateVaccine = ({
       if (updateDueDateRes?.every((res) => res?.status === 200)) {
         setShowSuccess(true);
         getVaccineDetails(true);
-        if (onVaccinationUpdated) onVaccinationUpdated();
         setTimeout(() => {
           setShow(false);
           setSelectedCards([]);
@@ -541,7 +538,6 @@ const UpdateVaccine = ({
       );
       if (selectedVaccines?.length === 1) {
         getVaccineDetails(true);
-        if (onVaccinationUpdated) onVaccinationUpdated();
         setShow(false);
       }
       setShowDefaultPopup(null);

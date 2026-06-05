@@ -41,7 +41,6 @@ import {
   GB_TAB_RX_CVT,
   GB_TELE_CONSULT,
   GB_VOICE_RX_FREE,
-  GB_VOICE_RX_NEW_UI,
   GB_CVT_EXT_HOS,
   CLINIC_TARGET_STATUS,
 } from "../utils/constants";
@@ -56,13 +55,12 @@ import {
   sendMessageToParent,
   errorMessage,
 } from "../utils/utils";
-import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 import { env } from "../EnvironmentConfig";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import CvtKnowMore from "../pages/smartSync/components/CvtKnowMore";
 import moment from "moment";
 import { getModules } from "../redux/customModuleSlice";
-import { getGenRx } from "../api/services/ApiGenRx";
+import { getGenRx, getAmbientRx } from "../api/services/ApiGenRx";
 import ApiCustomModule from "../api/services/ApiCustomModule";
 import ApiVideoConsult from "../api/services/ApiVideoConsult";
 
@@ -569,7 +567,6 @@ function Cardiology(props) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [genRxData, setGenRxData] = useState(null);
-  const [genRxVersion, setGenRxVersion] = useState(null);
   const [isGenRxTableView, setIsGenRxTableView] = useState(false);
   const [genRxQueries, setGenRxQueries] = useState(null);
   const [hasVideoConsult, setHasVideoConsult] = useState(false);
@@ -578,7 +575,6 @@ function Cardiology(props) {
   /** Ambient transcript: array of { type: 'conversation'|'text', conversations?: [], text?: '' } for mixed bubbles + TEXT_WITH_CONTEXT */
   const [ambientTranscriptBlocks, setAmbientTranscriptBlocks] = useState([]);
   const [isAmbientRx, setIsAmbientRx] = useState(false);
-  const lastGenRxFetchIdRef = useRef(null);
   const [selectedLang, setSelectedLang] = useState("");
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [mobilePdfNumPages, setMobilePdfNumPages] = useState(0);
@@ -600,68 +596,12 @@ function Cardiology(props) {
   const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
   const isVideoConsultAccessibleFromGB = isVideoConsultOn || isTeleConsultOn;
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
-  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const tp_monetization_enable = !shouldMonetizationDisabled();
   const isGroundingAccessable = useGrounding();
 
   const baseUrl = { customBaseUrl: env.casemanager_api_url };
   const baseUrlRxDigitise = env.rx_digitization;
-  const rawSmartPrescriptionFilename = viewCaseManagerData?.smart_prescription_filename;
-  const smartPrescriptionFilename = Array.isArray(rawSmartPrescriptionFilename)
-    ? rawSmartPrescriptionFilename.find(Boolean)
-    : rawSmartPrescriptionFilename;
-  const isVoiceRxVisit = isValidMongoId(smartPrescriptionFilename);
-  const normalizedGenRxVersion =
-    typeof genRxVersion === "string" ? genRxVersion.trim().toLowerCase() : "";
-  const isVoiceRxVersionLoading = isVoiceRxVisit && normalizedGenRxVersion === "";
-  const isVoiceRxV3 = normalizedGenRxVersion === "v3";
-  const shouldUseVoiceRxPrintPayload =
-    isVoiceRxVisit && !isVoiceRxVersionLoading && !isVoiceRxV3;
-  const shouldShowVoiceRxTabs =
-    isVoiceRxVisit && !isVoiceRxVersionLoading && !!genRxData;
-  const shouldUseNormalConsultPayload =
-    !isVoiceRxVisit || isVoiceRxV3;
-  const resolvedPrescriptionPamId =
-    viewCaseManagerData?.pam_id ??
-    tcmData?.pam_id ??
-    patient_data?.pam_id ??
-    viewCaseManagerData?.appointmentId ??
-    tcmData?.appointmentId;
-
-  const buildPrescriptionPrintViewUrl = useCallback(() => {
-    if (!viewCaseManagerData?.print_url) return null;
-
-    try {
-      const urlObj = new URL(viewCaseManagerData.print_url);
-      if (resolvedPrescriptionPamId) {
-        urlObj.searchParams.set("pam_id", resolvedPrescriptionPamId);
-      }
-      if (shouldUseVoiceRxPrintPayload) {
-        if (isAmbientRx) {
-          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
-          urlObj.searchParams.set("voiceRxDigitize", "false");
-        } else {
-          urlObj.searchParams.delete("ambientVoiceRxDigitize");
-          urlObj.searchParams.set("voiceRxDigitize", "true");
-        }
-        urlObj.searchParams.set("rxDigitize", "false");
-      } else {
-        urlObj.searchParams.delete("ambientVoiceRxDigitize");
-      }
-      urlObj.searchParams.set("lg", selectedLang);
-      return urlObj.toString();
-    } catch (error) {
-      console.error("Invalid print URL:", error);
-      return null;
-    }
-  }, [
-    resolvedPrescriptionPamId,
-    isAmbientRx,
-    selectedLang,
-    shouldUseVoiceRxPrintPayload,
-    viewCaseManagerData?.print_url,
-  ]);
 
   useEffect(() => {
     setIsGenRxTableView(false);
@@ -758,21 +698,10 @@ function Cardiology(props) {
     if (viewCaseManagerData?.moduleContents?.length) {
       dispatch(getModules(userId));
     }
-    if (isValidMongoId(smartPrescriptionFilename)) {
-      if (lastGenRxFetchIdRef.current !== smartPrescriptionFilename) {
-        lastGenRxFetchIdRef.current = smartPrescriptionFilename;
-        getGenRxDetails(smartPrescriptionFilename);
-      }
-    } else {
-      lastGenRxFetchIdRef.current = null;
-      setIsAmbientRx(false);
-      setGenRxData(null);
-      setGenRxVersion(null);
-      setGenRxQueries(null);
-      setAmbientTranscriptBlocks([]);
-      setAmbientConversations([]);
+    if (isValidMongoId(viewCaseManagerData?.smart_prescription_filename)) {
+      getGenRxDetails();
     }
-  }, [viewCaseManagerData, isSnapRxDigitizationAccessable, isVideoConsultAccessibleFromGB, isVoiceRxNewFromGB, smartPrescriptionFilename]);
+  }, [viewCaseManagerData, isSnapRxDigitizationAccessable, isVideoConsultAccessibleFromGB]);
 
   // Function to update rxDigitize parameter in the URL
   const updateRxDigitizeInUrl = (url, showDigitalRx) => {
@@ -831,10 +760,6 @@ function Cardiology(props) {
   // This function is called in render and useEffect, so memoization prevents redundant work
   // MUST be defined before mobilePdfUrl useMemo to avoid initialization error
   const getMobilePdfUrl = useCallback(() => {
-    if (isVoiceRxVersionLoading) {
-      return null;
-    }
-
     // For SmartRx or SnapRx with digitization: use printUrl for Digital Rx, print_rx_url for Written Rx
     if ((isSmartRxFile || isTabRx) && isRxdigitised && !isSnapRx) {
       return showDigitalRx 
@@ -849,14 +774,27 @@ function Cardiology(props) {
         : (viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null);
     }
     
-    // VoiceRx print URL is centralized so legacy empty caseManagerData visits use the right digitize payload.
-    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx && !isSmartRxFile && !isTabRx && !isSnapRx) {
-      return buildPrescriptionPrintViewUrl();
+    // For Voice Rx (GenRx): use print_url with voiceRxDigitize/ambientVoiceRxDigitize for Digital Rx, print_rx_url for Transcript
+    if (showDigitalGenRx && !isSmartRxFile && !isTabRx && !isSnapRx) {
+      if (!viewCaseManagerData?.print_url) return null;
+      try {
+        const urlObj = new URL(viewCaseManagerData.print_url);
+        if (isAmbientRx) {
+          urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+          urlObj.searchParams.set("rxDigitize", "false");
+        } else {
+          urlObj.searchParams.set("voiceRxDigitize", "true");
+        }
+        return `${urlObj.toString()}&lg=${selectedLang}`;
+      } catch (error) {
+        console.error("Invalid URL:", error);
+        return null;
+      }
     }
     
-    // Default full prescription print uses print_url; print_rx_url is only for "Print Medicines Only".
-    return shouldUseNormalConsultPayload && viewCaseManagerData?.print_url ? `${viewCaseManagerData.print_url}&lg=${selectedLang}` : null;
-  }, [isVoiceRxVersionLoading, isSmartRxFile, isTabRx, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_url, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, shouldUseVoiceRxPrintPayload, shouldUseNormalConsultPayload, buildPrescriptionPrintViewUrl]);
+    // Default: use print_rx_url for regular prescriptions
+    return viewCaseManagerData?.print_rx_url ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}` : null;
+  }, [isSmartRxFile, isTabRx, isRxdigitised, isSnapRx, showDigitalRx, printUrl, selectedLang, viewCaseManagerData?.print_rx_url, showDigitalSnapRx, isSnapRxdigitised, showDigitalGenRx, viewCaseManagerData?.print_url, isAmbientRx]);
 
   // MOBILE OPTIMIZATION: Memoize PDF URL to avoid recalculating in render and useEffect
   // This prevents the effect from running unnecessarily when unrelated dependencies change
@@ -918,39 +856,55 @@ function Cardiology(props) {
     !showDigitalSnapRx && !isTabRx;
 
   const printUrlWithLang = useMemo(() => {
-    if (isVoiceRxVersionLoading) {
-      return null;
-    }
-
     // Digital Rx / Snap Rx: use updated printUrl
     if (showDigitalRx || showDigitalSnapRx) {
       return printUrl ? `${printUrl}&lg=${selectedLang}` : null;
     }
 
-    // VoiceRx print URL is centralized so legacy empty caseManagerData visits use the right digitize payload.
-    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
-      return buildPrescriptionPrintViewUrl();
+    // Voice Rx (GenRx): use print_url with voice/ambient digitize params when applicable
+    if (showDigitalGenRx && !isSmartRxFile && !isSnapRx && !isTabRx) {
+      if (!viewCaseManagerData?.print_url) return null;
+      if (
+        genRxData &&
+        isValidMongoId(viewCaseManagerData?.smart_prescription_filename) &&
+        !isSmartRxFile &&
+        !isTabRx
+      ) {
+        try {
+          const urlObj = new URL(viewCaseManagerData.print_url);
+          if (isAmbientRx) {
+            urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+            urlObj.searchParams.set("rxDigitize", "false");
+          } else {
+            urlObj.searchParams.set("voiceRxDigitize", "true");
+          }
+          return `${urlObj.toString()}&lg=${selectedLang}`;
+        } catch (error) {
+          console.error("Invalid print URL:", error);
+          return null;
+        }
+      }
+      return `${viewCaseManagerData.print_url}&lg=${selectedLang}`;
     }
 
-    // Default full prescription print uses print_url; print_rx_url is only for "Print Medicines Only".
-    return shouldUseNormalConsultPayload && viewCaseManagerData?.print_url
-      ? `${viewCaseManagerData.print_url}&lg=${selectedLang}`
+    // Default: use print_rx_url
+    return viewCaseManagerData?.print_rx_url
+      ? `${viewCaseManagerData.print_rx_url}&lg=${selectedLang}`
       : null;
   }, [
-    isVoiceRxVersionLoading,
     showDigitalRx,
     showDigitalSnapRx,
     printUrl,
     selectedLang,
     showDigitalGenRx,
-    shouldUseVoiceRxPrintPayload,
-    shouldUseNormalConsultPayload,
     isSmartRxFile,
     isSnapRx,
     isTabRx,
     viewCaseManagerData?.print_url,
     viewCaseManagerData?.print_rx_url,
-    buildPrescriptionPrintViewUrl,
+    viewCaseManagerData?.smart_prescription_filename,
+    genRxData,
+    isAmbientRx,
   ]);
 
   const printRxUrlWithLang = useMemo(() => {
@@ -959,7 +913,6 @@ function Cardiology(props) {
   }, [viewCaseManagerData?.print_rx_url, selectedLang]);
 
   const {
-    payload: printPayloadData,
     printBlob: printPayloadBlob,
     isGenerating: isPrintPayloadGenerating,
   } = usePrintPayloadPdf({
@@ -970,61 +923,6 @@ function Cardiology(props) {
     skipFetch: !printUrlWithLang,
     isCvtExtHosAccessableFromGB,
   });
-
-  const parseObjectValue = useCallback((value) => {
-    if (!value || typeof value !== "string") return value;
-    try {
-      return JSON.parse(value);
-    } catch (error) {
-      return value;
-    }
-  }, []);
-
-  const unwrapDigitizePayload = useCallback((value) => {
-    const parsedValue = parseObjectValue(value);
-    if (!parsedValue || typeof parsedValue !== "object" || Array.isArray(parsedValue)) {
-      return null;
-    }
-    const candidate =
-      parseObjectValue(parsedValue.voiceRxDigitizeEditedData) ||
-      parseObjectValue(parsedValue.rxDigitizeEditedData) ||
-      parseObjectValue(parsedValue.editedData) ||
-      parseObjectValue(parsedValue.digitizeData) ||
-      parseObjectValue(parsedValue.refinedData) ||
-      parseObjectValue(parsedValue.payload) ||
-      parseObjectValue(parsedValue.prescription) ||
-      parsedValue;
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
-      return null;
-    }
-    const numericKeys = Object.keys(candidate).filter((key) => /^\d+$/.test(key));
-    if (numericKeys.length && candidate[numericKeys[0]] && typeof candidate[numericKeys[0]] === "object") {
-      return candidate[numericKeys[0]];
-    }
-    return candidate;
-  }, [parseObjectValue]);
-
-  const voiceRxPrintPayloadData = useMemo(() => {
-    const smartData =
-      printPayloadData?.smartDigitizeRxData ||
-      printPayloadData?.smart_digitize_rx_data ||
-      printPayloadData?.data?.smartDigitizeRxData ||
-      printPayloadData?.data?.smart_digitize_rx_data ||
-      printPayloadData?.data?.data?.smartDigitizeRxData ||
-      printPayloadData?.data?.data?.smart_digitize_rx_data ||
-      null;
-    if (!smartData) return null;
-    const parsedSmartData = parseObjectValue(smartData);
-    return (
-      unwrapDigitizePayload(parsedSmartData?.voiceRxDigitizeEditedData) ||
-      unwrapDigitizePayload(parsedSmartData?.editedData) ||
-      unwrapDigitizePayload(parsedSmartData?.digitizeData) ||
-      unwrapDigitizePayload(parsedSmartData?.refinedData) ||
-      unwrapDigitizePayload(parsedSmartData)
-    );
-  }, [parseObjectValue, printPayloadData, unwrapDigitizePayload]);
-
-  const legacyVoiceRxDisplayData = voiceRxPrintPayloadData || genRxData;
 
   const buildPayloadBlobFromPrintUrl = useCallback(async (sourceUrl) => {
     if (!sourceUrl) return null;
@@ -1096,52 +994,31 @@ function Cardiology(props) {
   const fetchCustomModules = async () => {
     try {
       if (
+        !viewCaseManagerData?.doctor_data?.um_id ||
         !viewCaseManagerData?.moduleContents?.length
       ) {
         setCustomModulesRxData([]);
         return;
       }
 
-      const moduleContents = viewCaseManagerData.moduleContents.filter(
-        (module) => module.content && module.content.length > 0
-      );
-
-      if (isVoiceRxNewFromGB) {
-        setCustomModulesRxData(moduleContents);
-      }
-
-      if (!viewCaseManagerData?.doctor_data?.um_id) {
-        if (!isVoiceRxNewFromGB) setCustomModulesRxData([]);
-        return;
-      }
-
       const response = await ApiCustomModule.getModules(
         viewCaseManagerData.doctor_data.um_id
       );
-      const moduleDefinitions = response?.modules || response?.data?.modules || [];
 
       const customModulesMap = new Map(
-        moduleDefinitions.map((module) => [module.module_id, module])
+        response?.modules?.map((module) => [module.module_id, module.name])
       );
 
-      const processedModules = moduleContents
+      const processedModules = viewCaseManagerData.moduleContents
+        .filter((module) => module.content && module.content.length > 0)
         .map((content) => ({
           ...content,
-          module_name: customModulesMap.get(content.module_id)?.name || content?.module_name,
-          namedFields: customModulesMap.get(content.module_id)?.namedFields || content?.namedFields,
+          module_name: customModulesMap.get(content.module_id) || content?.module_name,
         }));
 
       setCustomModulesRxData(processedModules);
     } catch (error) {
       console.error("Error fetching custom modules:", error);
-      if (isVoiceRxNewFromGB && viewCaseManagerData?.moduleContents?.length) {
-        setCustomModulesRxData(
-          viewCaseManagerData.moduleContents.filter(
-            (module) => module.content && module.content.length > 0
-          )
-        );
-        return;
-      }
       setCustomModulesRxData([]);
     }
   };
@@ -1191,51 +1068,50 @@ function Cardiology(props) {
     }
   }, []);
 
-  const hasVoiceConversation = (conversation) => {
-    if (Array.isArray(conversation)) return conversation.length > 0;
-    return typeof conversation === "string" && conversation.trim() !== "";
-  };
-
-  const isDoctorTranscriptSpeaker = (speaker) => {
-    const normalized = String(speaker || "").trim().toLowerCase();
-    return normalized === "doctor" || normalized === "dr";
-  };
-
-  const getGenRxDetails = async (recordId) => {
+  const getGenRxDetails = async () => {
     try {
       setIsGenRxTableView(false);
-      setGenRxVersion(null);
-      const initialResponse = await getGenRx(recordId);
+      const initialResponse = await getGenRx(
+        viewCaseManagerData?.smart_prescription_filename
+      );
 
       if (initialResponse.success) {
-        const payload = initialResponse.data ?? initialResponse.response;
-        if (payload) {
-          if (lastGenRxFetchIdRef.current !== recordId) return;
+        // Check if conversation exists (support both .data and .response from API)
+        const initialPayload = initialResponse.data ?? initialResponse.response;
+        const conversation = initialPayload?.history?.[0]?.conversation;
+        const hasConversation = conversation && Array.isArray(conversation) && conversation.length > 0;
+
+        let response = initialResponse;
+        
+        // If conversation has doctor and patient conversation, call ambient API
+        if (hasConversation) {
+          const ambientResponse = await getAmbientRx(
+            viewCaseManagerData?.smart_prescription_filename
+          );
+          if (ambientResponse.success) {
+            response = ambientResponse;
+          }
+        }
+        // Support both response.data (getGenRx) and response.response (update API)
+        const payload = response.data ?? response.response;
+        if (response.success && payload) {
           const d = payload;
-          const voiceHistory = Array.isArray(d) ? d : (Array.isArray(d?.history) ? d.history : []);
-          const normalizedVersion =
-            typeof d?.version === "string" && d.version.trim()
-              ? d.version.trim().toLowerCase()
-              : "legacy";
-          setGenRxVersion(normalizedVersion);
-          const hasTabularView = normalizedVersion === "v2";
+          const hasTabularView =
+            typeof d?.version === "string" &&
+            d.version.trim().toLowerCase() === "v2";
           setIsGenRxTableView(hasTabularView);
           setSnapRxDigitisedData([]);
           setRxDigitisedData([]);
 
           // Ambient = conversation in history (no rxDigitizationHistory)
-          const isAmbientMode = Boolean(
-            d?.isAmbientVoiceRxDigitizeBool ||
-              d?.ambientVoiceRxDigitizeEditedData ||
-              voiceHistory.some((h) => hasVoiceConversation(h?.conversation))
-          );
+          const isAmbientMode = hasConversation || (d?.history?.[0]?.conversation?.length ?? 0) > 0;
           setIsAmbientRx(isAmbientMode);
 
           // Prescription: editedData → digitizeData → digitize (top, history[0], or latest history)
-          let prescriptionData = d.ambientVoiceRxDigitizeEditedData ?? d.editedData ?? d.digitizeData ?? null;
+          let prescriptionData = d.editedData ?? d.digitizeData ?? null;
           if (!prescriptionData) {
-            const lastHistory = voiceHistory.length > 0 ? voiceHistory[voiceHistory.length - 1] : null;
-            const digitize = d.digitize ?? voiceHistory?.[0]?.digitize ?? lastHistory?.digitize;
+            const lastHistory = d.history?.length > 0 ? d.history[d.history.length - 1] : null;
+            const digitize = d.digitize ?? d.history?.[0]?.digitize ?? lastHistory?.digitize;
             if (digitize && typeof digitize === "object" && !Array.isArray(digitize)) {
               const numericKeys = Object.keys(digitize).filter((k) => /^\d+$/.test(k));
               prescriptionData = numericKeys.length ? digitize[numericKeys[0]] : digitize;
@@ -1245,42 +1121,35 @@ function Cardiology(props) {
           }
 
           if (isAmbientMode) {
-            setGenRxData(prescriptionData || {});
+            setGenRxData(prescriptionData);
 
             // Build transcript blocks from history: conversation bubbles or TEXT_WITH_CONTEXT as text (no bubbles)
-            const historyItems = voiceHistory.filter((h) =>
-              hasVoiceConversation(h.conversation) ||
+            const historyItems = d?.history?.filter((h) =>
+              (Array.isArray(h.conversation) && h.conversation.length > 0) ||
               (h.transcription && h.transcription.trim()) ||
               (h.source && typeof h.source === "string" && h.source.trim())
             ) ?? [];
             const blocks = historyItems.map((h) => {
               const isTextOnly = h.type === "TEXT_WITH_CONTEXT";
-              const text =
-                h.transcription ??
-                (typeof h.conversation === "string" ? h.conversation : "") ??
-                (typeof h.source === "string" ? h.source : "") ??
-                "";
+              const text = h.transcription ?? (typeof h.source === "string" ? h.source : "") ?? "";
               if (isTextOnly) {
                 return { type: "text", text };
               }
-              if (typeof h.conversation === "string") {
-                return { type: "text", text: h.conversation };
-              }
-              return { type: "conversation", conversations: Array.isArray(h.conversation) ? h.conversation : [] };
+              return { type: "conversation", conversations: h.conversation || [] };
             }).filter((b) => b.type === "text" ? (b.text && b.text.trim()) : b.conversations.length > 0);
 
             setAmbientTranscriptBlocks(blocks);
-            setAmbientConversations(historyItems.flatMap((h) => Array.isArray(h.conversation) ? h.conversation : []));
+            setAmbientConversations(historyItems.flatMap((h) => h.conversation || []));
           } else {
             // Dictate: use full history for transcripts (one per update)
             setGenRxData(prescriptionData ?? d?.editedData ?? d?.digitizeData);
-            const historyTranscriptions = voiceHistory
+            const historyTranscriptions = d?.history
               ?.map((item) => item.transcription)
               ?.filter((t) => t && t !== "null" && t.trim());
             setGenRxQueries(historyTranscriptions?.length > 0 ? historyTranscriptions : null);
           }
         } else {
-          throw new Error(initialResponse.error || "Failed to get Rx");
+          throw new Error(response.error || "Failed to get Rx");
         }
       } else {
         throw new Error(initialResponse.error || "Failed to get Rx");
@@ -1632,35 +1501,29 @@ function Cardiology(props) {
     : "";
 
   const printInAppContent = async () => {
-    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx) {
+    let voiceRxUrl;
+    if (showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Print", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
         Doctor_Unique_Id: profile?.doctor_unique_id,
       });
+      const urlObj = new URL(viewCaseManagerData?.print_url);
+      if (isAmbientRx) {
+        urlObj.searchParams.set("ambientVoiceRxDigitize", "true");
+        urlObj.searchParams.set("rxDigitize", "false");
+      } else {
+        urlObj.searchParams.set("voiceRxDigitize", "true");
+      }
+      voiceRxUrl = urlObj.toString();
     }
-
-    let printUrlRx =
+    const printUrlRx =
       showDigitalRx || showDigitalSnapRx
         ? printUrl
-        : shouldUseVoiceRxPrintPayload && showDigitalGenRx && !isTabRx
-          ? buildPrescriptionPrintViewUrl()
+        : showDigitalGenRx && voiceRxUrl && !isTabRx
+          ? voiceRxUrl
           : viewCaseManagerData?.print_url;
-
-    if (!printUrlRx) {
-      errorMessage("Print URL is missing.");
-      return;
-    }
-
-    try {
-      const urlObj = new URL(printUrlRx);
-      urlObj.searchParams.set("lg", selectedLang);
-      printUrlRx = urlObj.toString();
-    } catch (error) {
-      printUrlRx = `${printUrlRx}&lg=${selectedLang}`;
-    }
-
-    sendMessageToParent(EVENTS.PRINT, { url: printUrlRx });
+    sendMessageToParent(EVENTS.PRINT, { url: `${printUrlRx}&lg=${selectedLang}` });
     // navigate(`/patient_details/?url=${printUrl}&lg=${selectedLang}&key=print`, {
     //   replace: true,
     //   state: { patient_data: patient_data },
@@ -1807,7 +1670,7 @@ function Cardiology(props) {
       sendMessageToParent(EVENTS.DOWNLOAD, { url: uploadedUrl });
     };
 
-    if (shouldUseVoiceRxPrintPayload && showDigitalGenRx) {
+    if (showDigitalGenRx) {
       window.Moengage.track_event("TP_Digitised_Prescription_Download", {
         Doctor_Name: profile?.um_name,
         Doctor_Number: profile?.um_contact,
@@ -1885,38 +1748,6 @@ function Cardiology(props) {
         },
       });
     }
-
-    const isVoiceRxEdit = isValidMongoId(viewCaseManagerData?.smart_prescription_filename);
-    if (isVoiceRxNewFromGB && isVoiceRxEdit) {
-      let videoConsultData;
-      try {
-        const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
-        if (tcmId) {
-          const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
-          const statusType = response?.data?.pam_status_type_appointment;
-          const pamId = response?.data?.pam_id;
-          if (statusType === 2 && pamId) {
-            videoConsultData = { pam_id: pamId, pam_status_type_appointment: statusType };
-          }
-        }
-      } catch (error) {}
-      if (isAmbientRx) {
-        window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
-      } else {
-        window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
-      }
-      return navigate("/prescription", {
-        state: {
-          patient_data: patient_data,
-          send_path: "patient_details",
-          caseManagerData: viewCaseManagerData,
-          isEditRx: true,
-          isVoiceRxNewUiFlow: true,
-          ...(videoConsultData ? { videoConsultData } : {}),
-        },
-      });
-    }
-
     if (isSmartRxFile) {
       navigate("/smart-prescription", {
         state: {
@@ -1924,39 +1755,45 @@ function Cardiology(props) {
           caseManagerData: viewCaseManagerData,
           smartRxFilesData: smartRxFile,
         },
-      });
-    } else {
-      let videoConsultData;
-      try {
-        const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
-        if (tcmId) {
-          const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
-          const statusType = response?.data?.pam_status_type_appointment;
-          const pamId = response?.data?.pam_id;
-          if (statusType === 2 && pamId) {
-            videoConsultData = { pam_id: pamId, pam_status_type_appointment: statusType };
-          }
-        }
-      } catch (error) {}
-
-      if (isAmbientRx) {
-        window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        });
       } else {
-        window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
-      }
-      console.log("viewCaseManagerData", viewCaseManagerData);
-      console.log("isVoiceRxNewFromGB", isVoiceRxNewFromGB);
-      console.log("shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB)", shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB));
-      navigate("/prescription", {
-        state: {
+
+        let videoConsultData;
+        try {
+          const tcmId = viewCaseManagerData?.tcm_id || tcmData?.tcm_id;
+          if (tcmId) {
+            const response = await ApiVideoConsult.getAppointmentStatus(tcmId);
+            const statusType = response?.data?.pam_status_type_appointment;
+            const pamId = response?.data?.pam_id;
+
+            if (statusType === 2 && pamId) {
+              videoConsultData = {
+                pam_id: pamId,
+                pam_status_type_appointment: statusType,
+              };
+            } else {
+            }
+          } else {
+          }
+        } catch (error) {
+        }
+
+        if (isAmbientRx) {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_AMBIENT_VOICE_RX;
+        } else {
+          window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
+        }
+
+        const prescriptionState = {
           patient_data: patient_data,
           send_path: "patient_details",
           caseManagerData: viewCaseManagerData,
           isEditRx: true,
-          ...(shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}),
           ...(videoConsultData ? { videoConsultData } : {}),
-        },
-      });
+        };
+        navigate("/prescription", {
+          state: prescriptionState,
+        });
     }
   };
 
@@ -2057,12 +1894,6 @@ function Cardiology(props) {
     const type = viewCaseManagerData?.isCustomSSRX === "1" ? 1 : 0;
     const tokenData = getTokenData();
     const clinic = getClinic(profile?.hospital_data);
-    const resolvedAppointmentId =
-      viewCaseManagerData?.pam_id ??
-      tcmData?.pam_id ??
-      patient_data?.pam_id ??
-      viewCaseManagerData?.appointmentId ??
-      tcmData?.appointmentId;
     window.Moengage.track_event("TP_DigitizeSSRx", {
     patient_id: patient_data?.patient_unique_id || "",
     patient_name: patient_data?.pm_fullname || "",
@@ -2082,7 +1913,7 @@ function Cardiology(props) {
         smartRxFilesData: smartRxFile,
         tcm_id: viewCaseManagerData?.tcm_id,
         print_url: viewCaseManagerData?.print_rx_url,
-        pam_id: resolvedAppointmentId,
+        pam_id: patient_data?.pam_id,
         digitisedData: rxDigitisedData,
         page: "patient-summary",
         type: "new",
@@ -2118,131 +1949,9 @@ function Cardiology(props) {
     return cleanedNote || rawNote;
   };
 
-  const hasDisplayableValue = (value) => {
-    if (value === null || value === undefined) return false;
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      return trimmed !== "" && trimmed.toLowerCase() !== "null";
-    }
-    return typeof value !== "object";
-  };
-
-  const formatDisplayValue = (value, formatter) => {
-    if (!hasDisplayableValue(value)) return "";
-    if (typeof formatter === "function") return formatter(value);
-    return String(value).trim();
-  };
-
-  const formatFixedVitalValue = (value) => {
-    const numericValue = Number(value);
-    return Number.isFinite(numericValue) ? numericValue.toFixed(2) : String(value).trim();
-  };
-
-  const getBloodPressureValue = (item) => {
-    const bloodPress = String(item?.blood_press || "").trim();
-    if (bloodPress && bloodPress !== "/") {
-      return bloodPress.endsWith("/") ? bloodPress.slice(0, -1) : bloodPress;
-    }
-
-    const systolic = String(item?.systolic || "").trim();
-    const diastolic = String(item?.diastolic || "").trim();
-    return systolic && diastolic ? `${systolic}/${diastolic}` : "";
-  };
-
-  const VITALS_DISPLAY_FIELDS = [
-    { key: "temp", label: "Temperature", unit: "Frh" },
-    { key: "pres", label: "Pulse", unit: "/min" },
-    { key: "resp_rate", label: "Resp. Rate", unit: "/min" },
-    { key: "blood_press", label: "Blood Pressure", unit: "mmHg", getValue: getBloodPressureValue },
-    { key: "spo2", label: "SPO2", unit: "%" },
-    { key: "general_rbs", label: "General RBS", unit: "mg/dl" },
-    { key: "fib4", label: "FIB4" },
-    { key: "waist_circumference", label: "Waist Circumference", unit: "cms" },
-    { key: "ofc", label: "OFC", unit: "cms" },
-    { key: "height", label: "Height", unit: "cms" },
-    { key: "weight", label: "Weight", unit: "kgs" },
-    { key: "patient_birth_weight", label: "Patient Birth Weight", unit: "kgs" },
-    { key: "bmi", label: "BMI", unit: "kg/m²", formatter: formatFixedVitalValue },
-    { key: "bmr", label: "BMR", unit: "kcals", formatter: formatFixedVitalValue },
-    { key: "bsa", label: "BSA", unit: "m²", formatter: formatFixedVitalValue },
-  ];
-
-  const VITALS_METADATA_KEYS = new Set([
-    "date",
-    "dev_unique_id",
-    "tcv_id",
-    "tcbc_id",
-    "pam_id",
-    "systolic",
-    "diastolic",
-    "blood_press",
-  ]);
-
-  const formatVitalEntryLabel = (label, dateLabel, includeDate) =>
-    includeDate && dateLabel ? `${label} (${dateLabel})` : label;
-
-  const buildVitalsDisplayEntries = (vitalsSource) => {
-    if (!vitalsSource) return [];
-
-    if (hasDisplayableValue(vitalsSource)) {
-      return [{ key: "vitals", label: "Vitals", value: formatDisplayValue(vitalsSource) }];
-    }
-
-    const sourceList = Array.isArray(vitalsSource) ? vitalsSource : [vitalsSource];
-    const includeDate = sourceList.length > 1;
-
-    return sourceList.flatMap((item, itemIndex) => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) return [];
-
-      const dateLabel = item?.date ? moment(item.date).format("DD MMM, YY") : "";
-      const handledKeys = new Set();
-      const entries = [];
-
-      VITALS_DISPLAY_FIELDS.forEach((field) => {
-        handledKeys.add(field.key);
-        const rawValue = field.getValue ? field.getValue(item) : item?.[field.key];
-        const value = formatDisplayValue(rawValue, field.formatter);
-        if (!value) return;
-
-        entries.push({
-          key: `${itemIndex}-${field.key}`,
-          label: formatVitalEntryLabel(field.label, dateLabel, includeDate),
-          value: field.unit ? `${value} ${field.unit}` : value,
-        });
-      });
-
-      Object.entries(item).forEach(([key, rawValue]) => {
-        if (handledKeys.has(key) || VITALS_METADATA_KEYS.has(key) || !hasDisplayableValue(rawValue)) {
-          return;
-        }
-
-        entries.push({
-          key: `${itemIndex}-${key}`,
-          label: formatVitalEntryLabel(camelCaseToTitle(key), dateLabel, includeDate),
-          value: formatDisplayValue(rawValue),
-        });
-      });
-
-      return entries;
-    });
-  };
-
   // Render items for each type (medications, tests, etc.)
   // Supports both old (vitals, examination, tests) and new (vitalsAndBodyComposition, examinations, labInvestigation) structure
   // When dataOverride is provided (voice/ambient/snap/smart unified view), use it; else use snap vs smart source
-  const getMedicationName = (item) =>
-    String(
-      item?.metadata?.selectedValue ||
-        item?.metadata?.tmm_medicine_name ||
-        item?.tmm_medicine_name ||
-        item?.groundedMedicineName ||
-        item?.groundingMedicineName ||
-        item?.refinedName ||
-        item?.name ||
-        item?.lineItem ||
-        ""
-    ).trim();
-
   const renderItems = (type, dataOverride) => {
     const data =
       dataOverride !== undefined && dataOverride !== null
@@ -2273,19 +1982,25 @@ function Cardiology(props) {
       );
     }
 
-    const hasVitalsContent = (obj) => buildVitalsDisplayEntries(obj).length > 0;
+    const hasVitalsContent = (obj) => {
+      if (!obj || typeof obj !== "object") return false;
+      if (Array.isArray(obj)) {
+        return obj.some(reading => 
+          reading && typeof reading === "object" && 
+          Object.values(reading).some(val => formatVitalDisplayForUi(val) !== "")
+        );
+      }
+      return Object.values(obj).some(val => formatVitalDisplayForUi(val) !== "");
+    };
     const vitalsObj =
       type === "vitals"
         ? (data?.vitalsAndBodyComposition ?? data?.vitals ?? {})
         : data?.vitals || data?.vitalsAndBodyComposition || {};
-    const vitalsEntries = type === "vitals" ? buildVitalsDisplayEntries(vitalsObj) : [];
     const arrayForType =
       type === "examination" || type === "examinations"
         ? (data?.examinations || data?.examination || [])
         : type === "tests" || type === "labInvestigation"
           ? (data?.labInvestigation || data?.tests || [])
-          : type === "medications"
-            ? (data?.medications || data?.medicine || [])
           : data?.[type];
 
     return (
@@ -2300,15 +2015,32 @@ function Cardiology(props) {
           )}
           {/* Handle vitals: old (vitals) or new (vitalsAndBodyComposition) */}
           {type === "vitals" &&
-            vitalsEntries.map((entry) => (
-              <li key={entry.key}>
-                <div className="medicine-item">
-                  <span>{entry.label}</span>
-                  <span className="separator">:</span>
-                  <span>{entry.value}</span>
-                </div>
-              </li>
-            ))}
+            (Array.isArray(vitalsObj)
+              ? vitalsObj.flatMap((reading, index) =>
+                  Object.entries(reading || {})
+                    .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
+                    .map(([key, value]) => (
+                      <li key={`${index}-${key}`}>
+                        <div className="medicine-item">
+                          <span>{key}</span>
+                          <span className="separator">:</span>
+                          <span>{formatVitalDisplayForUi(value)}</span>
+                        </div>
+                      </li>
+                    ))
+                )
+              : Object.entries(vitalsObj)
+                  .filter(([key, value]) => formatVitalDisplayForUi(value) !== "")
+                  .map(([key, value]) => (
+                    <li key={key}>
+                      <div className="medicine-item">
+                        <span>{key}</span>
+                        <span className="separator">:</span>
+                        <span>{formatVitalDisplayForUi(value)}</span>
+                      </div>
+                    </li>
+                  ))
+            )}
 
           {/* Handle array types: support old (examination, tests) and new (examinations, labInvestigation) */}
           {type !== "vitals" &&
@@ -2319,10 +2051,10 @@ function Cardiology(props) {
                   <span>
                     {/* Render dynamically based on type; support canonical name + lineItem */}
                     {type === "advice"
-                      ? (typeof item === "string" ? item : (item?.advice_name || item?.name || ""))
+                      ? item
                       : type === "symptoms"
                       ? (() => {
-                          const name = (item?.name || item?.symptom_name || "").trim();
+                          const name = (item?.name || "").trim();
                           const lineItem = (item?.lineItem || "").trim();
                           if (name) {
                             if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
@@ -2340,8 +2072,8 @@ function Cardiology(props) {
                         })()
                       : type === "medications" || type === "tests" || type === "labInvestigation"
                       ? (type === "medications"
-                          ? getMedicationName(item)
-                          : (item?.refinedName || item?.name || item?.investigation_name))
+                          ? (item?.metadata?.tmm_medicine_name || item?.groundedMedicineName || item?.groundingMedicineName || item?.refinedName || item?.name || item?.lineItem)
+                          : (item?.refinedName || item?.name))
                       : type === "labResults"
                       ? (() => {
                           const lineItem =
@@ -2363,7 +2095,7 @@ function Cardiology(props) {
                         })()
                       : type === "diagnosis" || type === "examination" || type === "examinations"
                       ? (() => {
-                          const name = (item?.name || item?.tds_name || item?.examination_name || "").trim();
+                          const name = (item?.name || "").trim();
                           const lineItem = (item?.lineItem || "").trim();
                           if (name) {
                             if (lineItem && lineItem.toLowerCase().includes(name.toLowerCase())) {
@@ -2376,7 +2108,7 @@ function Cardiology(props) {
                       : type === "dynamicFields"
                       ? item?.title || item?.lineItem || item?.name || (typeof item === "string" ? item : "")
                       : type === "others"
-                      ? (typeof item === "string" ? item : (item?.name || item?.lineItem || ""))
+                      ? item
                       : item?.name}
                   </span>
 
@@ -2462,7 +2194,7 @@ function Cardiology(props) {
     const isTabletView = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1200;
     const isVoiceRxView = showDigitalGenRx && (isAmbientRx || (!isSmartRxFile && !isTabRx ));
     const getKey = (m) =>
-      getMedicationName(m).trim().toLowerCase();
+      String(m?.groundedMedicineName || m?.groundingMedicineName || m?.name || '').trim().toLowerCase();
     const isContinuation = medications.map((m, idx) => {
       if (idx === 0) return false;
       const k = getKey(m);
@@ -2551,11 +2283,11 @@ function Cardiology(props) {
                         if (isGroundingAccessable) {
                           const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
                           if (isFuzzySearchEmpty) {
-                            return metaName || item?.tmm_medicine_name || grounded || item?.refinedName || item?.name || "";
+                            return metaName || grounded || item?.refinedName || item?.name || "";
                           }
-                          return metaName || item?.tmm_medicine_name || grounded || item?.refinedName || item?.name || "";
+                          return metaName || grounded || item?.refinedName || item?.name || "";
                         }
-                        return metaName || item?.tmm_medicine_name || grounded || item?.refinedName || item?.name || item?.lineItem || "";
+                        return metaName || grounded || item?.refinedName || item?.name || item?.lineItem || "";
                       })().trim() || '-',
                       true
                     )}
@@ -2765,13 +2497,14 @@ function Cardiology(props) {
         )}
         {/* Handle vitals type separately */}
         {type === "vitalsAndBodyComposition" &&
-          buildVitalsDisplayEntries(genRxData?.vitalsAndBodyComposition)
-            .map((entry) => (
-              <li key={entry.key}>
+          Object.entries(genRxData?.vitalsAndBodyComposition || {})
+            .filter(([, value]) => formatVitalDisplayForUi(value) !== "")
+            .map(([key, value]) => (
+              <li key={key}>
                 <div className="medicine-item">
-                  <span>{entry.label}</span>
+                  <span>{key}</span>
                   <span className="separator">:</span>
-                  <span>{entry.value}</span>
+                  <span>{formatVitalDisplayForUi(value)}</span>
                 </div>
               </li>
             ))}
@@ -2817,7 +2550,7 @@ function Cardiology(props) {
 
             const groundedName = item?.groundedMedicineName || item?.groundingMedicineName;
             const startsWithParenthesis = detailText?.trim().startsWith("(");
-            const displayName = item?.name || item?.tmm_medicine_name || groundedName || item?.refinedName || "";
+            const displayName = item?.name || groundedName || item?.refinedName || "";
             const startsWithName =
               detailText &&
               displayName &&
@@ -2831,11 +2564,11 @@ function Cardiology(props) {
               if (isGroundingAccessable) {
                 const isFuzzySearchEmpty = !item?.metadata?.isFuzzyCorrected;
                 if (isFuzzySearchEmpty) {
-                  return metaName || item?.tmm_medicine_name || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
+                  return metaName || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
                 }
-                return metaName || item?.tmm_medicine_name || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
+                return metaName || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
               }
-              return metaName || item?.tmm_medicine_name || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
+              return metaName || groundedName || item?.refinedName || item?.name || item?.lineItem || "N/A";
             })();
 
             let formattedMain = baseName;
@@ -3026,174 +2759,6 @@ function Cardiology(props) {
           </>
       );
     });
-
-  const hasCustomModuleValue = (value) =>
-    value !== null &&
-    value !== undefined &&
-    String(value).trim().length > 0;
-
-  const hasCustomModuleContent = (item) => {
-    if (!Array.isArray(item?.content) || item.content.length === 0) {
-      return false;
-    }
-
-    if (item.module_version === "v2") {
-      return item.content.some((row) =>
-        Object.entries(row || {}).some(
-          ([key, value]) => key !== "id" && hasCustomModuleValue(value)
-        )
-      );
-    }
-
-    return item.content.some(
-      (row) => hasCustomModuleValue(row?.title) || hasCustomModuleValue(row?.notes)
-    );
-  };
-
-  const renderableCustomModulesRxData = (() => {
-    const seenModuleIds = new Set();
-    return customModulesRxData.filter((item, index) => {
-      if (!hasCustomModuleContent(item)) return false;
-      const moduleKey = String(item?.module_id || item?.origin_id || item?.module_name || index);
-      if (seenModuleIds.has(moduleKey)) return false;
-      seenModuleIds.add(moduleKey);
-      return true;
-    });
-  })();
-
-  const shouldRenderModuleContentsInVoiceRx =
-    isVoiceRxNewFromGB &&
-    showDigitalGenRx &&
-    shouldUseVoiceRxPrintPayload &&
-    renderableCustomModulesRxData.length > 0;
-
-  const renderCustomModulesRxData = () => {
-    if (renderableCustomModulesRxData.length === 0) return null;
-
-    return renderableCustomModulesRxData.map((item) => {
-      const moduleDefinition = renderableCustomModulesRxData.find(
-        (module) => module.module_id === item.module_id
-      );
-
-      return (
-        <div
-          className={`d-flex align-items-start ${shouldRenderModuleContentsInVoiceRx ? ' m-4' : ' mt-4'}`}
-          key={item.module_id || item.module_name}
-        >
-   
-          <img
-            className="me-2"
-            src={customModuleIcon}
-            alt={item.module_name}
-          />
-          <div style={{ flex: 1, width: "100%", minWidth: 0 }}>
-            <div className="title">{item.module_name}</div>
-            {item.module_version === "v2" ? (
-              (() => {
-                const namedFields = moduleDefinition?.namedFields || [];
-                const filteredContent = item.content.filter((row) =>
-                  Object.entries(row || {}).some(
-                    ([key, value]) => key !== "id" && hasCustomModuleValue(value)
-                  )
-                );
-
-                if (filteredContent.length === 0) return null;
-
-                const fallbackFieldNames = Array.from(
-                  filteredContent.reduce((fields, row) => {
-                    Object.keys(row || {}).forEach((key) => {
-                      if (key !== "id") fields.add(key);
-                    });
-                    return fields;
-                  }, new Set())
-                );
-                const fieldNames = namedFields.length > 0
-                  ? namedFields.map((field) => field.fieldName).filter(Boolean)
-                  : fallbackFieldNames;
-
-                const tableColumns = fieldNames.map((fieldName) => {
-                  const field = namedFields.find((f) => f.fieldName === fieldName);
-                  const headerLabel = field?.fieldLabel || fieldName;
-                  return {
-                    title: String(headerLabel).toUpperCase(),
-                    dataIndex: fieldName,
-                    key: String(fieldName),
-                    render: (text) => hasCustomModuleValue(text) ? text : "-",
-                    onCell: () => ({
-                      style: {
-                        fontSize: "calc(1em - 1px)",
-                        fontWeight: 400,
-                      },
-                    }),
-                    onHeaderCell: () => ({
-                      style: {
-                        backgroundColor: "#f5f5f5",
-                        fontWeight: 600,
-                      },
-                    }),
-                  };
-                });
-
-                const tableData = filteredContent.map((row, index) => {
-                  const { id, ...fields } = row;
-                  return {
-                    key: `row-${index}`,
-                    ...fields,
-                  };
-                });
-
-                return (
-                  <div className="mt-2">
-                    <div
-                      className="border-top border-bottom border-start border-end"
-                      style={{ width: "100%", borderRadius: "8px", overflow: "hidden" }}
-                    >
-                      <Table
-                        className="table-border"
-                        columns={tableColumns}
-                        dataSource={tableData}
-                        pagination={false}
-                        size="small"
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              item.content
-                .filter((row) => hasCustomModuleValue(row?.title) || hasCustomModuleValue(row?.notes))
-                .map((row, index, rows) => (
-                  <span key={index} style={{ fontSize: "calc(1em - 2px)", fontWeight: 400 }}>
-                    {hasCustomModuleValue(row.title) && (
-                      <>
-                        <span>{row.title}</span>
-                        {hasCustomModuleValue(row.notes) ? <br /> : ""}
-                      </>
-                    )}
-                    {hasCustomModuleValue(row.notes) && (
-                      <div>
-                        {row.notes
-                          .trim()
-                          .replace(/\n+/g, "\n")
-                          .split("\n")
-                          .map((line, lineIndex, lines) => (
-                            <React.Fragment key={lineIndex}>
-                              {line}
-                              {lineIndex !== lines.length - 1 && <br />}
-                            </React.Fragment>
-                          ))}
-                      </div>
-                    )}
-                    {index < rows.length - 1 && <br />}
-                  </span>
-                ))
-            )}
-          </div>
-        </div>
-      );
-    });
-  };
 
   const rxEditedData = rxDigitisedData?.editedData || {};
   const rawDentalData = rxEditedData?.dynamicFields?.[0]?.dentalData;
@@ -3557,19 +3122,18 @@ function Cardiology(props) {
 
       // For object types, check if any relevant fields have content
       const relevantFields = {
-        medications: ["refinedName", "name", "groundedMedicineName", "groundingMedicineName", "lineItem", "tmm_medicine_name", "tmm_generic", "tmm_dosage_unit_name"],
-        symptoms: ["name", "lineItem", "symptom_name"],
+        medications: ["refinedName", "name", "groundedMedicineName", "groundingMedicineName", "lineItem"],
+        symptoms: ["name", "lineItem"],
         surgeries: ["name", "notes"],
-        examination: ["name", "findings", "notes", "lineItem", "examination_name"],
-        examinations: ["name", "findings", "notes", "lineItem", "examination_name"],
-        diagnosis: ["name", "notes", "lineItem", "tds_name"],
+        examination: ["name", "findings", "notes", "lineItem"],
+        examinations: ["name", "findings", "notes", "lineItem"],
+        diagnosis: ["name", "notes", "lineItem"],
         medicalHistory: ["name", "lineItem"],
         vaccinations: ["name", "lineItem"],
-        tests: ["refinedName", "name", "lineItem", "investigation_name"],
-        labInvestigation: ["name", "lineItem", "investigation_name"],
+        tests: ["refinedName", "name", "lineItem"],
+        labInvestigation: ["name", "lineItem"],
         labResults: ["testname", "value", "notes", "lineItem"],
         dynamicFields: ["title", "notes", "lineItem"],
-        advice: ["advice_name", "name"],
         others: ["name"],
       };
 
@@ -3581,8 +3145,9 @@ function Cardiology(props) {
   const hasVitalsContent = (data) =>
     data &&
     typeof data === "object" &&
-    (buildVitalsDisplayEntries(data.vitals).length > 0 ||
-      buildVitalsDisplayEntries(data.vitalsAndBodyComposition).length > 0);
+    ((data.vitals && Object.values(data.vitals).some((v) => v != null && String(v).trim() !== "")) ||
+      (data.vitalsAndBodyComposition &&
+        hasVitalsAndBodyCompositionData(data.vitalsAndBodyComposition)));
 
   // Medical history grouped by type (Medical condition, Family History, Lifestyle, Surgical History, etc.); uses name, duration, relation, enable, notes in parentheses (no lineItem). Each type stacked one after another. No partition lines; same text style as rest of digitised sections.
   const renderMedicalHistoryGroupedByType = (data) => {
@@ -3764,7 +3329,6 @@ function Cardiology(props) {
           </>
         )}
         {data?.dynamicFields &&
-          !shouldRenderModuleContentsInVoiceRx &&
           (hasValidContent(data, "dynamicFields") ||
             (typeof data.dynamicFields === "object" &&
               !Array.isArray(data.dynamicFields) &&
@@ -3823,13 +3387,9 @@ function Cardiology(props) {
       doctor_unique_id: profile?.doctor_unique_id,
       clinic_name,
     });
-    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
+    navigate("/voice-rx-consult", {
       state: {
         patient_data: patient_data,
-        ...(isVoiceRxNewFromGB && {
-          isVoiceRxNewUiFlow: true,
-          voiceRxEntryPoint: "patient_details_no_visit",
-        }),
       },
     });
   };
@@ -4178,7 +3738,10 @@ function Cardiology(props) {
               ))
             }
 
-            {shouldShowVoiceRxTabs &&
+            {genRxData &&
+              isValidMongoId(
+                viewCaseManagerData?.smart_prescription_filename
+              ) &&
               !isSmartRxFile && !isTabRx && 
               !loading && (
                 <div className={(isMobile && !isTablet) ? "py-2 mb-2 px-0 mx-0" : "p-2 m-2"} style={(isMobile && !isTablet) ? { width: '100%' } : {}}>
@@ -4230,12 +3793,12 @@ function Cardiology(props) {
             )}
             {/* Mobile view: Show prescription PDF inline using react-pdf */}
             {/* MOBILE OPTIMIZATION: Use memoized mobilePdfUrl and pdfPages instead of calculating in render */}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && shouldUseVoiceRxPrintPayload && (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) && showDigitalGenRx && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && (!mobilePreviewReady || !(printPayloadBlob instanceof Blob)) && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 <PrescriptionSkeleton />
               </Card.Body>
             )}
-            {(isMobile && !isTablet) && !loading && viewCaseManagerData && shouldUseVoiceRxPrintPayload && mobilePreviewReady && (printPayloadBlob instanceof Blob) && showDigitalGenRx && (
+            {(isMobile && !isTablet) && !loading && viewCaseManagerData && mobilePreviewReady && (printPayloadBlob instanceof Blob) && showDigitalGenRx && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', position: 'relative' }}>
                 {isPdfLoading && (
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10 }}>
@@ -4278,26 +3841,24 @@ function Cardiology(props) {
             )}
             {/* Mobile view: Show Transcript when toggle is set to Transcript */}
             {(isMobile && !isTablet) && !loading && viewCaseManagerData && !showDigitalGenRx && genRxData &&
-              shouldShowVoiceRxTabs && (
+              isValidMongoId(viewCaseManagerData?.smart_prescription_filename) && (
               <Card.Body className="p-0" style={{ height: 'calc(100vh - 200px)', overflowY: 'auto', padding: '16px' }}>
                 <div>
                   {ambientConversations && ambientConversations.length > 0 ? (
-                    ambientConversations.map((conv, index) => {
-                      const isDoctor = isDoctorTranscriptSpeaker(conv.speaker);
-                      return (
+                    ambientConversations.map((conv, index) => (
                       <div key={index} style={{
                         display: "flex",
                         flexDirection: "column",
-                        alignItems: isDoctor ? "flex-end" : "flex-start",
+                        alignItems: conv.speaker === "doctor" || conv.speaker === "Dr" ? "flex-end" : "flex-start",
                         marginBottom: "16px"
                       }}>
                         <div style={{
-                          backgroundColor: isDoctor ? "#f1f1f5" : "#EFF6FF",
-                          borderRadius: isDoctor ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                          backgroundColor: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#f1f1f5" : "#EFF6FF",
+                          borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
                           padding: "16px",
                           maxWidth: "80%",
-                          marginLeft: isDoctor ? "auto" : "0px",
-                          marginRight: isDoctor ? "0px" : "auto",
+                          marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
+                          marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
                         }}>
                           <div style={{
                             fontSize: "10px",
@@ -4306,7 +3867,7 @@ function Cardiology(props) {
                             marginBottom: "4px",
                             textTransform: "uppercase"
                           }}>
-                            {isDoctor ? "Doctor" : "Patient"}
+                            {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
                           </div>
                           <div style={{
                             color: "#374151",
@@ -4320,8 +3881,7 @@ function Cardiology(props) {
                           </div>
                         </div>
                       </div>
-                      );
-                    })
+                    ))
                   ) : (
                     genRxQueries
                       ?.filter((query) => {
@@ -4359,14 +3919,15 @@ function Cardiology(props) {
                   <Spin size="small" />
                 </div>
               </div>
-            ) : !(isMobile && !isTablet) && legacyVoiceRxDisplayData &&
-              (shouldUseVoiceRxPrintPayload || !showDigitalGenRx) &&
+            ) : !(isMobile && !isTablet) && genRxData &&
+              isValidMongoId(
+                viewCaseManagerData?.smart_prescription_filename
+              ) &&
               (!isSmartRxFile && !isTabRx) ? (
               <div>
                 {showDigitalGenRx ? (
                   <>
-                    {renderDigitisedSections(legacyVoiceRxDisplayData)}
-                    {shouldRenderModuleContentsInVoiceRx && renderCustomModulesRxData()}
+                    {renderDigitisedSections(genRxData)}
                     <div
                       className={`d-flex align-items-center mb-14 ${
                         viewCaseManagerData?.follow_up_date
@@ -4400,57 +3961,51 @@ function Cardiology(props) {
                               </div>
                             ) : (
                               <React.Fragment key={index}>
-                                {(block.conversations || []).map((conv, convIdx) => {
-                                  const isDoctor = isDoctorTranscriptSpeaker(conv.speaker);
-                                  return (
+                                {(block.conversations || []).map((conv, convIdx) => (
                                   <div
                                     key={`${index}-${convIdx}`}
                                     style={{
-                                      background: isDoctor ? "#e3f2fd" : "#f3e5f5",
+                                      background: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#e3f2fd" : "#f3e5f5",
                                       marginBottom: "20px",
-                                      borderRadius: isDoctor ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                                      borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
                                       padding: "16px",
                                       maxWidth: "80%",
-                                      marginLeft: isDoctor ? "auto" : "0px",
-                                      marginRight: isDoctor ? "0px" : "auto",
+                                      marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
+                                      marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
                                     }}
                                   >
                                     <div style={{ fontSize: "10px", fontWeight: 600, color: "#5a6774", marginBottom: "4px", textTransform: "uppercase" }}>
-                                      {isDoctor ? "Doctor" : "Patient"}
+                                      {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
                                     </div>
                                     <div style={{ color: "#374151", wordWrap: "break-word", fontSize: "12px", fontWeight: 400, lineHeight: "18px", textAlign: "left" }}>
                                       {conv.text || conv.content || conv.message}
                                     </div>
                                   </div>
-                                  );
-                                })}
+                                ))}
                               </React.Fragment>
                             )
                           )
-                        : ambientConversations?.map((conv, index) => {
-                            const isDoctor = isDoctorTranscriptSpeaker(conv.speaker);
-                            return (
+                        : ambientConversations?.map((conv, index) => (
                             <div
                               key={index}
                               style={{
-                                background: isDoctor ? "#e3f2fd" : "#f3e5f5",
+                                background: conv.speaker === "doctor" || conv.speaker === "Dr" ? "#e3f2fd" : "#f3e5f5",
                                 marginBottom: "20px",
-                                borderRadius: isDoctor ? "18px 0 18px 18px" : "0 18px 18px 18px",
+                                borderRadius: conv.speaker === "doctor" || conv.speaker === "Dr" ? "18px 0 18px 18px" : "0 18px 18px 18px",
                                 padding: "16px",
                                 maxWidth: "80%",
-                                marginLeft: isDoctor ? "auto" : "0px",
-                                marginRight: isDoctor ? "0px" : "auto",
+                                marginLeft: conv.speaker === "doctor" || conv.speaker === "Dr" ? "auto" : "0px",
+                                marginRight: conv.speaker === "doctor" || conv.speaker === "Dr" ? "0px" : "auto",
                               }}
                             >
                               <div style={{ fontSize: "10px", fontWeight: 600, color: "#5a6774", marginBottom: "4px", textTransform: "uppercase" }}>
-                                {isDoctor ? "Doctor" : "Patient"}
+                                {conv.speaker === "doctor" || conv.speaker === "Dr" ? "Doctor" : "Patient"}
                               </div>
                               <div style={{ color: "#374151", wordWrap: "break-word", fontSize: "12px", fontWeight: 400, lineHeight: "18px", textAlign: "left" }}>
                                 {conv.text || conv.content}
                               </div>
                             </div>
-                            );
-                          })
+                          ))
                     ) : (
                       genRxQueries
                         ?.filter((query) => {
@@ -4766,7 +4321,142 @@ function Cardiology(props) {
                         </div>
                       </div>
                     )}
-                    {renderCustomModulesRxData()}
+                    {customModulesRxData.length > 0 &&
+                      customModulesRxData
+                        ?.filter((item) => {
+                          // Only show modules that have content
+                          if (!item.content || item.content.length === 0) return false;
+                          
+                          // Check if V2 module has any non-empty fields
+                          if (item.module_version === "v2") {
+                            return item.content.some((row) => {
+                              const { id, ...fields } = row;
+                              return Object.values(fields).some(
+                                (value) => value && value.toString().trim().length > 0
+                              );
+                            });
+                          }
+                          
+                          // For V1 modules, check if title or notes exist
+                          return item.content.some((c) => c.title?.trim() || c.notes?.trim());
+                        })
+                        .map((item) => {
+                          // Get module definition to access namedFields for V2
+                          const moduleDefinition = customModulesRxData.find(
+                            (m) => m.module_id === item.module_id
+                          );
+                          
+                          return (
+                            <div className="d-flex align-items-start mb-4" key={item.module_id}>
+                              <img
+                                className="me-2"
+                                src={customModuleIcon}
+                                alt={item.module_name}
+                              />
+                              <div style={{ flex: 1, width: '100%', minWidth: 0 }}>
+                                <div className="title">{item.module_name}</div>
+                                {item.module_version === "v2" ? (
+                                  // V2 Module Rendering - Ant Design Table Format
+                                  (() => {
+                                    const namedFields = moduleDefinition?.namedFields || [];
+                                    const filteredContent = item.content.filter((row) => {
+                                      const { id, ...fields } = row;
+                                      return Object.values(fields).some(
+                                        (value) => value && value.toString().trim().length > 0
+                                      );
+                                    });
+
+                                    if (filteredContent.length === 0) return null;
+
+                                    // Get all field names from namedFields or from first row
+                                    const fieldNames = namedFields.length > 0
+                                      ? namedFields.map(f => f.fieldName)
+                                      : Object.keys(filteredContent[0] || {}).filter(k => k !== 'id');
+
+                                    // Create columns for Ant Design Table
+                                    const tableColumns = fieldNames.map((fieldName, idx) => {
+                                      const field = namedFields.find(f => f.fieldName === fieldName);
+                                      const headerLabel = field?.fieldLabel || fieldName;
+                                      return {
+                                        title: headerLabel.toUpperCase(),
+                                        dataIndex: fieldName,
+                                        key: fieldName,
+                                        render: (text) => text || '-',
+                                        onHeaderCell: () => ({
+                                          style: {
+                                            backgroundColor: '#f5f5f5',
+                                            fontWeight: 600,
+                                          },
+                                        }),
+                                      };
+                                    });
+
+                                    // Transform data for table (remove id field)
+                                    const tableData = filteredContent.map((row, index) => {
+                                      const { id, ...fields } = row;
+                                      return {
+                                        key: `row-${index}`,
+                                        ...fields,
+                                      };
+                                    });
+
+                                    return (
+                                      <div className="mt-2">
+                                        <div className="border-top border-bottom border-start border-end" style={{ width: '100%', borderRadius: '8px', overflow: 'hidden' }}>
+                                          <Table
+                                            className="table-border"
+                                            columns={tableColumns}
+                                            dataSource={tableData}
+                                            pagination={false}
+                                            size="small"
+                                            style={{ width: '100%' }}
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })()
+                                ) : (
+                                  // V1 Module Rendering (Original)
+                                  item.content
+                                    .filter((c) => c.title?.trim() || c.notes?.trim())
+                                    .map((c, i) => {
+                                      return (
+                                        <span key={i}>
+                                          {c.title && (
+                                            <>
+                                              <span>{c.title}</span>
+                                              {c.notes?.trim() ? <br /> : ""}
+                                            </>
+                                          )}
+                                          {c.notes?.trim() && (
+                                            <div>
+                                              {c.notes
+                                                ?.trim()
+                                                ?.replace(/\n+/g, "\n")
+                                                .split("\n")
+                                                .map((line, index) => (
+                                                  <React.Fragment key={index}>
+                                                    {line}
+                                                    {index !==
+                                                      c.notes
+                                                        ?.trim()
+                                                        ?.replace(/\n+/g, "\n")
+                                                        .split("\n").length -
+                                                        1 && <br />}
+                                                  </React.Fragment>
+                                                ))}
+                                            </div>
+                                          )}
+                                          {i < item.content.filter(c => c.title?.trim() || c.notes?.trim()).length - 1 && <br />}
+                                        </span>
+                                      );
+                                    })
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                    }
                   </div>
                 </div>
               </Card.Body>
@@ -4830,13 +4520,9 @@ function Cardiology(props) {
                           doctor_unique_id: profile?.doctor_unique_id,
                           clinic_name,
                         });
-                        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
+                        navigate("/voice-rx-consult", {
                           state: {
                             patient_data: patient_data,
-                            ...(isVoiceRxNewFromGB && {
-                              isVoiceRxNewUiFlow: true,
-                              voiceRxEntryPoint: "patient_details_no_visit_fallback",
-                            }),
                           },
                         });
                       } else {
@@ -4847,12 +4533,20 @@ function Cardiology(props) {
                               ? patient_data.patient_unique_id
                               : 0,
                         });
+                        if (isMobile && !isTablet) {
+                          navigate("/voice-rx-consult", {
+                            state: {
+                              patient_data: patient_data,
+                            },
+                          });
+                        } else {
                         navigate("/prescription", {
                           state: {
                             patient_data: patient_data,
                             send_path: "patient_details",
                           },
                         });
+                        }
                       }
                     }}
                   >

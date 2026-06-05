@@ -64,7 +64,6 @@ import CommonModal from "../../common/CommonModal";
 import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
-import { useVoiceRxNavigation } from "../../utils/voiceRxNavigation";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree, isValidMongoId } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
@@ -221,7 +220,6 @@ function TabPrescription() {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const navigateVoiceRx = useVoiceRxNavigation();
   const { state } = location;
 
   // Create a combined module list that includes both user's modules and hospital-wide modules
@@ -1651,15 +1649,13 @@ function TabPrescription() {
       });
     }
 
-    navigateVoiceRx(
-      {
+    navigate("/voice-rx-consult", {
+      state: {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
       },
-      {},
-      "tab_prescription_header"
-    );
+    });
   };
 
   const handleVideoConsult = async () => {

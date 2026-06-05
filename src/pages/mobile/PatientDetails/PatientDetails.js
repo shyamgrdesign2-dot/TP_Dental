@@ -12,7 +12,6 @@ import { fetchAllPatientDocs, fetchDocsUploadedByPatient } from '../../medicalRe
 import { mergeDocuments } from '../../medicalRecords/utils/helper';
 import { fetchPrintSetting } from '../../opdBilling/service';
 import { setBillPrintSettings } from '../../../redux/billingSlice';
-import { useVoiceRxNavigation } from '../../../utils/voiceRxNavigation';
 import {
   getClinicName,
   getClinic,
@@ -20,7 +19,6 @@ import {
   sendMessageToParent,
   trackEvent,
   getVoiceRxMoengageBasePayload,
-  isValidMongoId,
 } from '../../../utils/utils';
 import { PATIENT_DETAILS_SIDEBAR_KEYS, GB_SNAP_RX, GB_ISCRIBE, S_AMBIENT_VOICE_RX, S_VOICE_RX } from '../../../utils/constants';
 import { EVENTS } from '../../../utils/events';
@@ -70,7 +68,6 @@ const alertIcon = ASSETS.images.alerticon;
 
 function PatientDetails() {
   const navigate = useNavigate();
-  const navigateVoiceRx = useVoiceRxNavigation();
   const dispatch = useDispatch();
   const location = useLocation();
   const { isMobile, isPWA } = useDeviceType();
@@ -340,16 +337,14 @@ function PatientDetails() {
   };
 
   const handleStartWalkInConsultation = () => {
-    // From patient details, return to the correct VoiceRx entry point for this flag state.
-    navigateVoiceRx(
-      {
+    // From patient details: go directly to voice-rx-consult (not patients listing)
+    navigate('/voice-rx-consult', {
+      state: {
         patient_data: patient_data,
         isFromTabView: true,
         from: 'patient_details_walk_in',
       },
-      {},
-      "mobile_patient_details_walk_in"
-    );
+    });
   };
 
   const handleEditPatient = () => {
@@ -383,15 +378,13 @@ function PatientDetails() {
         source: "Patient Details",
       });
     }
-    navigateVoiceRx(
-      {
+    navigate('/voice-rx-consult', {
+      state: { 
         patient_data: patient_data,
         isFromTabView: true
       },
-      {},
-      "mobile_patient_details_voice_rx"
-    );
-  }, [navigateVoiceRx, profile, patient_data, clinic]);
+    });
+  }, [navigate, profile, patient_data, clinic]);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
   const handleEditRx = useCallback(async () => {
@@ -427,24 +420,16 @@ function PatientDetails() {
       }
       
       window.TATVA_ACTIVE_VOICE_SERVICE = S_VOICE_RX;
-
-      if (isValidMongoId(viewCaseManagerData?.smart_prescription_filename)) {
-        navigateVoiceRx({
+      
+      navigate('/prescription', {
+        state: {
           patient_data: patient_data,
           send_path: 'patient_details',
           caseManagerData: viewCaseManagerData,
-        });
-      } else {
-        navigate('/prescription', {
-          state: {
-            patient_data: patient_data,
-            send_path: 'patient_details',
-            caseManagerData: viewCaseManagerData,
-          },
-        });
-      }
+        },
+      });
     }
-  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, isSnapRx, isSnapRxAccessableFromGB, isSmartRxFile, navigate, navigateVoiceRx]);
+  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, isSnapRx, isSnapRxAccessableFromGB, isSmartRxFile, navigate]);
 
   // MOBILE OPTIMIZATION: Memoize handler to prevent VisitActionButtons re-renders
   const handleDownloadRx = useCallback(() => {
@@ -536,28 +521,18 @@ function PatientDetails() {
       rx_date: viewCaseManagerData?.consultation_date,
     });
 
-    const repeatedCaseManagerData = {
-      ...viewCaseManagerData,
-      tcm_id: 0,
-      consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'),
-    };
-
-    if (isValidMongoId(viewCaseManagerData?.smart_prescription_filename)) {
-      navigateVoiceRx({
+    navigate('/prescription', {
+      state: {
         patient_data: patient_data,
         send_path: 'patient_details',
-        caseManagerData: repeatedCaseManagerData,
-      });
-    } else {
-      navigate('/prescription', {
-        state: {
-          patient_data: patient_data,
-          send_path: 'patient_details',
-          caseManagerData: repeatedCaseManagerData,
+        caseManagerData: {
+          ...viewCaseManagerData,
+          tcm_id: 0,
+          consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'),
         },
-      });
-    }
-  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, navigate, navigateVoiceRx]);
+      },
+    });
+  }, [viewCaseManagerData, profile?.doctor_unique_id, patient_data, navigate]);
 
   // Memoize tabs array to prevent PatientTabs re-renders
   // MUST be called before any conditional returns to follow React hooks rules

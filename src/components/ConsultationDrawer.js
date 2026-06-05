@@ -40,7 +40,6 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { getDecodedToken } from "../utils/localStorage";
-import { useVoiceRxNavigation } from "../utils/voiceRxNavigation";
 import { v4 as uuidv4 } from "uuid";
 import CashManagerContext from "../context/CashManagerContext";
 import {
@@ -544,7 +543,6 @@ const ConsultationDrawer = ({
   const audioStreamRef = useRef(null);
 
   const navigate = useNavigate();
-  const navigateVoiceRx = useVoiceRxNavigation();
 
   const { tcmId, consultationDate, pamId } = useContext(CashManagerContext);
 
@@ -4281,8 +4279,13 @@ const ConsultationDrawer = ({
     } else {
       // If no prescription data, navigate directly based on mode
       if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-        // Return to the correct VoiceRx entry point for this feature flag state.
-        navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_ambient_back");
+        // Navigate to Voice Rx Consult page (mode selection) in ambient mode
+        navigate("/voice-rx-consult", {
+          replace: true,
+          state: {
+            patient_data,
+          },
+        });
         onClose();
     } else {
       onClose();
@@ -4294,7 +4297,7 @@ const ConsultationDrawer = ({
     if (!(isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX)) {
       onClose();
     }
-    navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_back");
+    navigate("/voice-rx-consult", { replace: true, state: { patient_data } });
   };
 
   const convertMedicalHistoryToContextFormat = useCallback((apiMedicalHistory, existingContextData) => {
@@ -4951,8 +4954,13 @@ const ConsultationDrawer = ({
                           onClick={() => {
                             // Check if we're in ambient mode
                             if (isAmbientMode || mode === 'ambient' || window.TATVA_ACTIVE_VOICE_SERVICE === S_AMBIENT_VOICE_RX) {
-                              // Return to the correct VoiceRx entry point for this feature flag state.
-                              navigateVoiceRx({ patient_data }, { replace: true }, "consultation_drawer_leave_ambient");
+                              // Navigate to Voice Rx Consult page (mode selection) when leaving in ambient mode
+                              navigate("/voice-rx-consult", {
+                                replace: true,
+                                state: {
+                                  patient_data,
+                                },
+                              });
                             } else {
                               // For non-ambient mode, use the regular back handler
                               handleBack();
