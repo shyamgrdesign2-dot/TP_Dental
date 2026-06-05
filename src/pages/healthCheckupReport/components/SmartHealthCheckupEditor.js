@@ -40,18 +40,62 @@ function stripBreakHints(html) {
   return result;
 }
 
+function getSelectedTextNodes(range, root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      if (!node.nodeValue || !range.intersectsNode(node)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const nodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const textLength = node.nodeValue.length;
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : textLength;
+
+    if (start < end) {
+      nodes.push({ node, start, end });
+    }
+  }
+
+  return nodes;
+}
+
 function applyCase(editor, fn) {
   const range = editor.selection.range;
   if (!range || range.collapsed) return;
-  const fragment = range.cloneContents();
-  const div = document.createElement('div');
-  div.appendChild(fragment);
-  const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
-  let node;
-  while ((node = walker.nextNode())) {
-    node.textContent = fn(node.textContent);
-  }
-  editor.selection.insertHTML(div.innerHTML);
+
+  const selectedNodes = getSelectedTextNodes(range, editor.editor);
+  if (selectedNodes.length === 0) return;
+
+  const transformedNodes = selectedNodes.map(({ node, start, end }) => {
+    const originalText = node.nodeValue;
+    const selectedText = originalText.slice(start, end);
+    const transformedText = fn(selectedText);
+
+    node.nodeValue =
+      originalText.slice(0, start) +
+      transformedText +
+      originalText.slice(end);
+
+    return {
+      node,
+      start,
+      end: start + transformedText.length,
+    };
+  });
+
+  const nextRange = document.createRange();
+  const firstNode = transformedNodes[0];
+  const lastNode = transformedNodes[transformedNodes.length - 1];
+  nextRange.setStart(firstNode.node, firstNode.start);
+  nextRange.setEnd(lastNode.node, lastNode.end);
+  editor.selection.selectRange(nextRange);
+  editor.synchronizeValues?.();
 }
 
 const TOOLBAR_ITEMS = [
@@ -279,4 +323,4 @@ function SmartHealthCheckupEditor(
 }
 
 export default React.forwardRef(SmartHealthCheckupEditor);
-export { TOOLBAR_ITEMS };
+export { TOOLBAR_ITEMS, applyCase };

@@ -270,7 +270,7 @@ function symptomsToHtmlList(symptoms) {
       const notes = item.notes ?? item.remark ?? "";
       const details = [duration, severity, notes].filter(Boolean).join(", ");
       const detailStr = details ? ` (${escapeHtml(details)})` : "";
-      return `<li><strong>${name}</strong>${detailStr}</li>`;
+      return `<li>${name}${detailStr}</li>`;
     })
     .join("");
   return `<ul>${items}</ul>`;
@@ -491,7 +491,7 @@ ${chiefHtml}
     const items = historyByRowName[rowName] || [];
     const cellContent =
       items.length > 0 ? medicalHistoryToHtmlList(items, rowName) : "<p><br></p>";
-    return `    <tr><td><p>${escapeHtml(rowName)}</p></td><td>${cellContent}</td></tr>`;
+    return `    <tr><td><p><strong>${escapeHtml(rowName)}</strong></p></td><td>${cellContent}</td></tr>`;
   }).join("\n");
 
   const patientHistorySection = `
@@ -541,7 +541,7 @@ ${historyRows}
 
   // Radiology table (static row names, empty notes for now unless we have a mapping)
   const radiologyRows = RADIOLOGY_ROW_NAMES.map(
-    (name) => `    <tr><td><p>${escapeHtml(name)}</p></td><td><p><br></p></td></tr>`
+    (name) => `    <tr><td><p><strong>${escapeHtml(name)}</strong></p></td><td><p><br></p></td></tr>`
   ).join("\n");
 
   /* Wrapper keeps heading + table atomic for print iframe pagination (avoids h2 alone on prior page). */
@@ -549,7 +549,7 @@ ${historyRows}
 <div class="print-section-group print-page-break">
 <h2 class="report-section-title">RADIOLOGY / SONOLOGY IMAGING FINDINGS</h2>
 <table class="report-data-table">
-  <thead><tr><th><p>Modality</p></th><th><p>Impressions</p></th></tr></thead>
+  <thead><tr><th><p><strong>Modality</strong></p></th><th><p><strong>Impressions</strong></p></th></tr></thead>
   <tbody>
 ${radiologyRows}
   </tbody>
@@ -587,9 +587,9 @@ ${radiologyRows}
             docData.doctor_name ?? docData.name ?? docData.doctorName ?? "";
           if (docName) doctorName = docName;
           const notes = formatConsultationAsPrintViewNotes(latest);
-          if (notes) notesCell = `<p>${escapeHtml(notes).replace(/\n/g, "<br>")}</p>`;
+          if (notes) notesCell = `<p>${escapeHtml(notes.toUpperCase()).replace(/\n/g, "<br>")}</p>`;
         }
-        return `<tr><td><p>${escapeHtml(deptName) + (doctorName ? "<br>" + escapeHtml(doctorName) : "")}</p></td><td>${notesCell}</td></tr>`;
+        return `<tr><td><p><strong>${escapeHtml(deptName) + (doctorName ? "<br>" + escapeHtml(doctorName) : "")}</strong></p></td><td>${notesCell}</td></tr>`;
       }
     ).join("\n")
     : `<tr><td><p><br></p></td><td><p><br></p></td></tr>`;
@@ -597,8 +597,8 @@ ${radiologyRows}
   const consultationsSection = `
 <div class="print-section-group print-page-break">
 <h2 class="report-section-title">Consultations</h2>
-<table class="report-data-table">
-  <thead><tr><th><p>DEPARTMENT & DOCTOR NAME</p></th><th><p>NOTES</p></th></tr></thead>
+<table class="report-data-table report-consultations">
+  <thead><tr><th><p><strong>DEPARTMENT & DOCTOR NAME</strong></p></th><th><p><strong>NOTES</strong></p></th></tr></thead>
   <tbody>
 ${consultationRows}
   </tbody>
