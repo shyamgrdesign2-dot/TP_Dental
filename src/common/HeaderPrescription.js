@@ -59,6 +59,7 @@ import {
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 const {
   alerticon: alertIcon,
@@ -89,6 +90,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         loading,
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
 
     const {customModules} = useSelector((state) => state.customModules);
 
@@ -1165,6 +1167,83 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [ophthalmologyExam]);
 
+    const hasSymptomsWithSince = useMemo(
+        () =>
+            symptomsData.length > 0 &&
+            symptomsData.every(
+                (symptom) => String(symptom?.since ?? "").trim() !== ""
+            ),
+        [symptomsData]
+    );
+
+    const canEndVisit = useMemo(() => {
+        if (isChikitsalayAccessable) {
+            return hasSymptomsWithSince && diagnosisData.length > 0;
+        }
+        return (
+            symptomsData.length > 0 ||
+            examinationData.length > 0 ||
+            surgeriesData.length > 0 ||
+            diagnosisData.length > 0 ||
+            adviceData.length > 0 ||
+            investigationData.length > 0 ||
+            medicationData.length > 0 ||
+            vitalsData.length > 0 ||
+            medicalHistoryData.length > 0 ||
+            privateNotesData ||
+            followUpDate ||
+            additionalNote ||
+            givenVaccines.length > 0 ||
+            updatedDueVaccines?.length > 0 ||
+            measurements.length > 0 ||
+            (gynecHistory && Object.keys(gynecHistory).length > 0) ||
+            isObstetricDetailsUpdated ||
+            labParamsData?.length > 0 ||
+            zydusSelectedLabParams?.length > 0 ||
+            customModuleContents?.some((e) => {
+                return (
+                    e?.content?.length &&
+                    e?.content?.some((c) => c.title || c.notes)
+                );
+            }) ||
+            hasOpthalValues() ||
+            hasCustomModuleContent()
+        );
+    }, [
+        isChikitsalayAccessable,
+        hasSymptomsWithSince,
+        symptomsData,
+        diagnosisData,
+        examinationData,
+        surgeriesData,
+        adviceData,
+        investigationData,
+        medicationData,
+        vitalsData,
+        medicalHistoryData,
+        privateNotesData,
+        followUpDate,
+        additionalNote,
+        givenVaccines,
+        updatedDueVaccines,
+        measurements,
+        gynecHistory,
+        isObstetricDetailsUpdated,
+        labParamsData,
+        zydusSelectedLabParams,
+        customModuleContents,
+        hasOpthalValues,
+        hasCustomModuleContent,
+    ]);
+
+    const endVisitTooltipMessage = useMemo(() => {
+        if (canEndVisit) return "";
+        if (isChikitsalayAccessable) {
+            return "Please fill Symptoms and Diagnosis to end the consultation.";
+        }
+        return "Please fill your prescription to end visit.";
+    }, [canEndVisit, isChikitsalayAccessable]);
+
     const opthalTablesById = useMemo(() => {
         return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
             section.tables.forEach((table) => {
@@ -2077,8 +2156,8 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
                             {shouldEnableDraft && <SaveDraft onSaveAsDraft={onSaveAsDraft} loading={saveDraftLoading} label={isTablet ? 'Draft' : 'Save as Draft'} />}
 
-                            <Tooltip placement="bottom" title={(symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) ? "" : "Please fill your prescription to end visit."}>
-                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => (symptomsData.length > 0 || examinationData.length > 0 || surgeriesData.length > 0 || diagnosisData.length > 0 || adviceData.length > 0 || investigationData.length > 0 || medicationData.length > 0 || vitalsData.length > 0 || medicalHistoryData.length > 0 || privateNotesData || followUpDate || additionalNote || givenVaccines.length > 0 || updatedDueVaccines?.length > 0 || measurements.length > 0 || (gynecHistory && Object.keys(gynecHistory).length > 0) || isObstetricDetailsUpdated || labParamsData?.length > 0 || zydusSelectedLabParams?.length > 0 || customModuleContents?.some((e) => {return e?.content?.length && e?.content?.some(c => c.title || c.notes)}) || hasOpthalValues() || hasCustomModuleContent()) && onEndVisitClick()} loading={loading && !saveDraftLoading}>
+                            <Tooltip placement="bottom" title={endVisitTooltipMessage}>
+                                <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
                                     <i className='icon-exit me-2'></i>
                                     {isTablet ? "End" : "End Visit"}
                                 </Button>

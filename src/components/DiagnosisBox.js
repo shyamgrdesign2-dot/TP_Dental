@@ -42,6 +42,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import DifferentialDiagnosis from "./DifferentialDiagnosis";
 import { ASSETS } from "../assets";
+import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 const {
   alerticon: alertIcon,
   diagnosis: Diagnosisicon,
@@ -55,6 +56,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
     templates,
     loading,
   } = useSelector((state) => state.diagnosis);
+  const isChikitsalayAccessable = useChikitsalay();
   const dispatch = useDispatch();
 
   const { patient_data, diagnosisData, setDiagnosisData, tcmId } = useContext(CashManagerContext);
@@ -924,7 +926,7 @@ function DiagnosisBox({handleDDxDrawer, generatedDDx, getGenerateDDx, isDDxLoadi
         <div className="d-flex align-items-center justify-content-between p-14-pb0">
           <div className="d-flex align-items-center">
             <img className="me-2" src={Diagnosisicon} alt="Diagnosis" />
-            <div className="title-common">Diagnosis</div>
+            <div className="title-common">Diagnosis {isChikitsalayAccessable ? <span className="text-danger">*</span> : ""}</div>
           </div>
           <div className="d-flex align-items-center">
             <button
