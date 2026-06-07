@@ -57,16 +57,44 @@ export const uploadVoiceAudio = async function (audioFile) {
   }
 };
 
-export const createVoiceLog = async function (payload, patientId) {
-  if (!patientId) return null;
-  const endpoint = `/api/v1/digitization/voice/logs?patientId=${encodeURIComponent(patientId)}`;
-  return api.post(endpoint, payload, voiceLogsBaseUrl);
+const buildVoiceLogConfig = (correlationId) => {
+  if (!correlationId) return voiceLogsBaseUrl;
+  return {
+    ...voiceLogsBaseUrl,
+    headers: {
+      "x-correlation-id": correlationId,
+    },
+  };
 };
 
-export const updateVoiceLog = async function (payload, patientId) {
+export const createVoiceLog = async function (payload, patientId, options = {}) {
   if (!patientId) return null;
   const endpoint = `/api/v1/digitization/voice/logs?patientId=${encodeURIComponent(patientId)}`;
-  return api.put(endpoint, payload, voiceLogsBaseUrl);
+  return api.post(endpoint, payload, buildVoiceLogConfig(options.correlationId));
+};
+
+export const updateVoiceLog = async function (payload, patientId, options = {}) {
+  if (!patientId) return null;
+  const endpoint = `/api/v1/digitization/voice/logs?patientId=${encodeURIComponent(patientId)}`;
+  return api.put(endpoint, payload, buildVoiceLogConfig(options.correlationId));
+};
+
+export const storeVoicePrescription = async function ({
+  payload,
+  patientId,
+  doctorId,
+  tcmId,
+  appointmentId,
+  sessionId,
+}) {
+  const queryParams = [];
+  if (patientId) queryParams.push(`patientId=${encodeURIComponent(patientId)}`);
+  if (doctorId) queryParams.push(`doctorId=${encodeURIComponent(doctorId)}`);
+  if (tcmId !== undefined && tcmId !== null) queryParams.push(`tcmId=${encodeURIComponent(tcmId)}`);
+  if (appointmentId !== undefined && appointmentId !== null) queryParams.push(`appointmentId=${encodeURIComponent(appointmentId)}`);
+  if (sessionId) queryParams.push(`sessionId=${encodeURIComponent(sessionId)}`);
+  const endpoint = `/api/v1/digitization/voice/store${queryParams.length ? `?${queryParams.join("&")}` : ""}`;
+  return api.post(endpoint, payload, voiceAmbientBaseUrl);
 };
 
 export const generateRx = async function (payload, patientId, admissionId) {
