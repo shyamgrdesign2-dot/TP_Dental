@@ -742,7 +742,7 @@ const zyProd = {
     879361730721433, 538421739782028, 136841742984591,
   ],
   munshi_hospital_business_ids: [263578419],
-  medeco_webview_url: "https://zy-doctor-tatva-pwa-prod.tatvacare.in",
+  medeco_webview_url: "https://zy-doctor-tatva-prod-pwa.tatvacare.in",
   REACT_APP_GOOGLE_MAPS_API_KEY: "AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg",
   doctor_portal_url: "https://tatvaemr.zydushospitals.com",
   whatsapp_x_api_key: "GiNtUl73b2sUfMjtQ9",
