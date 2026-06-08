@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -84,7 +84,6 @@ import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
-import AddCustomModule from "../components/AddCustomModule";
 import CustomModule from "../components/CustomModule";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
@@ -101,14 +100,8 @@ import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
-import TatvaAiBanner from "../components/TatvaAiBanner";
-import ApexAIPopup from "../components/ApexAIPopup";
-import GenRxBanner from "../components/GenRxBanner";
-import Carousel from "react-multi-carousel";
-import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
-import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
 import {
@@ -618,6 +611,7 @@ function Prescription() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
@@ -2004,11 +1998,16 @@ function Prescription() {
     }
     
 
-    navigate("/voice-rx-consult", {
+    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
       state: {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
+        ...(isVoiceRxNewFromGB && {
+          isVoiceRxNewUiFlow: true,
+          voiceRxEntryPoint: "prescription_header",
+          caseManagerData: caseManagerData,
+        }),
       },
     });
   }
@@ -2200,35 +2199,6 @@ function Prescription() {
             </div>
             <div className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3">
               <Content>
-                {/* {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup || shouldShowGroundingBanner) && 
-                  <Carousel
-                  responsive={responsive}
-                  infinite={true}
-                  autoPlay={true}
-                  showDots={true}
-                  autoPlaySpeed={2000}
-                  removeArrowOnDeviceType={["tablet", "mobile"]}
-                  arrows={false}
-                  // dotListClass=""
-                  >
-                  {shouldShowGenRxPopup && (
-                    <GenRxBanner key="genrx-banner" setShowGenRxPopup={setShowGenRxPopup} handleGenRxKnowMore={handleGenRxKnowMore} />
-                  )}
-                  {shouldShowTatvaAiPopup && (
-                    <TatvaAiBanner key="tatva-ai-banner" setShowTatvaAiPopup={setShowTatvaAiPopup} handleTatvaAiKnowMore={handleTatvaAiKnowMore} />
-                  )}
-                  {shouldShowApexPopup && (
-                    <ApexAIPopup
-                    key="apex-popup"
-                      setShowApexPopup={setShowApexPopup}
-                      handleDDxKnowMore={handleDDxKnowMore}
-                    />
-                  )}
-                  {shouldShowGroundingBanner && (
-                    <GroundingBanner key="grounding-banner" setShowGroundingPopup={setShowGroundingBanner} handleGroundingKnowMore={handleGroundingKnowMore} />
-                  )}
-                  </Carousel>
-                } */}
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
@@ -2394,6 +2364,8 @@ function Prescription() {
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
+            initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
+            hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
         </Drawer>
         <Drawer
