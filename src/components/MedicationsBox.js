@@ -250,6 +250,7 @@ const getDoseUnitOptions = (medicine) => {
 
 function MedicationsBox({ showVoiceRxModule }) {
   const isChikitsalayAccessable = useChikitsalay();
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
   const renderLowStockBadge = useCallback((med) => {
     if (!isChikitsalayAccessable) return null;
     const available = Number(med?.quantity);
@@ -287,8 +288,9 @@ function MedicationsBox({ showVoiceRxModule }) {
   }, [isChikitsalayAccessable]);
 
   const renderHmTypeBadge = useCallback(
-    (med) => {
+    (med, { hideZ = false } = {}) => {
       const ind = getHmTypeIndicator(med, isChikitsalayAccessable);
+      if (hideZ && ind === "Z") return null;
       if (!ind) return null;
       const wide = ind.length > 1;
       return (
@@ -1528,7 +1530,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                                         {item.tmm_medicine_name}
                                       </button>
                                     )}
-                                    {renderHmTypeBadge(item)}
+                                    {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
                                   </div>
                                   {isZydusAccount && (
                                     <Tooltip
@@ -1546,7 +1548,7 @@ function MedicationsBox({ showVoiceRxModule }) {
                               ) : (
                                 <div className="d-flex align-items-center flex-wrap gap-1">
                                   <span className="text-main2">{item.tmm_medicine_name}</span>
-                                  {renderHmTypeBadge(item)}
+                                  {renderHmTypeBadge(item, { hideZ: !isPrescriptionNewContext })}
                                 </div>
                               )}
                               <Tooltip placement="bottom" title={item.tmm_generic}>
@@ -1697,7 +1699,7 @@ function MedicationsBox({ showVoiceRxModule }) {
         </DragDropContext>
       </div>
     );
-  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderLowStockBadge, voiceMedicineEdit, isVoiceRxModuleEnabled]);
+  }, [medicationData, frequencyPopOver, parentSearchOptions, renderHmTypeBadge, renderLowStockBadge, voiceMedicineEdit, isVoiceRxModuleEnabled, isPrescriptionNewContext]);
 
   //Child Component
   // const TABLE_MEDICATION = useMemo(() => {

@@ -85,6 +85,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     useContext(CashManagerContext);
   // const [ investigationData, setInvestigationData] = useState([]);
   const emptyInvestigationRow = () => ({ investigation_name: "", note: "", unique_id: uuidv4(), change: 1, pms_default: 0 });
+  const isPrescriptionNewContext = showVoiceRxModule !== undefined;
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
@@ -778,9 +779,9 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                 />
                               </Tooltip>
                             )}
-                            {(item?.hm_type === 1 && item?.um_id === 0) && (
+                            {isPrescriptionNewContext && (item?.hm_type === 1 && item?.um_id === 0) && (
                               <span
-                                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0"
+                                className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0 m-1"
                                 style={{ width: 18, height: 18, background: "#c44ea2" }}
                               >
                                 Z
@@ -836,7 +837,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         </Droppable>
       </DragDropContext>
     );
-  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, parentSearchOptions, canShowVoiceRxNewRows, isChikitsalayAccessable]);
+  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, parentSearchOptions, canShowVoiceRxNewRows, isChikitsalayAccessable, isPrescriptionNewContext]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
