@@ -165,7 +165,7 @@ export async function uploadAndLogVoiceRx2({
     timestamp: new Date().toISOString(),
   };
 
-  trackEvent("TP_Voice_Submit_Click", eventPayload);
+  trackEvent("TP_Voice_V2_Submit_Click", eventPayload);
 
   const correlationId = sessionId || submitId || requestId || "";
   const logPayload = {

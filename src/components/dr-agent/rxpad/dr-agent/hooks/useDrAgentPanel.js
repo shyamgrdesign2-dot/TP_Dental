@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { useRxPadSync } from "../RxPadSyncContext";
 import { toast } from "../../../voicerx/toast";
+import { trackDrAgentCopyUsed } from "../../../utils/copyTracking";
 
 import { CONTEXT_PATIENT_ID, QUICK_CLINICAL_SNAPSHOT_PROMPT, RX_CONTEXT_OPTIONS } from "../constants";
 import {
@@ -1575,6 +1576,9 @@ export function useDrAgentPanel({
   // runCopyWithAura).
   const handleCopy = useCallback((payload, opts) => {
     if (payload && typeof payload === "object" && "sourceDateLabel" in payload) {
+      if (opts?.copyTracking) {
+        trackDrAgentCopyUsed(opts.copyTracking);
+      }
       runCopyWithAura(payload, {
         ...opts,
         onAfterCopy: opts?.onAfterCopy || (() => toast.success("Copied to RxPad"))

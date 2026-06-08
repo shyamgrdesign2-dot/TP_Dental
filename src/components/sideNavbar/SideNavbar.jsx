@@ -50,6 +50,7 @@ import { ASSETS } from "../../assets";
 import { buildClinicalApiHeaders, joinAgentModuleApiUrl } from "../dr-agent/voicerx/api/clinical-api";
 import { PRIVATE_NOTES_TRANSCRIPTION_PROMPT, transcribeAnyAudio } from "../dr-agent/voicerx/api/agent-audio-service";
 import { useRxPadSync } from "../dr-agent/rxpad/dr-agent/RxPadSyncContext";
+import { buildPastVisitCopyMeta, trackDrAgentCopyUsed } from "../dr-agent/utils/copyTracking";
 import { toast } from "../dr-agent/voicerx/toast";
 import { useEdgeSwipeNavigation } from "./useEdgeSwipeNavigation";
 import {
@@ -718,7 +719,8 @@ function getPastVisitAdditionalNotesSource(payload = {}) {
 }
 
 function buildPastVisitAdviceRows(value) {
-  return legacyArray(value)
+  const adviceItems = Array.isArray(value) ? value : (hasValue(value) || isObject(value) ? [value] : []);
+  return adviceItems
     .map((item) => {
       const label = typeof item === "string" || typeof item === "number"
         ? String(item).trim()
@@ -732,6 +734,23 @@ function buildPastVisitAdviceRows(value) {
       };
     })
     .filter(Boolean);
+}
+
+function buildPastVisitAdviceRowsFromSources(...values) {
+  const seen = new Set();
+  return values.flatMap(buildPastVisitAdviceRows).filter((item) => {
+    const key = `${String(item.label || "").trim().toLowerCase()}|${String(item.detail || "").trim().toLowerCase()}`;
+    if (!key.trim() || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function buildPastVisitNoteTextFromSources(...values) {
+  return buildPastVisitAdviceRowsFromSources(...values)
+    .map((item) => [item.label, item.detail].filter(hasValue).join(" - "))
+    .filter(hasValue)
+    .join(" ");
 }
 
 function getPastVisitLookupList(source, key) {
@@ -923,7 +942,14 @@ function buildPastVisitDigitalRx(consultation) {
     ["symptom_name", "name", "title", "label"],
     ["since", "duration", "severity", "note", "notes"]
   );
-  const legacyAdviceRows = buildPastVisitAdviceRows(legacyConsultation.advice);
+  const legacyAdviceRows = buildPastVisitAdviceRowsFromSources(legacyConsultation.advice);
+  const legacyAdditionalNotes = buildPastVisitNoteTextFromSources(
+    legacyConsultation.additional_notes,
+    legacyConsultation.additionalNotes,
+    legacyConsultation.notes,
+    legacyConsultation.visit_advice,
+    legacyConsultation.visit_advice_cm
+  );
   const digitalRx = {
     symptoms: legacySymptomRows,
     symptomsPayload: legacySymptomsPayload.length
@@ -954,14 +980,14 @@ function buildPastVisitDigitalRx(consultation) {
     moduleContents: buildPastVisitModuleRows(legacyConsultation.moduleContents || legacyConsultation.module_contents),
     moduleContentSections: buildPastVisitModuleSections(legacyConsultation.moduleContents || legacyConsultation.module_contents),
     moduleContentsPayload: legacyArray(legacyConsultation.moduleContents || legacyConsultation.module_contents),
-    advice: legacyAdviceRows.length ? legacyAdviceRows : buildPastVisitAdviceRows(legacyConsultation.visit_advice),
+    advice: legacyAdviceRows,
     labInvestigations: legacyVisitRows(
       legacyConsultation.investigation || legacyConsultation.investigations,
       ["investigation_name", "test_name", "name", "title", "label"],
       ["note", "notes"]
     ).map((item) => (item.detail ? { label: item.label, detail: item.detail } : item.label)),
     followUp: legacyConsultation.follow_up_date ? `On ${formatPastVisitDate(legacyConsultation.follow_up_date)}` : "",
-    additionalNotes: legacyConsultation.additional_notes || legacyConsultation.additionalNotes || legacyConsultation.notes || "",
+    additionalNotes: legacyAdditionalNotes,
     doctorAttribution,
   };
   const hasDigitalRx = digitalRx.symptoms.length ||
@@ -1810,6 +1836,12 @@ function buildDigitalRx(payload) {
   const medicationPayload = toArray(p.medications || p.medicine);
   const moduleContentPayload = getPastVisitModuleContentSource(p);
   const additionalNotesPayload = getPastVisitAdditionalNotesSource(p);
+  const adviceRows = buildPastVisitAdviceRowsFromSources(p.advice);
+  const additionalNotesText = buildPastVisitNoteTextFromSources(
+    additionalNotesPayload,
+    p.visit_advice,
+    p.visit_advice_cm
+  );
   const vitalsPayload = firstObject(p.vitalsAndBodyComposition, p.vitals);
   const gynecPayload = firstObject(p.gyneacHistory, p.gynecHistory);
   const obstetricPayload = firstObject(p.obstetricHistory);
@@ -1827,13 +1859,13 @@ function buildDigitalRx(payload) {
     toArray(p.examinations || p.examination).length ||
     toArray(p.diagnosis || p.diagnoses).length ||
     toArray(p.medications || p.medicine).length ||
-    toArray(p.advice).length ||
+    adviceRows.length ||
     toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).length ||
     toArray(p.medicalHistory || p.medical_history).length ||
     toArray(p.surgeries).length ||
     moduleContentPayload.length ||
     hasValue(p.followUp) ||
-    additionalNotesPayload.length ||
+    hasValue(additionalNotesText) ||
     hasNativeContent;
 
   if (!hasContent) return null;
@@ -1868,7 +1900,7 @@ function buildDigitalRx(payload) {
       };
     }),
     medicationsPayload: medicationPayload,
-    advice: buildPastVisitAdviceRows(p.advice).map((item) => ({ ...item, fresh: true })),
+    advice: adviceRows.map((item) => ({ ...item, fresh: true })),
     labInvestigations: toArray(p.labInvestigation || p.labInvestigations || p.investigation || p.investigations).map((item) => (typeof item === "string" ? item : item?.investigation_name || item?.test_name || item?.name || item?.lineItem || item?.label)).filter(Boolean),
     medicalHistory: buildPastVisitMedicalHistoryRows(p.medicalHistory || p.medical_history),
     medicalHistorySections: buildPastVisitMedicalHistorySections(p.medicalHistory || p.medical_history),
@@ -1881,7 +1913,7 @@ function buildDigitalRx(payload) {
     moduleContentSections: buildPastVisitModuleSections(moduleContentPayload),
     moduleContentsPayload: moduleContentPayload,
     followUp: hasValue(p.followUp) ? `After ${p.followUp}` : "",
-    additionalNotes: additionalNotesPayload.map((item) => (typeof item === "string" ? item : item?.notes || item?.label || "")).filter(Boolean).join(" "),
+    additionalNotes: additionalNotesText,
     vitals,
     gynec,
     obstetric,
@@ -3041,8 +3073,11 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
     }
   }, [hasMore, loading, onLoadMore, visibleCount, visits.length]);
 
-  const handleCopyPayload = useCallback((payload, successMessage, opts) => {
+  const handleCopyPayload = useCallback((payload, successMessage, opts, copyTracking) => {
     if (!payload) return;
+    if (copyTracking) {
+      trackDrAgentCopyUsed(copyTracking);
+    }
     onCopyPayload?.(payload, {
       ...opts,
       onAfterCopy: () => toast.success(successMessage),
@@ -3053,28 +3088,64 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
     handleCopyPayload(
       buildPastVisitAllPayload(visitItem),
       `${visitItem.dateLabel} copied to RxPad`,
-      { bulk: true }
+      { bulk: true },
+      buildPastVisitCopyMeta({
+        component: "Past Visit",
+        componentKey: "all",
+        copyScope: "visit",
+        cta: "copy_visit_to_rxpad",
+        visitId: visitItem.id,
+        visitDate: visitItem.dateLabel,
+        isBulk: true,
+      })
     );
   }, [handleCopyPayload]);
 
   const handleCopySection = useCallback((visitItem, sectionKey, title) => {
     handleCopyPayload(
       buildPastVisitSectionPayload(visitItem, sectionKey),
-      `${title} copied to RxPad`
+      `${title} copied to RxPad`,
+      undefined,
+      buildPastVisitCopyMeta({
+        component: title,
+        componentKey: sectionKey,
+        copyScope: sectionKey === "moduleContents" ? "custom_modules" : "section",
+        cta: sectionKey === "moduleContents" ? "copy_custom_modules_to_rxpad" : "copy_section_to_rxpad",
+        visitId: visitItem.id,
+        visitDate: visitItem.dateLabel,
+      })
     );
   }, [handleCopyPayload]);
 
   const handleCopyCustomModule = useCallback((visitItem, moduleSection) => {
     handleCopyPayload(
       buildPastVisitCustomModulePayload(visitItem, moduleSection),
-      `${moduleSection?.title || "Custom module"} copied to RxPad`
+      `${moduleSection?.title || "Custom module"} copied to RxPad`,
+      undefined,
+      buildPastVisitCopyMeta({
+        component: moduleSection?.title || "Custom module",
+        componentKey: moduleSection?.key || moduleSection?.title || "custom_module",
+        copyScope: "custom_module",
+        cta: "copy_custom_module_to_rxpad",
+        visitId: visitItem.id,
+        visitDate: visitItem.dateLabel,
+      })
     );
   }, [handleCopyPayload]);
 
   const handleCopyCustomModuleRow = useCallback((visitItem, moduleSection, row) => {
     handleCopyPayload(
       buildPastVisitCustomModulePayload(visitItem, moduleSection, row),
-      `${row?.label || moduleSection?.title || "Custom module row"} copied to RxPad`
+      `${row?.label || moduleSection?.title || "Custom module row"} copied to RxPad`,
+      undefined,
+      buildPastVisitCopyMeta({
+        component: row?.label || moduleSection?.title || "Custom module row",
+        componentKey: moduleSection?.key || moduleSection?.title || "custom_module_row",
+        copyScope: "custom_module_row",
+        cta: "copy_custom_module_row_to_rxpad",
+        visitId: visitItem.id,
+        visitDate: visitItem.dateLabel,
+      })
     );
   }, [handleCopyPayload]);
 
@@ -3169,7 +3240,7 @@ function PastVisitsContent({ visits, hasMore, loading, onLoadMore, onExpand, onC
                   {rx.additionalNotes ? <RxSection title="Additional Notes" icon={<RxSectionIcon src={RX_SECTION_ICONS.notes} />} onCopy={() => handleCopySection(visitItem, "additionalNotes", "Additional Notes")}><p className="snv-section-text">{rx.additionalNotes}</p></RxSection> : null}
                   {rx.followUp ? <RxSection title="Follow Up" icon={<RxSectionIcon src={RX_SECTION_ICONS.followUp} />} onCopy={() => handleCopySection(visitItem, "followUp", "Follow Up")}><p className="snv-section-text">{rx.followUp}</p></RxSection> : null}
                   <PastVisitNativeSections rx={rx} />
-                  <PastVisitRxByLine attribution={rxByAttribution} />
+                  {/* <PastVisitRxByLine attribution={rxByAttribution} /> */}
                 </>
               ) : (
                 <div className="snv-empty-state">No digital Rx available for this visit.</div>

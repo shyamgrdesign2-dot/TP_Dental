@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../
 import { AgentActionButton } from "../../../../atoms/AgentActionButton";
 import { DocumentText } from "iconsax-reactjs";
 import { pickVitalsRowForLabel } from "../../../../../../utils/vitalsHelpers";
+import { buildClinicalNotesCopyMeta } from "../../../../utils/copyTracking";
 import styles from "./VoiceStructuredRxCard.module.scss";
 
 /** Format a VoiceRxItem to a plain text string for clipboard copy */
@@ -185,7 +186,18 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
   const handleCopyItem = (sectionId, item, key, rawRow) => {
     safeClipboardWrite(formatVoiceItem(item));
     const payloadRow = isVitalsSection(sectionId) ? pickVitalsRowForLabel(rawRow, getVitalsItemLabel(item)) : rawRow;
-    onCopy?.(buildSectionPayload(sectionId, [item], payloadRow ? [payloadRow] : null, { vitalsCopyMode: "item" }));
+    onCopy?.(
+      buildSectionPayload(sectionId, [item], payloadRow ? [payloadRow] : null, { vitalsCopyMode: "item" }),
+      {
+        copyTracking: buildClinicalNotesCopyMeta({
+          component: item?.name || formatVoiceItem(item),
+          componentKey: sectionId,
+          destination: "clipboard_and_rxpad",
+          copyScope: "item",
+          cta: "section_item_copy",
+        }),
+      }
+    );
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 1500);
   };
@@ -193,7 +205,19 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
   const handleCopySection = (sectionId, items, rawRows) => {
     const text = items.map(formatVoiceItem).join("\n");
     safeClipboardWrite(text);
-    onCopy?.(buildSectionPayload(sectionId, items, rawRows, { vitalsCopyMode: "section" }));
+    const sectionTitle = data.sections.find((section) => section.sectionId === sectionId)?.title || sectionId;
+    onCopy?.(
+      buildSectionPayload(sectionId, items, rawRows, { vitalsCopyMode: "section" }),
+      {
+        copyTracking: buildClinicalNotesCopyMeta({
+          component: sectionTitle,
+          componentKey: sectionId,
+          destination: "clipboard_and_rxpad",
+          copyScope: "section",
+          cta: "section_copy",
+        }),
+      }
+    );
     setCopiedKey(`section-${sectionId}`);
     setTimeout(() => setCopiedKey(null), 1500);
   };
@@ -341,7 +365,15 @@ export function VoiceStructuredRxCard({ data, onCopy, onExpand, hideHeader, isSt
   if (hideHeader) return innerContent;
 
   const handleCopyAll = () => {
-    onCopy?.(data.copyAllPayload);
+    onCopy?.(data.copyAllPayload, {
+      copyTracking: buildClinicalNotesCopyMeta({
+        component: "Structured Clinical Notes",
+        componentKey: "all",
+        copyScope: "copy_all",
+        cta: "copy_all_to_rxpad",
+        isBulk: true,
+      }),
+    });
     setCopiedKey("all");
     setTimeout(() => setCopiedKey(null), 1800);
   };

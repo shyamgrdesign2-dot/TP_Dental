@@ -1182,6 +1182,7 @@ function PrescriptionNew() {
   const [vitalDrawer, setVitalDrawer] = useState(false);
   const [medicalHistoryDrawer, setMedicalHistoryDrawer] = useState(false);
   const [medicalHistoryInitialActiveKey, setMedicalHistoryInitialActiveKey] = useState("gynec");
+  const [medicalHistoryDrawerMode, setMedicalHistoryDrawerMode] = useState("all");
   const [privateNotesDrawer, setPrivateNotesDrawer] = useState(false);
   const [selectPrivateNotes, setSelectPrivateNotes] = useState(null);
   const [vaccinationDrawer, setVaccinationDrawer] = useState(false);
@@ -1782,11 +1783,18 @@ function PrescriptionNew() {
   const handleDrawerMedicalHistory = useCallback((activeKey) => {
     if (typeof activeKey === "string") {
       setMedicalHistoryInitialActiveKey(activeKey);
+      setMedicalHistoryDrawerMode(activeKey === "medical" ? "medical" : "gynec");
       setMedicalHistoryDrawer(true);
       return;
     }
-    setMedicalHistoryDrawer((prev) => !prev);
-  }, []);
+    setMedicalHistoryDrawer((prev) => {
+      if (!prev) {
+        setMedicalHistoryInitialActiveKey(isGynaecHistoryAccessable ? "gynec" : "medical");
+        setMedicalHistoryDrawerMode("all");
+      }
+      return !prev;
+    });
+  }, [isGynaecHistoryAccessable]);
 
   // Drawer Private Notes
   const handleDrawerPrivateNotes = useCallback(
@@ -1985,6 +1993,7 @@ function PrescriptionNew() {
   }, [privateNotesList]);
 
   const handleSaveGynecHistory = (updatedGynecHistory) => {
+    if (Array.isArray(updatedGynecHistory)) return;
     setUpdatedGynecHistory(updatedGynecHistory);
   };
 
@@ -2098,6 +2107,22 @@ function PrescriptionNew() {
       console.error("Error fetching gynec history:", error);
     }
   };
+
+  useEffect(() => {
+    if (
+      medicalHistoryDrawer &&
+      medicalHistoryDrawerMode === "gynec" &&
+      Array.isArray(updatedGynecHistory)
+    ) {
+      fetchGynecHistory(patient_data?.patient_unique_id);
+    }
+  }, [
+    medicalHistoryDrawer,
+    medicalHistoryDrawerMode,
+    updatedGynecHistory,
+    patient_data?.patient_unique_id,
+    userId,
+  ]);
 
   const handleFileUpload = (event) => {
     const files = event.target.files;
@@ -3119,11 +3144,20 @@ function PrescriptionNew() {
           zIndex={1100}
         >
           <MedicalHistoryBox
-            key={`medical-history-${medicalHistoryInitialActiveKey}`}
+            key={`medical-history-${medicalHistoryInitialActiveKey}-${medicalHistoryDrawerMode}`}
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
-            onSave={handleSaveGynecHistory}
+            onSave={medicalHistoryDrawerMode === "medical" ? undefined : handleSaveGynecHistory}
             initialActiveKey={medicalHistoryInitialActiveKey}
+            hideMenstrualHistoryTab={medicalHistoryDrawerMode === "medical"}
+            gynecOnly={medicalHistoryDrawerMode === "gynec"}
+            initialGynecHistory={
+              medicalHistoryDrawerMode === "gynec" &&
+              updatedGynecHistory &&
+              !Array.isArray(updatedGynecHistory)
+                ? updatedGynecHistory
+                : undefined
+            }
             showVoiceRxModule={canUseVoiceRxModuleUi}
           />
         </Drawer>

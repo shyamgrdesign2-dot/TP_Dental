@@ -16,6 +16,7 @@ import { FooterBar } from "./shell/FooterBar";
 
 import { VOICE_RX_CONSULT_OPTIONS } from "./constants";
 import { useDrAgentPanel } from "./hooks/useDrAgentPanel";
+import { buildClinicalNotesCopyMeta, trackDrAgentCopyUsed } from "../../utils/copyTracking";
 
 function isVitalsCopyPayload(payload) {
   const digitization = payload?.digitization;
@@ -313,9 +314,15 @@ export function DrAgentPanel({
           onAddDetailsByVoice={beginVoiceAddOn}
           onQuickEditSubmit={submitQuickEdit}
           voiceLocked={voiceLocked}
-          onCopyResult={(payload) => runCopyWithAura(payload, {
-            onAfterCopy: isVitalsCopyPayload(payload) ? undefined : () => toast.success("Copied to RxPad")
-          })}
+          onCopyResult={(payload, opts) => {
+            if (opts?.copyTracking) {
+              trackDrAgentCopyUsed(opts.copyTracking);
+            }
+            runCopyWithAura(payload, {
+              ...opts,
+              onAfterCopy: isVitalsCopyPayload(payload) ? undefined : () => toast.success("Copied to RxPad")
+            });
+          }}
           onCopyAll={() => {
             if (!voiceRxResult) return;
             const copyAllPayload = voiceRxResult.digitization
@@ -326,6 +333,13 @@ export function DrAgentPanel({
               }
               : voiceRxResult.structured?.copyAllPayload;
             if (!copyAllPayload) return;
+            trackDrAgentCopyUsed(buildClinicalNotesCopyMeta({
+              component: "Structured Clinical Notes",
+              componentKey: "all",
+              copyScope: "copy_all",
+              cta: "copy_all_to_rxpad",
+              isBulk: true,
+            }));
             runCopyWithAura(copyAllPayload, {
               bulk: true,
               onAfterCopy: () => toast.success("Copied All Fields to RxPad")
@@ -335,6 +349,13 @@ export function DrAgentPanel({
               setVoiceRxResult((prev) => prev ? { ...prev, pendingSidebarBatch: undefined } : prev);
             }
           }}
+          onCopySoap={() => trackDrAgentCopyUsed(buildClinicalNotesCopyMeta({
+            component: "SOAP Note",
+            componentKey: "soap",
+            destination: "clipboard",
+            copyScope: "soap_note",
+            cta: "copy_soap_note",
+          }))}
         />
 
       </div>

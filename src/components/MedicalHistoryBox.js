@@ -578,7 +578,8 @@ function MedicalHistoryBox(props) {
     const [popOver, setPopOver] = useState(false);
     const RELATIONSHIP_LIST = ['Father', 'Mother', 'Maternity Grandfather', 'Maternity Grandmother', 'Paternity Grandfather', 'Paternity Grandmother', 'Uncle', 'Aunty', 'Sibling', 'Relatives'];
     const [selectedRelationship, setSelectedRelationship] = useState([]);
-    const [activeTab, setActiveTab] = useState(initialActiveKey || 'gynec');
+    const defaultActiveTabKey = initialActiveKey || ((hideMenstrualHistoryTab && !gynecOnly) ? 'medical' : 'gynec');
+    const [activeTab, setActiveTab] = useState(defaultActiveTabKey);
     const [tokenData, setTokenData] = useState(null);
 
     const onTabChange = (key) => {
@@ -586,8 +587,8 @@ function MedicalHistoryBox(props) {
     };
 
     useEffect(() => {
-        setActiveTab(initialActiveKey || 'gynec');
-    }, [initialActiveKey]);
+        setActiveTab(defaultActiveTabKey);
+    }, [defaultActiveTabKey]);
 
     useEffect(() => {
         dispatch(listSectionwithTag());
@@ -1204,11 +1205,17 @@ function MedicalHistoryBox(props) {
             "patient_number": patient_data?.pm_contact_no,
             "patient_id": patient_data?.patient_unique_id
         });
-        if (!hideMenstrualHistoryTab && activeTab === "gynec") {
+        if (!hideMenstrualHistoryTab) {
+            await handleSave({ closeDrawer: activeTab === "gynec" });
+            if (activeTab === "gynec") {
+                return;
+            }
+        } else {
             await handleSave();
+        }
+        if (gynecOnly) {
             return;
         }
-        await handleSave();
         if (selectData && selectData.tmmhs_id === 5) {
             const sectionIndex = selectData.section_index;
             const tagIndex = selectData.tag_index;
@@ -1383,7 +1390,7 @@ function MedicalHistoryBox(props) {
         setGynecHistory(prevState => ({ ...prevState, [key]: value }));
     };
 
-    const handleSave = async () => {
+    const handleSave = async ({ closeDrawer = true } = {}) => {
         if (gynecOnly) {
             const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
                 if (
@@ -1402,10 +1409,10 @@ function MedicalHistoryBox(props) {
             }
             if (onSave) onSave(filteredGynecHistory);
             if (patient_data?.patient_unique_id) await handleSaveClick();
-            handleDrawerMedicalHistory();
+            if (closeDrawer) handleDrawerMedicalHistory();
             return;
         }
-        if (!hideMenstrualHistoryTab && activeTab === "gynec") {
+        if (!hideMenstrualHistoryTab) {
             const filteredGynecHistory = Object.keys(gynecHistory || {}).reduce((acc, key) => {
                 if (
                     key !== 'createdAt' && key !== 'createdBy' &&
@@ -1418,7 +1425,7 @@ function MedicalHistoryBox(props) {
             }, {});
             if (onSave) onSave(filteredGynecHistory);
             await handleSaveClick();
-            handleDrawerMedicalHistory();
+            if (closeDrawer) handleDrawerMedicalHistory();
             return;
         }
         if (hideMenstrualHistoryTab) {
@@ -1676,7 +1683,7 @@ function MedicalHistoryBox(props) {
                     </div>
                 </div>
                 <Tabs 
-                    defaultActiveKey={initialActiveKey || "gynec"} 
+                    defaultActiveKey={defaultActiveTabKey} 
                     onChange={onTabChange}
                     className={(hideMenstrualHistoryTab || gynecOnly) ? "hide-tabs-nav" : ""}
                 >

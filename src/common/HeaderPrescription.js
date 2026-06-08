@@ -224,7 +224,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
     const [saveDraftLoading, setSaveDraftLoading] = useState(false);
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const {isEditRx = false, isVoiceRxNewUiFlow = false} = location.state || {};
-    const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx;
+    const shouldEnableDraft = isDraft !== 0 && isSaveAsDraftRxAccessableFromGB && !isEditRx && !isVoiceRxNewUiFlow;
     const headerDictationTargetId = headerDictation?.targetId || HEADER_DICTATION_TARGET;
     const headerDictationBusy = headerDictation?.status === "recording" || headerDictation?.status === "transcribing";
     const headerIconVoiceState = headerDictationTargetId === HEADER_DICTATION_TARGET ? headerVoiceState : "idle";
@@ -2064,20 +2064,22 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             }
 
             const clinic_name = getClinicName(profile?.hospital_data);
-            tcmId == 0 ?
-                window.Moengage.track_event("TP_Consultation_ended", {
-                    clinic_name,
-                    patient_number: patient_data?.pm_contact_no,
-                    patient_id: patient_data?.patient_unique_id,
+            const consultationEventPayload = {
+                clinic_name,
+                patient_number: patient_data?.pm_contact_no,
+                patient_id: patient_data?.patient_unique_id,
                 tcm_id: tcmId,
-            })
+            };
+            const shouldAttachVoiceCallCount =
+                isVoiceRxNewUiFlow &&
+                showVoiceRxModule;
+            if (shouldAttachVoiceCallCount) {
+                consultationEventPayload.voicecall = voiceDigitization?.voiceCallCount || 0;
+            }
+            tcmId == 0 ?
+                window.Moengage.track_event("TP_Consultation_ended", consultationEventPayload)
                 :
-                window.Moengage.track_event("TP_Consultation_edited", {
-                    clinic_name,
-                    patient_number: patient_data?.pm_contact_no,
-                    patient_id: patient_data?.patient_unique_id,
-                    tcm_id: tcmId,
-                })
+                window.Moengage.track_event("TP_Consultation_edited", consultationEventPayload)
 
             const caseManagerPromise = isDraft 
                 ? dispatch(draftToConsultation(sendData))

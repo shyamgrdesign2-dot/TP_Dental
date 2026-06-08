@@ -52,6 +52,7 @@ export function BackFace({
   onQuickEditSubmit,
   onCopyResult,
   onCopyAll,
+  onCopySoap,
   voiceLocked = false,
 }) {
   const dispatch = useDispatch();
@@ -104,6 +105,7 @@ export function BackFace({
             soapStatus={effectiveSoapStatus}
             soapHtml={effectiveSoapHtml}
             onCopyToRx={onCopyAll}
+            onCopySoap={onCopySoap}
             onBack={onBack}
             onMinimize={onMinimize}
             onAddDetailsByVoice={onAddDetailsByVoice}

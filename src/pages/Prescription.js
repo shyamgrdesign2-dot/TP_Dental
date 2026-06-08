@@ -2364,6 +2364,8 @@ function Prescription() {
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
+            initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
+            hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
         </Drawer>
         <Drawer

@@ -385,6 +385,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   }, [childOptionsList]);
 
   const onFocusChid = (i) => {
+    if (canShowVoiceRxNewRows && !String(investigationData[i].investigation_name ?? "").trim()) {
+      setSearchChildQuery(null);
+      return;
+    }
     setSearchChildQuery({ query: investigationData[i].investigation_name, index: i });
     dispatch(
       searchInvestigation({ searchQuery: investigationData[i].investigation_name, type: "child" })
@@ -744,7 +748,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                   onSearch={(query) => onSearchChild(query, index)}
                                   onFocus={() => onFocusChid(index)}
                                   onBlur={handleVoiceInvestigationBlur}
-                                  options={childSearchOptions}
+                                  options={canShowVoiceRxNewRows && !String(item.investigation_name ?? "").trim() ? parentSearchOptions : childSearchOptions}
                                   className="autocomplete-custom w-100 inputborder"
                                   defaultActiveFirstOption={true}
                                   onSelect={(data, e) => onSelectChild(data, e, index)}
@@ -821,7 +825,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
         </Droppable>
       </DragDropContext>
     );
-  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, isChikitsalayAccessable]);
+  }, [activeVoiceInvestigationIndex, investigationData, childSearchOptions, parentSearchOptions, canShowVoiceRxNewRows, isChikitsalayAccessable]);
 
   //Template Componet
   const TEMPLATE_CONTENT = useCallback(() => {
@@ -1151,7 +1155,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
               onCancel={() => setVoiceCaptureOpen(false)}
               onComplete={handleVoiceCaptureComplete} />
           ) : (
-            !canShowVoiceRxNewRows && (
+            !isVoiceRxModuleEnabled && (
               <AutoComplete
                 value={searchParentQuery}
                 onSearch={onSearchParent}

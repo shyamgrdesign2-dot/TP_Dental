@@ -68,6 +68,7 @@ export function VoiceRxCanvas({
   soapHtml = "",
   inlineRecorderSlot,
   onCopyToRx,
+  onCopySoap,
   onBack,
   onMinimize,
   onAddDetailsByVoice,
@@ -196,6 +197,7 @@ export function VoiceRxCanvas({
         await navigator.clipboard.writeText(text);
       }
       toast.success("SOAP note copied");
+      onCopySoap?.();
     } catch {
       toast.error("Failed to copy SOAP note");
     }
