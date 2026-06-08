@@ -7,6 +7,9 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
+    env:
+      REACT_APP_ENV: zy-prod
+
     permissions:
       id-token: write # This is required for requesting the OIDC JWT Token
       contents: read # Required when GH token is used to authenticate with private repo
@@ -26,13 +29,13 @@ jobs:
         uses: azure/container-apps-deploy-action@v2
         with:
           appSourcePath: ${{ github.workspace }}
-          _dockerfilePathKey_: _dockerfilePath_
-          _targetLabelKey_: _targetLabel_
           registryUrl: zypractice05.azurecr.io
           registryUsername: ${{ secrets.ZYPRODDOCTORPORTAL_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.ZYPRODDOCTORPORTAL_REGISTRY_PASSWORD }}
           containerAppName: zy-prod-doctor-portal
           resourceGroup: practice-prod
           imageToBuild: zypractice05.azurecr.io/zy-prod-doctor-portal:${{ github.sha }}
-          _buildArgumentsKey_: |
-            _buildArgumentsValues_
+          buildArguments: |
+            REACT_APP_ENV=zy-prod
+            GENERATE_SOURCEMAP=false
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
