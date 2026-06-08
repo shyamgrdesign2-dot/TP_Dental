@@ -58,6 +58,7 @@ const {
 const { TextArea } = Input;
 
 const isVoiceRxModuleInvestigation = (item) => !!item?.voice_rx_from_module;
+const isFrequentlyUsedHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
 const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   background: "#2f2e39",
   borderRadius: 8,
@@ -282,6 +283,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     if (searchParentQuery.length === 0) {
       data.unshift({
         key: -1,
+        disabled: true,
         label: (
           <>
             <div>FREQUENTLY USED</div>
@@ -317,6 +319,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   const onSelectParent = useCallback(
     (data, e) => {
+      if (isFrequentlyUsedHeaderOption(e)) {
+        return;
+      }
+
       window.Moengage.track_event("investigation_select", {
         "value": data
       });
@@ -422,6 +428,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   const onSelectChild = useCallback(
     (data, e, i) => {
+      if (isFrequentlyUsedHeaderOption(e)) {
+        return;
+      }
+
       investigationData[i] = {
         ...investigationData[i],
         ...JSON.parse(e.key),
@@ -750,6 +760,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                   onBlur={handleVoiceInvestigationBlur}
                                   options={canShowVoiceRxNewRows && !String(item.investigation_name ?? "").trim() ? parentSearchOptions : childSearchOptions}
                                   className="autocomplete-custom w-100 inputborder"
+                                  popupClassName={canShowVoiceRxNewRows && !String(item.investigation_name ?? "").trim() ? "boxpopup" : undefined}
                                   defaultActiveFirstOption={true}
                                   onSelect={(data, e) => onSelectChild(data, e, index)}
                                 />
