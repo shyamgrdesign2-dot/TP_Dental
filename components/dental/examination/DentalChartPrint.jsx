@@ -137,7 +137,12 @@ export function hasHistoricalData(patientId) {
   } catch { return false; }
 }
 
-export function DentalChartPrintButton({ patientId }) {
+export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
+  // Capitalised dentition label baked into both row titles so the doctor
+  // sees WHICH dentition is being printed before they hit Print.
+  const ptLabel = patientType === "pediatric" ? "Pediatric"
+                : patientType === "mixed" ? "Mixed"
+                : "Adult";
   const [open, setOpen] = useState(false);
   const [includePatient, setIncludePatient] = useState(true);
   const [printReq, setPrintReq] = useState(null);
@@ -196,8 +201,8 @@ export function DentalChartPrintButton({ patientId }) {
       {open && (
         <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 320, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 16px 40px rgba(2,6,23,0.20)", padding: 8, zIndex: 40, fontFamily: "Inter, sans-serif" }}>
           <div style={{ padding: "4px 10px 8px", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Print</div>
-          {item("tooth", "Plain dental chart", "Blank odontogram template", "plain")}
-          {item("clipboard-activity", "Historical dental chart", "With recorded findings & history", "historical", { disabled: !historicalAvailable, disabledReason: "There is no historical data to print for this patient." })}
+          {item("tooth", `Plain ${ptLabel.toLowerCase()} dental chart`, "Blank odontogram template", "plain")}
+          {item("clipboard-activity", `Historical ${ptLabel.toLowerCase()} dental chart`, "With recorded findings & history", "historical", { disabled: !historicalAvailable, disabledReason: "There is no historical data to print for this patient." })}
           <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 6px 8px 10px", marginTop: 4, borderTop: "1px solid #f1f5f9", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500, color: "#475569" }}>
             <TPCheckbox size="small" checked={includePatient} onChange={(e) => setIncludePatient(e.target.checked)} sx={{ padding: 0, marginRight: "4px" }} />
             <span style={{ flex: 1 }}>Include patient information</span>
