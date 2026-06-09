@@ -47,15 +47,26 @@ function dentalSub(label, items, kp) {
         _jsx("div", { style: { paddingLeft: 14, display: "flex", flexDirection: "column", gap: 1, marginTop: 1 }, children: items.map((item, i) => (_jsxs("p", { style: DENTAL_DL, children: [_jsx("span", { style: { color: "#94a3b8" }, children: "•" }), _jsxs("span", { children: [_jsx("span", { style: { fontWeight: 600, color: "#334155" }, children: item.title }), renderMeta(item.metaParts)] })] }, `${kp}-${i}`))) }),
     ] });
 }
-// Tooth-date suffix — small slate-500 chip placed next to the tooth label
-// when historical mode is on. Falls back silently when no date is recorded.
-function toothDateNode(block, showToothDate) {
-    if (!showToothDate || !block?.toothUpdatedAt) return null;
-    return _jsxs("span", { style: { fontSize: 10, fontWeight: 500, color: "#64748b", marginLeft: 6, whiteSpace: "nowrap" }, children: ["· ", formatDate(block.toothUpdatedAt)] });
+// Compose the tooth label with the per-tooth date inserted INSIDE the
+// existing FDI bracket — "Upper Left First Molar (T26)" → "Upper Left
+// First Molar (T26, 09 Jun 2026)". No dot separator, no standalone chip:
+// the date reads as one bracketed annotation on the heading, consistent
+// across list / inline / table views AND with the on-screen Dental
+// History card.
+function toothLabelWithDate(block, showToothDate) {
+    if (!showToothDate || !block?.toothUpdatedAt) return block?.toothLabel || "";
+    const date = formatDate(block.toothUpdatedAt);
+    const label = block.toothLabel || "";
+    // Inject before the closing paren if the label ends with ")", otherwise
+    // append a fresh " (date)" suffix.
+    if (/\)\s*$/.test(label)) {
+        return label.replace(/\)\s*$/, `, ${date})`);
+    }
+    return `${label} (${date})`;
 }
 function dentalToothListNode(block, showToothDate) {
     return _jsxs("div", { children: [
-        _jsxs("p", { style: { margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }, children: [_jsx("span", { style: { color: "#1e293b" }, children: "•" }), block.toothLabel, toothDateNode(block, showToothDate)] }),
+        _jsxs("p", { style: { margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }, children: [_jsx("span", { style: { color: "#1e293b" }, children: "•" }), toothLabelWithDate(block, showToothDate)] }),
         _jsxs("div", { style: { paddingLeft: 14, display: "flex", flexDirection: "column", gap: 2, marginTop: 2 }, children: [
             block.treatmentHistory.length ? dentalSub("Past Procedures", block.treatmentHistory, "th") : null,
             block.findings.length ? dentalSub("Findings", block.findings, "fd") : null,
@@ -78,8 +89,7 @@ function dentalToothInlineNode(block, showToothDate) {
         { label: "Notes",           text: block.overallToothNote || null },
     ].filter((s) => s.text);
     return _jsxs("p", { style: { margin: 0, fontSize: 11.5, color: "#334155", lineHeight: 1.45 }, children: [
-        _jsx("span", { style: { fontWeight: 700, color: "#0f172a" }, children: `${block.toothLabel}:` }),
-        toothDateNode(block, showToothDate),
+        _jsx("span", { style: { fontWeight: 700, color: "#0f172a" }, children: `${toothLabelWithDate(block, showToothDate)}:` }),
         " ",
         ...segs.flatMap((s, i) => [
             i > 0 ? _jsx("span", { style: { color: "#94a3b8" }, children: "; " }, `sep-${i}`) : null,
@@ -119,7 +129,7 @@ function dentalToothTableNode(block, showToothDate) {
         ] }),
     ] })) : null;
     return _jsxs("div", { style: wrap, children: [
-        _jsxs("div", { style: toothHead, children: [block.toothLabel, toothDateNode(block, showToothDate)] }),
+        _jsx("div", { style: toothHead, children: toothLabelWithDate(block, showToothDate) }),
         catTable("Past Procedures", block.treatmentHistory),
         catTable("Findings", block.findings),
         catTable("Procedures", block.procedures),

@@ -347,11 +347,12 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
   };
   const fallbackDate = chart?.updatedAt ?? new Date().toISOString();
   const entryDateLabel = (e) => dt(e?.updatedAt ?? fallbackDate);
-  // Reusable date chip — matches the dental tooth-date treatment exactly
-  // (10px / 500 slate-500). Wrap in a span so JSX can be reused inline.
-  const DateChip = ({ value }) => (
-    <span style={{ fontSize: 10, fontWeight: 500, color: "#64748b", marginLeft: 6, whiteSpace: "nowrap" }}>· {value}</span>
-  );
+  // Compose a section heading with the date inserted inside the existing
+  // bracket — "Past Procedures (09 Jun 2026)" rather than a separate "·"
+  // chip. Matches the dental tooth-label treatment and the Dental History
+  // card pattern: one bracketed annotation per heading, no dot separators.
+  const sectionDateLabel = dt(chart?.updatedAt ?? new Date().toISOString());
+  const headingWithDate = (label) => showDates ? `${label} (${sectionDateLabel})` : label;
 
   // Group by primary site (first position) so the printed report matches the
   // on-screen records layout (site as the header, items inside).
@@ -401,15 +402,16 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
     const td = { padding: "6px 10px", fontSize: 12, color: "#475569", verticalAlign: "top", borderTop: "1px solid #e6ebf1", wordBreak: "break-word" };
     const tdName = { ...td, fontWeight: 600, color: "#334155" };
     const colW = ["32%", "26%", "16%", "26%"];
-    // When historical is on, name cell carries the per-entry date next to
-    // the entry name (no extra column — keeps the table tight).
+    // When historical is on, the date sits inside the kind-head bracket
+    // ("Past Procedures (09 Jun 2026)") — one annotation per section,
+    // matching the Dental History card pattern. Name column stays clean.
     const kindTable = (label, list) => list.length ? (
       <div style={wrap}>
-        <div style={kindHead}>{label}</div>
+        <div style={kindHead}>{headingWithDate(label)}</div>
         <table style={tbl}>
           <thead><tr>{["Name", "Area", "Since", "Notes"].map((t, ci) => <th key={t} style={{ ...th, width: colW[ci] }}>{t}</th>)}</tr></thead>
           <tbody>{list.map((it, ri) => (
-            <tr key={ri}><td style={tdName}>{it.name}{showDates && <DateChip value={it.date} />}</td><td style={td}>{it.region || "—"}</td><td style={td}>{it.since || "—"}</td><td style={td}>{it.note || "—"}</td></tr>
+            <tr key={ri}><td style={tdName}>{it.name}</td><td style={td}>{it.region || "—"}</td><td style={td}>{it.since || "—"}</td><td style={td}>{it.note || "—"}</td></tr>
           ))}</tbody>
         </table>
       </div>
@@ -421,7 +423,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
           {kindTable("Past Procedures", allPast)}
           {kindTable("Findings", allFindings)}
           {kindTable("Procedures", allProcs)}
-          {notes && <div style={wrap}><div style={kindHead}>Overall Notes</div><div style={{ padding: "8px 12px", fontSize: 12, color: "#475569" }}>{notes}</div></div>}
+          {notes && <div style={wrap}><div style={kindHead}>{headingWithDate("Overall Notes")}</div><div style={{ padding: "8px 12px", fontSize: 12, color: "#475569" }}>{notes}</div></div>}
         </div>
       </section>
     );
@@ -437,6 +439,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
       else if (e.kind === "procedure") allProcs.push(item);
       else allFindings.push(item);
     });
+    // Date moves to the kind label heading (below) — items stay clean.
     const inlineItemNode = (it, i) => {
       const bits = [];
       if (it.region) bits.push(it.region);
@@ -444,7 +447,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
       if (it.note) bits.push(it.note);
       const bracket = bits.length ? ` (${bits.join(", ")})` : "";
       return (
-        <span key={i}>{i > 0 ? ", " : ""}{it.name}{bracket}{showDates && <DateChip value={it.date} />}</span>
+        <span key={i}>{i > 0 ? ", " : ""}{it.name}{bracket}</span>
       );
     };
     const segs = [
@@ -457,9 +460,9 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
         {heading}
         <div style={{ display: "flex", flexDirection: "column", gap: 5, fontFamily: "Inter, sans-serif" }}>
           {segs.map((s) => (
-            <p key={s.label} style={{ margin: 0, fontSize: 11.5, color: "#475569", lineHeight: 1.45 }}><span style={{ fontWeight: 700, color: "#1e293b" }}>{s.label}:</span> {s.list.map(inlineItemNode)}</p>
+            <p key={s.label} style={{ margin: 0, fontSize: 11.5, color: "#475569", lineHeight: 1.45 }}><span style={{ fontWeight: 700, color: "#1e293b" }}>{headingWithDate(s.label)}:</span> {s.list.map(inlineItemNode)}</p>
           ))}
-          {notes && <p style={{ margin: 0, fontSize: 11.5, color: "#475569" }}><span style={{ fontWeight: 700, color: "#1e293b" }}>Notes:</span> {notes}</p>}
+          {notes && <p style={{ margin: 0, fontSize: 11.5, color: "#475569" }}><span style={{ fontWeight: 700, color: "#1e293b" }}>{headingWithDate("Notes")}:</span> {notes}</p>}
         </div>
       </section>
     );
@@ -485,12 +488,12 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
                   list.length > 0 ? (
                     <div key={secLabel}>
                       <p style={{ margin: 0, fontSize: 11.5, color: "#475569", display: "flex", gap: 5, alignItems: "baseline", lineHeight: 1.4 }}>
-                        <span style={{ color: "#cbd5e1" }}>•</span><span style={{ fontWeight: 600 }}>{secLabel}</span>
+                        <span style={{ color: "#cbd5e1" }}>•</span><span style={{ fontWeight: 600 }}>{headingWithDate(secLabel)}</span>
                       </p>
                       <div style={{ paddingLeft: 14, display: "flex", flexDirection: "column", gap: 1, marginTop: 1 }}>
                         {list.map((it, i) => (
                           <p key={i} style={{ margin: 0, fontSize: 11.5, color: "#475569", display: "flex", gap: 5, alignItems: "baseline", lineHeight: 1.4 }}>
-                            <span style={{ color: "#94a3b8" }}>•</span><span><span style={{ fontWeight: 600, color: "#334155" }}>{it.name}</span>{it.meta ? ` (${it.meta})` : ""}{showDates && <DateChip value={it.date} />}</span>
+                            <span style={{ color: "#94a3b8" }}>•</span><span><span style={{ fontWeight: 600, color: "#334155" }}>{it.name}</span>{it.meta ? ` (${it.meta})` : ""}</span>
                           </p>
                         ))}
                       </div>
