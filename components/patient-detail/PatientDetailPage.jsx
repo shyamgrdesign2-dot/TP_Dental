@@ -162,6 +162,7 @@ const ORAL_HISTORY_LINES = [
     items: [
       { name: "Scaling & Polishing", meta: "whole mouth, 6 months ago" },
     ],
+    addedOn: "5 Oct, 22",
   },
   {
     label: "Findings",
@@ -169,6 +170,7 @@ const ORAL_HISTORY_LINES = [
       { name: "Mild gingivitis", meta: "generalized, since 2 months" },
       { name: "Calculus", meta: "lower anteriors" },
     ],
+    addedOn: "10 Oct, 22",
   },
 ];
 
@@ -178,24 +180,28 @@ const TOOTH_HISTORY_LINES = [
     segs: [
       { label: "Findings", text: "Caries (occlusal, since 3 months)" },
     ],
+    addedOn: "10 Oct, 22",
   },
   {
     toothLabel: "Upper Left First Molar (T26)",
     segs: [
       { label: "Past Procedures", text: "Filling (occlusal, done 1 year ago)" },
     ],
+    addedOn: "12 Sep, 22",
   },
   {
     toothLabel: "Lower Left First Molar (T36)",
     segs: [
       { label: "Past Procedures", text: "RCT + Crown (done 2 years ago)" },
     ],
+    addedOn: "18 Aug, 22",
   },
   {
     toothLabel: "Lower Right Lateral Incisor (T42)",
     segs: [
       { label: "Findings", text: "Mild attrition (incisal, since 6 months)" },
     ],
+    addedOn: "10 Oct, 22",
   },
 ];
 
@@ -263,14 +269,19 @@ function HistorySectionCard({ title, iconName, onOpenSidebar, children }) {
 // shape. Oral lines: "Past Procedures: Name (meta), Name". Tooth lines:
 // "Upper Right First Molar (T16): Findings: Name (meta); Past Procedures: …".
 function DentalHistoryInline() {
-  // Full-width section-tag strip — matches the `#f1f1f5` table-header tint
-  // used by the Vitals / Medical / Lab cards so the visual rhythm of the
-  // column stays consistent.
+  // Inset section tag — same `#f1f1f5` tint as the table-header rows in the
+  // Vitals / Medical / Lab cards, but with horizontal padding (no negative
+  // margins) so it sits inside the card body, not edge-to-edge.
   const sectionTag = (label) => (
-    <div className="-mx-3 sm:-mx-[14px] mb-2 mt-1 px-3 sm:px-[14px] py-[6px] bg-[#f1f1f5] text-[11px] font-semibold uppercase tracking-[0.05em] text-[#454551]">
+    <div className="mb-2 mt-1 px-3 py-[6px] rounded-[6px] bg-[#f1f1f5] text-[11px] font-semibold uppercase tracking-[0.05em] text-[#454551]">
       {label}
     </div>
   );
+  // Small slate-400 timestamp at the end of each row — optional metadata
+  // signalling when the entry was added. Inline so it stays compact.
+  const addedOn = (date) => date ? (
+    <span className="text-[#94a3b8] ml-1 whitespace-nowrap"> · {date}</span>
+  ) : null;
   return (
     <div className="flex flex-col gap-3">
       {/* ORAL RECORDS — always rendered first when present */}
@@ -288,6 +299,7 @@ function DentalHistoryInline() {
                     {it.meta ? <span className="text-[#64748b]"> ({it.meta})</span> : null}
                   </span>
                 ))}
+                {addedOn(line.addedOn)}
               </p>
             ))}
           </div>
@@ -308,6 +320,7 @@ function DentalHistoryInline() {
                     <span className="font-semibold text-[#1e293b]">{s.label}:</span> {s.text}
                   </span>
                 ))}
+                {addedOn(row.addedOn)}
               </p>
             ))}
           </div>
@@ -345,12 +358,17 @@ function DentalHistoryCard() {
           <ArrowRight2 size={18} variant="Linear" color="currentColor" strokeWidth={1.75} />
         </button>
       </div>
+      {/* When collapsed, the body has overflow:hidden and a tall gradient
+          overlay at the bottom that fades the trailing content while
+          HOSTING the "View more" button — no divider, no separate footer
+          row, the content visually melts into the CTA. When expanded, the
+          body shows full height and the button sits below it without a
+          border. */}
       <div
         className="px-3 sm:px-[14px] py-3"
-        style={{ maxHeight: expanded ? "none" : 140, overflow: "hidden", position: "relative" }}
+        style={{ maxHeight: expanded ? "none" : 180, overflow: "hidden", position: "relative" }}
       >
         <DentalHistoryInline />
-        {/* Soft fade at the bottom when collapsed — signals there's more content. */}
         {!expanded && (
           <div
             aria-hidden
@@ -359,33 +377,46 @@ function DentalHistoryCard() {
               left: 0,
               right: 0,
               bottom: 0,
-              height: 36,
-              background: "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 80%, #fff 100%)",
+              height: 70,
+              background:
+                "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 55%, #fff 100%)",
               pointerEvents: "none",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              paddingBottom: 8,
             }}
-          />
+          >
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline focus:outline-none"
+              onClick={() => setExpanded(true)}
+              aria-expanded={false}
+              style={{ pointerEvents: "auto" }}
+            >
+              <span>View more</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
         )}
       </div>
-      <div className="px-3 sm:px-[14px] pb-3 pt-1 border-t border-tp-slate-100 flex items-center justify-center">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline focus:outline-none"
-          onClick={() => setExpanded((e) => !e)}
-          aria-expanded={expanded}
-        >
-          <span>{expanded ? "Show less" : "View more"}</span>
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.18s ease" }}
+      {expanded && (
+        <div className="px-3 sm:px-[14px] pb-3 pt-1 flex items-center justify-center">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline focus:outline-none"
+            onClick={() => setExpanded(false)}
+            aria-expanded={true}
           >
-            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      </div>
+            <span>Show less</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ transform: "rotate(180deg)", transition: "transform 0.18s ease" }}>
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      )}
     </CardShell>
   );
 }
