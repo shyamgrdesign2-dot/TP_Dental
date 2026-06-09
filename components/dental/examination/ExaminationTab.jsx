@@ -872,11 +872,11 @@ function OralTable({ state, title, kind, catalog, list }) {
     return (_jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 8, padding: "4px 14px 12px" }, children: [
         list.length > 0 && (_jsx("div", { ref: wrapRef, className: clsx(ui.tableWrap, showEdge && ui.scrolledEdge), children: _jsxs("table", { className: ui.table, children: [
             _jsxs("colgroup", { children: [_jsx("col", { style: { minWidth: 150 } }), _jsx("col", { style: { width: 220, minWidth: 200 } }), _jsx("col", { style: { width: 120, minWidth: 110 } }), _jsx("col", { style: { minWidth: 130 } }), _jsx("col", { style: { width: 44, minWidth: 44, maxWidth: 44 } })] }),
-            _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "AREA" }), _jsx("th", { className: ui.th, children: "SINCE" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }),
+            _jsx("thead", { children: _jsxs("tr", { className: ui.theadRow, children: [_jsx("th", { className: ui.th, children: "NAME" }), _jsx("th", { className: ui.th, children: "AREA" }), _jsx("th", { className: ui.th, children: kind === "past" ? "WHEN" : kind === "finding" ? "SINCE" : "" }), _jsx("th", { className: ui.th, children: "NOTE" }), _jsx("th", { className: ui.thSticky })] }) }),
             _jsx("tbody", { children: list.map((e) => (_jsxs("tr", { className: ui.tbodyRow, children: [
                 _jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: e.name }) }),
                 _jsx("td", { className: ui.tdPlain, children: _jsx(OralPositionCell, { value: e.surfaces || [], onChange: (arr) => state.onUpdateOralEntry(e.id, { surfaces: arr }), onHoverPreview: (arr) => state.onSetOralHighlight?.(arr) }) }),
-                _jsx("td", { className: ui.tdPlain, children: _jsx(SinceDropdown, { value: e.since || "", onChange: (v) => state.onUpdateOralEntry(e.id, { since: v }) }) }),
+                _jsx("td", { className: ui.tdPlain, children: kind === "procedure" ? null : _jsx(SinceDropdown, { value: e.since || "", onChange: (v) => state.onUpdateOralEntry(e.id, { since: v }), kind: kind }) }),
                 _jsx("td", { className: ui.tdPlain, children: _jsx("input", { type: "text", value: e.note || "", onChange: (ev) => state.onUpdateOralEntry(e.id, { note: ev.target.value }), placeholder: "Add note…", className: ui.symptomField }) }),
                 _jsx("td", { className: ui.tdStickyAct, children: _jsx("button", { type: "button", onClick: () => state.onRemoveOralEntry(e.id), title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 20, color: "currentColor", strokeWidth: 1.5, variant: "Linear" }) }) }),
             ] }, e.id))) }),
@@ -1634,22 +1634,30 @@ function getDynamicSinceOptions(query) {
         `${n} year${plural}`,
     ];
 }
-function SinceDropdown({ value, onChange, autoOpen, onFocusActivate, onBlurDeactivate }) {
+// Hybrid input — typed natural-language ("3 weeks") + quick-chip suggestions
+// on focus, OR a calendar icon that swaps to a native date picker. Selecting
+// a date writes back a human-readable "DD MMM YYYY" string so the printed
+// Rx still reads naturally regardless of which path the doctor used.
+function SinceDropdown({ value, onChange, autoOpen, onFocusActivate, onBlurDeactivate, kind = "finding" }) {
+    const [mode, setMode] = useState("suggestions"); // "suggestions" | "date"
     const [open, setOpen] = useState(false);
     const [internalValue, setInternalValue] = useState(value);
     const [pos, setPos] = useState(null);
     const anchorRef = useRef(null);
     const popoverRef = useRef(null);
+    const dateInputRef = useRef(null);
     useEffect(() => {
-        if (autoOpen && !value)
-            setOpen(true);
+        if (autoOpen && !value) { setMode("suggestions"); setOpen(true); }
     }, [autoOpen, value]);
     useEffect(() => { setInternalValue(value); }, [value]);
+    // Past procedures answer "when was it done?" — chips suggest larger ranges.
+    // Findings answer "how long has it been present?" — chips suggest finer ranges.
     const options = useMemo(() => {
-        return internalValue && internalValue.match(/\d+/) ? getDynamicSinceOptions(internalValue) : [
-            "1 hour", "1 day", "1 week", "1 year"
-        ];
-    }, [internalValue]);
+        if (internalValue && internalValue.match(/\d+/)) return getDynamicSinceOptions(internalValue);
+        return kind === "past"
+            ? ["1 week", "1 month", "3 months", "6 months", "1 year", "2+ years"]
+            : ["1 hour", "1 day", "1 week", "2 weeks", "1 month", "3 months"];
+    }, [internalValue, kind]);
     useEffect(() => {
         if (!open) {
             setPos(null);
@@ -1684,18 +1692,34 @@ function SinceDropdown({ value, onChange, autoOpen, onFocusActivate, onBlurDeact
         document.addEventListener("mousedown", onDoc);
         return () => document.removeEventListener("mousedown", onDoc);
     }, [open, onBlurDeactivate]);
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: ui.sinceAnchor, ref: anchorRef, children: [_jsx("input", { type: "text", value: internalValue, onFocus: () => { onFocusActivate?.(); setOpen(true); }, onChange: (e) => {
-                            setInternalValue(e.target.value);
-                            setOpen(true);
-                        }, onKeyDown: (e) => {
-                            if (e.key === "Enter") {
-                                onChange(internalValue);
-                                setOpen(false);
-                            }
-                        }, placeholder: "e.g. 5 days", className: ui.sinceInput }), _jsx("svg", { className: ui.sinceChevronAbs, width: "10", height: "6", viewBox: "0 0 10 6", fill: "none", style: { transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }, children: _jsx("path", { d: "M1 1L5 5L9 1", stroke: "#94a3b8", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }) })] }), open && pos && createPortal(_jsx("div", { ref: popoverRef, className: ui.sinceMenu, style: { top: pos.top, left: pos.left, width: pos.width }, children: options.map((opt) => (_jsx("button", { type: "button", className: ui.popoverItem, onClick: () => {
-                        onChange(opt);
-                        setOpen(false);
-                    }, children: opt }, opt))) }), document.body)] }));
+    const fmtDate = (iso) => {
+        try { const d = new Date(iso); if (Number.isNaN(d.getTime())) return iso; return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); } catch { return iso; }
+    };
+    const onCalendarClick = (e) => {
+        e.stopPropagation();
+        setMode("date");
+        setOpen(true);
+        onFocusActivate?.();
+        // Auto-pop the native picker so the doctor lands directly in date mode.
+        setTimeout(() => { try { dateInputRef.current?.showPicker?.(); } catch {} }, 30);
+    };
+    return (_jsxs(_Fragment, { children: [
+        _jsxs("div", { className: ui.sinceAnchor, ref: anchorRef, children: [
+            _jsx("input", { type: "text", value: internalValue, onFocus: () => { onFocusActivate?.(); setMode("suggestions"); setOpen(true); }, onChange: (e) => { setInternalValue(e.target.value); setMode("suggestions"); setOpen(true); }, onKeyDown: (e) => { if (e.key === "Enter") { onChange(internalValue); setOpen(false); } }, placeholder: "e.g. 5 days", className: ui.sinceInput }),
+            _jsx("button", { type: "button", onClick: onCalendarClick, "aria-label": "Pick exact date", title: "Pick exact date", style: { position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: 6, border: "none", background: open && mode === "date" ? "rgba(75,74,213,0.10)" : "transparent", color: open && mode === "date" ? "var(--tp-blue-500)" : "#94a3b8", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", zIndex: 21 }, children: _jsx(Calendar, { size: 14, color: "currentColor", variant: "Linear" }) }),
+        ] }),
+        open && pos && createPortal(
+            _jsx("div", { ref: popoverRef, className: ui.sinceMenu, style: { top: pos.top, left: pos.left, width: pos.width },
+                children: mode === "date"
+                    ? _jsxs("div", { style: { padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }, children: [
+                        _jsx("div", { style: { fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#94a3b8" }, children: "Pick a date" }),
+                        _jsx("input", { ref: dateInputRef, type: "date", onChange: (e) => { const v = e.target.value; if (v) { onChange(fmtDate(v)); setOpen(false); } }, style: { width: "100%", padding: "8px 10px", border: "1px solid #e2e8f0", borderRadius: 8, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#334155" } }),
+                        _jsx("button", { type: "button", onClick: () => { setMode("suggestions"); }, style: { background: "transparent", border: "none", color: "var(--tp-blue-500)", fontSize: 12, fontWeight: 600, cursor: "pointer", textAlign: "left", padding: 0 }, children: "← Back to quick options" }),
+                    ] })
+                    : _jsx("div", { style: { display: "flex", flexDirection: "column" }, children: options.map((opt, i) => (_jsx("button", { type: "button", className: ui.popoverItem, onClick: () => { onChange(opt); setOpen(false); }, children: opt }, `${opt}-${i}`))) }) }),
+            document.body
+        )
+    ] }));
 }
 function SurfaceMultiSelect({ selected, arch, toothPosition, onToggle, onHover, }) {
     return (_jsx("div", { className: ui.zoneChipsRow, children: ALL_ZONES.map((z) => {
