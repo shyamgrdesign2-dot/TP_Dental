@@ -277,21 +277,26 @@ function DentalHistoryInline() {
       {label}
     </div>
   );
-  // Small slate-400 timestamp at the end of each row — optional metadata
-  // signalling when the entry was added. Inline so it stays compact.
-  const addedOn = (date) => date ? (
-    <span className="text-[#94a3b8] ml-1 whitespace-nowrap"> · {date}</span>
-  ) : null;
+  // Date sits inside the same bracket as the row's bold heading, with the
+  // SAME slate-500 colour the bracketed meta text uses elsewhere in the
+  // print Rx (e.g. "(whole mouth, 6 months ago)") — keeps the palette to
+  // just two colours: dark heading + lighter meta.
   return (
     <div className="flex flex-col gap-3">
       {/* ORAL RECORDS — always rendered first when present */}
       {ORAL_HISTORY_LINES.length > 0 && (
         <div>
           {sectionTag("Oral Record")}
-          <div className="flex flex-col gap-1">
+          {/* Nested inner padding so the rows feel like content of the section
+              tag above them, not a flush continuation of the card body. */}
+          <div className="flex flex-col gap-1 pl-3">
             {ORAL_HISTORY_LINES.map((line) => (
               <p key={line.label} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
-                <span className="font-semibold text-[#0f172a]">{line.label}:</span>{" "}
+                <span className="font-semibold text-[#0f172a]">
+                  {line.label}
+                  {line.addedOn ? <span className="font-normal text-[#64748b]"> ({line.addedOn})</span> : null}
+                  :
+                </span>{" "}
                 {line.items.map((it, i) => (
                   <span key={i}>
                     {i > 0 ? ", " : ""}
@@ -299,7 +304,6 @@ function DentalHistoryInline() {
                     {it.meta ? <span className="text-[#64748b]"> ({it.meta})</span> : null}
                   </span>
                 ))}
-                {addedOn(line.addedOn)}
               </p>
             ))}
           </div>
@@ -309,10 +313,14 @@ function DentalHistoryInline() {
       {TOOTH_HISTORY_LINES.length > 0 && (
         <div>
           {sectionTag("Tooth Record")}
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 pl-3">
             {TOOTH_HISTORY_LINES.map((row, idx) => (
               <p key={idx} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
-                <span className="font-semibold text-[#0f172a]">{row.toothLabel}:</span>
+                <span className="font-semibold text-[#0f172a]">
+                  {row.toothLabel}
+                  {row.addedOn ? <span className="font-normal text-[#64748b]"> ({row.addedOn})</span> : null}
+                  :
+                </span>
                 {" "}
                 {row.segs.map((s, i) => (
                   <span key={i}>
@@ -320,7 +328,6 @@ function DentalHistoryInline() {
                     <span className="font-semibold text-[#1e293b]">{s.label}:</span> {s.text}
                   </span>
                 ))}
-                {addedOn(row.addedOn)}
               </p>
             ))}
           </div>
