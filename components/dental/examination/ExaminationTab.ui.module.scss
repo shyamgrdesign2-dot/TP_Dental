@@ -1922,7 +1922,10 @@
   border-radius: 0;
   border: 0;
   background: transparent;
-  padding: 0 30px 0 12px;
+  // Right-padding leaves room for the calendar icon button (8px offset +
+  // 26px button = 34px). A full date string ("07 Jul 2026") sits flush
+  // against this padding without overlapping the icon.
+  padding: 0 38px 0 12px;
   font-family: "Inter", sans-serif;
   font-size: 14px;
   line-height: 20px;
@@ -2000,17 +2003,24 @@
   color: var(--tp-blue-700);
 }
 
-// SurfaceDots
-.dotsWholePill {
+// "Whole tooth" tag — matches the surface tag visual unit:
+// 18px tall, 4px radius, no border, tinted fill + saturated text.
+// The greenish colour comes from ZONE_INFO.whole (#34d399); the deeper
+// text colour keeps the label readable against the soft tinted fill.
+.dotsWholePill,
+.wholeToothChip {
   display: inline-flex;
   align-items: center;
-  border-radius: 5px;
-  background: tp.$slate-100;
-  padding: 2px 6px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(52, 211, 153, 0.18);
+  padding: 0 6px;
   font-family: "Inter", sans-serif;
   font-size: 12px;
-  font-weight: 600;
-  color: tp.$slate-600;
+  font-weight: 700;
+  color: #047857;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .dotsRow {
@@ -2019,24 +2029,28 @@
   gap: 4px;
 }
 
+// Surface tag — light tinted fill, saturated zone-colour text, no border.
+// Background + colour are set inline per-zone (SurfaceDots.jsx) so each
+// surface keeps its own hue but lives in the same lightweight tag shape
+// as the "Whole tooth" chip and the rest of the chips in this surface row.
 .dotsAbbr {
   display: inline-flex;
   height: 18px;
   align-items: center;
   gap: 3px;
   border-radius: 4px;
-  padding: 0 5px;
+  padding: 0 6px;
   font-family: "Inter", sans-serif;
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
   font-variant-numeric: tabular-nums;
   cursor: default;
-  transition: filter 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+  line-height: 1;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 
   &:hover {
-    filter: brightness(1.08);
-    box-shadow: 0 0 0 2px rgb(59 130 246 / 0.45);
+    box-shadow: 0 0 0 2px rgb(59 130 246 / 0.35);
   }
 }
 

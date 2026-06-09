@@ -20,6 +20,33 @@ const EXAM_CHART_PREFIX = "dental.exam.chart.";
 const UPPER_ROW = ["18", "17", "16", "15", "14", "13", "12", "11", "21", "22", "23", "24", "25", "26", "27", "28"];
 const LOWER_ROW = ["48", "47", "46", "45", "44", "43", "42", "41", "31", "32", "33", "34", "35", "36", "37", "38"];
 
+// Primary (deciduous) dentition — 5 teeth per quadrant. Same facing-patient
+// orientation as the permanent rows. Used for "pediatric" mode and the
+// primary half of "mixed" mode.
+const UPPER_ROW_PRIMARY = ["55", "54", "53", "52", "51", "61", "62", "63", "64", "65"];
+const LOWER_ROW_PRIMARY = ["85", "84", "83", "82", "81", "71", "72", "73", "74", "75"];
+
+// Primary FDIs map back to adult anatomical positions for image reuse —
+// the project ships only 32 permanent tooth WebPs, so each primary tooth
+// borrows the silhouette of its adult equivalent (mirrors `posMap` in
+// `buildPediatricTeeth` in `./types.ts`).
+const PRIMARY_TO_ADULT_FDI = {
+  // Upper right primary 51-55 → adult 11-13, 16-17
+  "51": "11", "52": "12", "53": "13", "54": "16", "55": "17",
+  // Upper left primary 61-65 → adult 21-23, 26-27
+  "61": "21", "62": "22", "63": "23", "64": "26", "65": "27",
+  // Lower left primary 71-75 → adult 31-33, 36-37
+  "71": "31", "72": "32", "73": "33", "74": "36", "75": "37",
+  // Lower right primary 81-85 → adult 41-43, 46-47
+  "81": "41", "82": "42", "83": "43", "84": "46", "85": "47",
+};
+
+// Source of a tooth's silhouette. Permanent FDIs use themselves; primary
+// FDIs fall through to the mapped permanent equivalent.
+function toothImageFdi(fdi) {
+  return PRIMARY_TO_ADULT_FDI[fdi] || fdi;
+}
+
 const MISSING = new Set(["Missing", "Extraction"]);
 
 function loadChart(patientId) {
@@ -221,9 +248,13 @@ function zonesByToothFromChart(chart) {
 function ChartToothCell({ fdi, st, h, arch, zones }) {
   const hasData = st.hasAny || st.isMissing;
   const pos = Number(fdi[1]) || 6;
+  // Primary FDIs (5x-8x) borrow their permanent counterpart's silhouette
+  // since the project only ships 32 adult WebPs. The visible FDI label
+  // stays primary; only the artwork is reused.
+  const imgFdi = toothImageFdi(fdi);
   const img = (
     <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", borderRadius: 7, background: hasData ? "rgba(124,58,237,0.10)" : "transparent", boxSizing: "border-box", padding: "2px 2px" }}>
-      <img src={`/teeth/${fdi}.webp`} alt={fdi} decoding="async" style={{ height: h, width: "auto", display: "block", opacity: st.isMissing ? 0.4 : 1, filter: hasData ? TOOTH_STROKE : undefined }} />
+      <img src={`/teeth/${imgFdi}.webp`} alt={fdi} decoding="async" style={{ height: h, width: "auto", display: "block", opacity: st.isMissing ? 0.4 : 1, filter: hasData ? TOOTH_STROKE : undefined }} />
     </div>
   );
   const num = <span style={{ fontSize: 10, fontWeight: hasData ? 800 : 600, color: hasData ? "#1e293b" : "#94a3b8", fontFamily: "Inter, sans-serif" }}>{fdi}</span>;
@@ -242,7 +273,7 @@ function ChartToothCell({ fdi, st, h, arch, zones }) {
   );
 }
 
-export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender = false }) {
+export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender = false, patientType = "adult" }) {
   const [chart, setChart] = useState(chartProp ?? null);
   const wrapRef = useRef(null);
   const [toothH, setToothH] = useState(84);
@@ -292,14 +323,33 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
   );
   // Right/left quadrant gap matches the upper/lower jaw gap (8px row gap)
   // so the chart reads with one consistent rhythm. `space-evenly` keeps
-  // the inner-most tooth (11 / 41) from sitting flush against the divider.
-  const row = (fdis, arch) => (
-    <div style={{ display: "flex", alignItems: "stretch" }}>
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(0, 8).map((fdi) => cell(fdi, arch))}</div>
-      <div style={{ width: 1, background: "#e2e8f0", margin: "0 4px" }} />
-      <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(8).map((fdi) => cell(fdi, arch))}</div>
-    </div>
-  );
+  // the inner-most tooth from sitting flush against the divider. Midpoint
+  // is computed from the row length so the same builder serves both the
+  // 16-tooth permanent rows and the 10-tooth primary rows.
+  const row = (fdis, arch) => {
+    const mid = Math.floor(fdis.length / 2);
+    return (
+      <div style={{ display: "flex", alignItems: "stretch" }}>
+        <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(0, mid).map((fdi) => cell(fdi, arch))}</div>
+        <div style={{ width: 1, background: "#e2e8f0", margin: "0 4px" }} />
+        <div style={{ flex: "1 1 0", display: "flex", justifyContent: "space-evenly" }}>{fdis.slice(mid).map((fdi) => cell(fdi, arch))}</div>
+      </div>
+    );
+  };
+
+  // Pick the dentition layout. Mixed renders BOTH arch pairs (permanent
+  // first, then primary) so transitional-dentition patients see every
+  // recorded site on a single chart.
+  const archPairs =
+    patientType === "pediatric"
+      ? [{ upper: UPPER_ROW_PRIMARY, lower: LOWER_ROW_PRIMARY, label: "Primary" }]
+      : patientType === "mixed"
+        ? [
+            { upper: UPPER_ROW, lower: LOWER_ROW, label: "Permanent" },
+            { upper: UPPER_ROW_PRIMARY, lower: LOWER_ROW_PRIMARY, label: "Primary" },
+          ]
+        : [{ upper: UPPER_ROW, lower: LOWER_ROW, label: "Permanent" }];
+  const showPairLabels = archPairs.length > 1;
 
   return (
     <section
@@ -310,9 +360,18 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
         Dental Chart
       </h3>
       <div ref={wrapRef} style={{ display: "flex", flexDirection: "column", gap: 8, filter: "grayscale(1)" }}>
-        {row(UPPER_ROW, "maxillary")}
-        <div style={{ height: 1, background: "#e2e8f0" }} />
-        {row(LOWER_ROW, "mandibular")}
+        {archPairs.map((pair, idx) => (
+          <div key={pair.label} style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: idx === 0 ? 0 : 14 }}>
+            {showPairLabels && (
+              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", color: "#94a3b8", fontFamily: "Inter, sans-serif" }}>
+                {pair.label}
+              </p>
+            )}
+            {row(pair.upper, "maxillary")}
+            <div style={{ height: 1, background: "#e2e8f0" }} />
+            {row(pair.lower, "mandibular")}
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -320,10 +379,10 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
 
 // OralExamReport — region-level oral findings & procedures for the Rx / printed
 // report. Reads the same saved exam chart and lists each region's entries.
-// `showDates` (passed in from RxPreviewDocument when `settings.includeHistorical`
-// is on) appends a per-entry date chip next to each entry's name so historical
-// merges read cleanly without one big section-level date covering everything.
-export function OralExamReport({ patientId, chart: chartProp, view = "list", showDates = false }) {
+// Per-section "(date)" annotations were removed — every section heading now
+// reads as its plain label (e.g. "Past Procedures"), consistent with the
+// dental Examination print and the Dental History card.
+export function OralExamReport({ patientId, chart: chartProp, view = "list" }) {
   const [chart, setChart] = useState(chartProp ?? null);
   useEffect(() => {
     if (chartProp) return;
@@ -334,30 +393,12 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
   const notes = (chart?.oralNotes || "").trim();
   if (entries.length === 0 && !notes) return null;
 
-  // Per-entry date label — uses each entry's `updatedAt` if present, else the
-  // chart-level `updatedAt`, else today. Mental model: editing ANY oral entry
-  // in the current visit promotes its stamp to now (matches the per-tooth
-  // semantics on the dental side).
-  const dt = (v) => {
-    try {
-      const d = new Date(v);
-      if (Number.isNaN(d.getTime())) return v;
-      return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-    } catch { return String(v ?? ""); }
-  };
-  const fallbackDate = chart?.updatedAt ?? new Date().toISOString();
-  const entryDateLabel = (e) => dt(e?.updatedAt ?? fallbackDate);
-  // Compose a section heading with the date inserted inside the existing
-  // bracket — "Past Procedures (09 Jun 2026)" rather than a separate "·"
-  // chip. Matches the dental tooth-label treatment and the Dental History
-  // card pattern: one bracketed annotation per heading, no dot separators.
-  const sectionDateLabel = dt(chart?.updatedAt ?? new Date().toISOString());
-  const headingWithDate = (label) => showDates ? `${label} (${sectionDateLabel})` : label;
-
-  // Group by primary site (first position) so the printed report matches the
-  // on-screen records layout (site as the header, items inside).
-  const order = [];
-  const byKey = {};
+  // Oral examination is ALWAYS grouped by kind for print, regardless of the
+  // dental groupBy toggle — the doctor records oral data by KIND first
+  // (Past Procedures / Findings / Procedures) and tags an area on each
+  // item. Per-site grouping was confusing on the printout (one finding
+  // could span multiple sites) and didn't match how the table/inline
+  // layouts already render. List view now matches.
   const itemParts = (e) => {
     const since = (e.since || "").trim();
     const note = (e.note || "").trim();
@@ -365,16 +406,8 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
     if (since) bits.push(`since ${since}`);
     if (note) bits.push(note);
     const region = (e.surfaces || []).map((s) => ORAL_POSITION_LABEL[s] || s).join(", ");
-    return { name: e.name, meta: bits.join(", "), region, since, note, date: entryDateLabel(e) };
+    return { name: e.name, meta: bits.join(", "), region, since, note };
   };
-  entries.forEach((e) => {
-    const positions = e.surfaces || [];
-    const key = positions.length ? positions[0] : "WHOLE";
-    if (!byKey[key]) { byKey[key] = { label: ORAL_POSITION_LABEL[key] || key, past: [], findings: [], procedures: [] }; order.push(key); }
-    if (e.kind === "past") byKey[key].past.push(itemParts(e));
-    else if (e.kind === "procedure") byKey[key].procedures.push(itemParts(e));
-    else byKey[key].findings.push(itemParts(e));
-  });
 
   const itemText = (it) => it.name + (it.meta ? ` (${it.meta})` : "");
   const fmtList = (list) => list.map(itemText).join(", ");
@@ -407,7 +440,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
     // matching the Dental History card pattern. Name column stays clean.
     const kindTable = (label, list) => list.length ? (
       <div style={wrap}>
-        <div style={kindHead}>{headingWithDate(label)}</div>
+        <div style={kindHead}>{label}</div>
         <table style={tbl}>
           <thead><tr>{["Name", "Area", "Since", "Notes"].map((t, ci) => <th key={t} style={{ ...th, width: colW[ci] }}>{t}</th>)}</tr></thead>
           <tbody>{list.map((it, ri) => (
@@ -423,7 +456,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
           {kindTable("Past Procedures", allPast)}
           {kindTable("Findings", allFindings)}
           {kindTable("Procedures", allProcs)}
-          {notes && <div style={wrap}><div style={kindHead}>{headingWithDate("Overall Notes")}</div><div style={{ padding: "8px 12px", fontSize: 12, color: "#475569" }}>{notes}</div></div>}
+          {notes && <div style={wrap}><div style={kindHead}>Overall Notes</div><div style={{ padding: "8px 12px", fontSize: 12, color: "#475569" }}>{notes}</div></div>}
         </div>
       </section>
     );
@@ -460,13 +493,31 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
         {heading}
         <div style={{ display: "flex", flexDirection: "column", gap: 5, fontFamily: "Inter, sans-serif" }}>
           {segs.map((s) => (
-            <p key={s.label} style={{ margin: 0, fontSize: 11.5, color: "#475569", lineHeight: 1.45 }}><span style={{ fontWeight: 700, color: "#1e293b" }}>{headingWithDate(s.label)}:</span> {s.list.map(inlineItemNode)}</p>
+            <p key={s.label} style={{ margin: 0, fontSize: 11.5, color: "#475569", lineHeight: 1.45 }}><span style={{ fontWeight: 700, color: "#1e293b" }}>{s.label}:</span> {s.list.map(inlineItemNode)}</p>
           ))}
-          {notes && <p style={{ margin: 0, fontSize: 11.5, color: "#475569" }}><span style={{ fontWeight: 700, color: "#1e293b" }}>{headingWithDate("Notes")}:</span> {notes}</p>}
+          {notes && <p style={{ margin: 0, fontSize: 11.5, color: "#475569" }}><span style={{ fontWeight: 700, color: "#1e293b" }}>Notes:</span> {notes}</p>}
         </div>
       </section>
     );
   }
+  // LIST view — by-kind, matching the inline & table layouts. Each kind is
+  // a top-level heading; items underneath show name + a bracket with area,
+  // since, and any note ("Plaque (Maxillary, since 5 days)"). Empty kinds
+  // are skipped so the printout never shows "Findings (none)".
+  const allPast = [];
+  const allFindings = [];
+  const allProcs = [];
+  entries.forEach((e) => {
+    const item = itemParts(e);
+    if (e.kind === "past") allPast.push(item);
+    else if (e.kind === "procedure") allProcs.push(item);
+    else allFindings.push(item);
+  });
+  const listSections = [
+    { label: "Past Procedures", list: allPast },
+    { label: "Findings", list: allFindings },
+    { label: "Procedures", list: allProcs },
+  ].filter((s) => s.list.length > 0);
   return (
     <section
       style={{ marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
@@ -476,34 +527,28 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list", sho
         Oral Examination
       </h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 7, fontFamily: "Inter, sans-serif" }}>
-        {order.map((key) => {
-          const g = byKey[key];
-          return (
-            <div key={key}>
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }}>
-                <span style={{ color: "#1e293b" }}>•</span>{g.label}
-              </p>
-              <div style={{ paddingLeft: 14, display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }}>
-                {[["Past Procedures", g.past], ["Findings", g.findings], ["Procedures", g.procedures]].map(([secLabel, list]) => (
-                  list.length > 0 ? (
-                    <div key={secLabel}>
-                      <p style={{ margin: 0, fontSize: 11.5, color: "#475569", display: "flex", gap: 5, alignItems: "baseline", lineHeight: 1.4 }}>
-                        <span style={{ color: "#cbd5e1" }}>•</span><span style={{ fontWeight: 600 }}>{headingWithDate(secLabel)}</span>
-                      </p>
-                      <div style={{ paddingLeft: 14, display: "flex", flexDirection: "column", gap: 1, marginTop: 1 }}>
-                        {list.map((it, i) => (
-                          <p key={i} style={{ margin: 0, fontSize: 11.5, color: "#475569", display: "flex", gap: 5, alignItems: "baseline", lineHeight: 1.4 }}>
-                            <span style={{ color: "#94a3b8" }}>•</span><span><span style={{ fontWeight: 600, color: "#334155" }}>{it.name}</span>{it.meta ? ` (${it.meta})` : ""}</span>
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null
-                ))}
-              </div>
+        {listSections.map((s) => (
+          <div key={s.label}>
+            <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }}>
+              <span style={{ color: "#1e293b" }}>•</span>{s.label}
+            </p>
+            <div style={{ paddingLeft: 14, display: "flex", flexDirection: "column", gap: 1, marginTop: 2 }}>
+              {s.list.map((it, i) => {
+                const bracketBits = [];
+                if (it.region) bracketBits.push(it.region);
+                if (it.since) bracketBits.push(`since ${it.since}`);
+                if (it.note) bracketBits.push(it.note);
+                const bracket = bracketBits.length ? ` (${bracketBits.join(", ")})` : "";
+                return (
+                  <p key={i} style={{ margin: 0, fontSize: 11.5, color: "#475569", display: "flex", gap: 5, alignItems: "baseline", lineHeight: 1.4 }}>
+                    <span style={{ color: "#94a3b8" }}>•</span>
+                    <span><span style={{ fontWeight: 600, color: "#334155" }}>{it.name}</span>{bracket}</span>
+                  </p>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
         {notes && (
           <div>
             <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }}>

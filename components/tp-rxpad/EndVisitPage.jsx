@@ -53,7 +53,7 @@ export function EndVisitPage() {
     const [printSettingsOpen, setPrintSettingsOpen] = useState(false);
     // includeHistorical defaults OFF — print shows only the CURRENT consultation.
     // Toggling on (via Print Settings) merges past-visit dental + oral records.
-    const [printSettings, setPrintSettings] = useState({ view: "list", showDentalChart: true, includeHistorical: false });
+    const [printSettings, setPrintSettings] = useState({ view: "list", showDentalChart: true, includeHistorical: false, groupBy: "type" });
     useEffect(() => {
         if (typeof window === "undefined")
             return;

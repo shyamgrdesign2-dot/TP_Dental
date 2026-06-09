@@ -46,7 +46,7 @@ function emptySnapshot(patientId) {
 // Empty chart used by "plain" mode → blank odontogram + no oral section.
 const BLANK_CHART = { updatedAt: 0, entries: [], toothDiagnoses: {}, findingsByTooth: {}, oralEntries: [], oralNotes: "" };
 
-function PrintRunner({ patientId, mode, includePatient, onDone }) {
+function PrintRunner({ patientId, mode, includePatient, onDone, patientType = "adult" }) {
   useEffect(() => {
     const after = () => onDone();
     window.addEventListener("afterprint", after);
@@ -70,9 +70,12 @@ function PrintRunner({ patientId, mode, includePatient, onDone }) {
   const snapshot = isPlain
     ? emptySnapshot(patientId)
     : (getComposedRxPreviewSnapshot(patientId) ?? emptySnapshot(patientId));
+  // `patientType` flows through to RxPreviewDocument → FlatDentitionChart so
+  // the printed odontogram matches the dentition the doctor selected (pedia
+  // & mixed used to fall back to adult, dropping primary-FDI rows entirely).
   const settings = isPlain
-    ? { view: "list", showDentalChart: true, chartOverride: BLANK_CHART, hideOral: true }
-    : { view: "list", showDentalChart: true };
+    ? { view: "list", showDentalChart: true, chartOverride: BLANK_CHART, hideOral: true, patientType }
+    : { view: "list", showDentalChart: true, patientType };
   void includePatient;
   return createPortal(
     <div className="dcp-print-root" style={{ position: "fixed", left: 0, top: 0, width: 760, opacity: 0, pointerEvents: "none", zIndex: -1, background: "#fff" }}>
@@ -218,7 +221,7 @@ export function DentalChartPrintButton({ patientId, patientType = "adult" }) {
         </button>
       </TPTooltip>
       {printReq && (
-        <PrintRunner patientId={patientId} mode={printReq.mode} includePatient={printReq.includePatient} onDone={() => setPrintReq(null)} />
+        <PrintRunner patientId={patientId} mode={printReq.mode} includePatient={printReq.includePatient} patientType={patientType} onDone={() => setPrintReq(null)} />
       )}
     </div>
   );

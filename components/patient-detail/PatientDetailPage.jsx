@@ -176,16 +176,6 @@ function toothLabelFor(fdi) {
   return TOOTH_NAME_BY_FDI[fdi] ? `${TOOTH_NAME_BY_FDI[fdi]} (T${fdi})` : `Tooth (T${fdi})`;
 }
 
-function fmtAddedOn(ts) {
-  if (!ts) return "";
-  try {
-    const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return "";
-    // "10 Oct, 22" — matches the column header style used by Vitals/Lab cards.
-    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }).replace(/\s+(\d{2})$/, ", $1");
-  } catch { return ""; }
-}
-
 // Reads `dental.exam.chart.<patientId>` and returns the inline lines for the
 // Dental History card, or `null` when the patient has no chart data at all.
 // Falls back to the in-memory seed (`INITIAL_TOOTH_STATE[patientId]`) when
@@ -193,8 +183,11 @@ function fmtAddedOn(ts) {
 // render the card even on a fresh browser session, while truly empty
 // personas (Shyam GR, Ria Kapoor) still render nothing.
 // Shapes:
-//   oral: [{ label, items: [{ name, meta }], addedOn }]
-//   tooth: [{ toothLabel, segs: [{ label, text }], addedOn }]
+//   oral: [{ label, items: [{ name, meta }] }]
+//   tooth: [{ toothLabel, segs: [{ label, text }] }]
+// The per-row "(date)" annotation was removed from the rendered card, so
+// `addedOn` no longer appears in either shape (the date is no longer
+// displayed anywhere in the print or the Dental History card).
 function loadDentalHistory(patientId) {
   if (typeof window === "undefined") return null;
   let chart = null;
@@ -213,8 +206,6 @@ function loadDentalHistory(patientId) {
   }
   if (!chart) return null;
 
-  const fallbackDate = fmtAddedOn(chart.updatedAt) || fmtAddedOn(Date.now());
-
   // ---- Oral lines, grouped by kind ----
   const byKind = { past: [], finding: [], procedure: [] };
   (chart.oralEntries || []).forEach((e) => {
@@ -228,18 +219,18 @@ function loadDentalHistory(patientId) {
     (byKind[e.kind] || byKind.finding).push({ name: e.name, meta });
   });
   const oral = [];
-  if (byKind.past.length)      oral.push({ label: "Past Procedures", items: byKind.past,      addedOn: fallbackDate });
-  if (byKind.finding.length)   oral.push({ label: "Findings",        items: byKind.finding,   addedOn: fallbackDate });
-  if (byKind.procedure.length) oral.push({ label: "Procedures",      items: byKind.procedure, addedOn: fallbackDate });
+  if (byKind.past.length)      oral.push({ label: "Past Procedures", items: byKind.past });
+  if (byKind.finding.length)   oral.push({ label: "Findings",        items: byKind.finding });
+  if (byKind.procedure.length) oral.push({ label: "Procedures",      items: byKind.procedure });
   // Overall oral notes line
   if (typeof chart.oralNotes === "string" && chart.oralNotes.trim()) {
-    oral.push({ label: "Notes", items: [{ name: chart.oralNotes.trim(), meta: "" }], addedOn: fallbackDate });
+    oral.push({ label: "Notes", items: [{ name: chart.oralNotes.trim(), meta: "" }] });
   }
 
   // ---- Per-tooth lines ----
   const toothMap = {};
   const ensureTooth = (fdi) => {
-    if (!toothMap[fdi]) toothMap[fdi] = { toothLabel: toothLabelFor(fdi), segs: [], addedOn: fallbackDate };
+    if (!toothMap[fdi]) toothMap[fdi] = { toothLabel: toothLabelFor(fdi), segs: [] };
     return toothMap[fdi];
   };
   // Diagnoses (past procedures done on the tooth)
@@ -350,9 +341,7 @@ function DentalHistoryInline({ oral, tooth }) {
             {oral.map((line) => (
               <p key={line.label} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
                 <span className="font-semibold text-[#0f172a]">
-                  {line.label}
-                  {line.addedOn ? <span className="font-normal text-[#64748b]"> ({line.addedOn})</span> : null}
-                  :
+                  {line.label}:
                 </span>{" "}
                 {line.items.map((it, i) => (
                   <span key={i}>
@@ -373,9 +362,7 @@ function DentalHistoryInline({ oral, tooth }) {
             {tooth.map((row, idx) => (
               <p key={idx} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
                 <span className="font-semibold text-[#0f172a]">
-                  {row.toothLabel}
-                  {row.addedOn ? <span className="font-normal text-[#64748b]"> ({row.addedOn})</span> : null}
-                  :
+                  {row.toothLabel}:
                 </span>
                 {" "}
                 {row.segs.map((s, i) => (

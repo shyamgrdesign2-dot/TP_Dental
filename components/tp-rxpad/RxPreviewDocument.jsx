@@ -8,12 +8,6 @@ import { TPMedicalIcon } from "@/components/tp-ui";
 import rx from "./RxPreviewDocument.module.scss";
 import { getAppointmentPatient } from "@/lib/appointment-patients";
 import { FlatDentitionChart, OralExamReport } from "@/components/dental/examination/FlatDentitionChart";
-function formatDate(value) {
-    const dt = new Date(value);
-    if (Number.isNaN(dt.getTime()))
-        return value;
-    return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
 function renderMeta(metaParts) {
     if (metaParts.length === 0)
         return null;
@@ -47,26 +41,13 @@ function dentalSub(label, items, kp) {
         _jsx("div", { style: { paddingLeft: 14, display: "flex", flexDirection: "column", gap: 1, marginTop: 1 }, children: items.map((item, i) => (_jsxs("p", { style: DENTAL_DL, children: [_jsx("span", { style: { color: "#94a3b8" }, children: "•" }), _jsxs("span", { children: [_jsx("span", { style: { fontWeight: 600, color: "#334155" }, children: item.title }), renderMeta(item.metaParts)] })] }, `${kp}-${i}`))) }),
     ] });
 }
-// Compose the tooth label with the per-tooth date inserted INSIDE the
-// existing FDI bracket — "Upper Left First Molar (T26)" → "Upper Left
-// First Molar (T26, 09 Jun 2026)". No dot separator, no standalone chip:
-// the date reads as one bracketed annotation on the heading, consistent
-// across list / inline / table views AND with the on-screen Dental
-// History card.
-function toothLabelWithDate(block, showToothDate) {
-    if (!showToothDate || !block?.toothUpdatedAt) return block?.toothLabel || "";
-    const date = formatDate(block.toothUpdatedAt);
-    const label = block.toothLabel || "";
-    // Inject before the closing paren if the label ends with ")", otherwise
-    // append a fresh " (date)" suffix.
-    if (/\)\s*$/.test(label)) {
-        return label.replace(/\)\s*$/, `, ${date})`);
-    }
-    return `${label} (${date})`;
-}
-function dentalToothListNode(block, showToothDate) {
+// Per-tooth "(date)" annotation removed — the printed Rx and the Dental
+// History card now render only the tooth label, regardless of whether
+// the entry comes from the current visit or historical data.
+function dentalToothListNode(block) {
+    const toothLabel = block?.toothLabel || "";
     return _jsxs("div", { children: [
-        _jsxs("p", { style: { margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }, children: [_jsx("span", { style: { color: "#1e293b" }, children: "•" }), toothLabelWithDate(block, showToothDate)] }),
+        _jsxs("p", { style: { margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }, children: [_jsx("span", { style: { color: "#1e293b" }, children: "•" }), toothLabel] }),
         _jsxs("div", { style: { paddingLeft: 14, display: "flex", flexDirection: "column", gap: 2, marginTop: 2 }, children: [
             block.treatmentHistory.length ? dentalSub("Past Procedures", block.treatmentHistory, "th") : null,
             block.findings.length ? dentalSub("Findings", block.findings, "fd") : null,
@@ -75,7 +56,7 @@ function dentalToothListNode(block, showToothDate) {
         ] }),
     ] });
 }
-function dentalToothInlineNode(block, showToothDate) {
+function dentalToothInlineNode(block) {
     // Each item: name + optional (metaparts). Item titles stay slate-700 so the
     // doctor's eye lands on the procedure/finding name; metadata is slate-500.
     const fmtItems = (items) => items.map((it) => it.title + (it.metaParts.length ? ` (${it.metaParts.join(" | ")})` : "")).join(", ");
@@ -88,8 +69,9 @@ function dentalToothInlineNode(block, showToothDate) {
         { label: "Procedures",      text: block.procedures.length        ? fmtItems(block.procedures)        : null },
         { label: "Notes",           text: block.overallToothNote || null },
     ].filter((s) => s.text);
+    const toothLabel = block?.toothLabel || "";
     return _jsxs("p", { style: { margin: 0, fontSize: 11.5, color: "#334155", lineHeight: 1.45 }, children: [
-        _jsx("span", { style: { fontWeight: 700, color: "#0f172a" }, children: `${toothLabelWithDate(block, showToothDate)}:` }),
+        _jsx("span", { style: { fontWeight: 700, color: "#0f172a" }, children: `${toothLabel}:` }),
         " ",
         ...segs.flatMap((s, i) => [
             i > 0 ? _jsx("span", { style: { color: "#94a3b8" }, children: "; " }, `sep-${i}`) : null,
@@ -111,7 +93,7 @@ function lineCols(row) {
 // One tooth rendered as a self-contained nested table (TP design system styling):
 // a grey tooth header, then a Past Procedures / Findings / Procedures sub-table
 // each with Name | Surfaces | Since | Notes columns, then overall notes.
-function dentalToothTableNode(block, showToothDate) {
+function dentalToothTableNode(block) {
     const wrap = { border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", fontFamily: "Inter, sans-serif", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" };
     const toothHead = { background: "#eef2f7", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#1e293b", borderBottom: "1px solid #e2e8f0" };
     const catSection = { borderTop: "1px solid #dde3ec" };
@@ -129,18 +111,131 @@ function dentalToothTableNode(block, showToothDate) {
         ] }),
     ] })) : null;
     return _jsxs("div", { style: wrap, children: [
-        _jsx("div", { style: toothHead, children: toothLabelWithDate(block, showToothDate) }),
+        _jsx("div", { style: toothHead, children: block?.toothLabel || "" }),
         catTable("Past Procedures", block.treatmentHistory),
         catTable("Findings", block.findings),
         catTable("Procedures", block.procedures),
         block.overallToothNote ? (_jsxs("div", { style: catSection, children: [_jsx("div", { style: catLabel, children: "Overall Tooth Notes" }), _jsx("div", { style: { padding: "5px 10px", fontSize: 10, color: "#475569" }, children: block.overallToothNote })] })) : null,
     ] });
 }
-function dentalHeaderNode(snapshot, titleSuffix, hideDate) {
+// ──────────────────────────────────────────────────────────────────────
+// "By Type" rendering — same dental data pivoted so the heading is the
+// CATEGORY (Past Procedures / Findings / Procedures / Overall Teeth
+// Notes) and the rows underneath are the teeth that have that kind.
+// Mirrors the three views (list / inline / table) so toggling Group By
+// stays consistent with whichever Layout is selected.
+// ──────────────────────────────────────────────────────────────────────
+
+// Pull the FDI number out of "Upper Right First Molar (T16)" so we can
+// sort by-type rows in FDI order (consistent with the chart order).
+function extractFdi(label) {
+    const m = (label || "").match(/T(\d+)/);
+    return m ? parseInt(m[1], 10) : 9999;
+}
+
+// Build the four category buckets from the dental blocks, sorted by FDI.
+// Each bucket: { key, label, toothRows: [{ tooth, fdi, items }] }
+// `items` is an array of { title, metaParts, cols }. For the notes
+// bucket we synthesise a single-item array carrying the note text as the
+// title so the renderer can stay uniform.
+function buildByTypeBuckets(dentalBlocks) {
+    const sorted = [...dentalBlocks].sort((a, b) => extractFdi(a.toothLabel) - extractFdi(b.toothLabel));
+    const buckets = [
+        { key: "past",       label: "Past Procedures",    get: (b) => b.treatmentHistory || [],                                         isNote: false },
+        { key: "findings",   label: "Findings",           get: (b) => b.findings || [],                                                 isNote: false },
+        { key: "procedures", label: "Procedures",         get: (b) => b.procedures || [],                                               isNote: false },
+        { key: "notes",      label: "Overall Teeth Notes", get: (b) => (b.overallToothNote && b.overallToothNote.trim() ? [{ title: b.overallToothNote, metaParts: [], cols: { surfaces: "", since: "", note: "" } }] : []), isNote: true },
+    ];
+    return buckets.map((bk) => {
+        const toothRows = sorted
+            .map((block) => {
+                const items = bk.get(block);
+                if (!items.length) return null;
+                return { tooth: block?.toothLabel || "", fdi: extractFdi(block.toothLabel), items };
+            })
+            .filter(Boolean);
+        return { ...bk, toothRows };
+    }).filter((bk) => bk.toothRows.length > 0);
+}
+
+function byTypeListNode(bucket) {
+    return _jsxs("div", { children: [
+        _jsxs("p", { style: { margin: 0, fontSize: 12, fontWeight: 700, color: "#1e293b", display: "flex", gap: 6, alignItems: "baseline" }, children: [_jsx("span", { style: { color: "#1e293b" }, children: "•" }), bucket.label] }),
+        _jsx("div", { style: { paddingLeft: 14, display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }, children: bucket.toothRows.map((tr, ti) => (_jsxs("div", { children: [
+            _jsxs("p", { style: DENTAL_DL, children: [_jsx("span", { style: { color: "#cbd5e1" }, children: "•" }), _jsx("span", { style: { fontWeight: 600, color: "#334155" }, children: `${tr.tooth}:` })] }),
+            _jsx("div", { style: { paddingLeft: 14, marginTop: 1, display: "flex", flexDirection: "column", gap: 1 }, children: tr.items.map((it, ii) => (_jsxs("p", { style: DENTAL_DL, children: [
+                _jsx("span", { style: { color: "#94a3b8" }, children: "•" }),
+                _jsxs("span", { children: [
+                    bucket.isNote ? null : _jsx("span", { style: { fontWeight: 600, color: "#334155" }, children: it.title }),
+                    bucket.isNote ? _jsx("span", { children: it.title }) : renderMeta(it.metaParts),
+                ] }),
+            ] }, `${bucket.key}-${ti}-${ii}`))) }),
+        ] }, `${bucket.key}-${ti}`))) }),
+    ] });
+}
+
+function byTypeInlineNode(bucket) {
+    const fmtItems = (items) => items.map((it) => bucket.isNote ? it.title : it.title + (it.metaParts.length ? ` (${it.metaParts.join(" | ")})` : "")).join(", ");
+    return _jsxs("p", { style: { margin: 0, fontSize: 11.5, color: "#334155", lineHeight: 1.45 }, children: [
+        _jsxs("span", { style: { fontWeight: 700, color: "#0f172a" }, children: [bucket.label, ":"] }),
+        " ",
+        ...bucket.toothRows.flatMap((tr, i) => [
+            i > 0 ? _jsx("span", { style: { color: "#94a3b8" }, children: "; " }, `sep-${bucket.key}-${i}`) : null,
+            _jsxs("span", { children: [
+                _jsxs("span", { style: { fontWeight: 700, color: "#1e293b" }, children: [tr.tooth, " —"] }),
+                " ",
+                fmtItems(tr.items),
+            ] }, `seg-${bucket.key}-${i}`),
+        ].filter(Boolean)),
+    ] });
+}
+
+function byTypeTableNode(bucket) {
+    const wrap = { border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", fontFamily: "Inter, sans-serif", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" };
+    const head = { background: "#eef2f7", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#1e293b", borderBottom: "1px solid #e2e8f0" };
+    const tbl = { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" };
+    const th = { textAlign: "left", padding: "3px 8px", fontSize: 8.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", color: "#94a3b8", background: "#f7f9fb", borderBottom: "1px solid #e6ebf1" };
+    const td = { padding: "4px 8px", fontSize: 10, color: "#475569", verticalAlign: "top", borderTop: "1px solid #e6ebf1", wordBreak: "break-word" };
+    const tdName = { ...td, fontWeight: 600, color: "#334155" };
+    // Build one row per item, prefixed by tooth label. Notes use a 2-col
+    // layout (Tooth | Note); the other buckets keep the same 4-col shape
+    // as the by-tooth table so column widths read as familiar.
+    if (bucket.isNote) {
+        const rows = bucket.toothRows.flatMap((tr) => tr.items.map((it) => ({ tooth: tr.tooth, note: it.title })));
+        return _jsxs("div", { style: wrap, children: [
+            _jsx("div", { style: head, children: bucket.label }),
+            _jsxs("table", { style: tbl, children: [
+                _jsx("colgroup", { children: [_jsx("col", { style: { width: "34%" } }, "c0"), _jsx("col", { style: { width: "66%" } }, "c1")] }),
+                _jsx("thead", { children: _jsx("tr", { children: ["Tooth", "Note"].map((t) => _jsx("th", { style: th, children: t }, t)) }) }),
+                _jsx("tbody", { children: rows.map((r, ri) => (_jsxs("tr", { children: [_jsx("td", { style: tdName, children: r.tooth }), _jsx("td", { style: td, children: r.note || "—" })] }, ri))) }),
+            ] }),
+        ] });
+    }
+    const rows = bucket.toothRows.flatMap((tr) => tr.items.map((it) => ({ tooth: tr.tooth, item: it })));
+    return _jsxs("div", { style: wrap, children: [
+        _jsx("div", { style: head, children: bucket.label }),
+        _jsxs("table", { style: tbl, children: [
+            _jsx("colgroup", { children: ["28%", "26%", "16%", "12%", "18%"].map((w, i) => _jsx("col", { style: { width: w } }, `c${i}`)) }),
+            _jsx("thead", { children: _jsx("tr", { children: ["Tooth", "Name", "Surfaces", "Since", "Notes"].map((t) => _jsx("th", { style: th, children: t }, t)) }) }),
+            _jsx("tbody", { children: rows.map((r, ri) => { const c = lineCols(r.item); return (_jsxs("tr", { children: [
+                _jsx("td", { style: tdName, children: r.tooth }),
+                _jsx("td", { style: tdName, children: r.item.title }),
+                _jsx("td", { style: td, children: c.surfaces || "—" }),
+                _jsx("td", { style: td, children: c.since || "—" }),
+                _jsx("td", { style: td, children: c.note || "—" }),
+            ] }, ri)); }) }),
+        ] }),
+    ] });
+}
+
+// "Dental Examination" section heading — date suffix removed; the
+// section reads as just the title now. (The snapshot argument is kept
+// for API symmetry in case future variants want to append a derived
+// label, but is no longer referenced.)
+function dentalHeaderNode(_snapshot, titleSuffix) {
     return _jsxs("h3", { style: { fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 6px", fontFamily: "Inter, sans-serif" }, children: [
         "Dental Examination",
         titleSuffix ? ` ${titleSuffix}` : "",
-        hideDate ? null : _jsxs("span", { style: { fontWeight: 500, color: "#94a3b8" }, children: [" (", formatDate(snapshot?.dentalUpdatedAt ?? snapshot?.updatedAt ?? new Date().toISOString()), ")"] }),
     ].filter(Boolean) });
 }
 // Flows content blocks across as many A4 sheets as needed. Heights are MEASURED
@@ -264,27 +359,41 @@ export function RxPreviewDocument({ snapshot, extraNotes, settings, }) {
         pushBlock("advice", (snapshot.advice && snapshot.advice.length) ? _jsx(SectionList, { title: "Advice", rows: snapshot.advice, view: view, icon: _jsx(RxMedicalSectionIcon, { name: "health care" }) }) : null, secH(snapshot.advice));
         if (dentalBlocks.length) {
             // Emit the "Dental Examination" section header bundled with the first
-            // tooth, then one block per remaining tooth so they paginate across
-            // A4 sheets. Each view renders a tooth differently (list bullets /
-            // inline / nested table).
-            //
-            // When `settings.includeHistorical` is on, every tooth carries its
-            // own date (toothUpdatedAt) so the section-level "(date)" is
-            // suppressed — multiple visits would otherwise look like ONE date.
-            const showToothDate = !!settings?.includeHistorical;
-            const toothNode = (b) => view === "table" ? dentalToothTableNode(b, showToothDate) : view === "inline" ? dentalToothInlineNode(b, showToothDate) : dentalToothListNode(b, showToothDate);
-            dentalBlocks.forEach((b, i) => {
-                const tooth = toothNode(b);
-                const node = i === 0
-                    ? _jsxs("section", { style: { marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: [dentalHeaderNode(snapshot, undefined, showToothDate), _jsx("div", { style: { marginTop: 4 }, children: tooth })] })
-                    : _jsx("section", { style: { breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: tooth });
-                pushBlock(`dental-${i}`, node, 0);
-            });
+            // tooth/bucket, then one block per remaining unit so they paginate
+            // across A4 sheets. Each view renders a tooth differently (list
+            // bullets / inline / nested table). Per-tooth (date) annotations
+            // were removed — the print no longer shows any "(09 Jun 2026)"
+            // suffix on tooth labels or section headings.
+            const groupBy = settings?.groupBy === "tooth" ? "tooth" : "type";
+            if (groupBy === "type") {
+                // "By Type" — pivot dentalBlocks so the heading is the category
+                // (Past Procedures / Findings / Procedures / Overall Teeth Notes)
+                // with the teeth that have that kind listed underneath. One block
+                // per non-empty category so each can paginate independently.
+                const buckets = buildByTypeBuckets(dentalBlocks);
+                const bucketNode = (bk) => view === "table" ? byTypeTableNode(bk) : view === "inline" ? byTypeInlineNode(bk) : byTypeListNode(bk);
+                buckets.forEach((bk, i) => {
+                    const inner = bucketNode(bk);
+                    const node = i === 0
+                        ? _jsxs("section", { style: { marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: [dentalHeaderNode(snapshot), _jsx("div", { style: { marginTop: 4 }, children: inner })] })
+                        : _jsx("section", { style: { breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: inner });
+                    pushBlock(`dental-type-${bk.key}`, node, 0);
+                });
+            } else {
+                const toothNode = (b) => view === "table" ? dentalToothTableNode(b) : view === "inline" ? dentalToothInlineNode(b) : dentalToothListNode(b);
+                dentalBlocks.forEach((b, i) => {
+                    const tooth = toothNode(b);
+                    const node = i === 0
+                        ? _jsxs("section", { style: { marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: [dentalHeaderNode(snapshot), _jsx("div", { style: { marginTop: 4 }, children: tooth })] })
+                        : _jsx("section", { style: { breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }, children: tooth });
+                    pushBlock(`dental-${i}`, node, 0);
+                });
+            }
         }
         pushBlock("followUp", snapshot.followUp ? (_jsxs("section", { className: rx.miniSection, children: [_jsxs("h3", { className: rx.dentalTitle, children: [_jsx(Calendar2, { size: 14, color: "var(--tp-slate-500)", variant: "Bulk" }), "Follow Up"] }), _jsx("p", { className: rx.miniBody, children: snapshot.followUp })] })) : null, 56);
         pushBlock("additionalNotes", mergedAdditionalNotes ? (_jsxs("section", { className: rx.miniSection, children: [_jsxs("h3", { className: rx.dentalTitle, children: [_jsx(Notepad2, { size: 14, color: "var(--tp-slate-500)", variant: "Bulk" }), "Additional Notes"] }), _jsx("p", { className: rx.miniBody, children: mergedAdditionalNotes })] })) : null, 72);
-        pushBlock("oral", hideOral ? null : _jsx(OralExamReport, { patientId: snapshot.patientId, view: view, chart: chartOverride, showDates: !!settings?.includeHistorical }), view === "list" ? 200 : 120);
-        pushBlock("chart", showDentalChart ? _jsx(FlatDentitionChart, { patientId: snapshot.patientId, chart: chartOverride, alwaysRender: true }) : null, 380);
+        pushBlock("oral", hideOral ? null : _jsx(OralExamReport, { patientId: snapshot.patientId, view: view, chart: chartOverride }), view === "list" ? 200 : 120);
+        pushBlock("chart", showDentalChart ? _jsx(FlatDentitionChart, { patientId: snapshot.patientId, chart: chartOverride, alwaysRender: true, patientType: settings?.patientType || "adult" }) : null, 380);
     }
     return (_jsx("div", { className: rx.page, style: { position: "relative" }, children: !snapshot ? (_jsxs("article", { className: rx.sheet, children: [renderLetterhead(), renderPatientDetails(), _jsx("div", { className: rx.sheetBody, children: _jsx("div", { className: rx.emptyPad, children: _jsx("p", { className: rx.emptyText, children: "No Rx data available yet. Add details in Clinical or Dental Examination to preview here." }) }) }), renderFooter()] })) : _jsx(PaginatedRx, { blocks: blocks, renderHead: renderLetterhead, renderPatient: renderPatientDetails, renderFoot: renderFooter }) }));
 }

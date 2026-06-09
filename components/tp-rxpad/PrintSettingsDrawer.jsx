@@ -14,6 +14,17 @@ const VIEWS = [
   { id: "table", label: "Table", desc: "Items laid out in a table grid", icon: Grid1 },
 ];
 
+// How the per-tooth dental examination section is organised on the print.
+// "tooth" (default) keeps the existing per-tooth heading layout; "type"
+// pivots it so the heading is the category (Past Procedures / Findings /
+// Procedures / Overall Teeth Notes) with the teeth that have that kind
+// listed underneath. Single source of truth so the on-screen preview and
+// the printed page always match.
+const GROUP_BY_OPTIONS = [
+  { id: "type",  label: "By Type",  desc: "Each kind is a heading (Past Procedures, Findings, Procedures, Notes) with the teeth listed underneath." },
+  { id: "tooth", label: "By Tooth", desc: "Each tooth is a heading with its findings, past & planned procedures, and notes underneath." },
+];
+
 export function PrintSettingsDrawer({ open, settings, onChange, onClose, patientId }) {
   useEffect(() => {
     if (!open) return;
@@ -23,6 +34,9 @@ export function PrintSettingsDrawer({ open, settings, onChange, onClose, patient
   }, [open, onClose]);
   if (!open || typeof document === "undefined") return null;
   const view = settings?.view || "list";
+  // Default to "type" — most doctors prefer kind-first scanning on the
+  // printed Rx. The toggle below flips back to "tooth" instantly.
+  const groupBy = settings?.groupBy === "tooth" ? "tooth" : "type";
   const showChart = settings?.showDentalChart !== false;
   const includeHistorical = settings?.includeHistorical === true;
   // Gate the Include-past toggle off the same data check the Print Dental
@@ -72,6 +86,35 @@ export function PrintSettingsDrawer({ open, settings, onChange, onClose, patient
                 );
               })}
             </div>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.4px", textTransform: "uppercase", color: "#94a3b8", marginBottom: 10 }}>Group dental examination by</div>
+            {/* Clean radio row — no card, no boxed segmented control. Two
+                small radio circles + labels inline, with the description
+                text below picking up the active option's copy. Lighter than
+                the segmented tabs (which read as toolbar-y / dated) and
+                lighter than the original radio cards (which ate too much
+                vertical space for a binary toggle). */}
+            <div role="radiogroup" aria-label="Group dental examination by"
+              style={{ display: "flex", gap: 22, padding: "2px 2px 0" }}>
+              {GROUP_BY_OPTIONS.map((g) => {
+                const active = groupBy === g.id;
+                return (
+                  <button key={g.id} type="button" role="radio" aria-checked={active}
+                    onClick={() => onChange({ ...settings, groupBy: g.id })}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
+                    <span aria-hidden style={{ width: 16, height: 16, borderRadius: "50%", border: `1.75px solid ${active ? BLUE : "#cbd5e1"}`, background: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "border-color 0.15s" }}>
+                      {active ? <span style={{ width: 7, height: 7, borderRadius: "50%", background: BLUE }} /> : null}
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: active ? "#334155" : "#64748b" }}>{g.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{ margin: "8px 4px 0", fontSize: 12, color: "#94a3b8", lineHeight: 1.4, fontFamily: "Inter, sans-serif" }}>
+              {GROUP_BY_OPTIONS.find((g) => g.id === groupBy)?.desc}
+            </p>
           </div>
 
           <div>

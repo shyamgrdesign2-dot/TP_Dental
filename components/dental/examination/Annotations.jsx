@@ -144,16 +144,15 @@ export function Annotations({ toothMesh, findings, zoneNotes, arch, toothPositio
                 position = new THREE.Vector3(center.x + outwardDir.x * size.x * 0.4, rayY, center.z + outwardDir.z * size.z * 0.4);
                 normal = outwardDir;
             }
-            // Whole-tooth marker should sit CLEARLY off the tooth body (below the
-            // crown for maxillary, above for mandibular) — not on the occlusal
-            // surface itself. Override the surface-hugging position with a fixed
-            // bbox-extreme + outward offset so it never overlaps the tooth.
+            // Whole-tooth marker sits at the crown edge — minimal offset so it
+            // reads as "anchored to this tooth" instead of floating in empty
+            // canvas space. Previous values (0.55 → 0.18) still drifted off
+            // because the single-tooth camera is zoomed tight and even small
+            // world-space gaps translate to large screen-space gaps. 0.03
+            // gives a hairline gap outside the bbox edge; the chip's own
+            // pixel size + center anchor handle the rest.
             if (zoneId === 'whole') {
-                // Tight to the tooth — was 0.55 which pushed the WT chip far
-                // into empty canvas space. 0.18 keeps it just outside the
-                // root-tip / occlusal bbox edge so it reads as "this tooth"
-                // without floating.
-                const yOff = 0.18;
+                const yOff = 0.03;
                 position = new THREE.Vector3(
                     center.x,
                     arch === 'maxillary' ? bb.min.y - yOff : bb.max.y + yOff,

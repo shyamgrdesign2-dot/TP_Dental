@@ -84,7 +84,7 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [previewSnapshot, setPreviewSnapshot] = useState(null)
   // Inline Preview-Rx settings — toggled via the gear icon in the drawer header.
-  const [previewSettings, setPreviewSettings] = useState({ view: "list", showDentalChart: true, includeHistorical: false })
+  const [previewSettings, setPreviewSettings] = useState({ view: "list", showDentalChart: true, includeHistorical: false, groupBy: "type" })
   const [isPreviewSettingsOpen, setIsPreviewSettingsOpen] = useState(false)
 
   const getCurrentPatientId = () => {
@@ -352,7 +352,48 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                   style={{ position: "fixed", inset: 0, zIndex: 40 }}
                   aria-hidden
                 />
-                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 16, zIndex: 41, width: 300, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 16px 40px rgba(2,6,23,0.20)", padding: 10, fontFamily: "Inter, sans-serif" }}>
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 16, zIndex: 41, width: 320, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, boxShadow: "0 16px 40px rgba(2,6,23,0.20)", padding: 10, fontFamily: "Inter, sans-serif" }}>
+                  <div style={{ padding: "4px 8px 6px", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Group dental examination by</div>
+                  {/* Clean inline radio — same `settings.groupBy` key as the
+                      Print Settings drawer so the preview and print stay in
+                      sync. Default "type" so the printout reads kind-first;
+                      one click flips back to "tooth". */}
+                  {(() => {
+                    const groupOpts = [
+                      { id: "type",  label: "By Type",  desc: "Each kind (Past Procedures, Findings, …) lists the teeth that have it." },
+                      { id: "tooth", label: "By Tooth", desc: "Each tooth heads its findings, procedures & notes." },
+                    ]
+                    const currentGroup = (previewSettings.groupBy === "tooth" ? "tooth" : "type")
+                    return (
+                      <div style={{ padding: "0 8px 8px" }}>
+                        <div role="radiogroup" aria-label="Group dental examination by"
+                          style={{ display: "flex", gap: 20 }}>
+                          {groupOpts.map((g) => {
+                            const active = currentGroup === g.id
+                            return (
+                              <button
+                                key={g.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={active}
+                                onClick={() => setPreviewSettings({ ...previewSettings, groupBy: g.id })}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "4px 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                              >
+                                <span aria-hidden style={{ width: 15, height: 15, borderRadius: "50%", border: `1.75px solid ${active ? "var(--tp-blue-500)" : "#cbd5e1"}`, background: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "border-color 0.15s" }}>
+                                  {active ? <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--tp-blue-500)" }} /> : null}
+                                </span>
+                                <span style={{ fontSize: 13.5, fontWeight: 600, color: active ? "#334155" : "#64748b" }}>{g.label}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "#94a3b8", lineHeight: 1.35, fontFamily: "Inter, sans-serif" }}>
+                          {groupOpts.find((g) => g.id === currentGroup)?.desc}
+                        </p>
+                      </div>
+                    )
+                  })()}
+                  <div style={{ height: 1, background: "#f1f5f9", margin: "6px 0" }} aria-hidden />
                   <div style={{ padding: "4px 8px 8px", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Preview options</div>
                   {[
                     { key: "showDentalChart", label: "Show dental chart", desc: "Include the odontogram in the preview." },
