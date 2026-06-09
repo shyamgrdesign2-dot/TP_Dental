@@ -47,6 +47,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/compon
 import { TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TPClinicalTable } from "@/components/tp-ui/tp-clinical-table";
 import { TPMedicalIcon } from "@/components/tp-ui/medical-icons";
+import { INITIAL_TOOTH_STATE } from "@/components/dental/mock-data";
 import { TPButton as Button, TPSplitButton } from "@/components/tp-ui/button-system";
 import { AppointmentBanner } from "@/components/appointments/AppointmentBanner";
 import svgPaths from "@/components/tp-rxpad/imports/svg-gb0jbe9ifm";
@@ -147,63 +148,129 @@ const MEDICAL_HISTORY_COLUMNS = [
   },
 ];
 
-/* ---- Dental History (oral records first, then tooth records) ---------- */
+/* ---- Dental History — real-time loader from chart-store --------------- */
 
-// Inline-format seed, mirroring the Rx Preview "inline view" shape:
-//   Past Procedures: Name (region, since X, note), Name (…); Findings: …
-// Grouped by KIND for oral, by TOOTH for the per-tooth records. The card
-// collapses to a fixed height by default and reveals the rest via the
-// "View more →" CTA at the bottom; the top-right Expand arrow jumps to
-// the full Dental Examination flow.
+// Build the human-friendly tooth label that the right panel uses
+// ("Upper Right First Molar (T16)"). Falls back to "Tooth (T<fdi>)" when
+// the FDI doesn't map cleanly so the card never blanks out on bad data.
+const TOOTH_NAME_BY_FDI = {
+  11: "Upper Right Central Incisor", 12: "Upper Right Lateral Incisor",
+  13: "Upper Right Canine", 14: "Upper Right First Premolar",
+  15: "Upper Right Second Premolar", 16: "Upper Right First Molar",
+  17: "Upper Right Second Molar", 18: "Upper Right Third Molar",
+  21: "Upper Left Central Incisor", 22: "Upper Left Lateral Incisor",
+  23: "Upper Left Canine", 24: "Upper Left First Premolar",
+  25: "Upper Left Second Premolar", 26: "Upper Left First Molar",
+  27: "Upper Left Second Molar", 28: "Upper Left Third Molar",
+  31: "Lower Left Central Incisor", 32: "Lower Left Lateral Incisor",
+  33: "Lower Left Canine", 34: "Lower Left First Premolar",
+  35: "Lower Left Second Premolar", 36: "Lower Left First Molar",
+  37: "Lower Left Second Molar", 38: "Lower Left Third Molar",
+  41: "Lower Right Central Incisor", 42: "Lower Right Lateral Incisor",
+  43: "Lower Right Canine", 44: "Lower Right First Premolar",
+  45: "Lower Right Second Premolar", 46: "Lower Right First Molar",
+  47: "Lower Right Second Molar", 48: "Lower Right Third Molar",
+};
 
-const ORAL_HISTORY_LINES = [
-  {
-    label: "Past Procedures",
-    items: [
-      { name: "Scaling & Polishing", meta: "whole mouth, 6 months ago" },
-    ],
-    addedOn: "5 Oct, 22",
-  },
-  {
-    label: "Findings",
-    items: [
-      { name: "Mild gingivitis", meta: "generalized, since 2 months" },
-      { name: "Calculus", meta: "lower anteriors" },
-    ],
-    addedOn: "10 Oct, 22",
-  },
-];
+function toothLabelFor(fdi) {
+  return TOOTH_NAME_BY_FDI[fdi] ? `${TOOTH_NAME_BY_FDI[fdi]} (T${fdi})` : `Tooth (T${fdi})`;
+}
 
-const TOOTH_HISTORY_LINES = [
-  {
-    toothLabel: "Upper Right First Molar (T16)",
-    segs: [
-      { label: "Findings", text: "Caries (occlusal, since 3 months)" },
-    ],
-    addedOn: "10 Oct, 22",
-  },
-  {
-    toothLabel: "Upper Left First Molar (T26)",
-    segs: [
-      { label: "Past Procedures", text: "Filling (occlusal, done 1 year ago)" },
-    ],
-    addedOn: "12 Sep, 22",
-  },
-  {
-    toothLabel: "Lower Left First Molar (T36)",
-    segs: [
-      { label: "Past Procedures", text: "RCT + Crown (done 2 years ago)" },
-    ],
-    addedOn: "18 Aug, 22",
-  },
-  {
-    toothLabel: "Lower Right Lateral Incisor (T42)",
-    segs: [
-      { label: "Findings", text: "Mild attrition (incisal, since 6 months)" },
-    ],
-    addedOn: "10 Oct, 22",
-  },
-];
+function fmtAddedOn(ts) {
+  if (!ts) return "";
+  try {
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return "";
+    // "10 Oct, 22" — matches the column header style used by Vitals/Lab cards.
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }).replace(/\s+(\d{2})$/, ", $1");
+  } catch { return ""; }
+}
+
+// Reads `dental.exam.chart.<patientId>` and returns the inline lines for the
+// Dental History card, or `null` when the patient has no chart data at all.
+// Falls back to the in-memory seed (`INITIAL_TOOTH_STATE[patientId]`) when
+// localStorage is empty — that way the demo seed personas (Anjali Patel)
+// render the card even on a fresh browser session, while truly empty
+// personas (Shyam GR, Ria Kapoor) still render nothing.
+// Shapes:
+//   oral: [{ label, items: [{ name, meta }], addedOn }]
+//   tooth: [{ toothLabel, segs: [{ label, text }], addedOn }]
+function loadDentalHistory(patientId) {
+  if (typeof window === "undefined") return null;
+  let chart = null;
+  try {
+    const raw = window.localStorage.getItem(`dental.exam.chart.${patientId || "apt-1"}`);
+    if (raw) chart = JSON.parse(raw);
+  } catch {}
+  // Fall back to the in-memory seed when localStorage is empty for this patient.
+  if (!chart || (Array.isArray(chart.oralEntries) ? chart.oralEntries.length : 0) === 0
+      && Object.keys(chart?.toothDiagnoses || {}).length === 0
+      && Object.keys(chart?.findingsByTooth || {}).length === 0
+      && Object.keys(chart?.treatmentHistoryByTooth || {}).length === 0
+      && !(chart?.oralNotes || "").trim()) {
+    const seed = (INITIAL_TOOTH_STATE && INITIAL_TOOTH_STATE[patientId]) || null;
+    if (seed) chart = { ...(chart || {}), ...seed };
+  }
+  if (!chart) return null;
+
+  const fallbackDate = fmtAddedOn(chart.updatedAt) || fmtAddedOn(Date.now());
+
+  // ---- Oral lines, grouped by kind ----
+  const byKind = { past: [], finding: [], procedure: [] };
+  (chart.oralEntries || []).forEach((e) => {
+    if (!e || !e.name) return;
+    const region = (e.surfaces || []).join(", ");
+    const metaBits = [];
+    if (region) metaBits.push(region);
+    if (e.since) metaBits.push(`since ${e.since}`);
+    if (e.note) metaBits.push(e.note);
+    const meta = metaBits.join(", ");
+    (byKind[e.kind] || byKind.finding).push({ name: e.name, meta });
+  });
+  const oral = [];
+  if (byKind.past.length)      oral.push({ label: "Past Procedures", items: byKind.past,      addedOn: fallbackDate });
+  if (byKind.finding.length)   oral.push({ label: "Findings",        items: byKind.finding,   addedOn: fallbackDate });
+  if (byKind.procedure.length) oral.push({ label: "Procedures",      items: byKind.procedure, addedOn: fallbackDate });
+  // Overall oral notes line
+  if (typeof chart.oralNotes === "string" && chart.oralNotes.trim()) {
+    oral.push({ label: "Notes", items: [{ name: chart.oralNotes.trim(), meta: "" }], addedOn: fallbackDate });
+  }
+
+  // ---- Per-tooth lines ----
+  const toothMap = {};
+  const ensureTooth = (fdi) => {
+    if (!toothMap[fdi]) toothMap[fdi] = { toothLabel: toothLabelFor(fdi), segs: [], addedOn: fallbackDate };
+    return toothMap[fdi];
+  };
+  // Diagnoses (past procedures done on the tooth)
+  Object.entries(chart.toothDiagnoses || {}).forEach(([fdi, list]) => {
+    if (!Array.isArray(list) || list.length === 0) return;
+    ensureTooth(fdi).segs.push({ label: "Past Procedures", text: list.join(", ") });
+  });
+  // Findings (current observations)
+  Object.entries(chart.findingsByTooth || {}).forEach(([fdi, list]) => {
+    if (!Array.isArray(list) || list.length === 0) return;
+    const names = list.map((f) => {
+      const surf = f.zoneId ? ` (${f.zoneId})` : "";
+      return `${f.type || f.name || "Finding"}${surf}`;
+    });
+    ensureTooth(fdi).segs.push({ label: "Findings", text: names.join(", ") });
+  });
+  // Treatment history detail
+  Object.entries(chart.treatmentHistoryByTooth || {}).forEach(([fdi, map]) => {
+    if (!map || typeof map !== "object") return;
+    const names = Object.keys(map);
+    if (!names.length) return;
+    const tooth = ensureTooth(fdi);
+    if (!tooth.segs.some((s) => s.label === "Past Procedures")) {
+      tooth.segs.push({ label: "Past Procedures", text: names.join(", ") });
+    }
+  });
+  const tooth = Object.values(toothMap).filter((t) => t.segs.length > 0);
+
+  if (oral.length === 0 && tooth.length === 0) return null;
+  return { oral, tooth };
+}
 
 const MEDICATIONS = [
   "Hydroxychloroquine 400 Tablet (400mg, once a week)",
@@ -268,29 +335,19 @@ function HistorySectionCard({ title, iconName, onOpenSidebar, children }) {
 // Inline format renders each row as one paragraph — Rx Preview "inline view"
 // shape. Oral lines: "Past Procedures: Name (meta), Name". Tooth lines:
 // "Upper Right First Molar (T16): Findings: Name (meta); Past Procedures: …".
-function DentalHistoryInline() {
-  // Inset section tag — same `#f1f1f5` tint as the table-header rows in the
-  // Vitals / Medical / Lab cards, but with horizontal padding (no negative
-  // margins) so it sits inside the card body, not edge-to-edge.
+function DentalHistoryInline({ oral, tooth }) {
   const sectionTag = (label) => (
     <div className="mb-2 mt-1 px-3 py-[6px] rounded-[6px] bg-[#f1f1f5] text-[11px] font-semibold uppercase tracking-[0.05em] text-[#454551]">
       {label}
     </div>
   );
-  // Date sits inside the same bracket as the row's bold heading, with the
-  // SAME slate-500 colour the bracketed meta text uses elsewhere in the
-  // print Rx (e.g. "(whole mouth, 6 months ago)") — keeps the palette to
-  // just two colours: dark heading + lighter meta.
   return (
     <div className="flex flex-col gap-3">
-      {/* ORAL RECORDS — always rendered first when present */}
-      {ORAL_HISTORY_LINES.length > 0 && (
+      {oral.length > 0 && (
         <div>
           {sectionTag("Oral Record")}
-          {/* Nested inner padding so the rows feel like content of the section
-              tag above them, not a flush continuation of the card body. */}
           <div className="flex flex-col gap-1 pl-3">
-            {ORAL_HISTORY_LINES.map((line) => (
+            {oral.map((line) => (
               <p key={line.label} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
                 <span className="font-semibold text-[#0f172a]">
                   {line.label}
@@ -309,12 +366,11 @@ function DentalHistoryInline() {
           </div>
         </div>
       )}
-      {/* TOOTH RECORDS */}
-      {TOOTH_HISTORY_LINES.length > 0 && (
+      {tooth.length > 0 && (
         <div>
           {sectionTag("Tooth Record")}
           <div className="flex flex-col gap-1 pl-3">
-            {TOOTH_HISTORY_LINES.map((row, idx) => (
+            {tooth.map((row, idx) => (
               <p key={idx} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
                 <span className="font-semibold text-[#0f172a]">
                   {row.toothLabel}
@@ -338,14 +394,21 @@ function DentalHistoryInline() {
 }
 
 // Card with collapsible body + single "View more →" CTA at the bottom.
-// Closed state caps the body height; opens to its natural height when expanded.
-function DentalHistoryCard() {
+// Reads the live chart store via `loadDentalHistory(patientId)`; returns null
+// when the patient has no dental records yet (Shyam GR, Ria Kapoor) so the
+// card simply doesn't render — keeping the History column honest about what
+// the patient actually has on file.
+function DentalHistoryCard({ patientId }) {
   const [expanded, setExpanded] = useState(false);
+  // Re-evaluate on every render (cheap localStorage read) so the card mirrors
+  // any chart edits the doctor makes elsewhere in the session.
+  const data = loadDentalHistory(patientId);
   const onJumpToDental = useCallback(() => {
     if (typeof window !== "undefined") {
-      window.location.href = "/rxpad?patientId=apt-1&dentalTab=dental";
+      window.location.href = `/rxpad?patientId=${patientId || "apt-1"}&dentalTab=dental`;
     }
-  }, []);
+  }, [patientId]);
+  if (!data) return null;
   return (
     <CardShell className="overflow-hidden border border-tp-slate-200">
       <div className="flex w-full items-center gap-3 border-b border-tp-slate-200 px-3 py-[10px] sm:px-[14px]">
@@ -375,7 +438,7 @@ function DentalHistoryCard() {
         className="px-3 sm:px-[14px] py-3"
         style={{ maxHeight: expanded ? "none" : 180, overflow: "hidden", position: "relative" }}
       >
-        <DentalHistoryInline />
+        <DentalHistoryInline oral={data.oral} tooth={data.tooth} />
         {!expanded && (
           <div
             aria-hidden
@@ -428,7 +491,7 @@ function DentalHistoryCard() {
   );
 }
 
-function HistorySectionCards() {
+function HistorySectionCards({ patientId }) {
   return (
     <>
       <HistorySectionCard title="Vitals & Body Composition" iconName="Heart Rate">
@@ -448,7 +511,7 @@ function HistorySectionCards() {
       <HistorySectionCard title="Lab Results" iconName="Lab">
         <TPClinicalTable columns={VITALS_LAB_TABLE_COLUMNS} data={LAB_ROWS} rowKey={(row) => row.name} />
       </HistorySectionCard>
-      <DentalHistoryCard />
+      <DentalHistoryCard patientId={patientId} />
     </>
   );
 }
@@ -1065,7 +1128,7 @@ function PatientDetailInner() {
                       aria-label="Historical data"
                     >
                       <div className="flex flex-col gap-4">
-                        <HistorySectionCards />
+                        <HistorySectionCards patientId={patientId} />
                       </div>
                     </section>
                     <section
