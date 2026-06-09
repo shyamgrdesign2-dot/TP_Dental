@@ -111,6 +111,12 @@ import {
 } from "../../redux/ophthalmologyExamSlice";
 import { listPatientCanvasMapping } from "../drawingCanvas/service";
 import DrawingCanvas from "../drawingCanvas/DrawingCanvas";
+import CanvasSidebarIcon, {
+  CANVAS_ICON_ACTIVE_COLOR,
+  CANVAS_ICON_INACTIVE_COLOR,
+} from "../drawingCanvas/components/CanvasSidebarIcon";
+
+const CANVAS_SIDEBAR_FLAG = 24;
 
 function TabPrescription() {
   const {
@@ -1124,27 +1130,35 @@ function TabPrescription() {
     }
   };
 
+  const dismissDrawingCanvasModule = useCallback(() => {
+    setDrawingCanvasDrawer(false);
+  }, []);
+
   // Drawer Vitals
   const handleDrawerVital = useCallback(() => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(1);
     setVitalDrawer(!vitalDrawer);
-  }, [collapsedFlag, vitalDrawer]);
+  }, [collapsedFlag, vitalDrawer, dismissDrawingCanvasModule]);
 
   // Drawer Medical History
   const handleDrawerMedicalHistory = useCallback(() => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(2);
     setMedicalHistoryDrawer(!medicalHistoryDrawer);
-  }, [collapsedFlag, medicalHistoryDrawer]);
+  }, [collapsedFlag, medicalHistoryDrawer, dismissDrawingCanvasModule]);
 
   // Drawer Private Notes
   const handleDrawerPrivateNotes = useCallback((data) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(4);
     setSelectPrivateNotes(data)
     setPrivateNotesDrawer(!privateNotesDrawer);
-  }, [privateNotesDrawer, selectPrivateNotes]);
+  }, [privateNotesDrawer, selectPrivateNotes, dismissDrawingCanvasModule]);
 
   // Drawer Vaccination
   const handleDrawerVaccination = (chartType) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(3);
     setVaccinationDrawer(!vaccinationDrawer);
     if (!vaccinationDrawer) {
@@ -1162,6 +1176,7 @@ function TabPrescription() {
 
   // Drawer Growth Chart
   const handleDrawerGrowth = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(5);
     setGrowthDrawer(!growthDrawer);
     setIsGrowthChart(!isGrowthChart);
@@ -1169,6 +1184,7 @@ function TabPrescription() {
 
   // Drawer Obstetric
   const handleDrawerObstetric = (obstetricKey) => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(6);
     setObstetricDrawer(typeof obstetricKey === "string" ? obstetricKey : !obstetricDrawer);
   };
@@ -1203,6 +1219,7 @@ function TabPrescription() {
 
   // Drawer Medical History
   const handleAddLabParamsDrawer = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(8);
     setLabParamsDrawer(!labParamsDrawer);
   }
@@ -1252,6 +1269,7 @@ function TabPrescription() {
 
   // Drawer Upload Document
   const handleDrawerUploadDoc = () => {
+    dismissDrawingCanvasModule();
     setCollapsedFlag(7);
     setUploadDocDrawer(!uploadDocDrawer);
   };
@@ -1274,6 +1292,8 @@ function TabPrescription() {
     const opening = !drawingCanvasDrawer;
     if (opening) {
       canvasDrawerOpenTimeRef.current = Date.now();
+      setCollapsedFlag(CANVAS_SIDEBAR_FLAG);
+      setCollapsed(false);
       trackEvent("drawing_canvas_drawer_opened", {
         ...getCanvasTrackingAttrs(),
         entry_point: "rx_pad",
@@ -1288,6 +1308,7 @@ function TabPrescription() {
         time_spent_seconds: timeSpent,
       });
       canvasDrawerOpenTimeRef.current = null;
+      setCollapsedFlag((prev) => (prev === CANVAS_SIDEBAR_FLAG ? null : prev));
     }
     setDrawingCanvasDrawer(opening);
   }, [drawingCanvasDrawer, drawingCanvases.length, getCanvasTrackingAttrs]);
@@ -1315,10 +1336,11 @@ function TabPrescription() {
   //Handle Sider
   const openCollapsed = useCallback(
     (flag) => {
+      dismissDrawingCanvasModule();
       setCollapsedFlag(flag);
       setCollapsed(true);
     },
-    [collapsedFlag, collapsed]
+    [dismissDrawingCanvasModule]
   );
 
   const handleCollapsed = useCallback(
@@ -2108,15 +2130,12 @@ function TabPrescription() {
                         }}
                       >
                         <div
-                          className={`prescription-tab-button rounded-10px`}
-                          style={{ backgroundColor: "inherit", position: "relative" }}
+                          className={`prescription-tab-button rounded-10px ${collapsedFlag === CANVAS_SIDEBAR_FLAG ? "active" : ""}`}
+                          style={{ position: "relative" }}
                         >
-                          <img
-                            src={e?.tmdpm_icon_url || "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/brush-square.svg"}
-                            alt="Canvas"
-                            width={24}
-                            height={24}
-                            style={{ display: "block" }}
+                          <CanvasSidebarIcon
+                            color={collapsedFlag === CANVAS_SIDEBAR_FLAG ? CANVAS_ICON_ACTIVE_COLOR : CANVAS_ICON_INACTIVE_COLOR}
+                            size={20}
                           />
                         </div>
                         <label className="text-white mt-1">Canvas</label>
