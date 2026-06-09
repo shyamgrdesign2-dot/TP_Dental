@@ -182,7 +182,7 @@ function byTypeInlineNode(bucket) {
         ...bucket.toothRows.flatMap((tr, i) => [
             i > 0 ? _jsx("span", { style: { color: "#94a3b8" }, children: "; " }, `sep-${bucket.key}-${i}`) : null,
             _jsxs("span", { children: [
-                _jsxs("span", { style: { fontWeight: 700, color: "#1e293b" }, children: [tr.tooth, " —"] }),
+                _jsxs("span", { style: { fontWeight: 700, color: "#1e293b" }, children: [tr.tooth, ":"] }),
                 " ",
                 fmtItems(tr.items),
             ] }, `seg-${bucket.key}-${i}`),

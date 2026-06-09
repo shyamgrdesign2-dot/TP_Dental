@@ -356,8 +356,15 @@ export function FlatDentitionChart({ patientId, chart: chartProp, alwaysRender =
       style={{ marginTop: 14, padding: "0 14px", breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }}
       data-dental-flat-chart="true"
     >
+      {/* Heading carries the dentition type so a printed chart is
+          self-describing — "Adult Dental Chart" / "Pediatric Dental
+          Chart" / "Mixed Dental Chart". Mirrors the dropdown row
+          labels in the Print Dental Chart button so the doctor's
+          intent reads on the printout itself. */}
       <h3 style={{ fontSize: 12, fontWeight: 700, color: "#334155", margin: "0 0 8px", fontFamily: "Inter, sans-serif" }}>
-        Dental Chart
+        {patientType === "pediatric" ? "Pediatric Dental Chart"
+          : patientType === "mixed" ? "Mixed Dental Chart"
+          : "Adult Dental Chart"}
       </h3>
       <div ref={wrapRef} style={{ display: "flex", flexDirection: "column", gap: 8, filter: "grayscale(1)" }}>
         {archPairs.map((pair, idx) => (
@@ -406,8 +413,17 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list" }) {
     if (since) bits.push(`since ${since}`);
     if (note) bits.push(note);
     const region = (e.surfaces || []).map((s) => ORAL_POSITION_LABEL[s] || s).join(", ");
-    return { name: e.name, meta: bits.join(", "), region, since, note };
+    return { name: e.name, meta: bits.join(" | "), region, since, note };
   };
+  // Render a series of bracket fields joined by a slate-400 pipe — matches
+  // the dental side's `renderMeta` output so oral & dental brackets read as
+  // one visual family ("Whole Tooth | 1 month | recall in 6 months").
+  const PIPE_COLOR = "#94a3b8";
+  const renderPipeJoined = (parts) => parts.flatMap((p, i) => (
+    i === 0
+      ? [<span key={`p-${i}`}>{p}</span>]
+      : [<span key={`s-${i}`} style={{ color: PIPE_COLOR }}>{" | "}</span>, <span key={`p-${i}`}>{p}</span>]
+  ));
 
   const itemText = (it) => it.name + (it.meta ? ` (${it.meta})` : "");
   const fmtList = (list) => list.map(itemText).join(", ");
@@ -472,15 +488,19 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list" }) {
       else if (e.kind === "procedure") allProcs.push(item);
       else allFindings.push(item);
     });
-    // Date moves to the kind label heading (below) — items stay clean.
+    // Bracket fields are joined by a slate-400 pipe — same separator the
+    // dental side uses (renderMeta) so oral inline reads identically to
+    // dental inline (e.g. "Bridge (Whole Tooth | 1 month | note)").
     const inlineItemNode = (it, i) => {
       const bits = [];
       if (it.region) bits.push(it.region);
       if (it.since) bits.push(`since ${it.since}`);
       if (it.note) bits.push(it.note);
-      const bracket = bits.length ? ` (${bits.join(", ")})` : "";
       return (
-        <span key={i}>{i > 0 ? ", " : ""}{it.name}{bracket}</span>
+        <span key={i}>
+          {i > 0 ? ", " : ""}{it.name}
+          {bits.length ? <>{" ("}{renderPipeJoined(bits)}{")"}</> : null}
+        </span>
       );
     };
     const segs = [
@@ -538,11 +558,13 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list" }) {
                 if (it.region) bracketBits.push(it.region);
                 if (it.since) bracketBits.push(`since ${it.since}`);
                 if (it.note) bracketBits.push(it.note);
-                const bracket = bracketBits.length ? ` (${bracketBits.join(", ")})` : "";
                 return (
                   <p key={i} style={{ margin: 0, fontSize: 11.5, color: "#475569", display: "flex", gap: 5, alignItems: "baseline", lineHeight: 1.4 }}>
                     <span style={{ color: "#94a3b8" }}>•</span>
-                    <span><span style={{ fontWeight: 600, color: "#334155" }}>{it.name}</span>{bracket}</span>
+                    <span>
+                      <span style={{ fontWeight: 600, color: "#334155" }}>{it.name}</span>
+                      {bracketBits.length ? <>{" ("}{renderPipeJoined(bracketBits)}{")"}</> : null}
+                    </span>
                   </p>
                 );
               })}

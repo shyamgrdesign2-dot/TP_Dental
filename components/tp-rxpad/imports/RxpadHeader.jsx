@@ -289,13 +289,13 @@ export default function RxpadHeader({ className, onBack, patientId: patientIdPro
                 {
                   id: "end-visit",
                   label: "End Visit",
-                  icon: <EndVisitIcon size={14} />,
+                  icon: <EndVisitIcon size={18} />,
                   onClick: openEndVisit,
                 },
                 {
                   id: "draft",
                   label: "Save as Draft",
-                  icon: <DocumentSketch color="currentColor" size={14} variant="Linear" />,
+                  icon: <DocumentSketch color="currentColor" size={18} variant="Linear" />,
                   onClick: () => {},
                 },
               ]}

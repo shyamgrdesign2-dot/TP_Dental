@@ -215,7 +215,10 @@ function loadDentalHistory(patientId) {
     if (region) metaBits.push(region);
     if (e.since) metaBits.push(`since ${e.since}`);
     if (e.note) metaBits.push(e.note);
-    const meta = metaBits.join(", ");
+    // Pipe separators inside the bracket match the print's dental + oral
+    // formatting ("Scaling & Polishing (WHOLE | since 6 months | note)"),
+    // so the Dental History card and the printed Rx read identically.
+    const meta = metaBits.join(" | ");
     (byKind[e.kind] || byKind.finding).push({ name: e.name, meta });
   });
   const oral = [];
@@ -343,13 +346,31 @@ function DentalHistoryInline({ oral, tooth }) {
                 <span className="font-semibold text-[#0f172a]">
                   {line.label}:
                 </span>{" "}
-                {line.items.map((it, i) => (
-                  <span key={i}>
-                    {i > 0 ? ", " : ""}
-                    {it.name}
-                    {it.meta ? <span className="text-[#64748b]"> ({it.meta})</span> : null}
-                  </span>
-                ))}
+                {line.items.map((it, i) => {
+                  // Split the pre-joined meta back into parts and render the
+                  // pipe with a slightly lighter shade — same divider styling
+                  // the printed Rx uses ("(part1 | part2 | part3)"), so the
+                  // card and the print match character + colour.
+                  const parts = it.meta ? it.meta.split(" | ") : [];
+                  return (
+                    <span key={i}>
+                      {i > 0 ? ", " : ""}
+                      {it.name}
+                      {parts.length > 0 ? (
+                        <span className="text-[#64748b]">
+                          {" ("}
+                          {parts.map((p, j) => (
+                            <span key={j}>
+                              {j > 0 ? <span className="text-[#94a3b8]">{" | "}</span> : null}
+                              {p}
+                            </span>
+                          ))}
+                          {")"}
+                        </span>
+                      ) : null}
+                    </span>
+                  );
+                })}
               </p>
             ))}
           </div>
