@@ -140,13 +140,14 @@ function normalizeVoiceHistoryForStore(history) {
 }
 
 function buildInvestigationTemplatePayload(investigations) {
-    return investigations.map(({ investigation_name, note, change, id, service_code, pms_default }) => ({
+    return investigations.map(({ investigation_name, note, change, id, service_code, pms_default, typesenseId }) => ({
         investigation_name,
         ...(note !== undefined && { note }),
         ...(change !== undefined && { change }),
         ...(id != null && String(id).trim() !== "" && { id }),
         ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
         ...(pms_default !== undefined && { pms_default }),
+        ...(typesenseId !== undefined && { typesenseId }),
     }));
 }
 
