@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getPlanProcedures, PLAN_PROCEDURES_UPDATED_EVENT } from "@/lib/plan-procedures-store";
 
@@ -147,83 +147,55 @@ const MEDICAL_HISTORY_COLUMNS = [
   },
 ];
 
-/* ---- Dental History (tooth records + oral records) -------------------- */
+/* ---- Dental History (oral records first, then tooth records) ---------- */
 
-// Top-of-card seed — minimal preview only; "View more →" expands the full
-// dental examination in the Rx surface. Topic|Details mirrors the Medical
-// History column shape so the visual rhythm matches the cards above it.
-const TOOTH_RECORDS_ROWS = [
+// Inline-format seed, mirroring the Rx Preview "inline view" shape:
+//   Past Procedures: Name (region, since X, note), Name (…); Findings: …
+// Grouped by KIND for oral, by TOOTH for the per-tooth records. The card
+// collapses to a fixed height by default and reveals the rest via the
+// "View more →" CTA at the bottom; the top-right Expand arrow jumps to
+// the full Dental Examination flow.
+
+const ORAL_HISTORY_LINES = [
   {
-    id: "tr-1",
-    topic: "T16",
-    details: (
-      <>
-        <span className="font-medium text-[#454551]">Caries</span>
-        <span> — occlusal, since </span>
-        <span className="font-medium text-[#454551]">3 months</span>
-      </>
-    ),
+    label: "Past Procedures",
+    items: [
+      { name: "Scaling & Polishing", meta: "whole mouth, 6 months ago" },
+    ],
   },
   {
-    id: "tr-2",
-    topic: "T26",
-    details: (
-      <>
-        <span className="font-medium text-[#454551]">Filling</span>
-        <span> — occlusal, done </span>
-        <span className="font-medium text-[#454551]">1 year ago</span>
-      </>
-    ),
-  },
-  {
-    id: "tr-3",
-    topic: "T36",
-    details: (
-      <>
-        <span className="font-medium text-[#454551]">RCT + Crown</span>
-        <span> — done </span>
-        <span className="font-medium text-[#454551]">2 years ago</span>
-      </>
-    ),
+    label: "Findings",
+    items: [
+      { name: "Mild gingivitis", meta: "generalized, since 2 months" },
+      { name: "Calculus", meta: "lower anteriors" },
+    ],
   },
 ];
 
-const ORAL_RECORDS_ROWS = [
+const TOOTH_HISTORY_LINES = [
   {
-    id: "or-1",
-    topic: "Findings",
-    details: (
-      <>
-        <span className="font-medium text-[#454551]">Mild gingivitis</span>
-        <span> — generalized, since </span>
-        <span className="font-medium text-[#454551]">2 months</span>
-      </>
-    ),
+    toothLabel: "Upper Right First Molar (T16)",
+    segs: [
+      { label: "Findings", text: "Caries (occlusal, since 3 months)" },
+    ],
   },
   {
-    id: "or-2",
-    topic: "Past procedures",
-    details: (
-      <>
-        <span className="font-medium text-[#454551]">Scaling & Polishing</span>
-        <span> — whole mouth, done </span>
-        <span className="font-medium text-[#454551]">6 months ago</span>
-      </>
-    ),
-  },
-];
-
-const DENTAL_RECORDS_COLUMNS = [
-  {
-    id: "topic",
-    header: "Topic",
-    minWidth: "30%",
-    accessor: (r) => <span className="text-[#a2a2a8]">{r.topic}</span>,
+    toothLabel: "Upper Left First Molar (T26)",
+    segs: [
+      { label: "Past Procedures", text: "Filling (occlusal, done 1 year ago)" },
+    ],
   },
   {
-    id: "details",
-    header: "Details",
-    accessor: (r) => <span className="leading-relaxed">{r.details}</span>,
+    toothLabel: "Lower Left First Molar (T36)",
+    segs: [
+      { label: "Past Procedures", text: "RCT + Crown (done 2 years ago)" },
+    ],
+  },
+  {
+    toothLabel: "Lower Right Lateral Incisor (T42)",
+    segs: [
+      { label: "Findings", text: "Mild attrition (incisal, since 6 months)" },
+    ],
   },
 ];
 
@@ -287,6 +259,122 @@ function HistorySectionCard({ title, iconName, onOpenSidebar, children }) {
   );
 }
 
+// Inline format renders each row as one paragraph — Rx Preview "inline view"
+// shape. Oral lines: "Past Procedures: Name (meta), Name". Tooth lines:
+// "Upper Right First Molar (T16): Findings: Name (meta); Past Procedures: …".
+function DentalHistoryInline() {
+  return (
+    <div className="flex flex-col gap-3">
+      {/* ORAL RECORDS — always rendered first when present */}
+      {ORAL_HISTORY_LINES.length > 0 && (
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500 mb-1">
+            Oral Record
+          </div>
+          <div className="flex flex-col gap-1">
+            {ORAL_HISTORY_LINES.map((line) => (
+              <p key={line.label} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
+                <span className="font-semibold text-[#0f172a]">{line.label}:</span>{" "}
+                {line.items.map((it, i) => (
+                  <span key={i}>
+                    {i > 0 ? ", " : ""}
+                    {it.name}
+                    {it.meta ? <span className="text-[#64748b]"> ({it.meta})</span> : null}
+                  </span>
+                ))}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* TOOTH RECORDS */}
+      {TOOTH_HISTORY_LINES.length > 0 && (
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500 mb-1">
+            Tooth Record
+          </div>
+          <div className="flex flex-col gap-1">
+            {TOOTH_HISTORY_LINES.map((row, idx) => (
+              <p key={idx} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
+                <span className="font-semibold text-[#0f172a]">{row.toothLabel}:</span>
+                {" "}
+                {row.segs.map((s, i) => (
+                  <span key={i}>
+                    {i > 0 ? <span className="text-[#94a3b8]">; </span> : null}
+                    <span className="font-semibold text-[#1e293b]">{s.label}:</span> {s.text}
+                  </span>
+                ))}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Card with collapsible body + single "View more →" CTA at the bottom.
+// Closed state caps the body height; opens to its natural height when expanded.
+function DentalHistoryCard() {
+  const [expanded, setExpanded] = useState(false);
+  const onJumpToDental = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.location.href = "/rxpad?patientId=apt-1&dentalTab=dental";
+    }
+  }, []);
+  return (
+    <CardShell className="overflow-hidden border border-tp-slate-200">
+      <div className="flex w-full items-center gap-3 border-b border-tp-slate-200 px-3 py-[10px] sm:px-[14px]">
+        <span className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center">
+          <TPMedicalIcon name="tooth" variant="bulk" size={20} color={HISTORY_VIOLET} />
+        </span>
+        <span className="min-w-0 flex-1 font-sans text-[13px] font-medium leading-snug text-tp-slate-600">
+          Dental History
+        </span>
+        <button
+          type="button"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center self-center rounded-[10px] border border-tp-slate-200 bg-white text-tp-slate-500 transition-colors hover:border-tp-slate-300 hover:bg-tp-slate-50/90 hover:text-tp-slate-700"
+          aria-label="Open Dental Examination"
+          title="Open Dental Examination"
+          onClick={onJumpToDental}
+        >
+          <ArrowRight2 size={18} variant="Linear" color="currentColor" strokeWidth={1.75} />
+        </button>
+      </div>
+      <div
+        className="px-3 sm:px-[14px] py-3"
+        style={{ maxHeight: expanded ? "none" : 140, overflow: "hidden", position: "relative" }}
+      >
+        <DentalHistoryInline />
+        {/* Soft fade at the bottom when collapsed — signals there's more content. */}
+        {!expanded && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 36,
+              background: "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.95) 80%, #fff 100%)",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </div>
+      <div className="px-3 sm:px-[14px] pb-3 text-right">
+        <button
+          type="button"
+          className="text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline"
+          onClick={() => setExpanded((e) => !e)}
+        >
+          {expanded ? "Show less ↑" : "View more →"}
+        </button>
+      </div>
+    </CardShell>
+  );
+}
+
 function HistorySectionCards() {
   return (
     <>
@@ -307,55 +395,7 @@ function HistorySectionCards() {
       <HistorySectionCard title="Lab Results" iconName="Lab">
         <TPClinicalTable columns={VITALS_LAB_TABLE_COLUMNS} data={LAB_ROWS} rowKey={(row) => row.name} />
       </HistorySectionCard>
-      <HistorySectionCard title="Dental History" iconName="tooth">
-        {/* Two stacked mini-sections inside one card. Each ends with a
-            "View more →" link that opens the full Dental Examination flow.
-            Sub-section labels mirror the dental-module taxonomy:
-            "Tooth Records" (per-FDI) + "Oral Records" (region-tagged). */}
-        <div className="px-3 sm:px-[14px] pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500">
-          Tooth records
-        </div>
-        <TPClinicalTable
-          columns={DENTAL_RECORDS_COLUMNS}
-          data={TOOTH_RECORDS_ROWS}
-          rowKey={(row) => row.id}
-        />
-        <div className="px-3 sm:px-[14px] py-1 text-right">
-          <button
-            type="button"
-            className="text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline"
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.location.href = "/rxpad?patientId=apt-1&dentalTab=dental";
-              }
-            }}
-          >
-            View more →
-          </button>
-        </div>
-        <div className="mx-3 sm:mx-[14px] border-t border-tp-slate-200" />
-        <div className="px-3 sm:px-[14px] pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500">
-          Oral records
-        </div>
-        <TPClinicalTable
-          columns={DENTAL_RECORDS_COLUMNS}
-          data={ORAL_RECORDS_ROWS}
-          rowKey={(row) => row.id}
-        />
-        <div className="px-3 sm:px-[14px] py-1 pb-3 text-right">
-          <button
-            type="button"
-            className="text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline"
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.location.href = "/rxpad?patientId=apt-1&dentalTab=dental";
-              }
-            }}
-          >
-            View more →
-          </button>
-        </div>
-      </HistorySectionCard>
+      <DentalHistoryCard />
     </>
   );
 }
