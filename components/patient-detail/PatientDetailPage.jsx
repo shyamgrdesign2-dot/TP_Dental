@@ -147,6 +147,86 @@ const MEDICAL_HISTORY_COLUMNS = [
   },
 ];
 
+/* ---- Dental History (tooth records + oral records) -------------------- */
+
+// Top-of-card seed — minimal preview only; "View more →" expands the full
+// dental examination in the Rx surface. Topic|Details mirrors the Medical
+// History column shape so the visual rhythm matches the cards above it.
+const TOOTH_RECORDS_ROWS = [
+  {
+    id: "tr-1",
+    topic: "T16",
+    details: (
+      <>
+        <span className="font-medium text-[#454551]">Caries</span>
+        <span> — occlusal, since </span>
+        <span className="font-medium text-[#454551]">3 months</span>
+      </>
+    ),
+  },
+  {
+    id: "tr-2",
+    topic: "T26",
+    details: (
+      <>
+        <span className="font-medium text-[#454551]">Filling</span>
+        <span> — occlusal, done </span>
+        <span className="font-medium text-[#454551]">1 year ago</span>
+      </>
+    ),
+  },
+  {
+    id: "tr-3",
+    topic: "T36",
+    details: (
+      <>
+        <span className="font-medium text-[#454551]">RCT + Crown</span>
+        <span> — done </span>
+        <span className="font-medium text-[#454551]">2 years ago</span>
+      </>
+    ),
+  },
+];
+
+const ORAL_RECORDS_ROWS = [
+  {
+    id: "or-1",
+    topic: "Findings",
+    details: (
+      <>
+        <span className="font-medium text-[#454551]">Mild gingivitis</span>
+        <span> — generalized, since </span>
+        <span className="font-medium text-[#454551]">2 months</span>
+      </>
+    ),
+  },
+  {
+    id: "or-2",
+    topic: "Past procedures",
+    details: (
+      <>
+        <span className="font-medium text-[#454551]">Scaling & Polishing</span>
+        <span> — whole mouth, done </span>
+        <span className="font-medium text-[#454551]">6 months ago</span>
+      </>
+    ),
+  },
+];
+
+const DENTAL_RECORDS_COLUMNS = [
+  {
+    id: "topic",
+    header: "Topic",
+    minWidth: "30%",
+    accessor: (r) => <span className="text-[#a2a2a8]">{r.topic}</span>,
+  },
+  {
+    id: "details",
+    header: "Details",
+    accessor: (r) => <span className="leading-relaxed">{r.details}</span>,
+  },
+];
+
 const MEDICATIONS = [
   "Hydroxychloroquine 400 Tablet (400mg, once a week)",
   "Vitamin C 1000 Tablet (1000mg, once a day)",
@@ -226,6 +306,55 @@ function HistorySectionCards() {
       </HistorySectionCard>
       <HistorySectionCard title="Lab Results" iconName="Lab">
         <TPClinicalTable columns={VITALS_LAB_TABLE_COLUMNS} data={LAB_ROWS} rowKey={(row) => row.name} />
+      </HistorySectionCard>
+      <HistorySectionCard title="Dental History" iconName="tooth">
+        {/* Two stacked mini-sections inside one card. Each ends with a
+            "View more →" link that opens the full Dental Examination flow.
+            Sub-section labels mirror the dental-module taxonomy:
+            "Tooth Records" (per-FDI) + "Oral Records" (region-tagged). */}
+        <div className="px-3 sm:px-[14px] pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500">
+          Tooth records
+        </div>
+        <TPClinicalTable
+          columns={DENTAL_RECORDS_COLUMNS}
+          data={TOOTH_RECORDS_ROWS}
+          rowKey={(row) => row.id}
+        />
+        <div className="px-3 sm:px-[14px] py-1 text-right">
+          <button
+            type="button"
+            className="text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.location.href = "/rxpad?patientId=apt-1&dentalTab=dental";
+              }
+            }}
+          >
+            View more →
+          </button>
+        </div>
+        <div className="mx-3 sm:mx-[14px] border-t border-tp-slate-200" />
+        <div className="px-3 sm:px-[14px] pt-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500">
+          Oral records
+        </div>
+        <TPClinicalTable
+          columns={DENTAL_RECORDS_COLUMNS}
+          data={ORAL_RECORDS_ROWS}
+          rowKey={(row) => row.id}
+        />
+        <div className="px-3 sm:px-[14px] py-1 pb-3 text-right">
+          <button
+            type="button"
+            className="text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                window.location.href = "/rxpad?patientId=apt-1&dentalTab=dental";
+              }
+            }}
+          >
+            View more →
+          </button>
+        </div>
       </HistorySectionCard>
     </>
   );
