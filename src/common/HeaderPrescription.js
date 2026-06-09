@@ -1591,7 +1591,13 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
 
     const endVisitTooltipMessage = useMemo(() => {
         if (isChikitsalayAccessable) {
-            return "Please fill Symptoms and Diagnosis to end the consultation.";
+            if (hasSymptomsWithSince && diagnosisData.length === 0) {
+                return "Please fill Symptoms and Diagnosis to end the consultation.";
+            } else if (hasSymptomsWithSince) {
+                return "Please fill Symptoms and Since to end the consultation.";
+            } else if (diagnosisData.length === 0) {
+                return "Please fill Diagnosis to end the consultation.";
+            }
         }
         return "Please fill your prescription to end visit.";
     }, [isChikitsalayAccessable]);
