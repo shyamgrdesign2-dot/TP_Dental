@@ -263,14 +263,20 @@ function HistorySectionCard({ title, iconName, onOpenSidebar, children }) {
 // shape. Oral lines: "Past Procedures: Name (meta), Name". Tooth lines:
 // "Upper Right First Molar (T16): Findings: Name (meta); Past Procedures: …".
 function DentalHistoryInline() {
+  // Full-width section-tag strip — matches the `#f1f1f5` table-header tint
+  // used by the Vitals / Medical / Lab cards so the visual rhythm of the
+  // column stays consistent.
+  const sectionTag = (label) => (
+    <div className="-mx-3 sm:-mx-[14px] mb-2 mt-1 px-3 sm:px-[14px] py-[6px] bg-[#f1f1f5] text-[11px] font-semibold uppercase tracking-[0.05em] text-[#454551]">
+      {label}
+    </div>
+  );
   return (
     <div className="flex flex-col gap-3">
       {/* ORAL RECORDS — always rendered first when present */}
       {ORAL_HISTORY_LINES.length > 0 && (
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500 mb-1">
-            Oral Record
-          </div>
+          {sectionTag("Oral Record")}
           <div className="flex flex-col gap-1">
             {ORAL_HISTORY_LINES.map((line) => (
               <p key={line.label} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
@@ -290,9 +296,7 @@ function DentalHistoryInline() {
       {/* TOOTH RECORDS */}
       {TOOTH_HISTORY_LINES.length > 0 && (
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-500 mb-1">
-            Tooth Record
-          </div>
+          {sectionTag("Tooth Record")}
           <div className="flex flex-col gap-1">
             {TOOTH_HISTORY_LINES.map((row, idx) => (
               <p key={idx} className="m-0 text-[12.5px] leading-[1.45] text-[#334155]">
@@ -362,13 +366,24 @@ function DentalHistoryCard() {
           />
         )}
       </div>
-      <div className="px-3 sm:px-[14px] pb-3 text-right">
+      <div className="px-3 sm:px-[14px] pb-3 pt-1 border-t border-tp-slate-100 flex items-center justify-center">
         <button
           type="button"
-          className="text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline"
+          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--tp-blue-500)] hover:underline focus:outline-none"
           onClick={() => setExpanded((e) => !e)}
+          aria-expanded={expanded}
         >
-          {expanded ? "Show less ↑" : "View more →"}
+          <span>{expanded ? "Show less" : "View more"}</span>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.18s ease" }}
+          >
+            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
     </CardShell>
