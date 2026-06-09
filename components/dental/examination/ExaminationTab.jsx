@@ -1639,7 +1639,6 @@ function getDynamicSinceOptions(query) {
 // a date writes back a human-readable "DD MMM YYYY" string so the printed
 // Rx still reads naturally regardless of which path the doctor used.
 function SinceDropdown({ value, onChange, autoOpen, onFocusActivate, onBlurDeactivate, kind = "finding" }) {
-    const [mode, setMode] = useState("suggestions"); // "suggestions" | "date"
     const [open, setOpen] = useState(false);
     const [internalValue, setInternalValue] = useState(value);
     const [pos, setPos] = useState(null);
@@ -1647,17 +1646,13 @@ function SinceDropdown({ value, onChange, autoOpen, onFocusActivate, onBlurDeact
     const popoverRef = useRef(null);
     const dateInputRef = useRef(null);
     useEffect(() => {
-        if (autoOpen && !value) { setMode("suggestions"); setOpen(true); }
+        if (autoOpen && !value) { setOpen(true); }
     }, [autoOpen, value]);
     useEffect(() => { setInternalValue(value); }, [value]);
-    // Past procedures answer "when was it done?" — chips suggest larger ranges.
-    // Findings answer "how long has it been present?" — chips suggest finer ranges.
-    const options = useMemo(() => {
-        if (internalValue && internalValue.match(/\d+/)) return getDynamicSinceOptions(internalValue);
-        return kind === "past"
-            ? ["1 week", "1 month", "3 months", "6 months", "1 year", "2+ years"]
-            : ["1 hour", "1 day", "1 week", "2 weeks", "1 month", "3 months"];
-    }, [internalValue, kind]);
+    // Always a fixed 4-option list — no dynamic "3 weeks 3 days" expansions.
+    // Doctors get a predictable set + "Select custom date" footer that hands
+    // off to the OS picker for anything outside the canonical range.
+    const options = useMemo(() => ["1 day", "1 week", "1 month", "1 year"], []);
     useEffect(() => {
         if (!open) {
             setPos(null);
@@ -1697,37 +1692,37 @@ function SinceDropdown({ value, onChange, autoOpen, onFocusActivate, onBlurDeact
     };
     // True when the stored value looks like a date string the picker produced
     // ("12 Jan 2026"). When true, the input is treated as locked-to-date —
-    // no suggestion popover on focus, calendar swaps to a clear (×) button.
+    // focus on the input opens the OS calendar directly (so the doctor can
+    // change the date), suggestion popover stays hidden. Clearing the input
+    // to empty (backspace / select-all + delete) brings the suggestions back.
     const isDateValue = !!internalValue && /^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/.test(internalValue.trim());
-    const onCalendarClick = (e) => {
-        e.stopPropagation();
-        // Fire the OS-native picker directly — no in-app popover card.
-        // The hidden <input type="date"> renders into the dropdown; clicking
-        // its label calls showPicker(). Different browsers handle this
-        // differently — focus + click is the most reliable fallback.
+    const openNativePicker = () => {
         try { dateInputRef.current?.showPicker?.(); }
         catch { try { dateInputRef.current?.focus?.(); dateInputRef.current?.click?.(); } catch {} }
     };
-    const onClearDate = (e) => {
+    const onCalendarClick = (e) => {
         e.stopPropagation();
-        setInternalValue("");
-        onChange("");
         setOpen(false);
+        openNativePicker();
     };
     return (_jsxs(_Fragment, { children: [
         _jsxs("div", { className: ui.sinceAnchor, ref: anchorRef, children: [
-            _jsx("input", { type: "text", value: internalValue, onFocus: () => { onFocusActivate?.(); if (!isDateValue) setOpen(true); }, onChange: (e) => { setInternalValue(e.target.value); setOpen(true); }, onKeyDown: (e) => { if (e.key === "Enter") { onChange(internalValue); setOpen(false); } }, placeholder: "e.g. 5 days", className: ui.sinceInput }),
+            _jsx("input", { type: "text", value: internalValue, onFocus: () => { onFocusActivate?.(); if (isDateValue) { setOpen(false); openNativePicker(); } else { setOpen(true); } }, onChange: (e) => { setInternalValue(e.target.value); setOpen(true); }, onKeyDown: (e) => { if (e.key === "Enter") { onChange(internalValue); setOpen(false); } }, placeholder: "e.g. 5 days", className: ui.sinceInput }),
             // Hidden native date input — `showPicker()` opens the OS calendar
             // directly without rendering any in-app card.
             _jsx("input", { ref: dateInputRef, type: "date", onChange: (e) => { const v = e.target.value; if (v) { const formatted = fmtDate(v); setInternalValue(formatted); onChange(formatted); setOpen(false); } }, style: { position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, opacity: 0, pointerEvents: "none", border: 0, padding: 0, margin: 0 }, "aria-hidden": true, tabIndex: -1 }),
-            // Trailing icon — calendar when empty/typing, clear-× once a date is set.
-            isDateValue
-                ? _jsx("button", { type: "button", onClick: onClearDate, "aria-label": "Clear date", title: "Clear date", style: { position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", zIndex: 21, fontSize: 16, fontWeight: 700, lineHeight: 1 }, children: "×" })
-                : _jsx("button", { type: "button", onClick: onCalendarClick, "aria-label": "Pick exact date", title: "Pick exact date", style: { position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", zIndex: 21 }, children: _jsx(Calendar, { size: 14, color: "currentColor", variant: "Linear" }) }),
+            // Calendar icon — always rendered, never swapped for a clear-× button.
+            // Clearing is via backspace inside the input itself.
+            _jsx("button", { type: "button", onClick: onCalendarClick, "aria-label": "Pick exact date", title: "Pick exact date", style: { position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 26, height: 26, borderRadius: 6, border: "none", background: "transparent", color: "#94a3b8", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", zIndex: 21 }, children: _jsx(Calendar, { size: 14, color: "currentColor", variant: "Linear" }) }),
         ] }),
         open && pos && !isDateValue && createPortal(
-            _jsx("div", { ref: popoverRef, className: ui.sinceMenu, style: { top: pos.top, left: pos.left, width: pos.width },
-                children: _jsx("div", { style: { display: "flex", flexDirection: "column" }, children: options.map((opt, i) => (_jsx("button", { type: "button", className: ui.popoverItem, onClick: () => { setInternalValue(opt); onChange(opt); setOpen(false); }, children: opt }, `${opt}-${i}`))) }) }),
+            _jsxs("div", { ref: popoverRef, className: ui.sinceMenu, style: { top: pos.top, left: pos.left, width: pos.width },
+                children: [
+                    _jsx("div", { style: { display: "flex", flexDirection: "column" }, children: options.map((opt, i) => (_jsx("button", { type: "button", className: ui.popoverItem, onClick: () => { setInternalValue(opt); onChange(opt); setOpen(false); }, children: opt }, `${opt}-${i}`))) }),
+                    // Footer — "Select custom date" hands off to the OS native picker.
+                    _jsx("div", { style: { borderTop: "1px solid #e2e8f0", marginTop: 4 } }),
+                    _jsxs("button", { type: "button", onClick: (e) => { e.stopPropagation(); setOpen(false); openNativePicker(); }, style: { display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", border: "none", background: "transparent", color: "var(--tp-blue-500)", fontFamily: "Inter, sans-serif", fontSize: 12.5, fontWeight: 600, cursor: "pointer", textAlign: "left" }, children: [_jsx(Calendar, { size: 14, color: "currentColor", variant: "Linear" }), _jsx("span", { children: "Select custom date" })] }),
+                ] }),
             document.body
         )
     ] }));
