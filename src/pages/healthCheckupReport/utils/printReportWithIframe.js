@@ -1,3 +1,5 @@
+import { normalizeHealthCheckupReportHtml } from "./normalizeReportHtml";
+
 /**
  * Print report to PDF using the browser's native print engine via a hidden iframe.
  * No screenshot, canvas, or jsPDF — true CSS layout, page breaks, vector text.
@@ -23,10 +25,11 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
   try {
     const parser = new DOMParser();
     const parsedDoc = parser.parseFromString(rawHtmlContent, 'text/html');
-    const editableEl = parsedDoc.querySelector('.smart-editor-editable') || parsedDoc.querySelector('.ProseMirror');
+    const editableEl = parsedDoc.querySelector('.smart-editor-editable') || parsedDoc.querySelector('.ProseMirror') || parsedDoc.querySelector('.jodit-wysiwyg');
     if (editableEl) {
       htmlContent = editableEl.innerHTML; // Extract ONLY the tables/paragraphs/headers
     }
+    htmlContent = normalizeHealthCheckupReportHtml(htmlContent);
   } catch (e) {
     console.error("printReportWithIframe: failed to parse HTML wrappers", e);
   }
@@ -74,6 +77,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
             </td>
           </tr>
         </tbody>
+        <tfoot><tr><td></td></tr></tfoot>
       </table>
 
       <table class="print-content-table print-repeat-pages-table">
@@ -91,28 +95,12 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
             </td>
           </tr>
         </tbody>
+        <tfoot><tr><td></td></tr></tfoot>
       </table>
     </div>
   `;
 
-  // Basic sanitization
-  function sanitizeReportHtml(rawHtml) {
-    const parsed = new DOMParser().parseFromString(rawHtml || "", "text/html");
-    parsed.querySelectorAll("script, iframe, object, embed").forEach((node) => node.remove());
-    parsed.querySelectorAll("*").forEach((node) => {
-      Array.from(node.attributes).forEach((attr) => {
-        const name = attr.name.toLowerCase();
-        const value = String(attr.value || "").trim().toLowerCase();
-        if (name.startsWith("on")) node.removeAttribute(attr.name);
-        if ((name === "href" || name === "src") && value.startsWith("javascript:")) {
-          node.removeAttribute(attr.name);
-        }
-      });
-    });
-    return parsed.body.innerHTML;
-  }
-
-  const sanitizedHtmlStructure = sanitizeReportHtml(finalHtmlStructure);
+  const sanitizedHtmlStructure = normalizeHealthCheckupReportHtml(finalHtmlStructure);
 
   doc.open();
   const criticalTableCss = `
@@ -134,7 +122,7 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     }
 
     .print-padding-wrapper {
-      padding: 10mm 1cm 3cm 2cm !important;
+      padding: 10mm 1cm 5mm 2cm !important;
       box-sizing: border-box !important;
       width: 100% !important;
       max-width: 100% !important;
@@ -177,25 +165,35 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     .print-content-table > tbody {
       display: table-row-group;
     }
+    /* tfoot repeats at the bottom of every printed page (like thead at the top) — creates 25mm
+       clearance for the hospital's pre-printed letterhead footer on each page */
+    .print-first-page-table > tfoot,
+    .print-content-table > tfoot {
+      display: table-footer-group;
+    }
     .print-first-page-table > tbody > tr > td,
     .print-content-table > thead > tr > td,
     .print-content-table > tbody > tr > td {
       border: none;
       padding: 0;
     }
-
-    /*
-     * When content spills into .print-repeat-pages-table, that table's <thead> (patient strip)
-     * must not render immediately after the first-page table — it would sit between e.g.
-     * "General Examination" and its vitals tables. Force the repeat table to start on a new sheet.
-     */
-    .print-repeat-pages-table.print-repeat-starts-new-page {
-      page-break-before: always !important;
-      break-before: page !important;
+    .print-first-page-table > tfoot > tr > td,
+    .print-content-table > tfoot > tr > td {
+      height: 3cm;
+      padding: 0 !important;
+      border: none !important;
+      background: transparent !important;
     }
 
+    /*
+     * Break AFTER the first-page table (not before the repeat table) to avoid a Chrome
+     * print bug where <thead> is not rendered on the very first page of a table that
+     * starts with break-before:page, causing the Patient Name/MRN header to be missing
+     * on page 2 while correctly repeating on pages 3+.
+     */
     .print-first-page-table.has-rest-pages {
-      page-break-after: auto !important;
+      page-break-after: always !important;
+      break-after: page !important;
     }
     
     .report-doc-header {
@@ -227,8 +225,8 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     
     
     /* Critical table layout */
-    .smart-editor-editable .tableWrapper:not(:first-of-type) > table,
-    .smart-editor-editable > table:not(:first-of-type) {
+    .smart-editor-editable .tableWrapper:not(:first-of-type) > table:not(.report-section-box),
+    .smart-editor-editable > table:not(:first-of-type):not(.report-section-box) {
       table-layout: auto !important; /* using auto instead of fixed to avoid overlapping headers when content is long */
       border-collapse: collapse !important;
       width: 100% !important;
@@ -241,10 +239,10 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       page-break-inside: avoid !important;
       page-break-after: auto !important;
     }
-    .smart-editor-editable .tableWrapper:not(:first-of-type) > table th,
-    .smart-editor-editable .tableWrapper:not(:first-of-type) > table td,
-    .smart-editor-editable > table:not(:first-of-type) th,
-    .smart-editor-editable > table:not(:first-of-type) td {
+    .smart-editor-editable .tableWrapper:not(:first-of-type) > table:not(.report-section-box) th,
+    .smart-editor-editable .tableWrapper:not(:first-of-type) > table:not(.report-section-box) td,
+    .smart-editor-editable > table:not(:first-of-type):not(.report-section-box) th,
+    .smart-editor-editable > table:not(:first-of-type):not(.report-section-box) td {
       border: 1px solid #d1d5db !important;
       white-space: normal !important;
       word-break: break-word !important;
@@ -308,8 +306,13 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     const pxPerMm = mmProbe.getBoundingClientRect().height || 3.78;
     mmProbe.remove();
 
-    /* Matches .print-padding-wrapper vertical padding (~10mm top + ~30mm bottom); small slack for font/layout variance */
-    const availableFirstPageHeight = (297 - 10 - 30 + 5) * pxPerMm;
+    /*
+     * Print content area: A4 297mm − 10mm wrapper top padding = 287mm.
+     * The 3cm (30mm) bottom clearance for the hospital letterhead footer is provided by the
+     * <tfoot> on print-first-page-table, included in getBoundingClientRect().height.
+     * So the table (content + 30mm tfoot) must fit within 287mm → actual content ≤ 257mm.
+     */
+    const availableFirstPageHeight = (297 - 10) * pxPerMm;
     const sourceNodes = Array.from(source.childNodes).filter((node) => {
       if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent && node.textContent.trim());
       return true;
@@ -372,7 +375,6 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     const chunks = groupNodesForPrintPagination(sourceNodes);
 
     let spillToRestPages = false;
-
     chunks.forEach((chunkNodes) => {
       const clones = chunkNodes.map((node) => node.cloneNode(true));
       if (spillToRestPages) {
@@ -381,10 +383,23 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
       }
 
       const prevChildCount = firstPageContainer.childNodes.length;
+
+      // Sections with print-page-break always start on a new page via @media print CSS.
+      // Mirror that guarantee here: once page 1 has content, send these directly to
+      // restPagesContainer so hasRestPages becomes true and the repeating header shows.
+      const hasPrintPageBreak = chunkNodes.some(
+        (n) => n.nodeType === Node.ELEMENT_NODE && n.classList?.contains("print-page-break")
+      );
+      if (hasPrintPageBreak && prevChildCount > 0) {
+        clones.forEach((c) => restPagesContainer.appendChild(c));
+        spillToRestPages = true;
+        return;
+      }
+
       clones.forEach((c) => firstPageContainer.appendChild(c));
       const firstPageHeight = firstPageTable.getBoundingClientRect().height;
 
-      const overflowTolerancePx = 24;
+      const overflowTolerancePx = 4; // ~1mm for sub-pixel rounding only; must stay well under 257mm limit
       const overflows =
         firstPageHeight > availableFirstPageHeight + overflowTolerancePx;
       if (overflows && prevChildCount > 0) {
@@ -398,11 +413,59 @@ export function printReportWithIframe(rawHtmlContent, documentTitle = "Health Ch
     if (hasRestPages) {
       firstPageTable.classList.add("has-rest-pages");
       repeatPagesTable.style.display = "table";
-      repeatPagesTable.classList.add("print-repeat-starts-new-page");
+
+      /*
+       * The <thead> auto-repeats Patient Name/MRN on every page of print-content-table,
+       * including continuation pages within large sections (e.g. a Consultations table that
+       * spans pages 3 and 4). No manual header clones are needed.
+       *
+       * Major sections with .print-page-break are forced onto new pages via an injected
+       * breakDiv; the auto-repeating thead provides the header on that new page.
+       */
+      // Direct children of restPagesContainer.
+      const contentNodes = Array.from(restPagesContainer.childNodes);
+      let isFirstElement = true;
+      const toInject = []; // nodes that need a page-break div injected before them
+
+      for (const node of contentNodes) {
+        if (node.nodeType === Node.TEXT_NODE) continue;
+
+        const hasForcedBreak = node.classList?.contains("print-page-break");
+
+        if (hasForcedBreak && isFirstElement) {
+          // First section: page 2 already starts fresh (firstPageTable has break-after:page). Absorb.
+          node.classList.remove("print-page-break");
+          node.style.pageBreakBefore = "auto";
+          node.style.breakBefore = "auto";
+          isFirstElement = false;
+          continue;
+        }
+
+        if (hasForcedBreak) {
+          // Consultations, Impressions, General Recommendations: force onto a new page.
+          // The auto-repeating thead provides Patient Name/MRN on the new page.
+          toInject.push(node);
+          node.classList.remove("print-page-break");
+          node.style.pageBreakBefore = "auto";
+          node.style.breakBefore = "auto";
+          isFirstElement = false;
+          continue;
+        }
+
+        isFirstElement = false;
+      }
+
+      // Insert page-break divs in reverse to preserve earlier node positions.
+      for (let i = toInject.length - 1; i >= 0; i--) {
+        const target = toInject[i];
+        const breakDiv = printDoc.createElement("div");
+        breakDiv.style.cssText =
+          "page-break-before:always;break-before:page;height:0;margin:0;padding:0;";
+        restPagesContainer.insertBefore(breakDiv, target);
+      }
     } else {
       firstPageTable.classList.remove("has-rest-pages");
       repeatPagesTable.style.display = "none";
-      repeatPagesTable.classList.remove("print-repeat-starts-new-page");
     }
   };
 

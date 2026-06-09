@@ -76,6 +76,7 @@ import TabMedicationSearch from "./TabMedicationSearch";
 import TabMedicationMoreModal from "./TabMedicationMoreModal";
 import { EXTRA_OPTIONS, GB_PILLUP_MEDICINE, MESSAGE_KEY, NEO_NATOLOGISTS_DP_ID } from "../../utils/constants";
 import { getDecodedToken } from "../../utils/localStorage";
+import { useChikitsalay } from "../../pages/chikitsalay/useChikitsalay";
 import { env } from "../../EnvironmentConfig";
 import DoseCalculator from "../dose_calculator/doseCalculator";
 import { upsertDoctorSettingFlag } from "../../redux/doctorsSlice";
@@ -93,6 +94,31 @@ const {
 } = ASSETS.images;
 
 function TabMedicationBox() {
+  const isChikitsalayAccessable = useChikitsalay();
+  const renderLowStockBadge = useCallback((med) => {
+    if (!isChikitsalayAccessable) return null;
+    const available = Number(med?.quantity);
+    if (!Number.isFinite(available)) return null;
+
+    let label = null;
+    if (available <= 0) {
+      label = "No stock";
+    } else {
+      const required = 200;
+      if (available <= required) {
+        label = `Qty: ${available}`;
+      }
+    }
+
+    if (!label) return null;
+    const isQtyLabel = label.startsWith("Qty:");
+    return (
+      <span className={`stock-pill-badge stock-pill-badge-outside ${isQtyLabel ? "stock-pill-badge-qty" : ""}`}>
+        {label}
+      </span>
+    );
+  }, [isChikitsalayAccessable]);
+
   const { profile, frequencyList, timingList, medicineTypeList } = useSelector((state) => state.doctors);
   const {
     dosesList,
@@ -219,7 +245,7 @@ function TabMedicationBox() {
   useEffect(() => {
     dispatch(getMedicationTemplates());
     dispatch(getAllDoses())
-    dispatch(getFrequentlySearchedMedication());
+    dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
   }, []);
 
   //Parent AutoComplete
@@ -227,16 +253,20 @@ function TabMedicationBox() {
     if (searchMLQuery) {
       const timeOutId = setTimeout(() => {
         dispatch(
-          searchMedication({ searchQuery: searchMLQuery, type: "parent" })
+          searchMedication({
+            searchQuery: searchMLQuery,
+            type: "parent",
+            isChikitsalayAccessable,
+          })
         );
       }, 500);
       return () => {
         clearTimeout(timeOutId);
       };
     } else {
-      dispatch(getFrequentlySearchedMedication());
+      dispatch(getFrequentlySearchedMedication({ isChikitsalayAccessable }));
     }
-  }, [doseCalculatorDrawer, searchMLQuery]);
+  }, [doseCalculatorDrawer, isChikitsalayAccessable, searchMLQuery]);
 
   useEffect(() => {
     const data = [];
@@ -244,7 +274,7 @@ function TabMedicationBox() {
       return data.push({
         key: JSON.stringify({ ...e, unique_id: uuidv4() }),
         value: e.tmm_medicine_name,
-        label: <div><span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span></div>,
+        label: <div><span className="fw-medium">{e.tmm_medicine_name}</span>, <span>{e.tmm_generic}</span>{renderLowStockBadge(e)}</div>,
       });
     });
     if (doseCalculatorDrawer) {
@@ -275,7 +305,7 @@ function TabMedicationBox() {
       }
     }
     setParentSearchOptions(data);
-  }, [doseCalculatorDrawer, parentOptionsList]);
+  }, [doseCalculatorDrawer, parentOptionsList, renderLowStockBadge]);
 
   const onSearchParent = useCallback(
     (query) => {
@@ -388,6 +418,9 @@ function TabMedicationBox() {
           return {
             ...e,
             objectID: item.objectID,
+            quantity: item.quantity,
+            tmm_hm_type: e.tmm_hm_type ?? item.tmm_hm_type,
+            um_id: e.um_id ?? item.um_id,
             // tmm_unit_name: unitObj && unitObj !== undefined ? JSON.parse(unitObj.key).tmu_title : "",
             tmm_freq_type_name:
               frequencyObj !== undefined ? frequencyObj.tmf_title : "",
@@ -715,6 +748,17 @@ function TabMedicationBox() {
   const SortableItem = SortableElement(({ item }) => {
     let tmm_freq_type_name = `${item.tmm_dosage && item.tmm_unit_name ? `${item.tmm_dosage} ${item.tmm_unit_name}` + " | " : ""}${item.tcm_tmm_freq_morning ? item.tcm_tmm_freq_morning + " - " : "0 -"}${item.tcm_tmm_freq_afternoon ? item.tcm_tmm_freq_afternoon + " - " : "0 -"}${item.tcm_tmm_freq_evening ? item.tcm_tmm_freq_evening + " - " : selectedTab != 'man' ? "0 -" : ""}${item.tcm_tmm_freq_night ? item.tcm_tmm_freq_night + " | " : "0 |"}${item.tmm_time_name ? item.tmm_time_name : ""}`
     tmm_freq_type_name = tmm_freq_type_name === `0 -0 -0 -0 |None` || tmm_freq_type_name === `0 -0 -0 |None` ? "" : tmm_freq_type_name;
+    const hmType = item?.tmm_hm_type ?? item?.hm_type;
+    const showVC = hmType == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable;
+    const available = Number(item?.quantity);
+    const selectedChipStockLabel = Number.isFinite(available)
+      ? available <= 0
+        ? "No stock"
+        : available <= 200
+          ? `Qty: ${available}`
+          : ""
+      : "";
+    const isQtyLabel = selectedChipStockLabel.startsWith("Qty:");
 
     return (
     <div
@@ -727,13 +771,35 @@ function TabMedicationBox() {
               ? "256px"
               : "150px",
       }}
-      className="d-flex align-items-center justify-content-between text-truncate closable-chips closable-chips-active"
+      className="position-relative d-flex align-items-center justify-content-between closable-chips closable-chips-active"
     >
       <div
         className="text-truncate p-2"
         onClick={() => mainMedicationSelect(item?.index)}>
-        <div className="text-truncate">
-          {item.tmm_medicine_name}
+        <div>
+          <div className="d-flex align-items-center gap-1">
+            <span className="chip-text text-truncate">{item.tmm_medicine_name}</span>
+            {selectedChipStockLabel && (
+              <span
+                className="flex-shrink-0"
+                style={{
+                  marginLeft: 4,
+                  padding: "1px 7px",
+                  borderRadius: 7,
+                  background: isQtyLabel ? "#FC5A5A" : "#ED8A00",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: "13px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {selectedChipStockLabel}
+              </span>
+            )}
+          </div>
           {innerMedication(item?.index)?.length > 1 ? (
             <div className="text-truncate small">Taper Dose</div>
           ) : (
@@ -753,6 +819,14 @@ function TabMedicationBox() {
           )}
         </div>
       </div>
+      {showVC && (
+        <span
+          className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white chip-vc-badge"
+          style={{ minWidth: 24, height: 18, padding: "0 5px", lineHeight: "16px", background: "#c44ea2", right: 36, top: -6 }}
+        >
+          VC
+        </span>
+      )}
       <Button
         type="text"
         className="rounded-0 btn-close-chips"
@@ -2871,9 +2945,13 @@ function TabMedicationBox() {
                       className="btn btn-primary2 chips-custom mb-14 me-14"
                       onClick={() => onSelectParent(item)}
                     >
-                      {`${item.tmm_medicine_name}`}
+                      <span className="chip-med-content">
+                        <span className="chip-med-name">{`${item.tmm_medicine_name}`}</span>
+                        {renderLowStockBadge(item)}
+                      </span>
                     </Button>
                     {(item?.tmm_hm_type === 1 && item?.um_id === 0) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white" style={{ width: 18, height: 18, background: '#c44ea2', right: 6, top: -6 }}>Z</span>}
+                    {(item?.tmm_hm_type == 15 && Number(item?.um_id) === 0 && isChikitsalayAccessable) && <span className="position-absolute align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-pill text-white" style={{ minWidth: 24, height: 18, padding: '0 5px', lineHeight: '16px', background: '#c44ea2', right: 6, top: -6 }}>VC</span>}
                     <FreeBadge show={item?.is_free} className="position-absolute" style={{ right: 0, top: -10 }} />
                   </div>
                 );

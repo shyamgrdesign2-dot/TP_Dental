@@ -21,6 +21,7 @@ import {
   isChunkLoadError,
   shouldReloadForChunkFailure,
 } from "./utils/chunkReloadGuard";
+import { isProductionEnv } from "./utils/environment";
 
 // Provide a MoEngage stub with a bounded queue so early calls don't crash or get lost.
 if (typeof window !== "undefined") {
@@ -62,7 +63,7 @@ if (typeof window !== "undefined") {
 }
 
 const appEnv = process.env.REACT_APP_ENV || "prod";
-const isProd = appEnv === "prod";
+const isProd = isProductionEnv(appEnv);
 const tracesSampleRateValue =
   Number(
     process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE ??

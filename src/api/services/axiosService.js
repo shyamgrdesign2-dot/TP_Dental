@@ -27,6 +27,14 @@ const isVoiceDigitizeRequest = (requestConfig = {}) => {
     return isVoiceEndpointRequest(requestConfig) && !isVoiceUploadRequest(requestConfig);
 };
 
+const shouldAttachVoiceCorrelationId = (requestConfig = {}) => {
+    const requestUrl = requestConfig?.url || '';
+    const requestMethod = (requestConfig?.method || '').toLowerCase();
+    const isCreateOrUpdateRequest = requestMethod === 'post' || requestMethod === 'put';
+    const isDigitizationRequest = requestUrl.includes('/api/v1/digitization/');
+    return isCreateOrUpdateRequest && isDigitizationRequest;
+};
+
 const isRetryableTransientError = (error) => {
     if (axios.isCancel?.(error)) return false;
     if ((error?.message || '').includes('Internet connection not available')) return false;
@@ -70,7 +78,7 @@ instance.interceptors.request.use(
     (config) => {
         if (!window.navigator.onLine) {
             const error = 'Internet connection not available';
-            notification.error({ key: "notification_key", message: error });
+            // notification.error({ key: "notification_key", message: error });
             return Promise.reject(new Error(error));
         }
         // You can modify the request config here (e.g., add headers)
@@ -86,11 +94,15 @@ instance.interceptors.request.use(
         } else {
             console.log('Entry Route')
         }
+        const voiceCorrelationId = window.__TATVA_VOICE_SESSION_ID;
+        if (voiceCorrelationId && shouldAttachVoiceCorrelationId(config)) {
+            config.headers['x-correlation-id'] = voiceCorrelationId;
+        }
         return config;
     },
     (error) => {
         // Do something with request error here
-        notification.error({ key: "notification_key", message: error.response.data.error })
+        // notification.error({ key: "notification_key", message: error.response.data.error })
         return Promise.reject(error);
     }
 );
@@ -135,12 +147,17 @@ instance.interceptors.response.use(
             message: ''
         }
 
+        // Silently reject cancelled requests without showing a notification
+        if (error?.code === 'ERR_CANCELED') {
+            return Promise.reject(error);
+        }
+
         // Check if error.response exists before accessing its properties
         if (!error.response) {
             // Handle network errors, CORS errors, or other non-HTTP errors
             notificationParam.message = error.message || 'Network Error'
             notificationParam.key = "notification_key"
-            notification.error(notificationParam)
+            // notification.error(notificationParam)
             return Promise.reject(error);
         }
 
@@ -186,7 +203,7 @@ instance.interceptors.response.use(
 
         notificationParam.key = "notification_key"
         if (error.response.status !== 404 && error.response.status !== 400 && error.response.status !== 401 && error.response.status !== 429) {
-            notification.error(notificationParam)
+            // notification.error(notificationParam)
         }
         return Promise.reject(error);
     }

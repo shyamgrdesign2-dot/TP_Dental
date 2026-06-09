@@ -139,6 +139,13 @@ import {
   setJoinToken,
 } from "../redux/teleconsultNotificationSlice";
 import { ASSETS } from "../assets";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 const {
   vitals,
   medicalHistory: MedicalHistory,
@@ -221,6 +228,7 @@ function SmartPrescription() {
   const [followUpDate, setFollowUpDate] = useState(null);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [vitalsData, setVitalsData] = useState([]);
   const [medicalHistoryData, setMedicalHistoryData] = useState([]);
   const [addlabparamsDrawer, setAddlabparamsDrawer] = useState(false);
@@ -247,6 +255,7 @@ function SmartPrescription() {
   const [selectedPage, setSelectedPage] = useState(null);
   const selectedPageRef = useRef(null); // Add a ref for selectedPage
   const canvasRefs = useRef([]);
+  const blankCanvasPreparedRef = useRef({});
   const [newPageText, setNewPageText] = useState("");
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [deletePopupMsg, setDeletePopupMsg] = useState("");
@@ -304,6 +313,7 @@ function SmartPrescription() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -461,6 +471,11 @@ function SmartPrescription() {
     isGynaecHistoryAccessable,
   } = useAccess(patient_data?.ageYears);
 
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
+  );
+
   const token = localStorage.getItem(PERSISTANT_STORAGE_KEY_AUTH_TOKEN);
   const baseUrlLabParams = env.lab_params_api_url;
 
@@ -603,6 +618,7 @@ function SmartPrescription() {
     smartRxFiles.length,
     getSelectedTemplateById,
     missionTemplatePatientKey,
+    templates.length,
   ]);
 
   // Monitor changes to pagesMetaData for debugging
@@ -869,6 +885,7 @@ function SmartPrescription() {
         setInvestigationData(caseManagerData.investigation);
       }
       if (
+        !fromRepeatRx &&
         caseManagerData.follow_up_date &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 15 && e.tmdpm_status === 0
@@ -1041,6 +1058,7 @@ function SmartPrescription() {
       setPages([newPageId]);
       setDataPresentInCanvas([false]);
       setSelectedPage(0);
+      blankCanvasPreparedRef.current = { [newPageId]: false };
       
       // Initialize pages metadata for blank page
       const blankPageMetadata = [{
@@ -1053,13 +1071,11 @@ function SmartPrescription() {
       setMetadataSafely(blankPageMetadata, "handleTemplateSelect blank");
     } else {
       // Handle template selection
-      const selected = getSelectedTemplateById(templateId);
+      const selected = templates.find(t => t.id === templateId);
       if (selected) {
-        message.success(`Template "${selected.title || "Standard Template"}" activated`);
+        message.success(`Template "${selected.title}" activated`);
         // Load template images - this will create pages and set template image indices
-        void loadTemplateImages(selected).catch((e) =>
-          console.error("loadTemplateImages failed", e)
-        );
+        loadTemplateImages(selected);
       }
     }
   };
@@ -1479,17 +1495,37 @@ function SmartPrescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {
@@ -1808,6 +1844,8 @@ function SmartPrescription() {
 
   const CUSTOMIZED_PAD_LEFT_LIST = () => {
     return customizedPadLeftList?.map((e, i) => {
+      if (isCvtExtHosAccessableFromGB && e.tmdpm_id !== 1) return null;
+
       return e.tmdpm_id === 1 && e.tmdpm_status === 0 ? (
         <div key={i} className="prescription-box-sm p-14">
           <div className="d-flex align-items-center justify-content-between">
@@ -1830,7 +1868,11 @@ function SmartPrescription() {
           </div>
           {(vitalsData.length > 0 ||
             vitalsPastList.length > 0 ||
-            patientBirthWeight) && (
+            patientBirthWeight ||
+            (isAutofillSelected &&
+              hasVitalsAndBodyCompositionData(
+                selectedSymptomsCollector?.vitalsAndBodyComposition
+              ))) && (
             <VitalsList mode={caseManagerData !== undefined ? EDIT : ADD} />
           )}
         </div>
@@ -2158,6 +2200,9 @@ function SmartPrescription() {
       loadRxImages();
       
 
+    } else {
+      // Prevent stale smartRx state from blocking template auto-load.
+      setSmartRxFiles([]);
     }
 
     if(selectedTemplateId === "none" || !selectedTemplateId ){
@@ -2183,6 +2228,9 @@ function SmartPrescription() {
       ref={(el) => {
         if (el) {
           canvasRefs.current[id] = el;
+          if (blankCanvasPreparedRef.current[id] === undefined) {
+            blankCanvasPreparedRef.current[id] = false;
+          }
           const ctx = configureCanvasContext(el.getContext("2d"));
           ctxGlobalRefs.current[id] = ctx;
         }
@@ -2282,6 +2330,7 @@ function SmartPrescription() {
     const newPageId = uuidv4();
     setPages([...pages, newPageId]);
     setDataPresentInCanvas([...dataPresentInCanvas, false]);
+    blankCanvasPreparedRef.current[newPageId] = false;
     
     // Add page metadata using simple function - add at the end of pages array
     addPageMetadata(newPageId, pages.length, "blank", null);
@@ -2337,6 +2386,7 @@ function SmartPrescription() {
     
     // Get the page ID that will be deleted
     const deletedPageId = pages[index];
+    delete blankCanvasPreparedRef.current[deletedPageId];
     
     const newPages = pages.filter((_, pageIndex) => pageIndex !== index);
     setDataPresentInCanvas(
@@ -2377,6 +2427,7 @@ function SmartPrescription() {
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      blankCanvasPreparedRef.current[pages[updatedIndex]] = true;
       ctx.beginPath();
       ctxGlobalRefs.current[pages[updatedIndex]] = ctx;
       canvasRefs.current[pages[updatedIndex]] = ctx;
@@ -2447,6 +2498,7 @@ function SmartPrescription() {
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      blankCanvasPreparedRef.current[pages[0]] = true;
       ctx.beginPath();
     }
   };
@@ -2530,6 +2582,7 @@ function SmartPrescription() {
         // Reset to blank white page
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        blankCanvasPreparedRef.current[currentPageId] = true;
       } else {
         // Fallback: if no metadata available, reload smartRx image if exists
         const smartRxImage = smartRxFiles[selectedPage]?.smart_prescription_file;
@@ -2575,16 +2628,21 @@ function SmartPrescription() {
     
     // Only fill with white if this is NOT a template page and has no smart RX images
     if (!hasSmartRxImages && !isTemplatePage) {
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Fill once per blank canvas to avoid full canvas repaint on every stroke.
+      if (!blankCanvasPreparedRef.current[pageIndex]) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        blankCanvasPreparedRef.current[pageIndex] = true;
+      }
     } 
     
     const p0 = hardwarePointToCanvas(t, n);
     const p1 = hardwarePointToCanvas(a, c);
 
-    // Set consistent styles
-    ctx.strokeStyle = "#000"; // Example color for regular drawing
-
+    // Draw each incoming segment as an isolated path to avoid
+    // cumulative re-stroking artifacts (jagged/darker edges).
+    ctx.strokeStyle = "#000";
+    ctx.beginPath();
     ctx.moveTo(p0.x, p0.y);
     ctx.lineTo(p1.x, p1.y);
     ctx.lineJoin = ctx.lineCap = "round";
@@ -3045,6 +3103,7 @@ function SmartPrescription() {
     const newPages = [...pages];
     newPages.splice(pageIndex + 1, 0, newPageId);
     setPages(newPages);
+    blankCanvasPreparedRef.current[newPageId] = false;
     
     // Add data present flag for new page
     const newDataPresentInCanvas = [...dataPresentInCanvas];
@@ -3062,6 +3121,7 @@ function SmartPrescription() {
         // Fill with white background
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+        blankCanvasPreparedRef.current[newPageId] = true;
       }
       
       // Restore canvas drawings after the new page is added
@@ -3430,6 +3490,7 @@ function SmartPrescription() {
           selectedTemplateId={selectedTemplateId}
           prepareMetadataForSubmissionData={prepareMetadataForSubmission()}
           selectedCarePlan={selectedCarePlan}
+          hasExistingCarePlan={hasExistingCarePlan}
           setBuildNumber={setBuildNumber}
           handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null}
           isVideoConsultLoading={isInitiatingCall}
@@ -3604,9 +3665,7 @@ function SmartPrescription() {
               {showSCBanner && (
                 <SCBanner handleBanner={() => setShowSCBanner(false)} />
               )}
-              { !isCvtExtHosAccessableFromGB &&
-                CUSTOMIZED_PAD_LEFT_LIST()
-              }
+              {CUSTOMIZED_PAD_LEFT_LIST()}
               {selectedSymptomsCollector?.notes && (
                 <div className="prescription-box-sm p-14">
                   <div style={{ padding: "6px" }}>

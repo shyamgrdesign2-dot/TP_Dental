@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { env } from "../EnvironmentConfig";
 
 /** Azure static assets root — keep in sync with $tp-assets-base in src/styles/variables.scss and ASSETS in src/assets.js */
 export const TP_ASSETS_BASE =
@@ -46,6 +47,8 @@ export const TAB_FINISHED = 3;
 export const TAB_CANCELLED = 4;
 export const TAB_ZYDUS_ENCOUNTER = 11;
 export const TAB_ZYDUS_APPOINTMENT = 12;
+export const TAB_CLINIC_APPOINTMENT = 0;
+export const TAB_CLINIC_QUEUE = 7;
 
 export const TAB_CAMPAIGN = 0;
 export const TAB_DRAFT = 1;
@@ -101,6 +104,13 @@ export const GB_SAVE_AS_DRAFT_RX = "save-as-draft-rx";
 export const GB_HEALTH_CHECKUP_REPORT = "health-checkup-report";
 export const GB_VOICE_RX_FREE = "free-voice-rx";
 export const GB_ZYDUS_WHATSAPP = "zydus-doctor-whatsapp-enablement";
+export const GB_ZYDUS_ACCOUNT_USERS = "zydus-account-users";
+export const GB_CHIKITSALAY = "chikitsalay";
+export const GB_VOICE_RX_NEW_UI = "voice-rx-new";
+export const CLINIC_TARGET_STATUS = {
+  SERVING: "SERVING",
+  COMPLETED: "COMPLETED",
+}
 export const OPTHAL_PAD_MODULE_ID = 23;
 export const OPTHAL_PAD_MODULE = {
   tmdpm_id: 23,
@@ -108,8 +118,7 @@ export const OPTHAL_PAD_MODULE = {
   tmdpm_name: "Opthal",
   tmdpm_short_name: "Opthal",
   tmdpm_status: 0,
-  tmdpm_icon_url:
-    "https://practice.tatvacare.in/img/microservices/right/opthal.svg",
+  tmdpm_icon_url: `${env.php_base_url}/img/microservices/right/opthal.svg`,
 };
 
 export const GYNAECOLOGY = "Gynaecology";
@@ -126,6 +135,11 @@ export const GB_TELE_CONSULT = "tele-consult";
 export const GB_TAB_RX = "tab-rx";
 export const GB_TAB_RX_CVT = "tab-rx-cvt";
 export const GB_CVT_EXT_HOS = "cvt-external-hospitals";
+export const EXTERNAL_HOSPITAL_BUSINESS_IDS = {
+  MISSION_HOSPITAL: String(env.mission_hospital_business_id),
+};
+
+export const MISSION_HOSPITAL_ADDRESS = "THE MISSION HOSPITAL Plot No. 219(P), IMMON KALYAN SARANI, SECTOR-2C, Bidhannagar, Durgapur -713212, West Bengal - Ph No: 8687500500";
 
 export const FREE = "FREE";
 export const TRIAL = "TRIAL";
@@ -454,7 +468,7 @@ export const SNAP_RX_KNOW_MORE_DATA = {
 
 export const HIDE_ROUTES = {
   BANNER: ["/snap-rx"],
-  TALKATIVE: ["/snap-rx"],
+  TALKATIVE: ["/snap-rx", "/prescription"],
 };
 
 

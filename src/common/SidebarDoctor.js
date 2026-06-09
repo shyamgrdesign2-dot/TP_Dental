@@ -499,6 +499,7 @@ function SidebarDoctor() {
 
           {!isCvtExtHosAccessableFromGB && (
           <>
+          
           <NavLink
             replace={true}
             className={({ isActive, isPending }) =>

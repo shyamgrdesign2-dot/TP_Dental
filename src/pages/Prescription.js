@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE } from "../utils/constants";
+import { ADD, EDIT, EXTRA_OPTIONS, FAILED_VERIFICATION, FREE, GB_ZYDUS_USER, GB_CARE_PLAN, PAEDIATRICS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, S_DDX, NEO_NATOLOGISTS_DP_ID, OPTHAL_PAD_MODULE_ID, OPTHAL_PAD_MODULE, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI } from "../utils/constants";
 
 import { getPatientBirthWeight, getVitals, resetVitalsState } from "../redux/vitalsSlice";
 import {
@@ -45,7 +45,7 @@ import Obstetric from "./obstetric/Obstetric";
 import ObstetricList from "./obstetric/components/obstetricList/ObstetricList";
 import { fetchObstetricDetails } from "./obstetric/service";
 import { addObstetricDetails } from "../redux/obstetricSlice";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree } from "../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getTokenData, getDeviceSdkData, isVoiceRxFree, isValidMongoId } from "../utils/utils";
 import UploadDocument from "./medicalRecords/UploadDocument";
 import MedicalRecords from "./medicalRecords/MedicalRecords";
 import DrawingCanvas from "./drawingCanvas/DrawingCanvas";
@@ -87,7 +87,6 @@ import { getDDxDetails } from "../api/services/ApiDDx";
 import { getDecodedToken } from "../utils/localStorage";
 import DDxList from "../components/medical_certificate/DDxList";
 import SurgicalBox from "../components/SurgicalBox";
-import AddCustomModule from "../components/AddCustomModule";
 import CustomModule from "../components/CustomModule";
 import CarePlanDropdown from "../components/CarePlanDropdown";
 import CarePlanList from "../components/CarePlanList";
@@ -104,14 +103,8 @@ import SCPopup from "../components/SCPopup";
 import SCBanner from "../components/SCBanner";
 import ZydusLabParams from "../components/ZydusLabParams";
 import ZydusLabParametersList from "../components/ZydusLabParametersList";
-import TatvaAiBanner from "../components/TatvaAiBanner";
-import ApexAIPopup from "../components/ApexAIPopup";
-import GenRxBanner from "../components/GenRxBanner";
-import Carousel from "react-multi-carousel";
-import GroundingBanner from "../components/GroundingBanner";
 import GroundingKnowMore from "../components/GroundingKnowMore";
 import GroundingBox from "../components/GroundingBox";
-import VideoConsultButton from "../components/VideoConsultButton";
 import VideoConsultModal from "../components/VideoConsultModal";
 import { GB_VIDEO_CONSULT, GB_TELE_CONSULT } from "../utils/constants";
 import {
@@ -137,6 +130,13 @@ import {
 } from "../redux/ophthalmologyExamSlice";
 import { GB_OPTHAL_MODULE } from "../utils/constants";
 import { ASSETS } from "../assets";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 
 function Prescription() {
   const {
@@ -215,7 +215,18 @@ function Prescription() {
 
   const { state } = useLocation();
   const { patient_data, send_path, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, teleconsultAutoJoin, isEditRx, fromRepeatRx } = state || {};
-  
+
+  const isPrescriptionVoiceOrGenRxFlow =
+    Boolean(fromVoiceRecording) ||
+    (typeof inputText === "string" && inputText.trim().length > 0) ||
+    (caseManagerData?.smart_prescription_filename &&
+      isValidMongoId(caseManagerData.smart_prescription_filename));
+
+  const shouldApplyZydusVisibleRepeatEditFilter =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    (Boolean(fromRepeatRx) || Boolean(isEditRx)) &&
+    !isPrescriptionVoiceOrGenRxFlow;
+
   // Create a combined module list that includes both user's modules and hospital-wide modules
   // This ensures deleted modules are still available when editing a prescription
   const allAvailableModules = React.useMemo(() => {
@@ -432,6 +443,7 @@ function Prescription() {
   const [zydusSelectedLabParams, setZydusSelectedLabParams] = useState([]);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [loadPrevOpthalSignal, setLoadPrevOpthalSignal] = useState(0);
   const [isTeleconsultJoinLoading, setIsTeleconsultJoinLoading] = useState(false);
   const joinToken = useSelector((state) => state.teleconsultNotification?.joinToken);
@@ -687,6 +699,7 @@ function Prescription() {
   const isApexAIAccessable = useFeatureIsOn("cdss");
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
   const isCarePlanEnabled = useFeatureIsOn(GB_CARE_PLAN);
   const isOpthalModuleAccessible = useFeatureIsOn(GB_OPTHAL_MODULE);
@@ -698,8 +711,15 @@ function Prescription() {
     isGrowthChartAccessable,
     isGynaecHistoryAccessable,
   } = useAccess(patient_data?.ageYears);
-  const { isDDxReadyToGenerate, showSCPopup, isAutofillSelected } = useSelector(
-    (state) => state.ddx
+  const {
+    isDDxReadyToGenerate,
+    showSCPopup,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+  } = useSelector((state) => state.ddx);
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
   );
   const [shouldShowGroundingBanner, setShowGroundingBanner] = useState(false);
 
@@ -1002,13 +1022,25 @@ function Prescription() {
       ) {
         setDiagnosisData(caseManagerData.diagnosis);
       }
+      const medicineListForHydration = (() => {
+        const list = caseManagerData.medicine;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (m) =>
+            !Object.prototype.hasOwnProperty.call(m, "visible") ||
+            m.visible === undefined ||
+            m.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.medicine?.length > 0 &&
+        medicineListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        const updatedData = caseManagerData.medicine.map((e) => {
+        const updatedData = medicineListForHydration.map((e) => {
           const unitObj = e?.medicineUnit
             ? e?.medicineUnit.find((x) => x.tmu_id == e.tmm_unit)
             : null;
@@ -1073,13 +1105,25 @@ function Prescription() {
       ) {
         setAdviceData(caseManagerData.advice);
       }
+      const investigationListForHydration = (() => {
+        const list = caseManagerData.investigation;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (row) =>
+            !Object.prototype.hasOwnProperty.call(row, "visible") ||
+            row.visible === undefined ||
+            row.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.investigation?.length > 0 &&
+        investigationListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        setInvestigationData(caseManagerData.investigation);
+        setInvestigationData(investigationListForHydration);
       }
       if (
         caseManagerData.follow_up_date &&
@@ -1296,17 +1340,37 @@ function Prescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData !== undefined) {
@@ -1357,6 +1421,7 @@ function Prescription() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -1714,7 +1779,11 @@ function Prescription() {
           </div>
           {(vitalsData.length > 0 ||
             vitalsPastList.length > 0 ||
-            patientBirthWeight) && (
+            patientBirthWeight ||
+            (isAutofillSelected &&
+              hasVitalsAndBodyCompositionData(
+                selectedSymptomsCollector?.vitalsAndBodyComposition
+              ))) && (
             <VitalsList mode={caseManagerData !== undefined ? EDIT : ADD} />
           )}
         </div>
@@ -2096,11 +2165,16 @@ function Prescription() {
     }
     
 
-    navigate("/voice-rx-consult", {
+    navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
       state: {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
+        ...(isVoiceRxNewFromGB && {
+          isVoiceRxNewUiFlow: true,
+          voiceRxEntryPoint: "prescription_header",
+          caseManagerData: caseManagerData,
+        }),
       },
     });
   }
@@ -2208,6 +2282,7 @@ function Prescription() {
               isTeleconsultActive={!!joinToken}
               labReportID={labReportID}
               selectedCarePlan={selectedCarePlan}
+              hasExistingCarePlan={hasExistingCarePlan}
               hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2}
             />
             <div className="w-100 bg-body wrapper2 prescription-wrapper">
@@ -2291,35 +2366,6 @@ function Prescription() {
             </div>
             <div className="col-lg-8 col-md-12 col-12 mt-lg-0 mt-3">
               <Content>
-                {/* {(shouldShowGenRxPopup || shouldShowApexPopup || shouldShowTatvaAiPopup || shouldShowGroundingBanner) && 
-                  <Carousel
-                  responsive={responsive}
-                  infinite={true}
-                  autoPlay={true}
-                  showDots={true}
-                  autoPlaySpeed={2000}
-                  removeArrowOnDeviceType={["tablet", "mobile"]}
-                  arrows={false}
-                  // dotListClass=""
-                  >
-                  {shouldShowGenRxPopup && (
-                    <GenRxBanner key="genrx-banner" setShowGenRxPopup={setShowGenRxPopup} handleGenRxKnowMore={handleGenRxKnowMore} />
-                  )}
-                  {shouldShowTatvaAiPopup && (
-                    <TatvaAiBanner key="tatva-ai-banner" setShowTatvaAiPopup={setShowTatvaAiPopup} handleTatvaAiKnowMore={handleTatvaAiKnowMore} />
-                  )}
-                  {shouldShowApexPopup && (
-                    <ApexAIPopup
-                    key="apex-popup"
-                      setShowApexPopup={setShowApexPopup}
-                      handleDDxKnowMore={handleDDxKnowMore}
-                    />
-                  )}
-                  {shouldShowGroundingBanner && (
-                    <GroundingBanner key="grounding-banner" setShowGroundingPopup={setShowGroundingBanner} handleGroundingKnowMore={handleGroundingKnowMore} />
-                  )}
-                  </Carousel>
-                } */}
                 {showSCBanner && (
                   <SCBanner handleBanner={() => setShowSCBanner(false)} />
                 )}
@@ -2485,6 +2531,8 @@ function Prescription() {
             handleDrawerMedicalHistory={handleDrawerMedicalHistory}
             handleCollapsed={(flag) => handleCollapsed(flag)}
             onSave={handleSaveGynecHistory}
+            initialActiveKey={isGynaecHistoryAccessable ? "gynec" : "medical"}
+            hideMenstrualHistoryTab={!isGynaecHistoryAccessable}
           />
         </Drawer>
         <Drawer

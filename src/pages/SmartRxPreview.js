@@ -833,7 +833,7 @@ function SmartRxPreview() {
                                         buttonText
                                     )}
                                 </button>
-                            }
+                            } 
                             
                             { isSmartSyncCVTAccessableFromGB && (
                                 <>

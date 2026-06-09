@@ -30,6 +30,7 @@ export const usePrintPayloadPdf = ({
 
     if (payloadOverride) {
       setPayload(payloadOverride);
+      setPrintBlob(null);
       return;
     }
 
@@ -43,6 +44,8 @@ export const usePrintPayloadPdf = ({
     const fetchPayload = async () => {
       setIsGenerating(true);
       setError(null);
+      setPayload(null);
+      setPrintBlob(null);
       try {
         let fetchUrl = printUrl;
         try {
@@ -59,6 +62,9 @@ export const usePrintPayloadPdf = ({
         }
         const response = await axios.get(fetchUrl);
         const data = response?.data?.data || null;
+        if (!data) {
+          throw new Error("Print payload is missing.");
+        }
         if (!isCancelled) {
           setPayload(data);
         }

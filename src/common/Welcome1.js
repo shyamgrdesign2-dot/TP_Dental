@@ -9,7 +9,8 @@ import ProfilePopover from './ProfilePopover';
 import VideoModal from './VideoModal';
 import CreateCertificate from '../components/medical_certificate/CreateCertificate';
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE ,GB_CVT_EXT_HOS } from '../utils/constants';
+import { GB_ISCRIBE, GB_SNAP_RX, S_VOICE_RX, S_AMBIENT_VOICE_RX, PAID, PATIENT_DETAILS_SIDEBAR_KEYS, GB_SAVE_AS_DRAFT_RX, FETCH_SMART_RX, GB_TAB_RX, GB_VOICE_RX_FREE, GB_VOICE_RX_NEW_UI, GB_CVT_EXT_HOS, CLINIC_TARGET_STATUS } from '../utils/constants';
+import { shouldUseNewPrescriptionUi } from '../utils/prescriptionRouting';
 import { getClinicName, trackEvent, isVoiceRxFree, shouldMonetizationDisabled, isValidMongoId, getDraftMoengageDoctorAttributes } from '../utils/utils';
 import { copyVoiceRx, copyAmbientRx, getAmbientRx, getGenRx } from '../api/services/ApiGenRx';
 import { generateUniqueFileName, getCorrectedFileName } from '../pages/medicalRecords/utils/helper';
@@ -25,7 +26,9 @@ import { env } from '../EnvironmentConfig';
 
 import useTabletViewport from '../hooks/useTabletViewport';
 import PrimaryActionButton from '../components/PrimaryActionButton';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
+import { clinicTargetStatus } from '../pages/chikitsalay/service';
 const {
   tubeIcon: playIcons,
   tutorialIcon: tutorial,
@@ -45,11 +48,12 @@ function Welcome1(props) {
     );
     const isTabRxAccessableFromGB = useFeatureIsOn(GB_TAB_RX);
     const isVoiceRxFreeFromGB = useFeatureIsOn(GB_VOICE_RX_FREE);
+    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     const isFreeVoiceRxUser = isVoiceRxFree(isVoiceRxFreeFromGB);
     const tp_monetization_enable = !shouldMonetizationDisabled();
     const isSaveAsDraftRxAccessableFromGB = useFeatureIsOn(GB_SAVE_AS_DRAFT_RX);
     const isCvtExtHosAccessableFromGB = useFeatureIsOn(GB_CVT_EXT_HOS);
-
+    const isChikitsalayAccessable = useChikitsalay();
 
     const navigate = useNavigate();
     const { profile, videoList, patientCertificateList, userId } = useSelector((state) => state.doctors);
@@ -98,7 +102,7 @@ function Welcome1(props) {
     }, [viewCaseManagerData])
 
     const [createCertificateDrawer, setCreateCertificateDrawer] = useState(false);
-    const [isV2VoiceAmbientRx, setIsV2VoiceAmbientRx] = useState(false);
+    const [voiceRxVersion, setVoiceRxVersion] = useState("");
     const isVoiceOrAmbientRx = useMemo(() => {
         return viewCaseManagerData?.smart_prescription_filename && 
                isValidMongoId(viewCaseManagerData.smart_prescription_filename);
@@ -107,11 +111,13 @@ function Welcome1(props) {
     const voiceRxId = useMemo(() => {
         return isVoiceOrAmbientRx ? viewCaseManagerData?.smart_prescription_filename : null;
     }, [isVoiceOrAmbientRx, viewCaseManagerData?.smart_prescription_filename]);
+    const normalizedVoiceRxVersion = voiceRxVersion.trim().toLowerCase();
+    const canRepeatVoiceRx = isVoiceOrAmbientRx && ["v2", "v3"].includes(normalizedVoiceRxVersion);
 
     useEffect(() => {
         const checkRxVersion = async () => {
             if (!voiceRxId) {
-                setIsV2VoiceAmbientRx(false);
+                setVoiceRxVersion("");
                 return;
             }
 
@@ -122,10 +128,9 @@ function Welcome1(props) {
                 }
 
                 const version = rxResponse?.data?.version || rxResponse?.data?.data?.version;
-                const isV2 = typeof version === "string" && version.trim().toLowerCase() === "v2";
-                setIsV2VoiceAmbientRx(isV2);
+                setVoiceRxVersion(typeof version === "string" ? version : "");
             } catch (error) {
-                setIsV2VoiceAmbientRx(false);
+                setVoiceRxVersion("");
             }
         };
 
@@ -160,6 +165,11 @@ function Welcome1(props) {
 
     const onConsultClick = async (patient) => {
         navigate("/prescription", { state: { patient_data: patient, send_path: "patient_details" } });
+        if (isChikitsalayAccessable) {
+            clinicTargetStatus(patient?.pam_id, {
+                targetStatus: CLINIC_TARGET_STATUS.SERVING,
+            });
+        }
     };
     const onTabRxClick = async (patient) => {
         navigate("/tab-rx", { state: { patient_data: patient } });
@@ -180,9 +190,13 @@ function Welcome1(props) {
           clinic_name: clinic?.hm_name,
           source: "Patient Details Rx",
         });
-        navigate("/voice-rx-consult", {
+        navigate(isVoiceRxNewFromGB ? "/prescription" : "/voice-rx-consult", {
             state: { 
                 patient_data: patient,
+                ...(isVoiceRxNewFromGB && {
+                    isVoiceRxNewUiFlow: true,
+                    voiceRxEntryPoint: "patient_details_rx",
+                }),
             },
         });
     };
@@ -204,21 +218,29 @@ function Welcome1(props) {
                 isAmbientRxType = ambientCheck?.success && ambientCheck?.data;
             }
 
-            window.TATVA_ACTIVE_VOICE_SERVICE = isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
+            window.TATVA_ACTIVE_VOICE_SERVICE =
+                normalizedVoiceRxVersion === "v3"
+                    ? S_VOICE_RX
+                    : isAmbientRxType ? S_AMBIENT_VOICE_RX : S_VOICE_RX;
             const copiedRxId = copyResponse?.success 
                 ? (copyResponse?.data?.data?._id || copyResponse?.data?._id || copyResponse?._id)
                 : voiceRxId;
 
+            const repeatCaseManagerData = {
+                ...viewCaseManagerData,
+                smart_prescription_filename: copiedRxId,
+                tcm_id: 0,
+                consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
+            };
+            const shouldOpenVoiceRxNewUi =
+                canRepeatVoiceRx &&
+                shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB);
             navigate("/prescription", {
                 state: {
                     patient_data: patient_data,
                     send_path: "patient_details",
-                    caseManagerData: {
-                        ...viewCaseManagerData,
-                        smart_prescription_filename: copiedRxId,
-                        tcm_id: 0,
-                        consultation_date: moment().format('YYYY-MM-DD HH:mm:ss')
-                    }
+                    caseManagerData: repeatCaseManagerData,
+                    ...(shouldOpenVoiceRxNewUi ? { isVoiceRxNewUiFlow: true } : {})
                 }
             });
         } catch (error) {
@@ -402,7 +424,7 @@ function Welcome1(props) {
                                                     tcm_id: viewCaseManagerData?.tcm_id || 0,
                                                     source: 0,
                                                 });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData } })
+                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: viewCaseManagerData, ...(shouldUseNewPrescriptionUi(viewCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
                                             }}
                                         >
                                             <img src={draftIcon} width={20} height={20} alt="Draft" className='me-2' />
@@ -410,9 +432,9 @@ function Welcome1(props) {
                                         </Button>
                                     }
                                     
-                                    {(!viewCaseManagerData?.smart_prescription_filename?.length || (isVoiceOrAmbientRx && isV2VoiceAmbientRx)) &&
+                                    {(!viewCaseManagerData?.smart_prescription_filename?.length || canRepeatVoiceRx) &&
                                         <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={() => {
-                                            if (isVoiceOrAmbientRx && isV2VoiceAmbientRx) {
+                                            if (canRepeatVoiceRx) {
                                                 handleRepeatVoiceAmbientRx();
                                             } else {
                                                 if (canRepeatDraftRx) {
@@ -427,7 +449,10 @@ function Welcome1(props) {
                                                     "patient_id": patient_data !== undefined ? patient_data.patient_unique_id : 0,
                                                     "rx_date": viewCaseManagerData?.consultation_date
                                                 });
-                                                navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null },fromRepeatRx: true } })
+                                                {
+                                                  const repeatCaseManagerData = { ...viewCaseManagerData, tcm_id: 0, consultation_date: moment().format('YYYY-MM-DD HH:mm:ss'), is_draft: null };
+                                                  navigate("/prescription", { state: { patient_data: patient_data, send_path: "patient_details", caseManagerData: repeatCaseManagerData, fromRepeatRx: true, ...(shouldUseNewPrescriptionUi(repeatCaseManagerData, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } });
+                                                }
                                             }
                                         }}>
                                             <i className={'icon-reload me-2'}></i>
@@ -441,7 +466,7 @@ function Welcome1(props) {
                                             }
                                         </Button>
                                     }
-                                    { ((viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !isV2VoiceAmbientRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && !isMobile) ||
+                                    { ((viewCaseManagerData?.smart_prescription_filename?.length && !isVoiceOrAmbientRx && !canRepeatVoiceRx && !viewCaseManagerData?.smart_prescription_filename?.includes("snap_rx") && !viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && !isMobile) ||
                                        (viewCaseManagerData?.smart_prescription_filename?.includes("tab_rx") && isMobile)) &&
                                          <Button variant="outline-primary me-3 d-flex align-items-center mb-lg-0 mb-2" onClick={async () => {
                                             window.Moengage.track_event("repeat_rx_click", {
@@ -483,7 +508,16 @@ function Welcome1(props) {
                                             Repeat {modifyFormat?.first}<sup>{modifyFormat?.second}</sup>&nbsp;{modifyFormat?.third} Rx   
                                         </Button>
                                     }
-                                    {(isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
+                                    {isChikitsalayAccessable ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary3 btn-text-white btn-41 px-4"
+                                            style={{ color: "#fff" }}
+                                            onClick={() => onConsultClick(patient_data)}
+                                        >
+                                            Consult
+                                        </button>
+                                    ) : (isSnapRxAccessableFromGB || isSmartSyncAccessableFromGB || isTabRxAccessableFromGB || (isFreeVoiceRxUser || tp_monetization_enable)) ? (
                                         <PrimaryActionButton
                                             isSmartRxAccessible={isSmartSyncAccessableFromGB}
                                             isSnapRxAccessible={isSnapRxAccessableFromGB}

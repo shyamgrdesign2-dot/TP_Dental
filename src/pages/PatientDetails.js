@@ -259,25 +259,34 @@ function PatientDetails() {
 
     useEffect(() => {
         const tcmId = viewCaseManagerData?.tcm_id;
-        if (!tcmId) {
+        const patientId = patient_data?.patient_unique_id;
+        
+        if (!tcmId || !patientId) {
             return;
         }
+        
         let isMounted = true;
+        const abortController = new AbortController();
+        
         const fetchOpthalPrescription = async () => {
             try {
                 const response = await getOpthalPrescriptionDetails({
                     tcm_id: tcmId,
-                    patientId: patient_data?.patient_unique_id,
+                    patientId: patientId,
+                    signal: abortController.signal,
                 });
-                const data = response?.data ?? response;
-                const payload = Array.isArray(data) ? data[0] : data;
+                
                 if (!isMounted) {
                     return;
                 }
+                
+                const data = response?.data ?? response;
+                const payload = Array.isArray(data) ? data[0] : data;
+                
                 setOpthalPrescriptionHistory((prev) => {
                     const next = Array.isArray(prev) ? [...prev] : [];
                     const index = next.findIndex((item) => item?.tcm_id === tcmId);
-                    const entry = { tcm_id: tcmId, data: payload || null };
+                    const entry = { tcm_id: tcmId, data: payload || null, timestamp: Date.now() };
                     if (index >= 0) {
                         next[index] = entry;
                     } else {
@@ -286,14 +295,19 @@ function PatientDetails() {
                     return next;
                 });
             } catch (error) {
-                console.error("Error fetching opthal prescription details:", error);
+                if (error.name !== 'AbortError') {
+                    console.error("Error fetching opthal prescription details:", error);
+                }
             }
         };
+        
         fetchOpthalPrescription();
+        
         return () => {
             isMounted = false;
+            abortController.abort();
         };
-    }, [viewCaseManagerData?.tcm_id]);
+    }, [viewCaseManagerData?.tcm_id, patient_data?.patient_unique_id]);
 
     useEffect(() => {
         return () => {

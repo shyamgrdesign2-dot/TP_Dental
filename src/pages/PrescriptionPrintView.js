@@ -9,7 +9,8 @@ import { useReactToPrint } from 'react-to-print';
 
 // import { PDFReader } from 'reactjs-pdf-reader';
 
-import { errorMessage, getClinic, isIPad, sendMessageToParent, trackEvent } from "../utils/utils";
+import { errorMessage, getClinic, isIPad, isValidMongoId, sendMessageToParent, trackEvent } from "../utils/utils";
+import { shouldUseNewPrescriptionUi } from "../utils/prescriptionRouting";
 
 import HeaderPrescriptionPrint from "../common/HeaderPrescriptionPrint";
 
@@ -20,7 +21,7 @@ import { viewCaseManager } from "../redux/caseManagerSlice";
 
 import { pdfjs, Document, Page } from "react-pdf";
 import { getGynecDetails } from "../api/services/ApiGynec";
-import { GB_HEALTH_CHECKUP_REPORT, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
+import { GB_HEALTH_CHECKUP_REPORT, GB_VOICE_RX_NEW_UI, GB_ZYDUS_USER, LANGUAGE_LIST, PATIENT_DETAILS_SIDEBAR_KEYS, PERSISTANT_STORAGE_KEY_AUTH_TOKEN, PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN, WHATS_APP_API, WTSAP_ERR_MESSAGE, ZYDUS_WHATS_APP_API } from "../utils/constants";
 import { env } from "../EnvironmentConfig";
 import CreateBill from "./opdBilling/components/createBill/CreateBill";
 import RecentBills from "./opdBilling/components/recentBills/RecentBills";
@@ -71,10 +72,11 @@ function PrescriptionPrintView() {
 
     const navigate = useNavigate();
     const isHealthCheckupReportAccessableFromGB = useFeatureIsOn(GB_HEALTH_CHECKUP_REPORT);
+    const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
     const isZydusWhatsappEnabled = useZydusWhatsapp();
 
     const { state } = useLocation();
-    const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID } = state;
+    const { patient_data, pam_id, labParamsData: passedLabParamsData, zydusSelectedLabParams, labReportID, isVoiceRxNewUiFlow } = state;
 
     // Detect a hard refresh on the first mount after document load.
     const isFirstMountAfterLoad = ppvMountCount === 0;
@@ -484,7 +486,7 @@ function PrescriptionPrintView() {
         }
         const action = await dispatch(viewCaseManager(sendData));
         if (action.meta.requestStatus === "fulfilled") {
-            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload } })
+            navigate("/prescription", { replace: true, state: { patient_data: patient_data, caseManagerData: action.payload, ...(shouldUseNewPrescriptionUi(action.payload, isVoiceRxNewFromGB) ? { isVoiceRxNewUiFlow: true } : {}) } })
         } else {
             errorMessage(action.error)
         }

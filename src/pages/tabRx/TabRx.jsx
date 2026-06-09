@@ -107,6 +107,7 @@ import CommonModal from "../../common/CommonModal";
 import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
+import { useVoiceRxNavigation } from "../../utils/voiceRxNavigation";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
 import {
   errorMessage,
@@ -267,6 +268,7 @@ function TabRx() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const { state } = location;
 
   // Create a combined module list that includes both user's modules and hospital-wide modules
@@ -558,6 +560,7 @@ function TabRx() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
@@ -1946,6 +1949,7 @@ function TabRx() {
         const list = Array.isArray(resp) ? resp : [];
 
         const match = list.find((x) => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
@@ -1989,13 +1993,15 @@ function TabRx() {
       clinic_name,
     });
 
-    navigate("/voice-rx-consult", {
-      state: {
+    navigateVoiceRx(
+      {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
       },
-    });
+      {},
+      "tab_rx_header"
+    );
   };
 
   const handleVideoConsult = async () => {
@@ -2131,6 +2137,7 @@ function TabRx() {
             labParamsData={labParamsData}
             handleGenRx={handleGenRx}
             selectedCarePlan={selectedCarePlan}
+            hasExistingCarePlan={hasExistingCarePlan}
             handleVideoConsult={
               isVideoConsultAvailable ? handleVideoConsult : null
             }

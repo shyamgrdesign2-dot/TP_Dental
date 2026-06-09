@@ -49,7 +49,7 @@ body {
   }
 
   .print-padding-wrapper {
-    padding: 10mm 1cm 3cm 2cm;
+    padding: 10mm 1cm 5mm 2cm;
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
@@ -238,35 +238,43 @@ h2::before,
  * Using div.report-section-box so Enter key creates new <p> children INSIDE the box.
  * Bare <p> elements get split by Enter key, pushing the cursor outside the styled border.
  */
-div.report-section-box {
-  min-height: 52px;
-  height: auto;
-  overflow: visible;
-  padding: 6px 12px;
+table.report-section-box {
+  width: 100%;
+  border-collapse: collapse;
   margin: 0 0 16px;
   background: rgba(255, 255, 255, 0.5);
   border: 1px solid #f1f1f5;
   border-radius: 0;
-  cursor: text;
 }
 
-div.report-section-box p {
+table.report-section-box td {
+  height: 52px !important;
+  overflow: visible;
+  padding: 6px 12px;
+  border: none;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+table.report-section-box td p {
   font-family: 'Poppins', sans-serif;
   font-size: 15px;
   line-height: 18px;
   letter-spacing: 0.0607px;
   color: #454551;
   margin: 0;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 
 /* When the whole box (including p) is focused, hide placeholder on the focused p */
-div.report-section-box:focus-within p:not(:only-child):empty::before {
+table.report-section-box:focus-within p:not(:only-child):empty::before {
   content: none;
 }
 
 /* General Recommendations: taller default empty-box height */
-div.report-section-box.report-general-rec {
+table.report-section-box.report-general-rec td {
   min-height: 154px;
 }
 
@@ -280,6 +288,13 @@ table {
   letter-spacing: 0.0607px;
   color: #454551;
   margin: 0;
+}
+
+.smart-editor-editable table:not(.report-patient-table):not(.report-section-box) td,
+.smart-editor-editable table:not(.report-patient-table):not(.report-section-box) th {
+  height: 32px !important;
+  min-height: 32px !important;
+  vertical-align: top;
 }
 
 .report-data-table {
@@ -489,17 +504,13 @@ li p {
     page-break-inside: auto;
   }
 
-  .report-data-table {
-    break-inside: avoid;
-  }
-
   /*
-   * Overflow continuation lives in .print-repeat-pages-table after a repeating <thead>.
-   * Without a forced break, that thead prints directly under the first-page table — between
-   * a section heading and its tables. Start continuation on the next printed page.
+   * Break AFTER the first-page table so the repeat table's <thead> renders correctly on page 2.
+   * Using break-before on the repeat table itself triggers a Chrome bug where <thead> is skipped
+   * on the table's first page but repeats correctly from page 3 onward.
    */
-  .print-repeat-pages-table.print-repeat-starts-new-page {
-    page-break-before: always !important;
-    break-before: page !important;
+  .print-first-page-table.has-rest-pages {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }

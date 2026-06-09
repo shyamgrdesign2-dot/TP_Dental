@@ -64,8 +64,9 @@ import CommonModal from "../../common/CommonModal";
 import DDxKnowMore from "../../components/DDxKnowMore";
 import { getDDxDetails } from "../../api/services/ApiDDx";
 import { getDecodedToken } from "../../utils/localStorage";
+import { useVoiceRxNavigation } from "../../utils/voiceRxNavigation";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
-import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree } from "../../utils/utils";
+import { errorMessage, getClinicName, shouldMonetizationDisabled, trackEvent, getDeviceSdkData, getTokenData, isVoiceRxFree, isValidMongoId } from "../../utils/utils";
 import VideoConsultModal from "../../components/VideoConsultModal";
 import ApiTeleconsult from "../../api/services/ApiTeleconsult";
 import {
@@ -115,6 +116,13 @@ import CanvasSidebarIcon, {
   CANVAS_ICON_ACTIVE_COLOR,
   CANVAS_ICON_INACTIVE_COLOR,
 } from "../drawingCanvas/components/CanvasSidebarIcon";
+import {
+  hasVitalsAndBodyCompositionData,
+  mapVitalsAndBodyCompositionToRowPatch,
+  mergeVitalsRowsWithSymptomCollectorPatch,
+  VITALS_ROW_DATE_FORMAT,
+} from "../../utils/symptomCollectorVitalsMerge";
+import { computeRxPadVitalsDerivedMetrics } from "../../utils/vitalsCalculations";
 
 const CANVAS_SIDEBAR_FLAG = 24;
 
@@ -221,6 +229,7 @@ function TabPrescription() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const navigateVoiceRx = useVoiceRxNavigation();
   const { state } = location;
 
   // Create a combined module list that includes both user's modules and hospital-wide modules
@@ -249,12 +258,34 @@ function TabPrescription() {
   const { patient_data, caseManagerData, videoConsultData, fromVoiceRecording, audioBlob, mode, digitizedData, inputText, send_path, teleconsultAutoJoin, isEditRx, fromRepeatRx} = state || {};
   const chartType = state?.chartType;
 
+  const isPrescriptionVoiceOrGenRxFlow =
+    Boolean(fromVoiceRecording) ||
+    (typeof inputText === "string" && inputText.trim().length > 0) ||
+    (caseManagerData?.smart_prescription_filename &&
+      isValidMongoId(caseManagerData.smart_prescription_filename));
+
+  const shouldApplyZydusVisibleRepeatEditFilter =
+    tokenData?.hospital_business_id == env.zydus_business_id &&
+    (Boolean(fromRepeatRx) || Boolean(isEditRx)) &&
+    !isPrescriptionVoiceOrGenRxFlow;
+
   const tcmId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.tcm_id;
   const pamId = (fromRepeatRx || caseManagerData == null) ? 0 : caseManagerData.pam_id;
   const consultationDate =
     caseManagerData != null
       ? caseManagerData.consultation_date
       : moment().format("YYYY-MM-DD HH:mm:ss");
+
+  const vitalsCalculate = useCallback(
+    (H, W) => computeRxPadVitalsDerivedMetrics(H, W, patient_data),
+    [patient_data]
+  );
+
+  const showVitalsFromScAutofill =
+    isAutofillSelected &&
+    hasVitalsAndBodyCompositionData(
+      selectedSymptomsCollector?.vitalsAndBodyComposition
+    );
 
   useEffect(() => {
     dispatch(resetVitalsState());
@@ -436,6 +467,7 @@ function TabPrescription() {
   const [useDDX, setUseDDX] = useState(false);
   const [selectedCarePlan, setSelectedCarePlan] = useState(null);
   const [carePlanPlaceholder, setCarePlanPlaceholder] = useState(undefined);
+  const [hasExistingCarePlan, setHasExistingCarePlan] = useState(false);
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
   const [videoConsultUrl, setVideoConsultUrl] = useState(null);
   const [videoConsultAction, setVideoConsultAction] = useState(null);
@@ -965,13 +997,25 @@ function TabPrescription() {
       ) {
         setDiagnosisData(caseManagerData.diagnosis);
       }
+      const medicineListForHydration = (() => {
+        const list = caseManagerData.medicine;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (m) =>
+            !Object.prototype.hasOwnProperty.call(m, "visible") ||
+            m.visible === undefined ||
+            m.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.medicine?.length > 0 &&
+        medicineListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 12 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        const updatedData = caseManagerData.medicine.map((e) => {
+        const updatedData = medicineListForHydration.map((e) => {
           const medicineUnit = e?.medicineUnit.map((e1) => {
             return {
               key: JSON.stringify({ ...e1 }),
@@ -1014,13 +1058,25 @@ function TabPrescription() {
       ) {
         setAdviceData(caseManagerData.advice);
       }
+      const investigationListForHydration = (() => {
+        const list = caseManagerData.investigation;
+        if (!Array.isArray(list) || list.length === 0) return list;
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (row) =>
+            !Object.prototype.hasOwnProperty.call(row, "visible") ||
+            row.visible === undefined ||
+            row.visible === 1
+        );
+      })();
+
       if (
-        caseManagerData.investigation?.length > 0 &&
+        investigationListForHydration?.length > 0 &&
         customizedPadRightList.findIndex(
           (e) => e.tmdpm_id === 14 && e.tmdpm_status === 0
         ) !== -1
       ) {
-        setInvestigationData(caseManagerData.investigation);
+        setInvestigationData(investigationListForHydration);
       }
       if (
         caseManagerData.follow_up_date &&
@@ -1434,17 +1490,37 @@ function TabPrescription() {
   }, []);
 
   useEffect(() => {
-    if (caseManagerData === undefined || tcmId === 0) {
-      const updatedData = selectedVitalsList.map((e, i) => {
-        return {
-          ...e,
-          systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
-          diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
-        };
-      });
-      setVitalsData(updatedData);
-    }
-  }, [selectedVitalsList]);
+    if (!(caseManagerData === undefined || tcmId === 0)) return;
+    const updatedData = selectedVitalsList.map((e) => {
+      return {
+        ...e,
+        systolic: e.blood_press ? e.blood_press.split("/")[0] : "",
+        diastolic: e.blood_press ? e.blood_press.split("/")[1] : "",
+      };
+    });
+    const patch = isAutofillSelected
+      ? mapVitalsAndBodyCompositionToRowPatch(
+          selectedSymptomsCollector?.vitalsAndBodyComposition,
+          vitalsCalculate
+        )
+      : null;
+    setVitalsData((prev) =>
+      mergeVitalsRowsWithSymptomCollectorPatch(
+        prev,
+        updatedData,
+        patch,
+        vitalsCalculate,
+        VITALS_ROW_DATE_FORMAT
+      )
+    );
+  }, [
+    selectedVitalsList,
+    caseManagerData,
+    tcmId,
+    isAutofillSelected,
+    selectedSymptomsCollector,
+    vitalsCalculate,
+  ]);
 
   useEffect(() => {
     if (caseManagerData != null) {
@@ -1663,12 +1739,13 @@ function TabPrescription() {
         const list = Array.isArray(resp) ? resp : [];
   
         const match = list.find(x => Number(x?.tcm_id) === Number(tcmId));
+        setHasExistingCarePlan(Boolean(match));
         setCarePlanPlaceholder(match?.plan_name || undefined);
       } catch (e) {
         setCarePlanPlaceholder(undefined);
       }
     };
-  
+
     resolvePlaceholder();
   }, [isCarePlanEnabled, patient_data?.patient_unique_id, tcmId]);
 
@@ -1714,13 +1791,15 @@ function TabPrescription() {
       });
     }
 
-    navigate("/voice-rx-consult", {
-      state: {
+    navigateVoiceRx(
+      {
         patient_data,
         autoOpenModal: false,
         fromPrescription: true,
       },
-    });
+      {},
+      "tab_prescription_header"
+    );
   };
 
   const handleVideoConsult = async () => {
@@ -1981,7 +2060,7 @@ function TabPrescription() {
         )}
         {!showOnlyDrawer && (
       <>
-        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2} />
+        <HeaderPrescription isVaccinationEnabled={isVaccinationAccessable} isGrowthChartEnabled={isGrowthChartAccessable} gynecHistory={updatedGynecHistory} labParamsData={labParamsData} handleGenRx={handleGenRx} selectedCarePlan={selectedCarePlan} hasExistingCarePlan={hasExistingCarePlan} handleVideoConsult={isVideoConsultAvailable ? handleVideoConsult : null} isVideoConsultLoading={isInitiatingCall} showTeleconsultIcon={(isNormalConsultFlow || (isEditRx && send_path === "patient_details")) && isTeleConsultEnabled && !!isVideoConsultAvailableType2} onTeleconsultClick={handleTeleconsultClick} isTeleconsultJoinLoading={isTeleconsultJoinLoading} isTeleconsultActive={!!joinToken} isTabPrescription hideVoiceRxIcon={videoConsultData?.pam_status_type_appointment === 2} />
         <div className="w-100 bg-body wrapper2 prescription-wrapper p-0">
           <Layout>
             <div
@@ -2148,7 +2227,8 @@ function TabPrescription() {
                         onClick={() =>
                           vitalsData.length === 0 &&
                             vitalsPastList.length === 0 &&
-                            !patientBirthWeight
+                            !patientBirthWeight &&
+                            !showVitalsFromScAutofill
                             ? handleDrawerVital()
                             : openCollapsed(1)
                         }
