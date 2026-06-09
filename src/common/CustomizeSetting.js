@@ -22,6 +22,7 @@ import { savePrintsettings } from '../redux/doctorsSlice';
 import EditCustomModuleDrawer from '../components/customModulesV2/EditCustomModuleDrawer';
 import CommonModal from './CommonModal';
 import { ASSETS } from "../assets";
+import { env } from "../EnvironmentConfig";
 const {
   tutorialIcon: tutorial,
   playCover2: playcover2,
@@ -120,7 +121,7 @@ function CustomizeSetting({ handleDrawerCustomize, isVaccinationEnabled, isGrowt
           tmdpm_short_name: "Vaccination",
           tmdpm_status: 1,
           tmdpm_icon_url:
-            "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/vaccination.svg",
+            `${env.php_base_url}/img/microservices/left/vaccination.svg`,
         });
       }
       setDataSourceLeft(updatedData);

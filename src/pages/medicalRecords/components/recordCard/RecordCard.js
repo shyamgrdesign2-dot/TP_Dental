@@ -83,6 +83,7 @@ const RecordCard = ({
   const categoryName = category_id === -2 ? 'Zydus Lab' : category_id === -3 ? 'Zydus Radio' : uploadDocCategories.find(
     (item) => item?.category_id === category_id
   )?.category_name;
+  const isZydusRecord = (category_id === -2 || category_id === -3 || url?.startsWith(config.zydus_proxy_url) && !dicom_url);
 
   const [showTooltip, setShowTooltip] = useState(false);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
@@ -294,7 +295,7 @@ const RecordCard = ({
         ),
         key: "download",
       },
-      !url?.startsWith(config.zydus_proxy_url) && !dicom_url && {
+      !isZydusRecord && {
         label: (
           <div onClick={handleEdit}>
             <img src={edit} alt="edit" className="me-2" />
@@ -303,7 +304,7 @@ const RecordCard = ({
         ),
         key: "edit",
       },
-      !url?.startsWith(config.zydus_proxy_url) && !dicom_url && {
+      !isZydusRecord && {
         label: (
           <div onClick={toggleDeletePopup}>
             <img src={trash} alt="delete" className="me-2" />
@@ -400,7 +401,22 @@ const RecordCard = ({
             }}
           >
             <div>
-              <i className="icon-More iconrotate270" />
+              <svg
+                className="document-more-icon"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="5" r="1" />
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="12" cy="19" r="1" />
+              </svg>
             </div>
           </Dropdown>
         </div>

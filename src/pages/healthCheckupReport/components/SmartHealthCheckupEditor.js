@@ -7,6 +7,19 @@ import "./SmartHealthCheckupEditor.scss";
 // Runs on paste AND on initial load so existing saved reports are fixed too.
 const BREAK_HINTS_RE = /[­​‌‍]/g;
 const NBSP = '\u00A0';
+const FONT_FAMILY_OPTIONS = {
+  '': 'Default',
+  'Arial, Helvetica, sans-serif': 'Arial',
+  "'Courier New', Courier, monospace": 'Courier New',
+  'Georgia, Palatino, serif': 'Georgia',
+  "'Lucida Sans Unicode', 'Lucida Grande', sans-serif": 'Lucida Sans Unicode',
+  'Tahoma, Geneva, sans-serif': 'Tahoma',
+  "'Times New Roman', Times, serif": 'Times New Roman',
+  "'Trebuchet MS', Helvetica, sans-serif": 'Trebuchet MS',
+  'Helvetica, sans-serif': 'Helvetica',
+  'Impact, Charcoal, sans-serif': 'Impact',
+  'Verdana, Geneva, sans-serif': 'Verdana'
+};
 
 function stripBreakHints(html) {
   if (!html) return html;
@@ -40,18 +53,121 @@ function stripBreakHints(html) {
   return result;
 }
 
+function getSelectedTextNodes(range, root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      if (!node.nodeValue || !range.intersectsNode(node)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const nodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const textLength = node.nodeValue.length;
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : textLength;
+
+    if (start < end) {
+      nodes.push({ node, start, end });
+    }
+  }
+
+  return nodes;
+}
+
 function applyCase(editor, fn) {
   const range = editor.selection.range;
   if (!range || range.collapsed) return;
-  const fragment = range.cloneContents();
-  const div = document.createElement('div');
-  div.appendChild(fragment);
-  const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
-  let node;
-  while ((node = walker.nextNode())) {
-    node.textContent = fn(node.textContent);
+
+  const selectedNodes = getSelectedTextNodes(range, editor.editor);
+  if (selectedNodes.length === 0) return;
+
+  const transformedNodes = selectedNodes.map(({ node, start, end }) => {
+    const originalText = node.nodeValue;
+    const selectedText = originalText.slice(start, end);
+    const transformedText = fn(selectedText);
+
+    node.nodeValue =
+      originalText.slice(0, start) +
+      transformedText +
+      originalText.slice(end);
+
+    return {
+      node,
+      start,
+      end: start + transformedText.length,
+    };
+  });
+
+  const nextRange = document.createRange();
+  const firstNode = transformedNodes[0];
+  const lastNode = transformedNodes[transformedNodes.length - 1];
+  nextRange.setStart(firstNode.node, firstNode.start);
+  nextRange.setEnd(lastNode.node, lastNode.end);
+  editor.selection.selectRange(nextRange);
+  editor.synchronizeValues?.();
+}
+
+function wrapSelectedTextNode({ node, start, end }, fontFamily) {
+  const originalText = node.nodeValue;
+  const parent = node.parentNode;
+  if (!parent) return null;
+
+  const beforeText = originalText.slice(0, start);
+  const selectedText = originalText.slice(start, end);
+  const afterText = originalText.slice(end);
+  const selectedTextNode = document.createTextNode(selectedText);
+  const wrapper = document.createElement('span');
+  wrapper.style.fontFamily = fontFamily;
+  wrapper.appendChild(selectedTextNode);
+
+  if (beforeText) {
+    parent.insertBefore(document.createTextNode(beforeText), node);
   }
-  editor.selection.insertHTML(div.innerHTML);
+
+  parent.insertBefore(wrapper, node);
+
+  if (afterText) {
+    parent.insertBefore(document.createTextNode(afterText), node);
+  }
+
+  parent.removeChild(node);
+  return selectedTextNode;
+}
+
+function applyFontFamily(editor, fontFamily) {
+  if (!fontFamily) {
+    editor.execCommand('fontname', false, fontFamily);
+    return;
+  }
+
+  const range = editor.selection.range;
+  if (!range || range.collapsed) return;
+
+  const selectedNodes = getSelectedTextNodes(range, editor.editor);
+  if (selectedNodes.length === 0) return;
+
+  const wrappedTextNodes = selectedNodes
+    .map((selectionPart) => wrapSelectedTextNode(selectionPart, fontFamily))
+    .filter(Boolean);
+
+  if (wrappedTextNodes.length === 0) return;
+
+  const nextRange = document.createRange();
+  const firstNode = wrappedTextNodes[0];
+  const lastNode = wrappedTextNodes[wrappedTextNodes.length - 1];
+  nextRange.setStart(firstNode, 0);
+  nextRange.setEnd(lastNode, lastNode.nodeValue.length);
+  editor.selection.selectRange(nextRange);
+  editor.synchronizeValues?.();
+}
+
+function getFontFamilyLabel(fontFamily = '') {
+  const [firstFont] = fontFamily.split(',');
+  return firstFont.replace(/['"]/g, '');
 }
 
 const TOOLBAR_ITEMS = [
@@ -241,6 +357,27 @@ function SmartHealthCheckupEditor(
       }
     },
     controls: {
+      font: {
+        command: 'fontname',
+        tooltip: 'Font family',
+        list: FONT_FAMILY_OPTIONS,
+        textTemplate: (_, value) => getFontFamilyLabel(value),
+        childTemplate: (_, key, value) =>
+          `<span data-style="${key}" style="font-family: ${key};">${value}</span>`,
+        exec: (editor, current, { control }) => {
+          if (!control.args || typeof control.args[0] === 'undefined') return false;
+          applyFontFamily(editor, control.args[0]);
+          return undefined;
+        },
+        data: {
+          cssRule: 'font-family',
+          normalize: (value) =>
+            value
+              .toLowerCase()
+              .replace(/['"]+/g, '')
+              .replace(/[^a-z0-9-]+/g, ',')
+        }
+      },
       uppercase: {
         tooltip: 'Upper Case',
         exec: (editor) => applyCase(editor, s => s.toUpperCase())
@@ -279,4 +416,4 @@ function SmartHealthCheckupEditor(
 }
 
 export default React.forwardRef(SmartHealthCheckupEditor);
-export { TOOLBAR_ITEMS };
+export { TOOLBAR_ITEMS, applyCase, applyFontFamily };

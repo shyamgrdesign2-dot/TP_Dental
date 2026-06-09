@@ -50,7 +50,6 @@ import OphthalmologyListView from "../../components/print_settings/ophthalmology
 import OphthalmologyTableView from "../../components/print_settings/ophthalmology/table";
 import ThenConnector from "../../components/print_settings/ThenConnector";
 import { getDecodedToken } from "../localStorage";
-import { isProductionEnv } from "../environment";
 import { ASSETS } from "../../assets";
 import { getUploadedFilePublicUrl } from "../../pages/smartSync/services/templateUtils";
 

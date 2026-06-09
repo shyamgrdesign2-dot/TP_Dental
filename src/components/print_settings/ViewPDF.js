@@ -17,7 +17,6 @@ import OphthalmologyInlineView from './ophthalmology/inline';
 import OphthalmologyListView from './ophthalmology/list';
 import OphthalmologyTableView from './ophthalmology/table';
 import ThenConnector from './ThenConnector';
-import { isProductionEnv } from '../../utils/environment';
 
 const PX_TO_PT = 0.75
 const CM_TO_PT = 28.35;

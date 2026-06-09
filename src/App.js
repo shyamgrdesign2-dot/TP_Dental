@@ -9,13 +9,14 @@ import {
 } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import { isMobile, isTablet, isChrome, isSafari } from "react-device-detect";
-import { GrowthBook, GrowthBookProvider } from "@growthbook/growthbook-react";
+import { GrowthBook, GrowthBookProvider, useFeatureIsOn } from "@growthbook/growthbook-react";
 import { useDeviceType } from "./utils/deviceDetection";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import config from "./config";
 import {
   FROM_NATIVE_APP,
+  GB_VOICE_RX_NEW_UI,
   PERSISTANT_STORAGE_KEY_AUTH_TOKEN,
   PERSISTANT_STORAGE_KEY_BILL_TOKEN,
   PERSISTANT_STORAGE_KEY_MEDECO_TOKEN,
@@ -32,13 +33,20 @@ import { lazyRetry } from "./utils/lazyRetry";
 import PatientDetails from "./pages/PatientDetails";
 import MobilePatientDetails from "./pages/mobile/PatientDetails/PatientDetails";
 import useRouteTracking from "./hooks/useRouteTracking";
-import { isProductionEnv } from "./utils/environment";
+import { isProdEnv, isProductionEnv } from "./utils/environment";
+import {
+  getNormalizedPhoneNumber,
+  syncPhoneAndCheckZydusAccountUser,
+} from "./utils/zydusAccountRouting";
 
 const AppointmentList = React.lazy(() =>
   lazyRetry(() => import("./pages/AppointmentList"))
 );
 const Prescription = React.lazy(() =>
   lazyRetry(() => import("./pages/Prescription"))
+);
+const PrescriptionNew = React.lazy(() =>
+  lazyRetry(() => import("./pages/PrescriptionNew"))
 );
 const SmartPrescription = React.lazy(() =>
   lazyRetry(() => import("./pages/SmartPrescription"))
@@ -196,6 +204,18 @@ const growthbook = new GrowthBook({
   clientKey: config?.GROWTHBOOK_CLIENTKEY,
   enableDevMode: !isProductionEnv(),
 });
+
+function PrescriptionRouteElement() {
+  const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
+  const location = useLocation();
+  const isVoiceRxNewUiFlow = Boolean(location.state?.isVoiceRxNewUiFlow);
+
+  if (isVoiceRxNewFromGB && isVoiceRxNewUiFlow) {
+    return <PrescriptionNew />;
+  }
+
+  return isMobile ? <TabPrescription /> : <Prescription />;
+}
 
 function App() {
   const SentryRoutes = useMemo(
@@ -374,17 +394,46 @@ function App() {
     if (token) {
       try {
         const decodedToken = jwtDecode(token);
+        const phoneNumber = decodedToken?.result?.mobile_no;
         growthbook?.setAttributes({
           doctorId: decodedToken?.result?.doctor_unique_id,
           id: `${decodedToken?.result?.user_id}`,
           hos_business_id: `${decodedToken?.result?.hospital_business_id}`,
           clinic_id: `${decodedToken?.result?.clinic_id}`,
+          doctor_phone: phoneNumber,
+          doctor_phone_normalized: getNormalizedPhoneNumber(phoneNumber),
         });
       } catch (e) {
         console.log(e);
       }
     }
   }, []);
+
+  useEffect(() => {
+    const logoutZydusUserFromNormalProd = async () => {
+      if (!isProdEnv() || isLoginPage || isReceptionist) return;
+
+      const token = authToken || getToken();
+      if (!token) return;
+
+      try {
+        const decodedToken = jwtDecode(token);
+        const phoneNumber = decodedToken?.result?.mobile_no;
+        if (!phoneNumber) return;
+
+        const isZydusAccountUser =
+          await syncPhoneAndCheckZydusAccountUser(growthbook, phoneNumber);
+
+        if (isZydusAccountUser) {
+          handleLogout();
+        }
+      } catch (error) {
+        console.error("Error checking Zydus account user:", error);
+      }
+    };
+
+    logoutZydusUserFromNormalProd();
+  }, [authToken, isLoginPage, isReceptionist, location.pathname]);
 
   useEffect(() => {
     // Handle authToken in URL (e.g. from Medeco redirect)
@@ -653,7 +702,7 @@ function App() {
           />
           <Route
             path="prescription"
-            element={isMobile ? <TabPrescription /> : <Prescription />}
+            element={<PrescriptionRouteElement />}
           />
           <Route
             path="prescription_print_view"
