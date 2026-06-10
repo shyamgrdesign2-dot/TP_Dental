@@ -6,6 +6,7 @@ import CommonModal from "../../../common/CommonModal";
 import { ASSETS } from "../../../assets";
 import "./DrawingCanvasCard.scss";
 import { renameMapping, deleteMapping } from "../service";
+import { CANVAS_NAME_MAX_LENGTH, normalizeCanvasName } from "../constants";
 import { formatCanvasCreatedSubtitle } from "../utils/canvasDateFormat";
 import { trackEvent } from "../../../utils/utils";
 
@@ -112,35 +113,41 @@ const DrawingCanvasCard = ({
   };
 
   const handleRenameSave = async (e) => {
-    e.stopPropagation();
-    const newName = renameValue.trim();
-    if (newName) {
-      if (canvas?.id && !canvas.id.toString().includes("new_")) {
-        const res = await renameMapping(canvas.id, newName);
-        if (!res.status) {
-          message.error(res.message || "Failed to rename canvas");
-          setIsRenaming(false);
-          return;
-        }
-        trackEvent("drawing_canvas_renamed", {
-          ...trackingAttrs,
-          canvas_id: canvas?.id,
-          old_name: localTitle,
-          new_name: newName,
-        });
-        message.success("Canvas renamed successfully");
+    e?.stopPropagation?.();
+    const newName = normalizeCanvasName(renameValue);
+    if (!newName) {
+      message.warning("Canvas name cannot be empty.");
+      return;
+    }
+    if (newName === localTitle) {
+      setIsRenaming(false);
+      return;
+    }
+    if (canvas?.id && !canvas.id.toString().includes("new_")) {
+      const res = await renameMapping(canvas.id, newName);
+      if (!res.status) {
+        message.error(res.message || "Failed to rename canvas");
+        return;
       }
-      
-      setLocalTitle(newName);
-      if (onRename) {
-        onRename(canvas, newName);
-      }
+      trackEvent("drawing_canvas_renamed", {
+        ...trackingAttrs,
+        canvas_id: canvas?.id,
+        old_name: localTitle,
+        new_name: newName,
+      });
+      message.success("Canvas renamed successfully");
+    }
+
+    setLocalTitle(newName);
+    if (onRename) {
+      onRename(canvas, newName);
     }
     setIsRenaming(false);
   };
 
   const handleRenameCancel = (e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
+    setRenameValue(localTitle);
     setIsRenaming(false);
   };
 
@@ -318,9 +325,9 @@ const DrawingCanvasCard = ({
                 autoFocus
                 className="drawing-canvas-card__rename-input"
                 value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                maxLength={16}
-                suffix={`${renameValue.length}/16`}
+                onChange={(e) => setRenameValue(e.target.value.slice(0, CANVAS_NAME_MAX_LENGTH))}
+                maxLength={CANVAS_NAME_MAX_LENGTH}
+                suffix={`${renameValue.length}/${CANVAS_NAME_MAX_LENGTH}`}
                 onPressEnter={handleRenameSave}
               />
               <CloseOutlined className="drawing-canvas-card__rename-action drawing-canvas-card__rename-cancel ms-1" onClick={handleRenameCancel} />

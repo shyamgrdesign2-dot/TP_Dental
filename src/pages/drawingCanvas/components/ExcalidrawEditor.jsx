@@ -25,6 +25,7 @@ import {
   elementsSceneChanged,
 } from '../utils/excalidrawViewportUtils';
 import { trackEvent } from '../../../utils/utils';
+import { CANVAS_NAME_MAX_LENGTH, normalizeCanvasName } from '../constants';
 import './ExcalidrawEditor.scss';
 
 const alertIcon = ASSETS.images.alerticon;
@@ -98,15 +99,19 @@ export default function ExcalidrawEditor({
   };
 
   const handleRenameSave = () => {
-    if (renameValue.trim()) {
-      setLocalTitle(renameValue.trim());
-      // Placeholder: Add API call here to save the new title to backend
-      console.log("Mock API Call: Saving new renamed title -> ", renameValue.trim());
+    const newName = normalizeCanvasName(renameValue);
+    if (!newName) {
+      message.warning("Canvas name cannot be empty.");
+      return;
+    }
+    if (newName !== localTitle) {
+      setLocalTitle(newName);
     }
     setIsRenaming(false);
   };
 
   const handleRenameCancel = () => {
+    setRenameValue(localTitle);
     setIsRenaming(false);
   };
 
@@ -344,7 +349,7 @@ export default function ExcalidrawEditor({
   };
 
   const handleSave = async () => {
-    let finalTitle = localTitle ? localTitle.trim() : "";
+    let finalTitle = normalizeCanvasName(localTitle);
     const isUntitled = !finalTitle || finalTitle.toLowerCase() === "untitled canvas";
 
     if (isUntitled) {
@@ -597,10 +602,11 @@ export default function ExcalidrawEditor({
                   autoFocus
                   className="rename-input"
                   value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  maxLength={30}
+                  onChange={(e) => setRenameValue(e.target.value.slice(0, CANVAS_NAME_MAX_LENGTH))}
+                  maxLength={CANVAS_NAME_MAX_LENGTH}
+                  suffix={`${renameValue.length}/${CANVAS_NAME_MAX_LENGTH}`}
                   onPressEnter={handleRenameSave}
-                  style={{ width: '200px', marginRight: '10px' }}
+                  style={{ width: '240px', marginRight: '10px' }}
                 />
                 <CloseOutlined onClick={handleRenameCancel} style={{ cursor: "pointer", color: "#ff4d4f", fontSize: '16px', marginRight: '10px' }} title="Cancel" className='cross-icon'/>
                 <CheckOutlined onClick={handleRenameSave} style={{ cursor: "pointer", color: "#2e8b57", fontSize: '16px' }} title="Save" className='tick-icon'/>
