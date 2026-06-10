@@ -69,7 +69,7 @@ const UploadDocument = ({
     useSelector((state) => state.uploadDoc);
 
   const categoriesForUpload = uploadDocCategories.filter(
-    (item) => item && !isClinicUploadCategory(item)
+    (item) => item && !isClinicUploadCategory(item?.category_name)
   );
 
   const documentOptions = categoriesForUpload.map((item) => {

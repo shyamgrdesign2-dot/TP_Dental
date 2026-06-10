@@ -84,7 +84,7 @@ const RecordCard = ({
     (item) => item?.category_id === category_id
   )?.category_name;
   const isZydusRecord = category_id === -2 || category_id === -3 || url?.startsWith(config.zydus_proxy_url);
-  const isClinicRecord = isClinicUploadCategory(category_id);
+  const isClinicRecord = isClinicUploadCategory(categoryName);
   const [showTooltip, setShowTooltip] = useState(false);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [shouldShowReadOnlyPopup, setShowReadOnlyPopup] = useState(false);

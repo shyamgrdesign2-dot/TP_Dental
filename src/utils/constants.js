@@ -179,10 +179,10 @@ export const CLINIC_UPLOAD_CATEGORIES = [
   { category_id: 8, category_name: "Clinics_Radiology" },
 ];
 
-export const isClinicUploadCategory = (category_id) =>
+export const isClinicUploadCategory = (category_name) =>
   CLINIC_UPLOAD_CATEGORIES.some(
     (category) =>
-      category.category_id === category_id
+      category.category_name === category_name
   );
 
 export const EXTRA_OPTIONS = [

@@ -1600,7 +1600,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             }
         }
         return "Please fill your prescription to end visit.";
-    }, [isChikitsalayAccessable]);
+    }, [isChikitsalayAccessable, hasSymptomsWithSince, diagnosisData]);
 
     const opthalTablesById = useMemo(() => {
         return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
