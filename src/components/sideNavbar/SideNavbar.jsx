@@ -5077,6 +5077,12 @@ function PrivateNotesContent({ value, onChange, showVoiceRx, onVoiceClick, voice
   );
 }
 
+function HiddenScrollRoot() {
+  return (
+    <div className="snv-content-scroll snv-hidden-scroll-root" data-snv-scroll-root="true" aria-hidden="true" />
+  );
+}
+
 function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue, onPrivateNotesChange, onPrivateNotesVoiceClick, privateNotesVoiceDisabled, onCopyPayload, showVoiceRx, vitalsUpdating, zydusSelectedLabParams, patientId, doctorId, patientGender, onActionClick, onVoiceClick, emptyVoiceDisabled, medicalRecordActions }) {
   const emptyState = EMPTY_SECTION_CONFIG[activeId] ? (
     <SideNavEmptyState
@@ -5124,7 +5130,7 @@ function SectionContent({ activeId, viewData, pastVisitsState, privateNotesValue
       return <ObstetricContent sections={viewData.obstetric} emptyState={emptyState} />;
     case "vaccine":
       // return <VaccineContent data={viewData.vaccine} />; // TODO: INTEL - TO BE HANDLED ON PROD FIRST (showing due date to all vaccines by default)
-      return null;
+      return <HiddenScrollRoot />;
     case "growth":
       return <GrowthContent data={viewData.growth} emptyState={emptyState} />;
     case "optal":
