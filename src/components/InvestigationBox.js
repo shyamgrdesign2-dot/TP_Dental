@@ -59,6 +59,10 @@ const { TextArea } = Input;
 
 const isVoiceRxModuleInvestigation = (item) => !!item?.voice_rx_from_module;
 const isFrequentlyUsedHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
+const getVoiceRxAutoSelectKey = (item, index) => {
+  const rowId = item?.unique_id || item?.objectID || item?.id || index;
+  return `${rowId}:${String(item?.investigation_name || "").trim().toLowerCase()}`;
+};
 const VOICE_RX_SOURCE_TOOLTIP_STYLE = {
   background: "#2f2e39",
   borderRadius: 8,
@@ -89,6 +93,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
+  const shouldKeepEmptyInvestigationRow = isPrescriptionNewContext;
 
   const applyVoiceInvestigation = useCallback((nextInvestigation) => {
     if (nextInvestigation.length > 0) {
@@ -102,17 +107,20 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     }
   }, [canShowVoiceRxNewRows, setInvestigationData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // add one trailing empty row on mount (only when flag is on)
+  // PrescriptionNew should never render investigation without at least one editable row.
   useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
+    if (!shouldKeepEmptyInvestigationRow) return;
     setInvestigationData(prev => {
+      if (!prev?.length) {
+        return [emptyInvestigationRow()];
+      }
       const last = prev[prev.length - 1];
-      if (!last || last.investigation_name !== "") {
+      if (canShowVoiceRxNewRows && (!last || last.investigation_name !== "")) {
         return [...prev, emptyInvestigationRow()];
       }
       return prev;
     });
-  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shouldKeepEmptyInvestigationRow, canShowVoiceRxNewRows, investigationData?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddRow = useCallback(() => {
     setInvestigationData(prev => [...prev, emptyInvestigationRow()]);
@@ -148,7 +156,6 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const isZydusUserAccessableFromGB = useFeatureIsOn(GB_ZYDUS_USER);
   const decodedToken = getDecodedToken();
   const tokenData = decodedToken?.result;
-  const isZydusAccount = isZydusUserAccessableFromGB && tokenData?.hospital_business_id == env.zydus_business_id;
 
   const isApolloHosBusinessIdAccessableFromGB = useFeatureIsOn(GB_APOLLO_DISABLE_FEATURE);
 
@@ -191,6 +198,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const [searchChildQuery, setSearchChildQuery] = useState(null);
   const [childSearchOptions, setChildSearchOptions] = useState([]);
   const [activeVoiceInvestigationIndex, setActiveVoiceInvestigationIndex] = useState(null);
+  const voiceRxAutoSelectedKeysRef = React.useRef(new Set());
 
   //PopOver2
   const [popOver2, setPopOver2] = useState(false);
@@ -448,6 +456,78 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     [searchChildQuery, investigationData, canShowVoiceRxNewRows]
   );
 
+  useEffect(() => {
+    if (!canShowVoiceRxNewRows) return;
+
+    const rowsToResolve = investigationData
+      .map((item, index) => ({ item, index, key: getVoiceRxAutoSelectKey(item, index) }))
+      .filter(({ item, key }) => {
+        const name = String(item?.investigation_name || "").trim();
+        return (
+          name &&
+          isVoiceRxModuleInvestigation(item) &&
+          !item?.voice_rx_auto_select_failed &&
+          !voiceRxAutoSelectedKeysRef.current.has(key)
+        );
+      });
+
+    if (!rowsToResolve.length) return;
+
+    rowsToResolve.forEach(({ item, key }) => {
+      voiceRxAutoSelectedKeysRef.current.add(key);
+      dispatch(searchInvestigation({ searchQuery: item.investigation_name, type: "child" }))
+        .then((action) => {
+          const firstMatch = action?.meta?.requestStatus === "fulfilled" && Array.isArray(action.payload)
+            ? action.payload[0]
+            : null;
+
+          setInvestigationData((prev = []) => {
+            const currentIndex = prev.findIndex((row, rowIndex) => getVoiceRxAutoSelectKey(row, rowIndex) === key);
+            if (currentIndex === -1 || !isVoiceRxModuleInvestigation(prev[currentIndex])) {
+              return prev;
+            }
+
+            const currentRow = prev[currentIndex];
+            const nextRows = [...prev];
+
+            if (firstMatch) {
+              nextRows[currentIndex] = {
+                ...currentRow,
+                ...firstMatch,
+                unique_id: currentRow.unique_id || uuidv4(),
+                note: currentRow.note || "",
+                voice_rx_from_module: false,
+                voice_rx_original_name: currentRow.voice_rx_original_name || currentRow.investigation_name,
+                voice_rx_auto_select_failed: false,
+              };
+            } else {
+              nextRows[currentIndex] = {
+                ...currentRow,
+                voice_rx_auto_select_failed: true,
+              };
+            }
+
+            return nextRows;
+          });
+        })
+        .catch(() => {
+          setInvestigationData((prev = []) => {
+            const currentIndex = prev.findIndex((row, rowIndex) => getVoiceRxAutoSelectKey(row, rowIndex) === key);
+            if (currentIndex === -1 || !isVoiceRxModuleInvestigation(prev[currentIndex])) {
+              return prev;
+            }
+
+            const nextRows = [...prev];
+            nextRows[currentIndex] = {
+              ...nextRows[currentIndex],
+              voice_rx_auto_select_failed: true,
+            };
+            return nextRows;
+          });
+        });
+    });
+  }, [canShowVoiceRxNewRows, dispatch, investigationData, setInvestigationData]);
+
   const onChangeNoteChild = useCallback(
     (e, i) => {
       investigationData[i].note = e.target.value;
@@ -458,7 +538,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   const onRemoveRow = (index) => {
     investigationData.splice(index, 1);
-    if (canShowVoiceRxNewRows && investigationData.length === 0) {
+    if (shouldKeepEmptyInvestigationRow && investigationData.length === 0) {
       setInvestigationData([emptyInvestigationRow()]);
     } else {
       setInvestigationData((prev) => [...prev]);
@@ -488,11 +568,22 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     window.Moengage.track_event("investigation_template_used", {
       "template_name": template.tit_template_name
     });
-    const updatedData = template.investigation.map(e => {
-      return { ...e, unique_id: uuidv4(), note: e.note ? e.note : "" }
-    })
-      setInvestigationData(appendStripped(investigationData, updatedData, "investigations"));
-    showHideTemplatesListPopover();
+    const action = await dispatch(singleTemplateDetails(template.tit_id));
+    if (action.meta.requestStatus === "fulfilled") {
+      const rows = Array.isArray(action.payload) ? action.payload : [];
+      const updatedData = rows.map((e) => ({
+        ...e,
+        unique_id: uuidv4(),
+        note: e.note ? e.note : "",
+      }));
+      const nextInvestigationData = isPrescriptionNewContext
+        ? appendStripped(investigationData, updatedData, "investigations")
+        : [...investigationData, ...updatedData];
+      setInvestigationData(nextInvestigationData);
+      showHideTemplatesListPopover();
+    } else {
+      errorMessage(action.error);
+    }
   };
 
   const onDeleteTemplateClicked = async (tit_id) => {
@@ -704,6 +795,10 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                     if (raw && raw !== "Z") supplementaryIndicator = raw;
                   }
                   const isWideSupplementary = supplementaryIndicator.length > 1;
+                  const shouldShowVoiceInvestigationFallbackInfo =
+                    isVoiceRxModuleEnabled &&
+                    isVoiceRxModuleInvestigation(item) &&
+                    item?.voice_rx_auto_select_failed;
                   return (
                   <Draggable key={index} draggableId={`investigation-${index}`} index={index}>
                     {(provided) => (
@@ -734,7 +829,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                               handleVoiceInvestigationClick(index);
                             }
                           }}
-                          style={isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) ? { background: "#fff8ef" } : undefined}
+                          style={shouldShowVoiceInvestigationFallbackInfo ? { background: "#fff8ef" } : undefined}
                         >
                           <div className={isVoiceRxModuleEnabled && isVoiceRxModuleInvestigation(item) ? "fontroboto fw-medium d-flex align-items-center gap-1 w-100 h-100 p-2 pe-3" : "fontroboto fw-medium d-flex align-items-center gap-1 flex-wrap w-100"}>
                             <div className="flex-grow-1" style={{ minWidth: 0 }}>
@@ -767,11 +862,11 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                 />
                               )}
                             </div>
-                            {isVoiceRxModuleEnabled && isZydusAccount && isVoiceRxModuleInvestigation(item) && (
+                            {shouldShowVoiceInvestigationFallbackInfo && (
                               <Tooltip
                                 placement="top"
                                 overlayInnerStyle={VOICE_RX_SOURCE_TOOLTIP_STYLE}
-                                title={`This ${INVESTIGATION_TITLE.toLowerCase()} is not from your Zydus inventory list. Click to search and add the ${INVESTIGATION_TITLE.toLowerCase()}.`}
+                                title={`We could not auto-select this ${INVESTIGATION_TITLE.toLowerCase()}. Click to search and select it from the dropdown.`}
                               >
                                 <InfoCircleOutlined
                                   className="fs-18 flex-shrink-0"
@@ -779,14 +874,14 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
                                 />
                               </Tooltip>
                             )}
-                            {isPrescriptionNewContext && (item?.hm_type === 1 && item?.um_id === 0) && (
+                            {/* {isPrescriptionNewContext && (item?.hm_type === 1 && item?.um_id === 0) && (
                               <span
                                 className="align-items-center small fs-12-1 d-inline-flex justify-content-center rounded-circle text-white flex-shrink-0 m-1"
                                 style={{ width: 18, height: 18, background: "#c44ea2" }}
                               >
                                 Z
                               </span>
-                            )}
+                            )} */}
                             {supplementaryIndicator && (
                               <span
                                 className={`align-items-center small fs-12-1 d-inline-flex justify-content-center text-white flex-shrink-0 ${
@@ -1009,7 +1104,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setInvestigationData(canShowVoiceRxNewRows ? [emptyInvestigationRow()] : [])
+    setInvestigationData(shouldKeepEmptyInvestigationRow ? [emptyInvestigationRow()] : [])
     showHideClearData()
   };
 

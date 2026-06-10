@@ -788,6 +788,11 @@
   display: none;
 }
 
+.snv-hidden-scroll-root {
+  padding: 0;
+  background: #ffffff;
+}
+
 .snv-past-visits-scroll {
   padding-top: 0;
 }
