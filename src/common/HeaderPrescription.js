@@ -1666,7 +1666,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             item.medicine_name ||
             item.voice_rx_original_name ||
             item.name ||
-            "Intel"
+            ""
         );
 
         const hasMedicineId = (item = {}) => {
