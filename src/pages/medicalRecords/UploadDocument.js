@@ -10,11 +10,10 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   deleteDocsUploadedFromAndroid,
   fetchAllPatientDocs,
-  fetchDocsUploadedByPatient,
   updateDocument,
   uploadDocument,
 } from "./service";
-import { setAllUploadedDocs, setPatientUploadedDocs } from "../../redux/uploadDocSlice";
+import { setAllUploadedDocs } from "../../redux/uploadDocSlice";
 import { useLocation } from "react-router-dom";
 import "react-pdf/dist/esm/Page/AnnotationLayer.css";
 import { isAndroid, isBrowser } from "react-device-detect";
@@ -47,10 +46,6 @@ const {
   endVisit: visitEnd,
   closeVisit: imgCloseVisit,
 } = ASSETS.images;
-
-const isZydusMedicalRecord = (doc) => doc?.category_id === -2 || doc?.category_id === -3;
-
-const getMedicalRecordKey = (doc) => `${doc?.category_id || ""}-${doc?.id || doc?.document_id || doc?.url || ""}`;
 
 const UploadDocument = ({
   onClose,
@@ -85,29 +80,6 @@ const UploadDocument = ({
 
   const [recordData, setRecordData] = useState([]);
   const fileInputRef = useRef(null);
-
-  const refreshUploadedDocs = async (delayMs = 0) => {
-    if (isAppointmentData || !patient_data?.patient_unique_id) return;
-    if (delayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-    const [doctorUploadedDocs, latestPatientUploadedDocs] = await Promise.all([
-      fetchAllPatientDocs(patient_data.patient_unique_id),
-      fetchDocsUploadedByPatient(patient_data.patient_unique_id),
-    ]);
-    const refreshedDocKeys = new Set(
-      [...doctorUploadedDocs, ...latestPatientUploadedDocs].map(getMedicalRecordKey)
-    );
-    const zydusUploadedDocs = allUploadedDocs.filter((doc) => (
-      isZydusMedicalRecord(doc) && !refreshedDocKeys.has(getMedicalRecordKey(doc))
-    ));
-    dispatch(setPatientUploadedDocs(latestPatientUploadedDocs));
-    dispatch(
-      setAllUploadedDocs(
-        mergeDocuments([...doctorUploadedDocs, ...zydusUploadedDocs], latestPatientUploadedDocs)
-      )
-    );
-  };
 
   const updateRecordData = async () => {
     const updatedRecord = await Promise.all(
@@ -304,9 +276,6 @@ const UploadDocument = ({
               mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
             )
           );
-          refreshUploadedDocs().catch((error) => {
-            console.error("Error while refreshing medical records after update: ", error);
-          });
           message.open({
             key: MESSAGE_KEY,
             type: "",
@@ -403,9 +372,18 @@ const UploadDocument = ({
       // if (isAndroid && !isBrowser) {
       //   deleteDocsUploadedFromAndroid(patient_data.patient_unique_id);
       // }
-      refreshUploadedDocs(1100).catch((error) => {
-        console.error("Error while refreshing medical records after upload: ", error);
-      });
+      if (!isAppointmentData) {
+        setTimeout(async () => {
+          const doctorUploadedDocs = await fetchAllPatientDocs(
+            patient_data?.patient_unique_id
+          );
+          dispatch(
+            setAllUploadedDocs(
+              mergeDocuments(doctorUploadedDocs, patientUploadedDocs)
+            )
+          );
+        }, 1100);
+      }
     }
     setLoader(false);
     setFilesData([]);
