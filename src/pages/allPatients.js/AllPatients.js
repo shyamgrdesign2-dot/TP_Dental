@@ -70,6 +70,7 @@ import { resetDDxState } from "../../redux/ddxSlice";
 import { EVENTS } from "../../utils/events";
 import AbhaDrawer from "../../components/abha/AbhaDrawer";
 import { clearAbhaDetails } from "../../redux/abhaSlice";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 
 import ApiAbha from "../../api/services/ApiAbha";
 import { saveAs } from "file-saver";
@@ -88,6 +89,7 @@ const showDateFormat = "DD MMM YYYY";
 
 const AllPatients = () => {
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
   const navigate = useNavigate();
   const location = useLocation();
   const decodedToken = getDecodedToken();
@@ -261,7 +263,9 @@ const AllPatients = () => {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   const getAllPatients = async () => {

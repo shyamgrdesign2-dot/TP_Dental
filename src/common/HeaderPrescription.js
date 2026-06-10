@@ -70,6 +70,7 @@ import {
     updateOpthalPrescription,
 } from "../pages/ophthalmology/service";
 import { resetOpthalForm, setTableValues as setOpthalTableValues } from '../redux/ophthalmologyExamSlice';
+import { useChikitsalay } from '../pages/chikitsalay/useChikitsalay';
 import { ASSETS } from "../assets";
 const {
   alerticon: alertIcon,
@@ -158,6 +159,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         loading,
     } = useSelector((state) => state.caseManager);
     const dispatch = useDispatch();
+    const isChikitsalayAccessable = useChikitsalay();
     const { activeVoiceModule, headerDictation, setHeaderDictation } = useRxPadSync();
 
     const {customModules} = useSelector((state) => state.customModules);
@@ -965,7 +967,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 diagnosis: templateDiagnosis.map(({ tds_id, tds_name, icd_code, status, pms_default, change }) => ({ tds_id, tds_name, icd_code, status, pms_default, ...(change !== undefined && { change }) })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: templateInvestigations.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -1101,7 +1103,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                 diagnosis: templateDiagnosis.map(({ tds_id, tds_name, status, pms_default }) => ({ tds_id, tds_name, status, pms_default })),
                 medicine: updatedMedication,
                 advice: adviceData.map(({ advice_name, change }) => ({ advice_name, ...(change !== undefined && { change }) })),
-                investigation: templateInvestigations.map(({ investigation_name, change }) => ({ investigation_name, ...(change !== undefined && { change }) })),
+                investigation: templateInvestigations.map(({ investigation_name, change, id, service_code }) => ({ investigation_name, ...(change !== undefined && { change }), ...(id != null && String(id).trim() !== "" && { id }), ...(service_code != null && String(service_code).trim() !== "" && { service_code }) })),
                 userModules: customModuleContents?.map((e) => {
                     // Filter content based on module version
                     let filteredContent;
@@ -1522,6 +1524,28 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         );
     }, [ophthalmologyExam]);
 
+    const hasSymptomsWithSince = useMemo(
+        () =>
+            symptomsData.length > 0 &&
+            symptomsData.every(
+                (symptom) => String(symptom?.since ?? "").trim() !== ""
+            ),
+        [symptomsData]
+    );
+
+    const endVisitTooltipMessage = useMemo(() => {
+        if (isChikitsalayAccessable) {
+            if (!hasSymptomsWithSince && diagnosisData.length === 0) {
+                return "Please fill Symptoms and Diagnosis to end the consultation.";
+            } else if (!hasSymptomsWithSince) {
+                return "Please fill Symptoms and Since to end the consultation.";
+            } else if (diagnosisData.length === 0) {
+                return "Please fill Diagnosis to end the consultation.";
+            }
+        }
+        return "Please fill your prescription to end visit.";
+    }, [isChikitsalayAccessable, hasSymptomsWithSince, diagnosisData]);
+
     const opthalTablesById = useMemo(() => {
         return OPHTHALMOLOGY_SECTIONS.reduce((acc, section) => {
             section.tables.forEach((table) => {
@@ -1646,7 +1670,7 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
             item.medicine_name ||
             item.voice_rx_original_name ||
             item.name ||
-            "Intel"
+            ""
         );
 
         const hasMedicineId = (item = {}) => {
@@ -2763,10 +2787,10 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
                               );
                               // New UI: require at least one prescription-module entry. Old UI: any signal enables end-visit.
                               const canEndVisit = isVoiceRxNewFromGB
-                                ? hasPrescriptionModuleData
+                                ? hasPrescriptionModuleData : isChikitsalayAccessable ? hasSymptomsWithSince && diagnosisData.length > 0
                                 : (hasPrescriptionModuleData || hasSidebarOnlyData);
                               return (
-                                <Tooltip placement="bottom" title={canEndVisit ? "" : "Please fill your prescription to end visit."} zIndex={headerOverlayZIndex}>
+                                <Tooltip placement="bottom" title={canEndVisit ? "" : endVisitTooltipMessage} zIndex={headerOverlayZIndex}>
                                     <Button type='button' className='btn align-items-center d-flex btn-41 btn-primary3 me-20' onClick={() => canEndVisit && onEndVisitClick()} loading={loading && !saveDraftLoading}>
                                         <i className='icon-exit me-2'></i>
                                         {isTablet ? "End" : "End Visit"}
