@@ -135,16 +135,6 @@ import {
 } from "../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../utils/vitalsCalculations";
 
-const normalizeInvestigationForHydration = (row) => {
-  if (!row || typeof row !== "object") return row;
-  const fallbackId = row.id ?? row.typesenseId;
-  return {
-    ...row,
-    ...(fallbackId != null && String(fallbackId).trim() !== "" && { id: fallbackId }),
-    unique_id: row.unique_id || uuidv4(),
-  };
-};
-
 function Prescription() {
   const {
     userId,
@@ -1030,15 +1020,13 @@ function Prescription() {
       const investigationListForHydration = (() => {
         const list = caseManagerData.investigation;
         if (!Array.isArray(list) || list.length === 0) return list;
-        const visibleRows = shouldApplyZydusVisibleRepeatEditFilter
-          ? list.filter(
-              (row) =>
-                !Object.prototype.hasOwnProperty.call(row, "visible") ||
-                row.visible === undefined ||
-                row.visible === 1
-            )
-          : list;
-        return visibleRows.map(normalizeInvestigationForHydration);
+        if (!shouldApplyZydusVisibleRepeatEditFilter) return list;
+        return list.filter(
+          (row) =>
+            !Object.prototype.hasOwnProperty.call(row, "visible") ||
+            row.visible === undefined ||
+            row.visible === 1
+        );
       })();
 
       if (
