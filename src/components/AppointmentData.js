@@ -528,6 +528,8 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
     payloadOverride: null,
     skipFetch: !pendingFinishedPrint?.printUrl || pendingFinishedPrint?.printChannel === "in_app",
     isCvtExtHosAccessableFromGB,
+    patientId: pendingFinishedPrint?.caseManagerData?.patient_data?.patient_unique_id,
+    tcmId: pendingFinishedPrint?.caseManagerData?.tcm_id,
   });
 
   useEffect(() => {
