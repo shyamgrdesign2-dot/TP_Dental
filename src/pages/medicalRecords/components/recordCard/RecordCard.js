@@ -15,7 +15,7 @@ import dayjs from "dayjs";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../../../firebase";
 import { loadPdf, loadVideoThumbnail, mergeDocuments, shortenText, isVideoFile } from "../../utils/helper";
-import { VIDEO_THUMBNAIL_TIME } from "../../../../utils/constants";
+import { isClinicUploadCategory, VIDEO_THUMBNAIL_TIME } from "../../../../utils/constants";
 import config from "../../../../config";
 import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../../../../utils/constants";
 import { getDecodedToken } from "../../../../utils/localStorage";
@@ -83,8 +83,8 @@ const RecordCard = ({
   const categoryName = category_id === -2 ? 'Zydus Lab' : category_id === -3 ? 'Zydus Radio' : uploadDocCategories.find(
     (item) => item?.category_id === category_id
   )?.category_name;
-  const isZydusRecord = (category_id === -2 || category_id === -3 || url?.startsWith(config.zydus_proxy_url) && !dicom_url);
-
+  const isZydusRecord = category_id === -2 || category_id === -3 || url?.startsWith(config.zydus_proxy_url);
+  const isClinicRecord = isClinicUploadCategory(category_id);
   const [showTooltip, setShowTooltip] = useState(false);
   const [shouldShowDeletePopup, setShowDeletePopup] = useState(false);
   const [shouldShowReadOnlyPopup, setShowReadOnlyPopup] = useState(false);
@@ -295,7 +295,7 @@ const RecordCard = ({
         ),
         key: "download",
       },
-      !isZydusRecord && {
+      !isZydusRecord && !isClinicRecord && {
         label: (
           <div onClick={handleEdit}>
             <img src={edit} alt="edit" className="me-2" />
@@ -304,7 +304,7 @@ const RecordCard = ({
         ),
         key: "edit",
       },
-      !isZydusRecord && {
+      !isZydusRecord && !isClinicRecord && {
         label: (
           <div onClick={toggleDeletePopup}>
             <img src={trash} alt="delete" className="me-2" />

@@ -1,7 +1,10 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import ApiAppointments from "../api/services/ApiAppointments";
 import { ictAuthToken } from "./appointmentsSlice";
-import { PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN } from "../utils/constants";
+import {
+  CLINIC_UPLOAD_CATEGORIES,
+  PERSISTANT_STORAGE_KEY_ZYDUS_TOKEN,
+} from "../utils/constants";
 import moment from "moment";
 import config from "../config";
 
@@ -74,7 +77,7 @@ const uploadDocSlice = createSlice({
         "Radiology",
         "Prescription",
         ...(isChikitsalayAccessable
-          ? ["Clinics_Pathology", "Clinics_Radiology"]
+          ? CLINIC_UPLOAD_CATEGORIES.map((category) => category.category_name)
           : []),
         "Other",
       ];
