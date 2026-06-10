@@ -117,6 +117,7 @@ import {
   VITALS_ROW_DATE_FORMAT,
 } from "../../utils/symptomCollectorVitalsMerge";
 import { computeRxPadVitalsDerivedMetrics } from "../../utils/vitalsCalculations";
+import { useChikitsalay } from "../chikitsalay/useChikitsalay";
 
 function TabPrescription() {
   const {
@@ -218,6 +219,7 @@ function TabPrescription() {
     tokenData?.hospital_business_id == env.zydus_business_id &&
     isZydusUserAccessableFromGB;
   const dispatch = useDispatch();
+  const isChikitsalayAccessable = useChikitsalay();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -710,7 +712,9 @@ function TabPrescription() {
 
   const getAllDocumentCategories = async () => {
     const response = await fetchAllDocumentCategories();
-    dispatch(setUploadDocCategories(response));
+    dispatch(
+      setUploadDocCategories({ categories: response, isChikitsalayAccessable })
+    );
   };
 
   // Fetch custom modules on component mount

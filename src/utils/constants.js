@@ -174,6 +174,16 @@ export const MAX_DOCUMENT_FILE_SIZE = 15728640; // 15 MB
 export const MAX_VIDEO_FILE_SIZE = 31457280; // 30 MB
 export const MAX_FILES_PER_UPLOAD = 5;
 export const VIDEO_THUMBNAIL_TIME = 1; // Extract thumbnail at 1 second
+export const CLINIC_UPLOAD_CATEGORIES = [
+  { category_id: 7, category_name: "Clinics_Pathology" },
+  { category_id: 8, category_name: "Clinics_Radiology" },
+];
+
+export const isClinicUploadCategory = (category_name) =>
+  CLINIC_UPLOAD_CATEGORIES.some(
+    (category) =>
+      category.category_name === category_name
+  );
 
 export const EXTRA_OPTIONS = [
   {
