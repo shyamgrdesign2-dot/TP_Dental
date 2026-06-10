@@ -15,6 +15,15 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import { printCanvasWithIframe } from '../utils/printCanvasWithIframe';
+import {
+  VIEWPORT_PADDING,
+  FIXED_APP_STATE,
+  getViewportSize,
+  fitDimensionsToViewport,
+  fitElementsToViewport,
+  clampElementsToViewport,
+  elementsSceneChanged,
+} from '../utils/excalidrawViewportUtils';
 import { trackEvent } from '../../../utils/utils';
 import './ExcalidrawEditor.scss';
 
@@ -49,6 +58,9 @@ export default function ExcalidrawEditor({
   const prevActiveTool = useRef(null);
   const editorLoadStartRef = useRef(Date.now());
   const hasTrackedLoadRef = useRef(false);
+  const wrapperRef = useRef(null);
+  const [viewportSize, setViewportSize] = useState({ width: 800, height: 600 });
+  const isClampingRef = useRef(false);
 
   useEffect(() => {
     setLocalTitle(canvasName || "");
@@ -106,6 +118,20 @@ export default function ExcalidrawEditor({
   }, []);
 
   useEffect(() => {
+    const wrapperEl = wrapperRef.current;
+    if (!wrapperEl) return undefined;
+
+    const updateSize = () => {
+      setViewportSize(getViewportSize(wrapperEl));
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(wrapperEl);
+    return () => observer.disconnect();
+  }, [isReady]);
+
+  useEffect(() => {
     const handleKeyDown = (e) => {
       const isMac = navigator.platform.toUpperCase().includes("MAC");
       const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
@@ -128,17 +154,22 @@ export default function ExcalidrawEditor({
       delete appState.collaborators;
     }
     
-    // Force fixed viewport for all drawings to prevent "stretched" UI issues
-    appState.scrollX = 0;
-    appState.scrollY = 0;
-    // appState.zoom = { value: 1 };
+    Object.assign(appState, FIXED_APP_STATE);
+
+    const { width, height } = viewportSize;
+    const elements = clampElementsToViewport(
+      initialData.elements || [],
+      width,
+      height,
+      VIEWPORT_PADDING
+    );
 
     return {
-      elements: initialData.elements || [],
+      elements,
       appState,
       files: initialData.files || {}
     };
-  }, [initialData]);
+  }, [initialData, viewportSize]);
 
   // Track the current canvas ID to detect when we switch to a different drawing
   const activeCanvasIdRef = React.useRef(null);
@@ -156,22 +187,39 @@ export default function ExcalidrawEditor({
           elements: sanitizedData.elements,
           appState: {
             ...sanitizedData.appState,
-            // Optimization: If the data lacks viewport, Excalidraw defaults to (0,0)
+            ...FIXED_APP_STATE,
           },
           files: sanitizedData.files
         });
-
-        // If no saved viewport, auto-scroll once with a delay to ensure container is ready
-        const hasSavedViewport = sanitizedData.appState?.scrollX !== undefined;
-        if (!hasSavedViewport && sanitizedData.elements?.length > 0) {
-          const timer = setTimeout(() => {
-            excalidrawAPI.scrollToContent(sanitizedData.elements, { fitToViewport: true });
-          }, 200);
-          return () => clearTimeout(timer);
-        }
       }
     }
   }, [excalidrawAPI, sanitizedData, initialData, canvasId]);
+
+  useEffect(() => {
+    if (!excalidrawAPI || !isReady || isClampingRef.current) return;
+
+    const elements = excalidrawAPI.getSceneElements() || [];
+    const clamped = clampElementsToViewport(
+      elements,
+      viewportSize.width,
+      viewportSize.height,
+      VIEWPORT_PADDING
+    );
+
+    if (!elementsSceneChanged(elements, clamped)) return;
+
+    isClampingRef.current = true;
+    excalidrawAPI.updateScene({
+      elements: clamped,
+      appState: {
+        ...excalidrawAPI.getAppState(),
+        ...FIXED_APP_STATE,
+      },
+    });
+    requestAnimationFrame(() => {
+      isClampingRef.current = false;
+    });
+  }, [excalidrawAPI, isReady, viewportSize.width, viewportSize.height]);
 
   useEffect(() => {
     if (!excalidrawApiRef) return;
@@ -227,18 +275,35 @@ export default function ExcalidrawEditor({
       }
     }
 
-    // Force fixed viewport: Restrict scrolling and zoom to prevent "stretched" canvases
-    if (appState.scrollX !== 0 || appState.scrollY !== 0 || appState.zoom.value !== 1) {
-      excalidrawAPI?.updateScene({
+    if (isClampingRef.current || !excalidrawAPI) return;
+
+    const { width, height } = viewportSize;
+    const clampedElements = clampElementsToViewport(
+      elements,
+      width,
+      height,
+      VIEWPORT_PADDING
+    );
+    const needsClamp = elementsSceneChanged(elements, clampedElements);
+    const needsViewportLock =
+      appState.scrollX !== 0 ||
+      appState.scrollY !== 0 ||
+      appState.zoom?.value !== 1;
+
+    if (needsClamp || needsViewportLock) {
+      isClampingRef.current = true;
+      excalidrawAPI.updateScene({
+        elements: clampedElements,
         appState: {
           ...appState,
-          scrollX: 0,
-          scrollY: 0,
-          zoom: { value: 1 }
-        }
+          ...FIXED_APP_STATE,
+        },
+      });
+      requestAnimationFrame(() => {
+        isClampingRef.current = false;
       });
     }
-  }, [excalidrawAPI, trackingAttrs, canvasId]);
+  }, [excalidrawAPI, trackingAttrs, canvasId, viewportSize]);
 
   const handleSaveTemplateClick = () => {
     if (!onOpenSaveTemplate) return;
@@ -371,6 +436,15 @@ export default function ExcalidrawEditor({
 
         if (cancelled) return;
 
+        const { width: viewportWidth, height: viewportHeight } = getViewportSize(wrapperRef.current);
+        const fitted = fitDimensionsToViewport(
+          dimensions.width,
+          dimensions.height,
+          viewportWidth,
+          viewportHeight,
+          VIEWPORT_PADDING
+        );
+
         const fileId = generateId();
         const elementId = generateId();
         const now = Date.now();
@@ -389,10 +463,10 @@ export default function ExcalidrawEditor({
         const imageElement = {
           id: elementId,
           type: "image",
-          x: 120,
-          y: 120,
-          width: dimensions.width,
-          height: dimensions.height,
+          x: fitted.x,
+          y: fitted.y,
+          width: fitted.width,
+          height: fitted.height,
           angle: 0,
           strokeColor: "transparent",
           backgroundColor: "transparent",
@@ -417,14 +491,11 @@ export default function ExcalidrawEditor({
 
         excalidrawAPI.updateScene({
           elements: [...currentElements, imageElement],
-          appState: { ...excalidrawAPI.getAppState() },
+          appState: {
+            ...excalidrawAPI.getAppState(),
+            ...FIXED_APP_STATE,
+          },
         });
-
-        setTimeout(() => {
-          if (!cancelled) {
-            excalidrawAPI.scrollToContent([imageElement], { fitToViewport: true });
-          }
-        }, 100);
       } catch (error) {
         console.error("Failed to insert template image", error);
         message.open({
@@ -477,27 +548,33 @@ export default function ExcalidrawEditor({
         }
       });
 
-      // Add template to the CURRENT board directly
-      const currentElements = excalidrawAPI.getSceneElements() || [];
-      const currentFiles = excalidrawAPI.getFiles() || {};
+      const { width: viewportWidth, height: viewportHeight } = getViewportSize(wrapperRef.current);
+      const fittedNewElements = fitElementsToViewport(
+        newElementsDuplicated,
+        viewportWidth,
+        viewportHeight,
+        VIEWPORT_PADDING
+      );
 
-      const mergedElements = [...currentElements, ...newElementsDuplicated];
+      const currentElements = excalidrawAPI.getSceneElements() || [];
+      const mergedElements = clampElementsToViewport(
+        [...currentElements, ...fittedNewElements],
+        viewportWidth,
+        viewportHeight,
+        VIEWPORT_PADDING
+      );
 
       excalidrawAPI.updateScene({
         elements: mergedElements,
-        appState: { ...excalidrawAPI.getAppState(), ...newAppState },
+        appState: {
+          ...excalidrawAPI.getAppState(),
+          ...newAppState,
+          ...FIXED_APP_STATE,
+        },
       });
 
-      // Images in Excalidraw are loaded out-of-band via addFiles
-      // We must extract them from the files object and pass them directly as an array
       if (Object.keys(newFiles).length > 0) {
         excalidrawAPI.addFiles(Object.values(newFiles));
-      }
-
-      if (newElements.length > 0) {
-        setTimeout(() => {
-          excalidrawAPI.scrollToContent(newElements, { fitToViewport: true });
-        }, 100);
       }
     }
     return () => {
@@ -621,12 +698,17 @@ export default function ExcalidrawEditor({
         </div>
       </div>
 
-      <div className="excalidraw-wrapper">
+      <div className="excalidraw-wrapper" ref={wrapperRef}>
         {isReady && (
           <Excalidraw
             initialData={sanitizedData}
             excalidrawAPI={(api) => setExcalidrawAPI(api)}
             onChange={handleExcalidrawChange}
+            UIOptions={{
+              tools: {
+                hand: false,
+              },
+            }}
           >
             <MainMenu>
               <MainMenu.DefaultItems.LoadScene />
