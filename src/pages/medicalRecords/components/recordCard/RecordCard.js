@@ -275,7 +275,6 @@ const RecordCard = ({
             onClick={handleDicomPreview}
             className="d-flex align-items-center"
           >
-            {/* <i className="icon-right iconrotate180" style={{ width: 16, height: 16 }} /> */}
             <img src={viewMoreIcon} alt="preview" className="me-2" style={{ width: 22, height: 20 }} />
             View Image
           </div>

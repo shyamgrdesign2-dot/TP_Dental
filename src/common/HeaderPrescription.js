@@ -1529,66 +1529,6 @@ function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecH
         [symptomsData]
     );
 
-    // const canEndVisit = useMemo(() => {
-    //     if (isChikitsalayAccessable) {
-    //         return ;
-    //     }
-    //     return (
-    //         symptomsData.length > 0 ||
-    //         examinationData.length > 0 ||
-    //         surgeriesData.length > 0 ||
-    //         diagnosisData.length > 0 ||
-    //         adviceData.length > 0 ||
-    //         investigationData.length > 0 ||
-    //         medicationData.length > 0 ||
-    //         vitalsData.length > 0 ||
-    //         medicalHistoryData.length > 0 ||
-    //         privateNotesData ||
-    //         followUpDate ||
-    //         additionalNote ||
-    //         givenVaccines.length > 0 ||
-    //         updatedDueVaccines?.length > 0 ||
-    //         measurements.length > 0 ||
-    //         (gynecHistory && Object.keys(gynecHistory).length > 0) ||
-    //         isObstetricDetailsUpdated ||
-    //         labParamsData?.length > 0 ||
-    //         zydusSelectedLabParams?.length > 0 ||
-    //         customModuleContents?.some((e) => {
-    //             return (
-    //                 e?.content?.length &&
-    //                 e?.content?.some((c) => c.title || c.notes)
-    //             );
-    //         }) ||
-    //         hasOpthalValues() ||
-    //         hasCustomModuleContent()
-    //     );
-    // }, [
-    //     isChikitsalayAccessable,
-    //     hasSymptomsWithSince,
-    //     symptomsData,
-    //     diagnosisData,
-    //     examinationData,
-    //     surgeriesData,
-    //     adviceData,
-    //     investigationData,
-    //     medicationData,
-    //     vitalsData,
-    //     medicalHistoryData,
-    //     privateNotesData,
-    //     followUpDate,
-    //     additionalNote,
-    //     givenVaccines,
-    //     updatedDueVaccines,
-    //     measurements,
-    //     gynecHistory,
-    //     isObstetricDetailsUpdated,
-    //     labParamsData,
-    //     zydusSelectedLabParams,
-    //     customModuleContents,
-    //     hasOpthalValues,
-    //     hasCustomModuleContent,
-    // ]);
-
     const endVisitTooltipMessage = useMemo(() => {
         if (isChikitsalayAccessable) {
             if (!hasSymptomsWithSince && diagnosisData.length === 0) {
