@@ -65,6 +65,7 @@ export const renderPrintPayloadToBlob = async (
     zydusLabData,
     abhaDetails,
     isCvtExtHosAccessableFromGB,
+    drawingCanvases
   } = payload;
 
   const combinedCaseManagerData = {
@@ -125,6 +126,7 @@ export const renderPrintPayloadToBlob = async (
       showSnapRxImages={showSnapRxImages}
       abhaDetails={abhaDetails}
       isCvtExtHosAccessableFromGB={isCvtExtHosAccessableFromGB}
+      drawingCanvases={drawingCanvases}
     />
   ).toBlob();
 };
