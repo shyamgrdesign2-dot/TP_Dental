@@ -93,6 +93,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   const isVoiceRxModuleEnabled = Boolean(showVoiceRxModule);
   const isVoiceRxNewFromGB = useFeatureIsOn(GB_VOICE_RX_NEW_UI);
   const canShowVoiceRxNewRows = isVoiceRxModuleEnabled && isVoiceRxNewFromGB;
+  const shouldKeepEmptyInvestigationRow = isPrescriptionNewContext;
 
   const applyVoiceInvestigation = useCallback((nextInvestigation) => {
     if (nextInvestigation.length > 0) {
@@ -106,17 +107,20 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
     }
   }, [canShowVoiceRxNewRows, setInvestigationData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // add one trailing empty row on mount (only when flag is on)
+  // PrescriptionNew should never render investigation without at least one editable row.
   useEffect(() => {
-    if (!canShowVoiceRxNewRows) return;
+    if (!shouldKeepEmptyInvestigationRow) return;
     setInvestigationData(prev => {
+      if (!prev?.length) {
+        return [emptyInvestigationRow()];
+      }
       const last = prev[prev.length - 1];
-      if (!last || last.investigation_name !== "") {
+      if (canShowVoiceRxNewRows && (!last || last.investigation_name !== "")) {
         return [...prev, emptyInvestigationRow()];
       }
       return prev;
     });
-  }, [canShowVoiceRxNewRows]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shouldKeepEmptyInvestigationRow, canShowVoiceRxNewRows, investigationData?.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddRow = useCallback(() => {
     setInvestigationData(prev => [...prev, emptyInvestigationRow()]);
@@ -534,7 +538,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
 
   const onRemoveRow = (index) => {
     investigationData.splice(index, 1);
-    if (canShowVoiceRxNewRows && investigationData.length === 0) {
+    if (shouldKeepEmptyInvestigationRow && investigationData.length === 0) {
       setInvestigationData([emptyInvestigationRow()]);
     } else {
       setInvestigationData((prev) => [...prev]);
@@ -1089,7 +1093,7 @@ function InvestigationBox({handleDDxDrawer, generatedDDx, showVoiceRxModule}) {
   }, [isModalOpen1]);
 
   const onRemoveRows = () => {
-    setInvestigationData(canShowVoiceRxNewRows ? [emptyInvestigationRow()] : [])
+    setInvestigationData(shouldKeepEmptyInvestigationRow ? [emptyInvestigationRow()] : [])
     showHideClearData()
   };
 
