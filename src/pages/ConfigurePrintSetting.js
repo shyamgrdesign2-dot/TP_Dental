@@ -40,6 +40,7 @@ import { getOpthalPrescriptionDetails } from "./ophthalmology/service";
 import ApiAbha from "../api/services/ApiAbha";
 import { setCurrentSessionRx } from "../redux/obstetricSlice";
 import { listPatientCanvasMapping } from "./drawingCanvas/service";
+import { ensureDrawingCanvasCaseOption } from "./drawingCanvas/utils/drawingCanvasPrintUtils";
 import { exportToBlob } from "@excalidraw/excalidraw";
 
 
@@ -831,33 +832,10 @@ function ConfigurePrintSetting() {
                 }
             }
 
-            // Drawing canvas (id 25): add when patient has linked canvases with renderable scene data (skip written Rx snap/smart).
-            // Same idea as Ophthalmology (id 20): inject into case_option from defaults so Format Style does not require a manual click.
-            if (hasDrawingCanvasData && copyPrintSettings?.prescription?.case_option) {
-                const defaultCanvas = defaultPrintSettings?.prescription?.case_option?.find((o) => o.id === 25);
-                const hasCanvasOption = copyPrintSettings.prescription.case_option.some((o) => o.id === 25);
-                if (!hasCanvasOption) {
-                    if (defaultCanvas) {
-                        copyPrintSettings.prescription.case_option.push({
-                            ...defaultCanvas,
-                            format: defaultCanvas.format || "inline",
-                            custom_status: defaultCanvas.custom_status || "Y",
-                        });
-                    } else {
-                        copyPrintSettings.prescription.case_option.push({
-                            id: 25,
-                            title: "Drawing Canvas",
-                            format: "inline",
-                            enable: "Y",
-                            custom_status: "Y",
-                        });
-                    }
-                }
-                copyPrintSettings.prescription.case_option = copyPrintSettings.prescription.case_option.map((o) =>
-                    o.id === 25 && (!o.format || String(o.format).trim() === "")
-                        ? { ...o, format: "inline" }
-                        : o
-                );
+            // Drawing canvas (id 25): add when patient has linked canvases with renderable scene data.
+            if (hasDrawingCanvasData) {
+                const withCanvasOption = ensureDrawingCanvasCaseOption(copyPrintSettings);
+                copyPrintSettings.prescription = withCanvasOption.prescription;
             }
 
             setPrintSettings(copyPrintSettings);

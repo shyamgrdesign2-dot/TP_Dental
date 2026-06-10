@@ -1723,7 +1723,7 @@ function Prescription() {
           <div className="d-flex align-items-center justify-content-between">
             <div className="d-flex align-items-center">
               <img
-                src={e?.tmdpm_icon_url || "https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/brush-square.svg"}
+                src={"https://pm-uat-dhspl-2.tatvacare.in/img/microservices/left/brush-square.svg" || e?.tmdpm_icon_url}
                 alt="Canvas"
                 width={22}
                 height={22}

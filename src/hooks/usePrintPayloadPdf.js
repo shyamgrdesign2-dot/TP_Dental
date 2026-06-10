@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { renderPrintPayloadToBlob } from "../utils/printPayload";
 import { listPatientCanvasMapping } from "../pages/drawingCanvas/service";
+import {
+  ensureDrawingCanvasCaseOption,
+  filterCanvasRecordsByFilename,
+} from "../pages/drawingCanvas/utils/drawingCanvasPrintUtils";
 import { exportToBlob } from "@excalidraw/excalidraw";
 import { trackEvent } from "../utils/utils";
 
@@ -116,35 +120,10 @@ export const usePrintPayloadPdf = ({
                 const res = await listPatientCanvasMapping(resolvedPatientId, resolvedTcmId);
                 const recordsArray = res?.records || res?.data?.records;
                 const canvasFilename = payload?.caseManagerData?.canvas_filename;
-
-                const getCanvasId = (item) => {
-                  if (!item || typeof item !== "object") return null;
-                  return (
-                    item.canvas_id ??
-                    item.canvasId ??
-                    item.id ??
-                    item.mapping_id ??
-                    null
-                  );
-                };
-                
-                const allowedCanvasIds = typeof canvasFilename === "string"
-                  ? new Set(
-                      canvasFilename
-                        .split(",")
-                        .map((id) => id.trim())
-                        .filter(Boolean)
-                    )
-                  : null;
-
-                const filteredRecordsArray = Array.isArray(recordsArray)
-                  ? recordsArray.filter((record) => {
-                      if (allowedCanvasIds.size === 0) return false;
-                      const recordId = getCanvasId(record);
-                      if (recordId === null || recordId === undefined) return false;
-                      return allowedCanvasIds.has(String(recordId));
-                    })
-                  : [];
+                const filteredRecordsArray = filterCanvasRecordsByFilename(
+                  recordsArray,
+                  canvasFilename
+                );
 
                 if (res?.status && filteredRecordsArray.length > 0) {
                     for (const record of filteredRecordsArray) {
@@ -194,8 +173,14 @@ export const usePrintPayloadPdf = ({
             }
         }
 
+        const printSettingsWithCanvas =
+          drawingCanvases.length > 0
+            ? ensureDrawingCanvasCaseOption(payload.printSettings)
+            : payload.printSettings;
+
         const blob = await renderPrintPayloadToBlob({
           ...payload,
+          printSettings: printSettingsWithCanvas,
           drawingCanvases,
           zydusLabData: zydusSelectedLabParams,
           ...(typeof isCvtExtHosAccessableFromGB === "boolean"
