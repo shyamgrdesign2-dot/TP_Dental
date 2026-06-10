@@ -60,7 +60,7 @@ const { TextArea } = Input;
 const isVoiceRxModuleInvestigation = (item) => !!item?.voice_rx_from_module;
 const isFrequentlyUsedHeaderOption = (option) => option?.key === -1 || option?.key === "-1";
 const getVoiceRxAutoSelectKey = (item, index) => {
-  const rowId = item?.unique_id || item?.objectID || item?.id || index;
+  const rowId = item?.unique_id || item?.objectID || item?.id || item?.typesenseId || index;
   return `${rowId}:${String(item?.investigation_name || "").trim().toLowerCase()}`;
 };
 const VOICE_RX_SOURCE_TOOLTIP_STYLE = {

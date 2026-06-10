@@ -140,15 +140,18 @@ function normalizeVoiceHistoryForStore(history) {
 }
 
 function buildInvestigationTemplatePayload(investigations) {
-    return investigations.map(({ investigation_name, note, change, id, service_code, pms_default, typesenseId }) => ({
-        investigation_name,
-        ...(note !== undefined && { note }),
-        ...(change !== undefined && { change }),
-        ...(id != null && String(id).trim() !== "" && { id }),
-        ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
-        ...(pms_default !== undefined && { pms_default }),
-        ...(typesenseId !== undefined && { typesenseId }),
-    }));
+    return investigations.map(({ investigation_name, note, change, id, service_code, pms_default, typesenseId }) => {
+        const resolvedId = id ?? typesenseId;
+        return {
+            investigation_name,
+            ...(note !== undefined && { note }),
+            ...(change !== undefined && { change }),
+            ...(resolvedId != null && String(resolvedId).trim() !== "" && { id: resolvedId }),
+            ...(service_code != null && String(service_code).trim() !== "" && { service_code }),
+            ...(pms_default !== undefined && { pms_default }),
+            ...(typesenseId !== undefined && { typesenseId }),
+        };
+    });
 }
 
 function HeaderPrescription({ isVaccinationEnabled, isGrowthChartEnabled, gynecHistory, labParamsData, zydusSelectedLabParams, handleGenRx, labReportID, selectedCarePlan, hasExistingCarePlan = false, handleVideoConsult, isVideoConsultLoading, showTeleconsultIcon, onTeleconsultClick, isTeleconsultJoinLoading, isTeleconsultActive, isTabPrescription, hideVoiceRxIcon, showVoiceRxModule, isNewPrescriptionUi = false }) {
