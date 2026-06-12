@@ -83,7 +83,10 @@ jobs:
       - name: Azure Login (blob upload identity)
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.PMPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS }}
+        #  creds: ${{ secrets.PMPRODDOCTORPORTAL_BLOB_UPLOAD_CREDENTIALS }}
+         client-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_CLIENT_ID }}
+         tenant-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_TENANT_ID }}
+         subscription-id: ${{ secrets.PMPRODDOCTORPORTAL_AZURE_SUBSCRIPTION_ID }}
 
       # upload-batch never deletes blobs missing from --source, so previously uploaded
       # hashed chunks survive. --overwrite only affects identical paths (e.g. manifest.json,
