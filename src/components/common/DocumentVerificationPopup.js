@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "antd";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { isMobile, isTablet } from "react-device-detect";
 import axios from "axios";
 import { PERSISTANT_STORAGE_KEY_AUTH_TOKEN } from "../../utils/constants";
@@ -10,6 +10,7 @@ import { useSelector } from "react-redux";
 import moment from "moment";
 import { fetchSubscriptionDetails } from "../../redux/subscriptionSlice";
 import { useDispatch } from "react-redux";
+import { isNeoSapienRoute } from "../../utils/neoConsultationUtils";
 
 const DISMISS_TIMESTAMP_KEY = "document_verification_dismissed_at";
 const DISMISS_HOURS = 12; // Show popup again after 12 hours
@@ -24,6 +25,7 @@ const DocumentVerificationPopup = () => {
     daysLeft: 0,
   });
   const navigate = useNavigate();
+  const location = useLocation();
   const { planDetails } = useSelector((state) => state.subscription);
   const urlParams = new URLSearchParams(window.location.search);
   const isReceptionist = urlParams.has("receptionist");
@@ -36,12 +38,18 @@ const DocumentVerificationPopup = () => {
   }, [dispatch]);
 
   useEffect(() => {
+    if (isNeoSapienRoute(location.pathname)) {
+      setVisible(false);
+      return;
+    }
     if (planDetails?.onboarding_date) {
       checkDocumentStatus();
     }
-  }, [planDetails]);
+  }, [planDetails, location.pathname]);
 
   const checkDocumentStatus = async () => {
+    if (isNeoSapienRoute(location.pathname)) return;
+
     try {
       setLoading(true);
 
@@ -174,7 +182,7 @@ const DocumentVerificationPopup = () => {
     setVisible(false);
   };
 
-  if (!visible) {
+  if (!visible || isNeoSapienRoute(location.pathname)) {
     return null;
   }
 

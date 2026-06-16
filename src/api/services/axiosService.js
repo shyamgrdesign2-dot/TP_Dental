@@ -14,13 +14,15 @@ const RETRY_DELAY_MS = 1000;
 const isVoiceEndpointRequest = (requestConfig = {}) => {
     const requestUrl = requestConfig?.url || '';
     return requestUrl.includes('/api/v1/digitization/voice')
+        || requestUrl.includes('/api/v1/digitization/neo-sapien/voice')
         || requestUrl.includes('/api/v1/voice-digitize')
         || requestUrl.includes('/api/v1/ambient-voice-rx');
 };
 
 const isVoiceUploadRequest = (requestConfig = {}) => {
     const requestUrl = requestConfig?.url || '';
-    return requestUrl.includes('/api/v1/digitization/voice/upload');
+    return requestUrl.includes('/api/v1/digitization/voice/upload')
+        || requestUrl.includes('/api/v1/digitization/neo-sapien/voice/upload');
 };
 
 const isVoiceDigitizeRequest = (requestConfig = {}) => {

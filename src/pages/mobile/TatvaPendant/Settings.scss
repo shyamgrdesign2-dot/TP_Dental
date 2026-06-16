@@ -1,0 +1,243 @@
+@import '../../../styles/variables.scss';
+
+.mobile-tatva-pendant .tp-settings {
+  &__page-title {
+    margin: 0 0 16px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+    font-family: 'Poppins', sans-serif;
+    line-height: 1.2;
+  }
+}
+
+.tp-settings-profile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 16px;
+  text-align: left;
+  font-family: 'Poppins', sans-serif;
+
+  &__glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(164, 97, 216, 0.1) 0%, transparent 100%);
+  }
+
+  &__info {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+
+  &__subtitle {
+    font-size: 12px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.tp-settings-section {
+  margin-bottom: 20px;
+
+  &__title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+    padding-left: 4px;
+    font-family: 'Poppins', sans-serif;
+  }
+
+  &__card {
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+  }
+
+  &__divider {
+    height: 1px;
+    background: #f1f5f9;
+    margin: 0;
+  }
+}
+
+.tp-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  min-height: 60px;
+  font-family: 'Poppins', sans-serif;
+
+  &--clickable {
+    cursor: pointer;
+
+    &:active {
+      background: rgba(248, 250, 252, 0.8);
+    }
+  }
+
+  &__icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+      display: block;
+    }
+
+    &--pendant {
+      background: #eeeeff;
+    }
+
+    &--notification {
+      background: #fffbeb;
+    }
+
+    &--encryption,
+    &--document {
+      background: #ecfdf5;
+    }
+  }
+
+  &__content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #334155;
+    margin-bottom: 2px;
+  }
+
+  &__subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.35;
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+
+    &--online {
+      color: #059669;
+    }
+
+    &--offline {
+      color: #64748b;
+    }
+  }
+
+  &__status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  &__battery {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  &__battery-track {
+    display: block;
+    width: 48px;
+    height: 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+  }
+
+  &__battery-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: #22c55e;
+  }
+
+  &__value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    flex-shrink: 0;
+  }
+
+  &__chevron {
+    flex-shrink: 0;
+  }
+}
+
+.tp-settings-toggle {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+
+  &--on {
+    background: #3b82f6;
+  }
+
+  &__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease;
+  }
+
+  &--on &__thumb {
+    transform: translateX(16px);
+  }
+}

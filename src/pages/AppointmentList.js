@@ -27,6 +27,10 @@ import { getDecodedToken } from "../utils/localStorage";
 import { fetchAgents } from "./appointmentAgent/service";
 import VoiceRxPromoModal from "../components/VoiceRxPromoModal";
 import { useFeatureIsOn } from "@growthbook/growthbook-react";
+import NeoConsultationProvider from "../components/neo/NeoConsultationProvider";
+import NeoConsultPage from "./neoConsult/NeoConsultPage";
+import NeoGlobalCleanup from "../components/neo/NeoGlobalCleanup";
+import { isNeoEnabled, isNeoSapienRoute } from "../utils/neoConsultationUtils";
 
 function AppointmentList() {
   const dispatch = useDispatch();
@@ -86,7 +90,7 @@ function AppointmentList() {
     }
   }, []);
 
-  return (
+  const content = (
     <>
       {!shouldShowMobileDashboard && !isReceptionist && <Header locationPath={locationPath} />}
       <div className="d-flex">
@@ -121,8 +125,13 @@ function AppointmentList() {
             <Route path="add_patient" element={<AddNewPatient />} />
             <Route path="edit_patient" element={<EditNewPatient />} />
             <Route path="bulk_messages" element={<MessagesData appointmentAgentsData={agentsData} />} />
+            {isNeoEnabled() && (
+              <Route path="neo-consult" element={<NeoConsultPage />} />
+            )}
           </Routes>
-          {(!isZydus && !isApollo && !isCvtExtHosAccessableFromGB) &&  <DocumentVerificationPopup />}
+          {(!isZydus && !isApollo && !isCvtExtHosAccessableFromGB && !isNeoSapienRoute(locationPath)) && (
+            <DocumentVerificationPopup />
+          )}
           <VoiceRxPromoModal />
         </div>
       </div>
@@ -130,6 +139,17 @@ function AppointmentList() {
       <ExtendTrialModal />
     </>
   );
+
+  if (isNeoEnabled()) {
+    return (
+      <NeoConsultationProvider>
+        <NeoGlobalCleanup />
+        {content}
+      </NeoConsultationProvider>
+    );
+  }
+
+  return content;
 }
 
 export default AppointmentList;

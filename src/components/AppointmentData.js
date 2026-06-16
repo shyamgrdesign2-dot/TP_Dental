@@ -187,6 +187,9 @@ import { useChikitsalay } from "../pages/chikitsalay/useChikitsalay";
 import { clinicTargetStatus, generateClinicToken } from "../pages/chikitsalay/service";
 import { usePrintPayloadPdf } from "../hooks/usePrintPayloadPdf";
 import { ASSETS } from "../assets";
+import NeoConnectCard from "../components/neo/NeoConnectCard";
+import NeoConsultationStatusBanner from "../components/neo/NeoConsultationStatusBanner";
+import { isNeoEnabled } from "../utils/neoConsultationUtils";
 const {
   endVisit: visitEnd,
   cancelVisit: ImgcancelEnd,
@@ -3623,6 +3626,12 @@ function AppointmentData({ locationPath, appointmentAgentsData }) {
 
   return (
     <>
+      {!isReceptionist && isNeoEnabled() && locationPath === "/" && (
+        <div className="px-4 pt-3">
+          <NeoConsultationStatusBanner />
+          <NeoConnectCard />
+        </div>
+      )}
       {!isReceptionist && (
         <div className="border rounded-4 appointment-wrap dateborder">
           <div style={{ position: "relative" }}>

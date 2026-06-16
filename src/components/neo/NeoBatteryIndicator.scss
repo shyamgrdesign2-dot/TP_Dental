@@ -1,0 +1,23 @@
+.neo-battery {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Poppins', sans-serif;
+  white-space: nowrap;
+
+  &__label {
+    line-height: 1;
+  }
+
+  &__charge {
+    margin-left: 2px;
+    font-size: 11px;
+  }
+
+  &--loading {
+    color: rgba(255, 255, 255, 0.45);
+    font-weight: 500;
+  }
+}

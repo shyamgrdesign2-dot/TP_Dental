@@ -22,6 +22,8 @@ import PharmacyKnowMore from "../pages/monetization/components/PharmacyKnowMore"
 import AskTatvaKnowMore from "../pages/monetization/components/AskTatvaKnowMore";
 import { EVENTS } from "../utils/events";
 import { ASSETS } from "../assets";
+import { isNeoEnabled } from "../utils/neoConsultationUtils";
+import { NeoMicIcon } from "../components/neo/icons";
 
 const {
   lockIcon: LockIcon,
@@ -632,6 +634,26 @@ function SidebarDoctor() {
                   </div>
                 );
               })}
+
+          {isNeoEnabled() && (
+            <NavLink
+              to="/neo-consult"
+              replace
+              className={({ isActive, isPending }) =>
+                (isPending ? "pending" : isActive ? "active" : "")
+              }
+              onMouseEnter={() => setHoveredItem("neo_consult")}
+              onMouseLeave={() => setHoveredItem(null)}
+            >
+              <NeoMicIcon
+                size={22}
+                color={location.pathname === "/neo-consult" || hoveredItem === "neo_consult" ? "#4b4ad5" : "#6b6b7a"}
+              />
+              <div className="mt-1 px-2">
+                <div>Neo Consult</div>
+              </div>
+            </NavLink>
+          )}
 
           {isApolloConsultationsEnabled && (
             <NavLink

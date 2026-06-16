@@ -477,8 +477,8 @@ export const SNAP_RX_KNOW_MORE_DATA = {
 };
 
 export const HIDE_ROUTES = {
-  BANNER: ["/snap-rx"],
-  TALKATIVE: ["/snap-rx", "/prescription"],
+  BANNER: ["/snap-rx", "/tatva-pendant", "/neo-consult"],
+  TALKATIVE: ["/snap-rx", "/prescription", "/tatva-pendant", "/neo-consult"],
 };
 
 

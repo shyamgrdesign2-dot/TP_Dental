@@ -97,11 +97,18 @@ function Welcome(props) {
                 <h1>Messages</h1>
               ) : locationPath == "/billing-dashboard" ? (
                 <h1>Bill History</h1>
+              ) : locationPath == "/neo-consult" ? (
+                <h1>Neo Consult</h1>
               ) : (
                 <h1>Welcome Dr. {profile?.um_name?.split(/\s+/).filter(word => (word.toLowerCase() != "Dr".toLowerCase() && word.toLowerCase() != "Dr.".toLowerCase())).join(' ')}!</h1>
               )}
               {locationPath == "/" && <p>{"Your Appointments"}</p>}
               {locationPath == "/bulk_messages" && <p className="text-main fw-medium fs-14">{"Engage patients with timely updates and reminders"}</p>}
+              {locationPath == "/neo-consult" && (
+                <p className="text-main fw-medium fs-14">
+                  Review AI-segmented captures from your Tatva Pendant
+                </p>
+              )}
             </div>
           </div>
           <div className="d-flex gap-1">

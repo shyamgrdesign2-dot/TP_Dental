@@ -1,7 +1,12 @@
 import api from "./axiosService";
 import config from "../../config";
 
-const baseUrl = { customBaseUrl: config.ipd_api_url || config.ipd_portal_url };
+const getIpdApiBaseUrl = () => {
+  if (process.env.NODE_ENV === "development") {
+    return { customBaseUrl: "/ipd-api" };
+  }
+  return { customBaseUrl: config.ipd_api_url || config.ipd_portal_url };
+};
 
 const ApiIpdService = {};
 
@@ -13,8 +18,43 @@ const ApiIpdService = {};
 ApiIpdService.checkPatientAdmitted = function ({ patientId }) {
   return api.get(
     `/patients/check-patient-admitted?patientId=${patientId}`,
-    baseUrl
+    getIpdApiBaseUrl()
   );
+};
+
+/** Active in-patients list — same contract as ipd-prod /ipd/inPatients. */
+ApiIpdService.getPatients = function (params = {}) {
+  const {
+    page = 1,
+    limit = 25,
+    search = "",
+    ward = "",
+    patientId = "",
+    startDate = "",
+    endDate = "",
+    doctorIdsFilter = "",
+    sort = "admittedOn:desc",
+    isDischarged = false,
+    sentForApproval = false,
+    isIntimateDischarged = false,
+  } = params;
+
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    search,
+    ward,
+    patientId,
+    startDate,
+    endDate,
+    doctorIdsFilter,
+    sort,
+    isDischarged: String(isDischarged),
+    sentForApproval: String(sentForApproval),
+    isIntimateDischarged: String(isIntimateDischarged),
+  });
+
+  return api.get(`/patients?${query.toString()}`, getIpdApiBaseUrl());
 };
 
 export default ApiIpdService;

@@ -1,0 +1,403 @@
+@import '../../../../styles/variables.scss';
+
+.tp-hero {
+  position: relative;
+  border-radius: 28px;
+  padding: 20px;
+  overflow: hidden;
+  color: $white;
+  margin-bottom: 16px;
+  font-family: 'Poppins', sans-serif;
+  background: radial-gradient(
+    120% 140% at 80% -10%,
+    #2a2952 0%,
+    #1b1b33 45%,
+    #14132a 100%
+  );
+  box-shadow:
+    0 24px 60px -12px rgba(23, 23, 37, 0.45),
+    0 2px 8px rgba(23, 23, 37, 0.2);
+
+  &__blob {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(48px);
+
+    &--pink {
+      top: -64px;
+      left: -40px;
+      width: 224px;
+      height: 224px;
+      opacity: 0.6;
+      background: radial-gradient(circle, rgba(213, 101, 234, 0.55) 0%, transparent 70%);
+      animation: tp-blob-float 9s ease-in-out infinite;
+    }
+
+    &--blue {
+      top: 16px;
+      right: 0;
+      width: 208px;
+      height: 208px;
+      opacity: 0.5;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, transparent 70%);
+      animation: tp-blob-float 11s ease-in-out infinite reverse;
+    }
+
+    &--violet {
+      bottom: -80px;
+      left: 33%;
+      width: 224px;
+      height: 224px;
+      opacity: 0.4;
+      background: radial-gradient(circle, rgba(167, 139, 250, 0.5) 0%, transparent 70%);
+      animation: tp-blob-float 13s ease-in-out infinite;
+    }
+  }
+
+  &__border-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    padding: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.04) 30%,
+      transparent 60%
+    );
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+  }
+
+  &__gloss {
+    position: absolute;
+    top: -50%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 28px;
+    opacity: 0.4;
+    pointer-events: none;
+    background: radial-gradient(60% 50% at 50% 100%, rgba(255, 255, 255, 0.1), transparent);
+  }
+
+  &__sheen {
+    position: absolute;
+    inset: -32px 0;
+    left: 0;
+    width: 33%;
+    border-radius: 28px;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.35;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+    animation: tp-hero-sheen 6s ease-in-out infinite;
+  }
+
+  &__dots {
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    opacity: 0.18;
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px);
+    background-size: 18px 18px;
+    mask-image: radial-gradient(70% 60% at 50% 30%, #000, transparent);
+  }
+
+  &__inner {
+    position: relative;
+    z-index: 1;
+  }
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__device {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__device-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      display: block;
+    }
+  }
+
+  &__device-copy {
+    line-height: 1.25;
+    min-width: 0;
+  }
+
+  &__device-name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: $white;
+    letter-spacing: -0.01em;
+  }
+
+  &__device-model {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  &__indicators {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  &__status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    min-height: 20px;
+
+    &--live {
+      gap: 8px;
+    }
+  }
+
+  &__live-dot-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__live-dot-ring {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: tp-pulse-ring 1.6s ease-out infinite;
+  }
+
+  &__live-dot {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #22c55e;
+  }
+
+  &__live-text {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: linear-gradient(
+      90deg,
+      #a78bfa 0%,
+      #e879f9 25%,
+      #fff 50%,
+      #e879f9 75%,
+      #a78bfa 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: tp-shiny-sweep 4s linear infinite;
+  }
+
+  &__idle-status {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &__since {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: right;
+  }
+
+  &__since-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Poppins', sans-serif;
+    font-size: 11px;
+  }
+
+  &__waveform {
+    position: relative;
+    height: 80px;
+    margin: 12px 0;
+    overflow: hidden;
+  }
+
+  &__wave-canvas {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__captured {
+    min-width: 0;
+
+    &--idle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+  }
+
+  &__captured-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__captured-copy {
+    line-height: 1.2;
+  }
+
+  &__captured-value {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    color: $white;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  &__captured-label {
+    margin: 2px 0 0;
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  &__action-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: $white;
+    border: none;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+
+    &:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &--connected &__indicator {
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+@keyframes tp-blob-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(8px, -6px) scale(1.04);
+  }
+}
+
+@keyframes tp-hero-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  55%,
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes tp-shiny-sweep {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@keyframes tp-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}

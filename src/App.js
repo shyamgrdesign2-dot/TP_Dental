@@ -204,6 +204,9 @@ const PatientDetails = React.lazy(() =>
 const MobilePatientDetails = React.lazy(() =>
   lazyRetry(() => import("./pages/mobile/PatientDetails/PatientDetails"))
 );
+const TatvaPendant = React.lazy(() =>
+  lazyRetry(() => import("./pages/mobile/TatvaPendant/TatvaPendant"))
+);
 
 const growthbook = new GrowthBook({
   apiHost: "https://cdn.growthbook.io",
@@ -792,6 +795,8 @@ function App() {
             path="tabrx-digitization"
             element={<TabRxDigitization />}
           />
+          <Route path="tatva-pendent/*" element={<Navigate to="/tatva-pendant" replace />} />
+          <Route path="tatva-pendant/*" element={<TatvaPendant />} />
         </Route>
         <Route path="opd-bill" element={<OpdBill />} />
       </SentryRoutes>

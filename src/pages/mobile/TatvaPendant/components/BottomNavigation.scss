@@ -1,0 +1,99 @@
+@import '../../../../styles/variables.scss';
+
+.tp-bottom-navigation {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: 8px 16px calc(10px + env(safe-area-inset-bottom));
+  pointer-events: none;
+
+  &__content {
+    pointer-events: auto;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 6px 8px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 8px 28px rgba(23, 23, 37, 0.1);
+  }
+
+  &__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 14px;
+    min-height: 54px;
+    font-family: 'Poppins', sans-serif;
+    transition: all 0.2s ease;
+
+    &--active {
+      background: rgba(75, 74, 213, 0.08);
+
+      .tp-bottom-navigation__label {
+        color: #4b4ad5;
+        font-weight: 600;
+      }
+    }
+
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+
+  &__icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+  }
+
+  &__icon {
+    display: block;
+  }
+
+  &__badge {
+    position: absolute;
+    top: -6px;
+    right: -12px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: #ef4444;
+    color: $white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-family: 'Poppins', sans-serif;
+    border: 2px solid #fff;
+  }
+
+  &__label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #64748b;
+    line-height: 1.2;
+    font-family: 'Poppins', sans-serif;
+    white-space: nowrap;
+  }
+}
