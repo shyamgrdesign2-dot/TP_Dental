@@ -8,3 +8,14 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+
+# AI coding-agent skills (installed user-globally at ~/.claude/skills/
+# or via `npx skills add ...`). Ignore both the universal `.agents/`
+# install layout AND the Claude Code symlink dir `.claude/skills/`
+# so a project-local skill install never lands in git.
+.agents/
+.claude/skills/
+skills-lock.json

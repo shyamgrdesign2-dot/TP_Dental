@@ -91,8 +91,13 @@ function lineCols(row) {
     return { surfaces: m[0] || "", since: m[1] || "", note: m.slice(2).join(" · ") };
 }
 // One tooth rendered as a self-contained nested table (TP design system styling):
-// a grey tooth header, then a Past Procedures / Findings / Procedures sub-table
-// each with Name | Surfaces | Since | Notes columns, then overall notes.
+// a grey tooth header, then a Past Procedures / Findings / Procedures sub-table,
+// then overall notes. The "timing" column is kind-aware:
+//   • Past Procedures → "When"   (matches the in-app column header)
+//   • Findings        → "Since"  (matches the in-app column header)
+//   • Procedures      → no column (planned entries don't have a since/when
+//                                  field — printing one was producing an
+//                                  always-empty "Since" column with "—" cells)
 function dentalToothTableNode(block) {
     const wrap = { border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden", fontFamily: "Inter, sans-serif", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" };
     const toothHead = { background: "#eef2f7", padding: "6px 10px", fontSize: 11, fontWeight: 700, color: "#1e293b", borderBottom: "1px solid #e2e8f0" };
@@ -102,19 +107,33 @@ function dentalToothTableNode(block) {
     const th = { textAlign: "left", padding: "3px 8px", fontSize: 8.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", color: "#94a3b8", background: "#f7f9fb", borderBottom: "1px solid #e6ebf1" };
     const td = { padding: "4px 8px", fontSize: 10, color: "#475569", verticalAlign: "top", borderTop: "1px solid #e6ebf1", wordBreak: "break-word" };
     const tdName = { ...td, fontWeight: 600, color: "#334155" };
-    const colW = ["30%", "22%", "18%", "30%"];
-    const catTable = (label, rows) => rows.length ? (_jsxs("div", { style: catSection, children: [
-        _jsx("div", { style: catLabel, children: label }),
-        _jsxs("table", { style: tbl, children: [
-            _jsx("thead", { children: _jsx("tr", { children: ["Name", "Surfaces", "Since", "Notes"].map((t, ci) => _jsx("th", { style: { ...th, width: colW[ci] }, children: t }, t)) }) }),
-            _jsx("tbody", { children: rows.map((r, ri) => { const c = lineCols(r); return (_jsxs("tr", { children: [_jsx("td", { style: tdName, children: r.title }), _jsx("td", { style: td, children: c.surfaces || "—" }), _jsx("td", { style: td, children: c.since || "—" }), _jsx("td", { style: td, children: c.note || "—" })] }, ri)); }) }),
-        ] }),
-    ] })) : null;
+    const catTable = (label, rows, kind) => {
+        if (!rows.length) return null;
+        const hasTiming = kind === "past" || kind === "finding";
+        const timingLabel = kind === "past" ? "When" : "Since";
+        const headers = hasTiming ? ["Name", "Surfaces", timingLabel, "Notes"] : ["Name", "Surfaces", "Notes"];
+        const colW = hasTiming ? ["30%", "22%", "18%", "30%"] : ["38%", "27%", "35%"];
+        return (_jsxs("div", { style: catSection, children: [
+            _jsx("div", { style: catLabel, children: label }),
+            _jsxs("table", { style: tbl, children: [
+                _jsx("thead", { children: _jsx("tr", { children: headers.map((t, ci) => _jsx("th", { style: { ...th, width: colW[ci] }, children: t }, t)) }) }),
+                _jsx("tbody", { children: rows.map((r, ri) => {
+                    const c = lineCols(r);
+                    return (_jsxs("tr", { children: [
+                        _jsx("td", { style: tdName, children: r.title }),
+                        _jsx("td", { style: td, children: c.surfaces || "—" }),
+                        hasTiming ? _jsx("td", { style: td, children: c.since || "—" }) : null,
+                        _jsx("td", { style: td, children: c.note || "—" }),
+                    ].filter(Boolean) }, ri));
+                }) }),
+            ] }),
+        ] }));
+    };
     return _jsxs("div", { style: wrap, children: [
         _jsx("div", { style: toothHead, children: block?.toothLabel || "" }),
-        catTable("Past Procedures", block.treatmentHistory),
-        catTable("Findings", block.findings),
-        catTable("Procedures", block.procedures),
+        catTable("Past Procedures", block.treatmentHistory, "past"),
+        catTable("Findings", block.findings, "finding"),
+        catTable("Procedures", block.procedures, "procedure"),
         block.overallToothNote ? (_jsxs("div", { style: catSection, children: [_jsx("div", { style: catLabel, children: "Overall Tooth Notes" }), _jsx("div", { style: { padding: "5px 10px", fontSize: 10, color: "#475569" }, children: block.overallToothNote })] })) : null,
     ] });
 }
@@ -212,18 +231,26 @@ function byTypeTableNode(bucket) {
         ] });
     }
     const rows = bucket.toothRows.flatMap((tr) => tr.items.map((it) => ({ tooth: tr.tooth, item: it })));
+    // Timing column matches the in-app column for the same kind:
+    //   • past → "When"   • finding → "Since"   • procedure → no column
+    // (planned procedures don't carry a since/when value — printing one
+    // produced an always-empty column with "—" cells).
+    const hasTiming = bucket.key === "past" || bucket.key === "findings";
+    const timingLabel = bucket.key === "past" ? "When" : "Since";
+    const headers = hasTiming ? ["Tooth", "Name", "Surfaces", timingLabel, "Notes"] : ["Tooth", "Name", "Surfaces", "Notes"];
+    const colWidths = hasTiming ? ["28%", "26%", "16%", "12%", "18%"] : ["30%", "28%", "20%", "22%"];
     return _jsxs("div", { style: wrap, children: [
         _jsx("div", { style: head, children: bucket.label }),
         _jsxs("table", { style: tbl, children: [
-            _jsx("colgroup", { children: ["28%", "26%", "16%", "12%", "18%"].map((w, i) => _jsx("col", { style: { width: w } }, `c${i}`)) }),
-            _jsx("thead", { children: _jsx("tr", { children: ["Tooth", "Name", "Surfaces", "Since", "Notes"].map((t) => _jsx("th", { style: th, children: t }, t)) }) }),
+            _jsx("colgroup", { children: colWidths.map((w, i) => _jsx("col", { style: { width: w } }, `c${i}`)) }),
+            _jsx("thead", { children: _jsx("tr", { children: headers.map((t) => _jsx("th", { style: th, children: t }, t)) }) }),
             _jsx("tbody", { children: rows.map((r, ri) => { const c = lineCols(r.item); return (_jsxs("tr", { children: [
                 _jsx("td", { style: tdName, children: r.tooth }),
                 _jsx("td", { style: tdName, children: r.item.title }),
                 _jsx("td", { style: td, children: c.surfaces || "—" }),
-                _jsx("td", { style: td, children: c.since || "—" }),
+                hasTiming ? _jsx("td", { style: td, children: c.since || "—" }) : null,
                 _jsx("td", { style: td, children: c.note || "—" }),
-            ] }, ri)); }) }),
+            ].filter(Boolean) }, ri)); }) }),
         ] }),
     ] });
 }

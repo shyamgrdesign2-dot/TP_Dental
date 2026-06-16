@@ -450,28 +450,43 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list" }) {
     const th = { textAlign: "left", padding: "6px 10px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", color: "#64748b", background: "#f7f9fb", borderBottom: "1px solid #e6ebf1" };
     const td = { padding: "6px 10px", fontSize: 12, color: "#475569", verticalAlign: "top", borderTop: "1px solid #e6ebf1", wordBreak: "break-word" };
     const tdName = { ...td, fontWeight: 600, color: "#334155" };
-    const colW = ["32%", "26%", "16%", "26%"];
-    // When historical is on, the date sits inside the kind-head bracket
-    // ("Past Procedures (09 Jun 2026)") — one annotation per section,
-    // matching the Dental History card pattern. Name column stays clean.
-    const kindTable = (label, list) => list.length ? (
-      <div style={wrap}>
-        <div style={kindHead}>{label}</div>
-        <table style={tbl}>
-          <thead><tr>{["Name", "Area", "Since", "Notes"].map((t, ci) => <th key={t} style={{ ...th, width: colW[ci] }}>{t}</th>)}</tr></thead>
-          <tbody>{list.map((it, ri) => (
-            <tr key={ri}><td style={tdName}>{it.name}</td><td style={td}>{it.region || "—"}</td><td style={td}>{it.since || "—"}</td><td style={td}>{it.note || "—"}</td></tr>
-          ))}</tbody>
-        </table>
-      </div>
-    ) : null;
+    // Timing column is kind-aware (matches the in-app OralTable header
+     // logic):
+    //   • Past Procedures → "When"  • Findings → "Since"
+    //   • Procedures → no column   (oral planned procedures don't carry
+    //                               a since/when value — the in-app
+    //                               table omits the column for that kind
+    //                               too, so the print now matches.)
+    const kindTable = (label, list, kind) => {
+      if (!list.length) return null;
+      const hasTiming = kind === "past" || kind === "finding";
+      const timingLabel = kind === "past" ? "When" : "Since";
+      const headers = hasTiming ? ["Name", "Area", timingLabel, "Notes"] : ["Name", "Area", "Notes"];
+      const widths = hasTiming ? ["32%", "26%", "16%", "26%"] : ["38%", "30%", "32%"];
+      return (
+        <div style={wrap}>
+          <div style={kindHead}>{label}</div>
+          <table style={tbl}>
+            <thead><tr>{headers.map((t, ci) => <th key={t} style={{ ...th, width: widths[ci] }}>{t}</th>)}</tr></thead>
+            <tbody>{list.map((it, ri) => (
+              <tr key={ri}>
+                <td style={tdName}>{it.name}</td>
+                <td style={td}>{it.region || "—"}</td>
+                {hasTiming ? <td style={td}>{it.since || "—"}</td> : null}
+                <td style={td}>{it.note || "—"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      );
+    };
     return (
       <section style={{ marginTop: 12, breakInside: "avoid", WebkitPrintColorAdjust: "exact", printColorAdjust: "exact" }} data-oral-exam-report="true">
         {heading}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {kindTable("Past Procedures", allPast)}
-          {kindTable("Findings", allFindings)}
-          {kindTable("Procedures", allProcs)}
+          {kindTable("Past Procedures", allPast, "past")}
+          {kindTable("Findings", allFindings, "finding")}
+          {kindTable("Procedures", allProcs, "procedure")}
           {notes && <div style={wrap}><div style={kindHead}>Overall Notes</div><div style={{ padding: "8px 12px", fontSize: 12, color: "#475569" }}>{notes}</div></div>}
         </div>
       </section>
