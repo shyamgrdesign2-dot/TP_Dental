@@ -105,6 +105,9 @@ const GetUnlimitedAccess = React.lazy(() =>
 const Onboarding = React.lazy(() =>
   lazyRetry(() => import("./pages/onBoarding/components/Onboarding"))
 );
+const DentalDemoPage = React.lazy(() =>
+  import("./pages/dental-demo")
+);
 const FinalSetup = React.lazy(() =>
   lazyRetry(() => import("./pages/FinalSetup"))
 );
@@ -681,6 +684,7 @@ function App() {
         {/* Public route */}
         <Route path="/login" element={<Onboarding />} />
         <Route path="/our-offerings" element={<OurOffering />} />
+        <Route path="/dental-demo" element={<DentalDemoPage />} />
         <Route path="/final-setup" element={<FinalSetup />} />
 
         {/* Restricted route - authorized only to get/upload snapRx files */}
