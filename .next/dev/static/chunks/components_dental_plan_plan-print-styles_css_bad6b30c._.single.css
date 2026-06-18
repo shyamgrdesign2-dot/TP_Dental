@@ -1,0 +1,36 @@
+/* [project]/components/dental/plan/plan-print-styles.css [app-client] (css) */
+@media print {
+  header, nav, [data-sidebar], [data-topnav], [role="navigation"], button:not([data-print-visible]), .tp-split-button, [data-radix-dropdown-menu-trigger] {
+    display: none !important;
+  }
+
+  body, main, [data-treatment-plan] {
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  * {
+    box-shadow: none !important;
+  }
+
+  .tp-plan-content {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .plan-card, .service-card {
+    break-inside: avoid;
+  }
+
+  table {
+    border-collapse: collapse;
+  }
+
+  td, th {
+    border: 1px solid #e2e8f0 !important;
+    padding: 6px 10px !important;
+  }
+}
+
+/*# sourceMappingURL=components_dental_plan_plan-print-styles_css_bad6b30c._.single.css.map*/

@@ -1,0 +1,388 @@
+/* [project]/components/rx/rxpad/RxPadSection.module.scss.module.css [app-client] (css) */
+.RxPadSection-module-scss-module__KQbq1q__section {
+  border: 1px solid var(--tp-slate-100);
+  background: #fff;
+  border-radius: 16px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__headerRow {
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+  padding: 18px 18px 0;
+  display: flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__titleCluster {
+  align-items: center;
+  gap: 4px;
+  display: inline-flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__iconWrap {
+  width: 32px;
+  height: 32px;
+  color: var(--tp-violet-500);
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__title {
+  color: var(--tp-slate-700);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  font-family: Inter, var(--font-body), ui-sans-serif, sans-serif;
+  letter-spacing: .1px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__actions {
+  align-items: center;
+  gap: 14px;
+  display: inline-flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__iconBtn {
+  background: var(--tp-slate-100);
+  width: 32px;
+  height: 32px;
+  color: var(--tp-slate-700);
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  transition: background-color .15s;
+  display: inline-flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__iconBtn:hover {
+  background: var(--tp-slate-200);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__iconBtn:disabled {
+  cursor: not-allowed;
+  opacity: .4;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__autofillWrap {
+  padding: 8px 18px 0;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__autofillBtn {
+  background: linear-gradient(to right, var(--tp-success-500), var(--tp-success-400));
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  border-radius: 9999px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  transition: opacity .15s;
+  display: inline-flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__autofillBtn:hover {
+  opacity: .9;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__autofillDot {
+  background: #fffc;
+  border-radius: 9999px;
+  width: 6px;
+  height: 6px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__body {
+  padding: 18px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__chipStack {
+  flex-direction: column;
+  gap: 8px;
+  display: flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__searchWrap {
+  position: relative;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__searchIcon {
+  color: var(--tp-slate-400);
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__searchInput {
+  border: 1px solid var(--tp-slate-200);
+  background: var(--tp-slate-50);
+  width: 100%;
+  color: var(--tp-slate-800);
+  border-radius: 8px;
+  padding: 8px 12px 8px 36px;
+  font-size: 12px;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__searchInput::placeholder {
+  color: var(--tp-slate-400);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__searchInput:focus {
+  border-color: var(--tp-blue-300);
+  background: #fff;
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f633;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__suggestRow {
+  flex-wrap: wrap;
+  gap: 6px;
+  display: flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__suggestChip {
+  border: 1px solid var(--tp-slate-200);
+  background: var(--tp-slate-50);
+  color: var(--tp-slate-600);
+  cursor: pointer;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  transition: border-color .15s, background-color .15s, color .15s;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__suggestChip:hover {
+  border-color: var(--tp-blue-300);
+  background: var(--tp-blue-50);
+  color: var(--tp-blue-600);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__selectedRow {
+  border-top: 1px solid var(--tp-slate-100);
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+  display: flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__selectedChip {
+  background: var(--tp-blue-50);
+  border: 1px solid var(--tp-blue-200);
+  color: var(--tp-blue-700);
+  border-radius: 9999px;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__chipRemove {
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 9999px;
+  padding: 2px;
+  line-height: 0;
+  transition: background-color .15s;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__chipRemove:hover {
+  background: var(--tp-blue-100);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medStack {
+  flex-direction: column;
+  gap: 8px;
+  display: flex;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__tableScroll {
+  border: 1px solid var(--tp-slate-200);
+  border-radius: 8px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__table {
+  width: 100%;
+  font-size: 12px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__theadRow {
+  background: var(--tp-slate-50);
+  color: var(--tp-slate-500);
+  font-family: Inter, ui-sans-serif, sans-serif;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__th {
+  text-align: left;
+  padding: 8px;
+  font-weight: 600;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__thNarrow {
+  width: 4%;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__thMed {
+  min-width: 160px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__thSmall {
+  min-width: 80px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__thWhen {
+  min-width: 90px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__thDur {
+  min-width: 80px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__thNote {
+  min-width: 60px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__thTrash {
+  width: 40px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medActionTh {
+  z-index: 2;
+  background: var(--tp-slate-50);
+  border-left: 1px solid #e2e8f0cc;
+  min-width: 40px;
+  position: sticky;
+  right: 0;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medActionTd {
+  z-index: 2;
+  background: #fff;
+  border-left: 1px solid #e2e8f0cc;
+  position: sticky;
+  right: 0;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medActionThEdge {
+  box-shadow: -8px 7px 14px -12px #0f172a2e;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medActionThEdge:before {
+  content: "";
+  pointer-events: none;
+  inset-block: 0;
+  background: linear-gradient(to left, #0f172a14, #0000);
+  width: 8px;
+  position: absolute;
+  left: -8px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medActionTdEdge {
+  box-shadow: -8px 7px 14px -12px #0f172a2e;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medActionTdEdge:before {
+  content: "";
+  pointer-events: none;
+  inset-block: 0;
+  background: linear-gradient(to left, #0f172a14, #0000);
+  width: 8px;
+  position: absolute;
+  left: -8px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__tbodyRow {
+  border-top: 1px solid var(--tp-slate-100);
+  transition: background-color .15s;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__tbodyRow:hover, .RxPadSection-module-scss-module__KQbq1q__tbodyRow:hover .RxPadSection-module-scss-module__KQbq1q__medActionTd {
+  background: #f8fafc80;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__td {
+  padding: 6px 8px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__dragCell {
+  color: var(--tp-slate-400);
+  cursor: grab;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medName {
+  color: var(--tp-slate-800);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__tdMuted {
+  color: var(--tp-slate-700);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__freqPill {
+  border: 1px solid var(--tp-slate-200);
+  color: var(--tp-slate-700);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__notePill {
+  background: var(--tp-slate-100);
+  color: var(--tp-slate-500);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__rowDelete {
+  color: var(--tp-slate-400);
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  transition: background-color .15s, color .15s;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__rowDelete:hover {
+  background: var(--tp-error-50);
+  color: var(--tp-error-500);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medSearchWrap {
+  position: relative;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medSearchInput {
+  border: 1px solid var(--tp-slate-200);
+  background: var(--tp-slate-50);
+  width: 100%;
+  color: var(--tp-slate-800);
+  border-radius: 8px;
+  padding: 8px 12px 8px 36px;
+  font-size: 12px;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medSearchInput::placeholder {
+  color: var(--tp-slate-400);
+}
+
+.RxPadSection-module-scss-module__KQbq1q__medSearchInput:focus {
+  border-color: var(--tp-blue-300);
+  background: #fff;
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f633;
+}
+
+/*# sourceMappingURL=components_rx_rxpad_RxPadSection_module_scss_module_css_bad6b30c._.single.css.map*/

@@ -1,0 +1,567 @@
+/* [project]/components/tp-rxpad/secondary-sidebar/content/PastVisitsContent.module.scss.module.css [app-client] (css) */
+.PastVisitsContent-module-scss-module___3p3tq__metaMuted {
+  color: var(--tp-slate-400);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__metaSep {
+  color: var(--tp-slate-300);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__inlineFlexCenter {
+  align-items: center;
+  display: inline-flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__interactiveGroup:hover .PastVisitsContent-module-scss-module___3p3tq__copyPeek, .PastVisitsContent-module-scss-module___3p3tq__interactiveGroup:focus-within .PastVisitsContent-module-scss-module___3p3tq__copyPeek {
+  opacity: 1;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyBtn {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  justify-content: center;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  transition: background-color .15s, color .15s, opacity .15s;
+  display: inline-flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyBtnIdle {
+  color: var(--tp-blue-500);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyBtnIdle:hover {
+  background: var(--tp-blue-50);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyBtnIdle:active {
+  background: var(--tp-blue-100);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyBtnSuccess {
+  background: var(--tp-success-50);
+  color: var(--tp-success-600);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyPeek {
+  opacity: 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyTouchHide {
+  pointer-events: none;
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__copyVisible {
+  opacity: 1;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__pushEnd {
+  margin-inline-start: auto;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tooltipDark {
+  background: var(--tp-slate-900);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tapTooltipPanel {
+  border: 1px solid var(--tp-slate-200);
+  max-width: 180px;
+  color: var(--tp-slate-700);
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 16px;
+  box-shadow: 0 10px 15px -3px #0000001a;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tapTooltipRow {
+  align-items: center;
+  gap: 8px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tapTooltipText {
+  flex: 1;
+  min-width: 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tapCopyAction {
+  border: 1px solid var(--tp-blue-200);
+  background: var(--tp-blue-50);
+  color: var(--tp-blue-600);
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tapTriggerReset {
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__medIcon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dateHead {
+  background: var(--tp-slate-100);
+  z-index: 4;
+  text-align: left;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: 100%;
+  position: sticky;
+  top: 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dateHeadStuck {
+  border-radius: 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dateHeadOpen {
+  border-radius: 10px 10px 0 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dateHeadCollapsed {
+  border-radius: 10px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dateHeadRow {
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dateHeadLeft {
+  align-items: center;
+  gap: 6px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dateHeadTitle {
+  color: var(--tp-slate-700);
+  letter-spacing: .012px;
+  white-space: nowrap;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__chevronBox {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  position: relative;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tabStripWrap {
+  z-index: 3;
+  background: #fff;
+  flex-shrink: 0;
+  width: 100%;
+  position: sticky;
+  top: 34px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tabStripInner {
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  padding: 10px 8px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tabBtn {
+  text-align: center;
+  letter-spacing: .05px;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  flex: 1;
+  padding: 4px 0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tabBtnLeft {
+  border-radius: 5px 0 0 5px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tabBtnRight {
+  border-radius: 0 5px 5px 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tabLabelOn {
+  color: #fff;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__tabLabelOff {
+  color: var(--tp-slate-700);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__sectionBlock {
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  display: flex;
+  position: relative;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__sectionHead {
+  align-items: center;
+  gap: 6px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__iconBox16 {
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 16px;
+  height: 16px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__sectionTitle {
+  color: var(--tp-slate-700);
+  letter-spacing: .012px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__listUl {
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-inline-start: 18px;
+  list-style: outside;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__listLi {
+  color: var(--tp-slate-700);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__listLi::marker {
+  color: var(--tp-slate-500);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__listItemRow {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__itemTapWrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__itemLabelBlock {
+  min-width: 0;
+  display: block;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__itemLabelStrong {
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__itemMetaInline {
+  margin-inline-start: 4px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__bodyTextMuted {
+  color: var(--tp-slate-600);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__bodyPl {
+  width: 100%;
+  padding-inline-start: 18px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dentalUl {
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-inline-start: 18px;
+  list-style: outside;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dentalLi {
+  color: var(--tp-slate-600);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dentalLi::marker {
+  color: var(--tp-slate-500);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dentalLabel {
+  color: var(--tp-slate-700);
+  font-weight: 500;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dentalValue {
+  color: var(--tp-slate-700);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dentalComma {
+  color: var(--tp-slate-400);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenBtn {
+  border: 1px solid var(--tp-slate-100);
+  text-align: left;
+  cursor: pointer;
+  background: #fff;
+  border-radius: 10px;
+  width: 100%;
+  padding: 0;
+  transition: border-color .15s;
+  overflow: hidden;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenBtn:hover {
+  border-color: var(--tp-blue-200);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenThumb {
+  background: var(--tp-slate-50);
+  width: 100%;
+  height: 88px;
+  overflow: hidden;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenImg {
+  object-fit: cover;
+  opacity: .85;
+  width: 100%;
+  height: 100%;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenFooter {
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenTextCol {
+  min-width: 0;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenTitle {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  overflow: hidden;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenDesc {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tp-slate-400);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  overflow: hidden;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__menuTriggerIcon {
+  width: 28px;
+  height: 28px;
+  color: var(--tp-slate-600);
+  cursor: pointer;
+  border-radius: 6px;
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__menuTriggerIcon:hover {
+  background: var(--tp-slate-100);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__menuNarrow {
+  width: 10rem;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__scrollFlex {
+  flex: 1 0 0;
+  width: 100%;
+  min-width: 1px;
+  min-height: 1px;
+  position: relative;
+  overflow-y: auto;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__innerStack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  display: flex;
+  position: relative;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__visitCard {
+  flex-shrink: 0;
+  width: 100%;
+  position: relative;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__dentalStack {
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 10px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__emptyClinical {
+  padding: 10px 12px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__emptyClinicalText {
+  color: var(--tp-slate-400);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__writtenStack {
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__drawerSheet {
+  width: min(90vw, 860px);
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .PastVisitsContent-module-scss-module___3p3tq__drawerSheet {
+    max-width: none;
+  }
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__drawerHeader {
+  flex-direction: column;
+  gap: 12px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__drawerActions {
+  align-items: center;
+  gap: 8px;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__drawerActionBtn {
+  border: 1px solid var(--tp-slate-200);
+  color: var(--tp-slate-700);
+  cursor: pointer;
+  background: #fff;
+  border-radius: 6px;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__drawerActionBtn:hover {
+  background: var(--tp-slate-50);
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__pdfPane {
+  background: var(--tp-slate-50);
+  height: calc(100vh - 128px);
+  padding: 16px;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__pdfObject {
+  border: 1px solid var(--tp-slate-200);
+  background: #fff;
+  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__pdfFallback {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  display: flex;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__pdfFallbackImg {
+  border: 1px solid var(--tp-slate-200);
+  border-radius: 6px;
+  width: auto;
+  max-height: 70vh;
+}
+
+.PastVisitsContent-module-scss-module___3p3tq__pdfFallbackText {
+  color: var(--tp-slate-500);
+  font-size: 14px;
+}
+
+/*# sourceMappingURL=3b295_secondary-sidebar_content_PastVisitsContent_module_scss_module_css_bad6b30c._.single.css.map*/

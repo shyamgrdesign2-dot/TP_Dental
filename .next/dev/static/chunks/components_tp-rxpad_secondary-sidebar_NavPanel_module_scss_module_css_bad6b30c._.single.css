@@ -1,0 +1,157 @@
+/* [project]/components/tp-rxpad/secondary-sidebar/NavPanel.module.scss.module.css [app-client] (css) */
+.NavPanel-module-scss-module__6EPyOq__root {
+  flex-shrink: 0;
+  height: 100%;
+  position: relative;
+}
+
+.NavPanel-module-scss-module__6EPyOq__scrollArea {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  display: flex;
+  position: relative;
+  overflow: visible auto;
+}
+
+.NavPanel-module-scss-module__6EPyOq__scrollArea::-webkit-scrollbar {
+  display: none;
+}
+
+.NavPanel-module-scss-module__6EPyOq__navItemRoot {
+  cursor: pointer;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.NavPanel-module-scss-module__6EPyOq__navRow {
+  align-items: center;
+  width: 100%;
+  display: flex;
+  position: relative;
+}
+
+.NavPanel-module-scss-module__6EPyOq__navCol {
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  display: flex;
+  position: relative;
+}
+
+.NavPanel-module-scss-module__6EPyOq__activeBar {
+  background: #fff;
+  border-radius: 0 12px 12px 0;
+  width: 3px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.NavPanel-module-scss-module__6EPyOq__selectionArrow {
+  pointer-events: none;
+  z-index: 20;
+  border-top: 8px solid #0000;
+  border-bottom: 8px solid #0000;
+  border-right: 8px solid #fff;
+  width: 0;
+  height: 0;
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  transform: translateY(-50%);
+}
+
+.NavPanel-module-scss-module__6EPyOq__navDividerOuter {
+  flex-shrink: 0;
+  width: 100%;
+  height: 0;
+  position: relative;
+}
+
+.NavPanel-module-scss-module__6EPyOq__navDividerSvgWrap {
+  position: absolute;
+  inset: -1px 0 0;
+}
+
+.NavPanel-module-scss-module__6EPyOq__navDividerSvg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.NavPanel-module-scss-module__6EPyOq__navLabel {
+  text-align: center;
+  text-overflow: ellipsis;
+  color: #fff;
+  white-space: pre-wrap;
+  flex-shrink: 0;
+  width: min-content;
+  min-width: 100%;
+  font-style: normal;
+  position: relative;
+  overflow: hidden;
+}
+
+.NavPanel-module-scss-module__6EPyOq__drGlyph {
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  position: relative;
+  overflow: hidden;
+}
+
+.NavPanel-module-scss-module__6EPyOq__drGlyphSvg {
+  width: 18px;
+  height: 18px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.NavPanel-module-scss-module__6EPyOq__linkFull {
+  width: 100%;
+  display: flex;
+}
+
+.NavPanel-module-scss-module__6EPyOq__scrollHint {
+  pointer-events: none;
+  inset-inline: 0;
+  z-index: 30;
+  background: linear-gradient(to top, #2a2996e6, #2a299673, #0000);
+  justify-content: center;
+  align-items: flex-end;
+  height: 4rem;
+  padding-bottom: 8px;
+  display: flex;
+  position: absolute;
+  bottom: 0;
+}
+
+.NavPanel-module-scss-module__6EPyOq__scrollHintBtn {
+  background: #ffffff26;
+  border-radius: 9999px;
+  justify-content: center;
+  align-items: center;
+  width: 28px;
+  height: 28px;
+  animation: 1s infinite NavPanel-module-scss-module__6EPyOq__navBounce;
+  display: inline-flex;
+}
+
+@keyframes NavPanel-module-scss-module__6EPyOq__navBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/*# sourceMappingURL=components_tp-rxpad_secondary-sidebar_NavPanel_module_scss_module_css_bad6b30c._.single.css.map*/

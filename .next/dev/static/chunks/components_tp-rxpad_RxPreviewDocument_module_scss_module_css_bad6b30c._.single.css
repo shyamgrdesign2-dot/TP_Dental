@@ -1,0 +1,324 @@
+/* [project]/components/tp-rxpad/RxPreviewDocument.module.scss.module.css [app-client] (css) */
+.RxPreviewDocument-module-scss-module__FSk_1W__page {
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__sheet {
+  aspect-ratio: 210 / 297;
+  background: #fff;
+  border-radius: 14px;
+  flex-direction: column;
+  width: 100%;
+  padding: 16px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 1px 2px #10182814;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__sheetBody {
+  flex: 1;
+  overflow: hidden;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__emptyPad {
+  padding: 20px 0;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__emptyText {
+  color: var(--tp-slate-600);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__contentStack {
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__metaMuted {
+  color: var(--tp-slate-500);
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__metaSep {
+  color: var(--tp-slate-400);
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__section {
+  flex-direction: column;
+  gap: 4px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__sectionHead {
+  align-items: center;
+  gap: 5px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__icon14 {
+  justify-content: center;
+  align-items: center;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__medIcon14 {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__sectionTitle {
+  color: var(--tp-slate-900);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__list {
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-inline-start: 18px;
+  list-style: outside;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__listLi {
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__listLi::marker {
+  color: var(--tp-slate-500);
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__rowTitle {
+  color: var(--tp-slate-900);
+  font-weight: 500;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__letterhead {
+  background: color-mix(in srgb, var(--tp-slate-100) 60%, transparent);
+  border-radius: 6px;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__letterRow {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__letterLeft {
+  align-items: flex-start;
+  gap: 12px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__logoBox {
+  background: var(--tp-blue-50);
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+  width: 64px;
+  height: 64px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__buildingIcon {
+  color: var(--tp-blue-600);
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__clinicName {
+  color: var(--tp-blue-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__docLine {
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__metaLine {
+  color: var(--tp-slate-600);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__rule {
+  background: var(--tp-slate-300);
+  width: 100%;
+  height: 1px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__patientSection {
+  padding: 8px 0;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__patientRow {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__patientCol {
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__patientLine {
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__patientStrong {
+  color: var(--tp-slate-900);
+  font-weight: 600;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__patientRight {
+  text-align: right;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 2px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__footer {
+  padding-top: 10px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__footerText {
+  text-align: right;
+  color: var(--tp-slate-500);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__dentalSection {
+  flex-direction: column;
+  gap: 6px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__dentalTitle {
+  color: var(--tp-slate-900);
+  align-items: center;
+  gap: 5px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__dentalDate {
+  color: var(--tp-slate-600);
+  font-weight: 500;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__dentalBlocks {
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 6px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__toothBlock {
+  flex-direction: column;
+  gap: 2px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__toothLabel {
+  color: var(--tp-slate-900);
+  padding-left: 12px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__bullet {
+  color: var(--tp-slate-500);
+  margin-right: 6px;
+  font-size: 10px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__subBullet {
+  color: var(--tp-slate-400);
+  margin-right: 6px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__subStack {
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 18px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__subLine {
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__subStrong {
+  color: var(--tp-slate-900);
+  font-weight: 500;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__comma {
+  color: var(--tp-slate-400);
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__miniSection {
+  flex-direction: column;
+  gap: 2px;
+  display: flex;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__miniBody {
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.RxPreviewDocument-module-scss-module__FSk_1W__continueBody {
+  flex: 1;
+  padding: 8px 0;
+  overflow: hidden;
+}
+
+/*# sourceMappingURL=components_tp-rxpad_RxPreviewDocument_module_scss_module_css_bad6b30c._.single.css.map*/

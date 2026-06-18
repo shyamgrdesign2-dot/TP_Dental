@@ -1,0 +1,34 @@
+/* [project]/components/tp-ui/TPRxPadShell.module.scss.module.css [app-client] (css) */
+.TPRxPadShell-module-scss-module__FLUucW__root {
+  background: var(--tp-slate-100);
+  flex-direction: column;
+  min-height: 100vh;
+  display: flex;
+}
+
+.TPRxPadShell-module-scss-module__FLUucW__bodyRow {
+  height: calc(100vh - 62px);
+  display: flex;
+  overflow: hidden;
+}
+
+.TPRxPadShell-module-scss-module__FLUucW__aside {
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.TPRxPadShell-module-scss-module__FLUucW__main {
+  background: var(--tp-slate-100);
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.TPRxPadShell-module-scss-module__FLUucW__drAgentAside {
+  min-width: 0;
+}
+
+/*# sourceMappingURL=components_tp-ui_TPRxPadShell_module_scss_module_css_bad6b30c._.single.css.map*/

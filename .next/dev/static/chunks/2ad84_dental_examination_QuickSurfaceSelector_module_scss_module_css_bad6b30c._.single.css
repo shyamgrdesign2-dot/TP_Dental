@@ -1,0 +1,67 @@
+/* [project]/components/dental/examination/QuickSurfaceSelector.module.scss.module.css [app-client] (css) */
+.QuickSurfaceSelector-module-scss-module__Xb2rWW__root {
+  pointer-events: auto;
+  flex-direction: column;
+  align-items: center;
+  width: 65px;
+  padding: 0;
+  display: flex;
+  position: relative;
+}
+
+.QuickSurfaceSelector-module-scss-module__Xb2rWW__svg {
+  box-sizing: content-box;
+  filter: drop-shadow(0 1px 2px #00000014);
+  width: 76px;
+  height: auto;
+  max-height: 164px;
+  padding: 0 10px 5px;
+  display: block;
+}
+
+.QuickSurfaceSelector-module-scss-module__Xb2rWW__tooltipHost {
+  pointer-events: none;
+  animation: .12s ease-out QuickSurfaceSelector-module-scss-module__Xb2rWW__qssTooltipFadeIn;
+}
+
+.QuickSurfaceSelector-module-scss-module__Xb2rWW__tooltipBubble {
+  color: #f1f5f9;
+  white-space: nowrap;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  letter-spacing: .2px;
+  background: #0f172aeb;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  position: relative;
+  box-shadow: 0 2px 8px #0000002e;
+}
+
+.QuickSurfaceSelector-module-scss-module__Xb2rWW__tooltipArrow {
+  border-top: 5px solid #0f172aeb;
+  border-left: 5px solid #0000;
+  border-right: 5px solid #0000;
+  width: 0;
+  height: 0;
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@keyframes QuickSurfaceSelector-module-scss-module__Xb2rWW__qssTooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%)translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%)translateY(0);
+  }
+}
+
+/*# sourceMappingURL=2ad84_dental_examination_QuickSurfaceSelector_module_scss_module_css_bad6b30c._.single.css.map*/

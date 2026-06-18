@@ -1,0 +1,123 @@
+/* [project]/components/dental/examination/DentalCanvas.module.scss.module.css [app-client] (css) */
+.DentalCanvas-module-scss-module__EArrsa__patientTypeHost {
+  z-index: 20;
+  position: absolute;
+  top: 12px;
+  right: 16px;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__patientTypeTrack {
+  color: #a0a0a7;
+  background: #e9e9ef;
+  border-radius: 10px;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 3px;
+  display: inline-flex;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__patientTypeBtn {
+  cursor: pointer;
+  height: 30px;
+  color: var(--tp-slate-500);
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  transition: color .15s, background-color .15s;
+  position: relative;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__patientTypeBtn:hover {
+  color: var(--tp-slate-700);
+  background: #ffffffb3;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__patientTypeBtnActive {
+  color: var(--tp-slate-800);
+  pointer-events: none;
+  background: #fff;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeHost {
+  z-index: 20;
+  justify-content: flex-end;
+  display: flex;
+  position: absolute;
+  inset: auto 16px 16px;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeTrack {
+  max-width: 100%;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: none;
+  border: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px 0;
+  padding: 0;
+  display: flex;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeDivider {
+  opacity: .45;
+  background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--tp-slate-300) 55%, transparent) 45%, color-mix(in srgb, var(--tp-slate-300) 55%, transparent) 55%, transparent 100%);
+  flex-shrink: 0;
+  width: 1px;
+  height: 14px;
+  margin: 0 1px;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeBtn {
+  letter-spacing: .02em;
+  cursor: pointer;
+  min-height: 28px;
+  color: var(--tp-slate-600);
+  box-shadow: none;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-family: Inter, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: color .12s, background-color .12s;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeBtn:hover {
+  color: var(--tp-blue-700);
+  background: color-mix(in srgb, var(--tp-blue-50) 80%, transparent);
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeBtn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tp-blue-500) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeBtnActive {
+  color: var(--tp-blue-700);
+  box-shadow: inset 0 -2px 0 0 var(--tp-blue-600);
+  background: none;
+  font-weight: 700;
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeBtnActive:hover {
+  color: var(--tp-blue-700);
+  background: color-mix(in srgb, var(--tp-blue-50) 55%, transparent);
+}
+
+.DentalCanvas-module-scss-module__EArrsa__scopeBtnCompact {
+  min-height: 24px;
+  padding: 2px 7px;
+  font-size: 9px;
+}
+
+/*# sourceMappingURL=components_dental_examination_DentalCanvas_module_scss_module_css_bad6b30c._.single.css.map*/

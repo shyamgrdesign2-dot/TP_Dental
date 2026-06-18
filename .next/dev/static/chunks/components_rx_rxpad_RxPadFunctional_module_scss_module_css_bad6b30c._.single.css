@@ -1,0 +1,631 @@
+/* [project]/components/rx/rxpad/RxPadFunctional.module.scss.module.css [app-client] (css) */
+.RxPadFunctional-module-scss-module__ozelpq__moduleStack {
+  flex-direction: column;
+  gap: 18px;
+  display: flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tableWrap {
+  border: 1px solid var(--tp-slate-100);
+  border-radius: 10px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__dataTable {
+  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__theadRow {
+  background: var(--tp-slate-50);
+  height: 38px;
+  color: var(--tp-slate-500);
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 12px;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__thSide {
+  border-right: 1px solid var(--tp-slate-100);
+  text-align: center;
+  padding: 8px 0;
+  font-weight: 600;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__thData {
+  border-right: 1px solid var(--tp-slate-100);
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__thSticky {
+  text-align: center;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  position: relative;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__stickyTh {
+  z-index: 40;
+  background: var(--tp-slate-50);
+  border-left: 1px solid #e2e8f0cc;
+  position: sticky;
+  right: 0;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__stickyTd {
+  z-index: 40;
+  background: #fff;
+  border-left: 1px solid #e2e8f0cc;
+  position: sticky;
+  right: 0;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__stickyThEdge {
+  box-shadow: -8px 7px 14px -12px #0f172a2e;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__stickyThEdge:before {
+  content: "";
+  pointer-events: none;
+  inset-block: 0;
+  background: linear-gradient(to left, #0f172a14, #0000);
+  width: 8px;
+  position: absolute;
+  left: -8px;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__stickyTdEdge {
+  box-shadow: -8px 7px 14px -12px #0f172a2e;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__stickyTdEdge:before {
+  content: "";
+  pointer-events: none;
+  inset-block: 0;
+  background: linear-gradient(to left, #0f172a14, #0000);
+  width: 8px;
+  position: absolute;
+  left: -8px;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tr {
+  border-top: 1px solid var(--tp-slate-100);
+  vertical-align: middle;
+  will-change: transform;
+  background: #fff;
+  height: 52px;
+  transition: background-color .15s, transform .15s;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__trDragging {
+  background: #eff6ff73;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__trDrop {
+  background: #eff6ffa6;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__trHover:hover {
+  background: #f8fafc80;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__trRxEnter {
+  animation: .55s cubic-bezier(.22, 1, .36, 1) both RxPadFunctional-module-scss-module__ozelpq__rxRowEnter;
+}
+
+@keyframes RxPadFunctional-module-scss-module__ozelpq__rxRowEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tdSide {
+  border-right: 1px solid var(--tp-slate-100);
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__dragHandle {
+  cursor: grab;
+  background: none;
+  border: none;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 52px;
+  transition: background-color .15s, color .15s;
+  display: inline-flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__dragHandle:active {
+  cursor: grabbing;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__dragHandleActive {
+  background: var(--tp-blue-50);
+  color: var(--tp-blue-600);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__dragHandleIdle {
+  color: var(--tp-slate-400);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__dragHandleIdle:hover {
+  background: var(--tp-slate-100);
+  color: var(--tp-slate-600);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tdCell {
+  border-right: 1px solid var(--tp-slate-100);
+  vertical-align: middle;
+  padding: 0;
+  transition: background-color .15s;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tdCellActive {
+  background: #eff6ff33;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__cellShell {
+  height: 52px;
+  position: relative;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__focusRing {
+  pointer-events: none;
+  z-index: 10;
+  border: 1px solid var(--tp-blue-500);
+  border-radius: 6px;
+  position: absolute;
+  inset: 2px;
+  box-shadow: 0 0 0 2px #4b4ad529;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__fieldInput {
+  color: #454551;
+  z-index: 20;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  width: 100%;
+  height: 52px;
+  padding: 0 12px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  position: relative;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__fieldInput:focus {
+  box-shadow: none;
+  background: #eff6ff4d;
+  outline: none;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__fieldWithDropdown {
+  padding-right: 32px;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__fieldTruncate {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__fieldMultiline {
+  white-space: normal;
+  overflow-wrap: break-word;
+  padding-block: 10px;
+  line-height: 18px;
+  overflow: hidden;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__dropdownToggle {
+  z-index: 10;
+  width: 20px;
+  height: 20px;
+  color: var(--tp-slate-500);
+  cursor: pointer;
+  background: none;
+  border: none;
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__chevron {
+  transition: transform .15s;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__chevronOpen {
+  transform: rotate(180deg);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tdAction {
+  text-align: center;
+  vertical-align: middle;
+  padding: 0;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__deleteRow {
+  width: 100%;
+  height: 52px;
+  color: var(--tp-slate-700);
+  cursor: pointer;
+  background: none;
+  border: none;
+  justify-content: center;
+  align-items: center;
+  transition: background-color .15s, color .15s;
+  display: inline-flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__deleteRow:hover {
+  background: var(--tp-slate-100);
+  color: var(--tp-slate-700);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tabletChips {
+  flex-wrap: wrap;
+  gap: 12px;
+  display: flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tabletChip {
+  background: var(--tp-slate-100);
+  height: 36px;
+  color: var(--tp-slate-600);
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color .15s, color .15s;
+  display: inline-flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__tabletChip:hover {
+  background: var(--tp-slate-200);
+  color: var(--tp-slate-700);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__portalMenu {
+  z-index: 130;
+  border: 1px solid var(--tp-slate-100);
+  background: #fff;
+  border-radius: 10px;
+  flex-direction: column;
+  display: flex;
+  position: fixed;
+  overflow: hidden;
+  box-shadow: 0 10px 15px -3px #0000001a;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuSectionHeader {
+  border-bottom: 1px solid var(--tp-slate-100);
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  display: flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuSectionLabel {
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--tp-slate-400);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuListWrap {
+  position: relative;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuList {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: #f8fafc59;
+  max-height: 220px;
+  padding: 8px 8px 8px 4px;
+  overflow-y: auto;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuList::-webkit-scrollbar {
+  display: none;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuListSpaced {
+  flex-direction: column;
+  gap: 2px;
+  display: flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuEmpty {
+  color: var(--tp-slate-400);
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuSearchIcon {
+  color: var(--tp-slate-400);
+  opacity: .9;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuOption {
+  text-align: left;
+  width: 100%;
+  color: var(--tp-slate-700);
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color .15s;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuOption:hover {
+  background: var(--tp-slate-100);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuOptionHi {
+  background: var(--tp-slate-100);
+  color: var(--tp-slate-700);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__scrollTrack {
+  pointer-events: none;
+  background: #e2e8f0e6;
+  border-radius: 9999px;
+  width: 3px;
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: 4px;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__scrollThumb {
+  pointer-events: none;
+  background: #94a3b8cc;
+  border-radius: 9999px;
+  width: 3px;
+  position: absolute;
+  right: 4px;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__menuFooter {
+  border-top: 1px solid var(--tp-slate-100);
+  color: var(--tp-slate-500);
+  background: #fff;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  font-size: 11px;
+  display: flex;
+  position: sticky;
+  bottom: 0;
+}
+
+@media (max-width: 1023px) {
+  .RxPadFunctional-module-scss-module__ozelpq__menuFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__customAdd {
+  border: 1px dashed var(--tp-blue-200);
+  cursor: pointer;
+  color: var(--tp-blue-600);
+  background: #eff6ff99;
+  border-radius: 8px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color .15s;
+  display: inline-flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__customAdd:hover {
+  background: var(--tp-blue-50);
+}
+
+@media (max-width: 1023px) {
+  .RxPadFunctional-module-scss-module__ozelpq__customAdd {
+    order: 1;
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__customAddHi {
+  border-color: var(--tp-blue-300);
+  background: var(--tp-blue-50);
+  color: var(--tp-blue-700);
+  border-style: dashed;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__customTruncate {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+}
+
+@media (max-width: 1023px) {
+  .RxPadFunctional-module-scss-module__ozelpq__customTruncate {
+    max-width: none;
+  }
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__hintRow {
+  align-items: center;
+  gap: 12px;
+  display: flex;
+}
+
+@media (max-width: 1023px) {
+  .RxPadFunctional-module-scss-module__ozelpq__hintRow {
+    flex-wrap: wrap;
+    order: 2;
+  }
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__hintItem {
+  align-items: center;
+  gap: 4px;
+  display: inline-flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__kbd {
+  border: 1px solid var(--tp-slate-200);
+  background: var(--tp-slate-50);
+  color: var(--tp-slate-600);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__rxRoot {
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  display: flex;
+}
+
+@media (max-width: 1023px) {
+  .RxPadFunctional-module-scss-module__ozelpq__rxRoot {
+    padding: 12px;
+  }
+}
+
+:is(.RxPadFunctional-module-scss-module__ozelpq__rxRoot input, .RxPadFunctional-module-scss-module__ozelpq__rxRoot textarea) {
+  caret-color: var(--tp-blue-500);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__notesGrid {
+  grid-template-columns: 1fr;
+  gap: 16px;
+  display: grid;
+}
+
+@media (min-width: 1280px) {
+  .RxPadFunctional-module-scss-module__ozelpq__notesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__notesTextarea {
+  border: 1px solid var(--tp-slate-300);
+  width: 100%;
+  color: var(--tp-slate-700);
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__notesTextarea::placeholder {
+  color: var(--tp-slate-400);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__notesTextarea:hover {
+  border-color: var(--tp-slate-400);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__notesTextarea:focus {
+  border-color: var(--tp-blue-500);
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f633;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followStack {
+  flex-direction: column;
+  gap: 8px;
+  display: flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followInput {
+  border: 1px solid var(--tp-slate-300);
+  width: 100%;
+  height: 42px;
+  color: var(--tp-slate-700);
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followInput::placeholder {
+  color: var(--tp-slate-400);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followInput:hover {
+  border-color: var(--tp-slate-400);
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followInput:focus {
+  border-color: var(--tp-blue-500);
+  outline: none;
+  box-shadow: 0 0 0 2px #3b82f633;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followQuickRow {
+  flex-wrap: wrap;
+  gap: 8px;
+  display: flex;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followQuick {
+  border: 1px solid var(--tp-blue-200);
+  background: var(--tp-blue-50);
+  color: var(--tp-blue-600);
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color .15s;
+}
+
+.RxPadFunctional-module-scss-module__ozelpq__followQuick:hover {
+  background: var(--tp-blue-100);
+}
+
+/*# sourceMappingURL=components_rx_rxpad_RxPadFunctional_module_scss_module_css_bad6b30c._.single.css.map*/

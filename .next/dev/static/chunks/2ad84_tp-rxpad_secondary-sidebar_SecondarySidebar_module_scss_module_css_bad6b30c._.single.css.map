@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///turbopack:///[project]/components/tp-rxpad/secondary-sidebar/SecondarySidebar.module.scss"],"sourcesContent":[".root {\n  display: flex;\n  align-items: flex-start;\n  position: relative;\n  height: 100%;\n  overflow: visible;\n}\n"],"names":[],"mappings":"AAAA"}}]
+}

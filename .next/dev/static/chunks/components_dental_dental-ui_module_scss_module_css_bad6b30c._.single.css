@@ -1,0 +1,417 @@
+/* [project]/components/dental/dental-ui.module.scss.module.css [app-client] (css) */
+.dental-ui-module-scss-module__Y0ODAq__shellRoot {
+  background: #f1f1f5;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellHeader {
+  background: #fff;
+  flex-shrink: 0;
+  align-items: center;
+  width: 100%;
+  height: 62px;
+  display: flex;
+  position: relative;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellBackBtn {
+  cursor: pointer;
+  background: #fff;
+  border: 0;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 80px;
+  height: 62px;
+  padding: 20px 15px;
+  transition: background-color .15s;
+  display: flex;
+  position: relative;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellBackBtn:hover {
+  background: var(--tp-slate-50);
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellBackRule {
+  pointer-events: none;
+  border-right: .5px solid #f1f1f5;
+  position: absolute;
+  inset: 0 -.25px 0 0;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellTitleCol {
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 20px;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellTitle {
+  color: var(--tp-slate-900);
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellSubtitle {
+  color: var(--tp-slate-500);
+  font-family: Inter, sans-serif;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellNav {
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  width: 80px;
+  padding: 16px 0;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__shellMain {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavBtn {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 8px;
+  transition: color .15s;
+  display: flex;
+  position: relative;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavIconWrap {
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  transition: background-color .15s;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavIconOn {
+  background: #fff;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavIconOff {
+  background: #ffffff1a;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavLabel {
+  font-family: Inter, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavLabelOn {
+  color: #fff;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavLabelOff {
+  color: #ffffffbf;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabNavCaret {
+  pointer-events: none;
+  border-top: 8px solid #0000;
+  border-bottom: 8px solid #0000;
+  border-right: 8px solid var(--tp-slate-50);
+  width: 0;
+  height: 0;
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  transform: translateY(-50%);
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabPill {
+  white-space: nowrap;
+  cursor: pointer;
+  height: 42px;
+  color: var(--tp-slate-500);
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 20px;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all .15s;
+  display: inline-flex;
+  position: relative;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabPill:hover {
+  color: var(--tp-slate-700);
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabPillActive {
+  color: var(--tp-slate-900);
+  background: #fff;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabPillCount {
+  background: color-mix(in srgb, var(--tp-slate-200) 80%, transparent);
+  min-width: 20px;
+  height: 20px;
+  color: var(--tp-slate-400);
+  border-radius: 9999px;
+  justify-content: center;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tabPillCountActive {
+  background: var(--tp-blue-600);
+  color: #fff;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__sectionFrame {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__sectionFrameEmbed {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  padding: 16px 20px;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__emptyState {
+  text-align: center;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__emptyIcon {
+  color: var(--tp-slate-300);
+}
+
+.dental-ui-module-scss-module__Y0ODAq__emptyTitle {
+  color: var(--tp-slate-600);
+  font-family: Inter, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__emptyDesc {
+  color: var(--tp-slate-400);
+  margin-top: 4px;
+  font-family: Inter, sans-serif;
+  font-size: 15px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__emptyAction {
+  margin-top: 10px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__drawerHeader {
+  border-bottom: 1px solid color-mix(in srgb, var(--tp-slate-100) 70%, transparent);
+  background: #fff;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0;
+  height: 56px;
+  padding: 0 16px;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__drawerCloseBtn {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  transition: opacity .15s;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__drawerCloseBtn:hover {
+  opacity: .7;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__drawerDivider {
+  opacity: .8;
+  background: linear-gradient(#d0d5dd33 0%, #d0d5dd 50%, #d0d5dd33 100%);
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 1.05px;
+  margin: 0 12px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__drawerTitle {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  color: var(--tp-slate-900);
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__drawerAction {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpTabRoot {
+  background: #fff;
+  flex-direction: column;
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpTabRootEmbed {
+  background: #fff;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpTabHeader {
+  background: #fff;
+  flex-shrink: 0;
+  padding: 20px 24px 8px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpTabHeaderEmbed {
+  background: #fff;
+  padding: 16px 20px 8px;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpTabPills {
+  background: color-mix(in srgb, var(--tp-slate-200) 70%, transparent);
+  border-radius: 12px;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  display: inline-flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpTabBody {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpPageHeader {
+  border-bottom: 1px solid var(--tp-slate-100);
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpPageHeaderRow {
+  align-items: center;
+  height: 62px;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpPageTitleArea {
+  align-items: center;
+  padding: 0 16px;
+  display: flex;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpPageTitle {
+  color: var(--tp-slate-800);
+  font-family: Inter, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpPageBackIconWrap {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  position: relative;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpPageBackChevron {
+  opacity: .7;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__tpPageMain {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__planClusterShell {
+  background: #e7e8ea;
+  border-radius: 16px;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__planClusterInnerSurface {
+  z-index: 1;
+  background: none;
+  position: relative;
+}
+
+.dental-ui-module-scss-module__Y0ODAq__planClusterHeaderEstimates {
+  border-bottom: 1px solid color-mix(in srgb, var(--tp-slate-100) 88%, transparent);
+  background: linear-gradient(#ebebff 0%, #fff 100%);
+}
+
+.dental-ui-module-scss-module__Y0ODAq__planClusterHeaderActive {
+  text-align: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--tp-slate-100) 88%, transparent);
+  background: linear-gradient(#fffceb 0%, #fff 87%);
+}
+
+.dental-ui-module-scss-module__Y0ODAq__planClusterHeaderCompleted {
+  border-bottom: 1px solid color-mix(in srgb, var(--tp-slate-100) 88%, transparent);
+  background: #fff linear-gradient(#e0fff1 0%, #fff 87%);
+}
+
+/*# sourceMappingURL=components_dental_dental-ui_module_scss_module_css_bad6b30c._.single.css.map*/

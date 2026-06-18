@@ -1,0 +1,122 @@
+/* [project]/components/tp-rxpad/secondary-sidebar/ContentPanel.module.scss.module.css [app-client] (css) */
+.ContentPanel-module-scss-module__q1uIeG__panelRoot {
+  background: #fff;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: center;
+  width: 280px;
+  min-width: 250px;
+  max-width: 350px;
+  height: 100%;
+  display: flex;
+  position: relative;
+}
+
+@media (min-width: 1280px) {
+  .ContentPanel-module-scss-module__q1uIeG__panelRoot {
+    width: clamp(250px, 28vw, 350px);
+    max-width: 350px;
+  }
+}
+
+.ContentPanel-module-scss-module__q1uIeG__panelBorder {
+  pointer-events: none;
+  border-right: 1px solid var(--tp-slate-100);
+  position: absolute;
+  inset: 0 -1px 0 0;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__sectionHeaderRoot {
+  background-image: linear-gradient(101.381deg, #3736a6 2.0111%, #262688 83.764%);
+  flex-shrink: 0;
+  width: 100%;
+  height: 46px;
+  position: relative;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__sectionHeaderRow {
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  height: 100%;
+  padding: 8px 12px;
+  display: flex;
+  position: relative;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__sectionTitleWrap {
+  flex: 1 0 0;
+  align-items: center;
+  min-width: 1px;
+  min-height: 1px;
+  display: flex;
+  position: relative;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__sectionTitle {
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-style: normal;
+  position: relative;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__closeBtn {
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  flex-shrink: 0;
+  padding: 0;
+  transition: opacity .15s;
+  position: relative;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__closeBtn:hover {
+  opacity: .8;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__closeInner {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 3.36px;
+  display: flex;
+  position: relative;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__closeIconBox {
+  flex-shrink: 0;
+  width: 17.28px;
+  height: 17.28px;
+  position: relative;
+  overflow: clip;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__closeSvgAbs {
+  position: absolute;
+  inset: 12.5%;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__closeSvgFull {
+  width: 100%;
+  height: 100%;
+  display: block;
+  position: absolute;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__bodyFlex {
+  flex: 1 0 0;
+  width: 100%;
+  min-width: 1px;
+  min-height: 1px;
+  position: relative;
+}
+
+.ContentPanel-module-scss-module__q1uIeG__bodyAbs {
+  flex-direction: column;
+  display: flex;
+  position: absolute;
+  inset: 0;
+}
+
+/*# sourceMappingURL=2ad84_tp-rxpad_secondary-sidebar_ContentPanel_module_scss_module_css_bad6b30c._.single.css.map*/

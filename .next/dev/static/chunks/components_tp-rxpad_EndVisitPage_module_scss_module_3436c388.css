@@ -1,0 +1,326 @@
+/* [project]/components/tp-rxpad/EndVisitPage.module.scss.module.css [app-client] (css) */
+.EndVisitPage-module-scss-module__kGVa1a__page {
+  background: var(--tp-slate-100);
+  min-height: 100vh;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__header {
+  border-bottom: 1px solid color-mix(in srgb, var(--tp-slate-100) 70%, transparent);
+  background: #fff;
+  height: 62px;
+  padding-left: 0;
+  padding-right: 16px;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__headerInner {
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  margin-inline: auto;
+  display: flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__headerLeft {
+  align-items: center;
+  height: 100%;
+  display: inline-flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__backBtn {
+  cursor: pointer;
+  background: #fff;
+  border: 0;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 80px;
+  height: 62px;
+  padding: 20px 15px;
+  transition: background-color .15s;
+  display: flex;
+  position: relative;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__backBtn:hover {
+  background: var(--tp-slate-50);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__backBtnRule {
+  pointer-events: none;
+  border-right: .5px solid #f1f1f5;
+  position: absolute;
+  inset: 0 -.25px 0 0;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__backIconWrap {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  position: relative;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__patientRow {
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  display: inline-flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__avatar {
+  background: var(--tp-slate-100);
+  border-radius: 9999px;
+  justify-content: center;
+  align-items: center;
+  width: 42px;
+  height: 42px;
+  display: flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__patientName {
+  color: var(--tp-slate-700);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__patientMeta {
+  color: var(--tp-slate-600);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__headerRight {
+  align-items: center;
+  gap: 14px;
+  display: inline-flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__iconBtnTutorial {
+  color: #8a4dbb;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 10.5px;
+  justify-content: center;
+  align-items: center;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__iconBtnTutorial:hover {
+  background: var(--tp-slate-50);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__tutorialSvg {
+  width: 42px;
+  height: 42px;
+  display: block;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__dividerV {
+  opacity: .8;
+  background: linear-gradient(#d0d5dd33 0%, #d0d5dd 50%, #d0d5dd33 100%);
+  flex-shrink: 0;
+  width: 1.05px;
+  height: 42px;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__headerPillBtn {
+  background: var(--tp-slate-100);
+  height: 42px;
+  color: var(--tp-slate-700);
+  cursor: pointer;
+  border: 0;
+  border-radius: 10.5px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  transition: background-color .15s;
+  display: inline-flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__headerPillBtn:hover {
+  background: color-mix(in srgb, var(--tp-slate-200) 80%, transparent);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__pillBtnLabel {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__doneBtn {
+  background: var(--tp-blue-600);
+  color: #fff;
+  cursor: pointer;
+  border: 0;
+  border-radius: 10.5px;
+  justify-content: center;
+  align-items: center;
+  min-width: 100px;
+  height: 42px;
+  padding: 0 12px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__doneBtn:hover {
+  background: var(--tp-blue-700);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__dropdownPanel {
+  border: 1px solid color-mix(in srgb, var(--tp-slate-100) 70%, transparent);
+  background: #fff;
+  border-radius: 10px;
+  width: 170px;
+  padding: 4px;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__dropdownItem {
+  border-radius: 8px;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__dropdownItem:focus, .EndVisitPage-module-scss-module__kGVa1a__dropdownItem[data-highlighted] {
+  background: var(--tp-slate-100);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__main {
+  width: 100%;
+  height: calc(100vh - 62px);
+  display: flex;
+  overflow: hidden;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__sidebar {
+  background: #fff;
+  flex-shrink: 0;
+  width: 300px;
+  padding: 18px;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__sidebarStack {
+  flex-direction: column;
+  gap: 20px;
+  display: flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__previewSection {
+  background: var(--tp-slate-100);
+  flex: 1;
+  padding: 24px;
+  position: relative;
+  overflow: auto;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__actionTile {
+  border: 1px solid var(--tp-blue-500);
+  text-align: left;
+  cursor: pointer;
+  background: #fff;
+  border-radius: 10px;
+  width: 100%;
+  padding: 8px 16px;
+  transition: background-color .15s;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__actionTile:hover {
+  background: color-mix(in srgb, var(--tp-blue-50) 40%, transparent);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__actionTileInner {
+  justify-content: space-between;
+  align-items: center;
+  display: flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__actionTileLeft {
+  align-items: center;
+  gap: 6px;
+  display: inline-flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__actionIcon {
+  color: var(--tp-blue-500);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__actionLabel {
+  color: var(--tp-blue-500);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__chevronBlue {
+  color: var(--tp-blue-500);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertContent {
+  border-radius: 16px;
+  max-width: 420px;
+  padding: 24px;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertTitle {
+  color: var(--tp-slate-900);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertDesc {
+  color: var(--tp-slate-600);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertFooter {
+  gap: 10px;
+  margin-top: 18px;
+  display: flex;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertCancel {
+  border: 1px solid var(--tp-blue-500);
+  min-width: 100px;
+  height: 40px;
+  color: var(--tp-blue-500);
+  cursor: pointer;
+  background: #fff;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color .15s, border-color .15s;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertCancel:hover {
+  border-color: var(--tp-blue-500);
+  background: color-mix(in srgb, var(--tp-blue-50) 40%, transparent);
+  color: var(--tp-blue-500);
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertAction {
+  background: var(--tp-blue-600);
+  color: #fff;
+  cursor: pointer;
+  border: 0;
+  border-radius: 10px;
+  min-width: 100px;
+  height: 40px;
+  padding: 0 16px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.EndVisitPage-module-scss-module__kGVa1a__alertAction:hover {
+  background: var(--tp-blue-700);
+}
+
+/*# sourceMappingURL=components_tp-rxpad_EndVisitPage_module_scss_module_3436c388.css.map*/

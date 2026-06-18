@@ -1,0 +1,82 @@
+/* [project]/components/appointments/AppointmentBanner.module.scss.module.css [app-client] (css) */
+.AppointmentBanner-module-scss-module__j5NVqG__root {
+  border-radius: 0 0 16px 16px;
+  width: 100%;
+  height: 149px;
+  position: relative;
+  overflow: hidden;
+}
+
+.AppointmentBanner-module-scss-module__j5NVqG__pattern {
+  pointer-events: none;
+  object-fit: fill;
+  opacity: .75;
+  width: auto;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.AppointmentBanner-module-scss-module__j5NVqG__noiseSvg {
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: .06;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+
+.AppointmentBanner-module-scss-module__j5NVqG__inner {
+  z-index: 10;
+  height: 100%;
+  padding: 24px 12px 0;
+  position: relative;
+}
+
+@media (min-width: 640px) {
+  .AppointmentBanner-module-scss-module__j5NVqG__inner {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .AppointmentBanner-module-scss-module__j5NVqG__inner {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+.AppointmentBanner-module-scss-module__j5NVqG__row {
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  display: flex;
+}
+
+.AppointmentBanner-module-scss-module__j5NVqG__title {
+  min-width: 0;
+  font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+  color: #fff;
+  flex: 1;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.AppointmentBanner-module-scss-module__j5NVqG__actions {
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  display: flex;
+}
+
+@media (min-width: 640px) {
+  .AppointmentBanner-module-scss-module__j5NVqG__actions {
+    gap: 12px;
+  }
+}
+
+/*# sourceMappingURL=components_appointments_AppointmentBanner_module_scss_module_css_bad6b30c._.single.css.map*/

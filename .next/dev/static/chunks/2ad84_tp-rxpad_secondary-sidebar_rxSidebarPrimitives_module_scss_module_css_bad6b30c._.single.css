@@ -1,0 +1,76 @@
+/* [project]/components/tp-rxpad/secondary-sidebar/rxSidebarPrimitives.module.scss.module.css [app-client] (css) */
+.rxSidebarPrimitives-module-scss-module__4EyDTq__navLabel {
+  letter-spacing: .1px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__sectionHeaderTitle {
+  letter-spacing: .1px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__bodyText {
+  letter-spacing: .012px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__bodyStrong {
+  letter-spacing: .012px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__bodyMedium {
+  letter-spacing: .012px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__iconPill {
+  border-radius: 10px;
+  flex-direction: column;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  padding: 6px;
+  display: flex;
+  position: relative;
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__iconPillBg {
+  background: var(--tp-icon-clickable-dark-bg);
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__iconPillActiveBg {
+  background: var(--tp-slate-0);
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__iconInner {
+  justify-content: center;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  overflow: hidden;
+}
+
+.rxSidebarPrimitives-module-scss-module__4EyDTq__iconGlyph {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+/*# sourceMappingURL=2ad84_tp-rxpad_secondary-sidebar_rxSidebarPrimitives_module_scss_module_css_bad6b30c._.single.css.map*/

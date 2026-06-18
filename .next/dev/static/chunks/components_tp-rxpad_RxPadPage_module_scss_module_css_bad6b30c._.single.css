@@ -1,0 +1,86 @@
+/* [project]/components/tp-rxpad/RxPadPage.module.scss.module.css [app-client] (css) */
+.RxPadPage-module-scss-module__95k-na__tabBar {
+  z-index: 10;
+  background: #fff;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 2px 8px -2px #00000014;
+}
+
+.RxPadPage-module-scss-module__95k-na__tabInner {
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  height: 46px;
+  padding: 0 20px;
+  display: flex;
+}
+
+.RxPadPage-module-scss-module__95k-na__tabBtn {
+  cursor: pointer;
+  background: none;
+  border: none;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 10px 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color .15s;
+  display: flex;
+  position: relative;
+}
+
+.RxPadPage-module-scss-module__95k-na__tabBtnInactive {
+  color: var(--tp-slate-500);
+}
+
+.RxPadPage-module-scss-module__95k-na__tabBtnInactive:hover {
+  color: var(--tp-slate-700);
+}
+
+.RxPadPage-module-scss-module__95k-na__tabBtnActive {
+  color: var(--tp-blue-600);
+  font-weight: 600;
+}
+
+.RxPadPage-module-scss-module__95k-na__tabUnderline {
+  background: var(--tp-blue-600);
+  border-radius: 9999px;
+  height: 2.5px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.RxPadPage-module-scss-module__95k-na__carousel {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.RxPadPage-module-scss-module__95k-na__track {
+  height: 100%;
+  display: flex;
+}
+
+.RxPadPage-module-scss-module__95k-na__panelScroll {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.RxPadPage-module-scss-module__95k-na__panelClip {
+  height: 100%;
+  overflow: hidden;
+}
+
+.RxPadPage-module-scss-module__95k-na__topNav {
+  background: #fff;
+  width: 100%;
+  height: 62px;
+  position: relative;
+}
+
+/*# sourceMappingURL=components_tp-rxpad_RxPadPage_module_scss_module_css_bad6b30c._.single.css.map*/
