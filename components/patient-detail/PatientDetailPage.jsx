@@ -782,7 +782,12 @@ const NAV_CONFIG = [
     placeholderKey: "certificates",
   },
   { id: "add-edit-bill", label: "Add/Edit Bill", bannerTitle: "Add/Edit Bill", kind: "placeholder", placeholderKey: "bill" },
-  // Dental plan hidden for v0 — no doctor-facing entry point.
+  {
+    id: "dental-plan",
+    label: "Dental plan",
+    bannerTitle: "Dental treatment plan",
+    kind: "dental-plan",
+  },
   {
     id: "ipd-discharge",
     label: "IPD Discharge Summary",
