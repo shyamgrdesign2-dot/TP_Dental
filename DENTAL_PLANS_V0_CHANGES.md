@@ -145,9 +145,10 @@ This document lists all changes made to decouple Dental Plans from the appointme
 
 ## 10. Examination Table — WHEN Column for Planned Procedures
 
-- **Oral Planned Procedures** — added "WHEN" column (was empty/missing); uses `SinceDropdown` so doctors can enter e.g. "5 days", "2 weeks", or pick a date
-- **Oral Past Procedures** — already had "WHEN" column (no change needed)
-- **Dental (per-tooth) Procedures** — added "WHEN" column; previously only findings/symptoms had a date column (`hasDate`); now procedures also show the `SinceDropdown` with "WHEN" header instead of a raw date picker
+- **Oral Planned Procedures** — added "WHEN" column with a native calendar date picker (`<input type="date">`) showing "DD/MM/YYYY" placeholder + calendar icon; clicking opens the browser date picker directly (no dropdown)
+- **Oral Past Procedures** — already had "WHEN" column with `SinceDropdown` (no change)
+- **Dental (per-tooth) Planned Procedures** — added "WHEN" column with the same calendar date picker; previously only findings/symptoms had a date column (`hasDate`); now `kind === "procedure"` and `kind === "planned"` also get the column with a "WHEN" header and calendar picker
+- **Findings / Symptoms** — unchanged; still use `SinceDropdown` with "SINCE" header (e.g. "5 days", "2 weeks", custom date)
 - **Removed empty column** from oral planned procedures table (previously rendered an empty `<th>` / `<td>` because the heading ternary returned `""` for `kind === "procedure"`)
 
 ### Files changed
