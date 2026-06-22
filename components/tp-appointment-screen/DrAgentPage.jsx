@@ -688,9 +688,19 @@ export function DrAgentPage() {
                                     {/* AI sparkle action removed from the appointments queue — the
                                         VoiceRx surface is now only reachable from inside the Rx page itself. */}
 
-                                    <button type="button" aria-label="More options" className={styles.moreBtn}>
-                                      <MoreVertical size={20} strokeWidth={1.5}/>
-                                    </button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button type="button" aria-label="More options" className={styles.moreBtn}>
+                                          <MoreVertical size={20} strokeWidth={1.5}/>
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className={styles.menuContent}>
+                                        <DropdownMenuItem onClick={() => router.push(`/treatment-plan?patientId=${row.id}&from=appointments`)} className={styles.menuItem}>Dental Plan</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/patient-detail?patientId=${row.id}&from=appointments`)} className={styles.menuItem}>Patient Profile</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/rxpad/end-visit?patientId=${row.id}`)} className={styles.menuItem}>Preview Rx</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => { setAppointments((prev) => prev.filter((r) => r.id !== row.id)); setSnackbarMessage("Appointment deleted"); setSnackbarOpen(true); }} className={styles.menuItemDelete}>Delete</DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
                                   </div>
                                 </td>
                               </tr>)))}

@@ -1,175 +1,170 @@
 # Dental Plans V0 — Change Summary
 
-Branch: `Dental_Plans_V0`
-
-This document lists all changes made to decouple Dental Plans from the appointment/Rx pad flow and make it a standalone module.
+> Branch: `Dental_Plans_V0`
+>
+> Decouples Dental Treatment Plans from the Rx Pad / appointment flow and makes them a standalone module. Also adds examination-level date columns, print improvements, and appointment-level quick actions.
 
 ---
 
-## 1. Standalone Dental Plans (Decoupled from Rx Pad & Appointments)
+## 1. Standalone Dental Plans
 
-- Removed all connectivity between the Dental Treatment Plan module and the Rx Pad / appointment booking flow
-- Plans operate independently — no appointment creation, no Rx pad session linking
-- Entry points restored in Rx pad sidebar and patient detail navigation (commit `c36a6d2ac`)
-- Visit records (sittings) are created directly within the plan, not through appointment bookings
+Plans now operate independently — no appointment creation, no Rx Pad session linking. Visit records (sittings) are created directly within the plan.
 
-### Files changed
-- `components/dental/plan/plan-context.jsx` — standalone plan state management
-- `components/dental/plan/InProgressTab.jsx` — removed appointment booking flow
-- `components/dental/plan/plan-types.ts` — updated drawer type definitions
+| What | Detail |
+|------|--------|
+| Decoupled from Rx Pad | Removed all connectivity between Treatment Plan and Rx Pad / appointment booking |
+| Entry points restored | Rx Pad sidebar + patient detail navigation (`c36a6d2ac`) |
+| Direct sittings | Visit records created within the plan, not via appointment bookings |
+
+**Files:** `plan-context.jsx`, `InProgressTab.jsx`, `plan-types.ts`
 
 ---
 
 ## 2. Create Plan / Add-Edit Plan Drawer
 
-- Added **Rate per Tooth** column in the service table
-- Added **Discount** column with inline editing
-- **ToothPicker** — shows up to 6 chips (3 per row × 2 rows) before overflow; `+N` overflow chip with instant tooltip showing remaining teeth
-- **SurfacePicker** — individual surface tooltips on abbreviated chips
-- Auto-height rows (removed fixed `h-[52px]`, now `min-h-[46px]` with `py-[6px]`)
-- Wider columns for better readability
-- Removed "From today's dental examination" suggestions section
+| Feature | Detail |
+|---------|--------|
+| Rate per Tooth | New column in the service table |
+| Discount | Inline editable column |
+| ToothPicker | Up to 6 chips (3 per row x 2 rows); `+N` overflow chip with tooltip |
+| SurfacePicker | Individual surface tooltips on abbreviated chips |
+| Auto-height rows | Replaced fixed `h-[52px]` with `min-h-[46px]` + `py-[6px]` |
+| Wider columns | Better readability across the table |
+| Removed suggestions | "From today's dental examination" section removed |
 
-### Files changed
-- `components/dental/plan/AddEditPlanDrawer.jsx`
-- `components/dental/plan/ToothPicker.jsx`
-- `components/dental/plan/PlanEstimatesTab.jsx`
+**Files:** `AddEditPlanDrawer.jsx`, `ToothPicker.jsx`, `PlanEstimatesTab.jsx`
 
 ---
 
 ## 3. Bill Preview Redesign
 
-- 5-column table layout: `#`, `Description`, `Rate`, `Disc.`, `Amount`
-- Light neutral outer stroke (`1px solid #cbd5e1`) with `10px` border radius
-- Inner cell borders: `tp-slate-200` (consistent neutral dividers)
-- Header row: `bg-tp-slate-100` with `font-semibold text-tp-slate-600`
-- Multi-tooth descriptions: `"N teeth (T11, T12, ...)"` format
-- Discount column: red for discounts, `"—"` dash for none
-- Summary rows in `<tfoot>`: Subtotal, Service Discount, Additional Discount, Total
-- Total row: `bg-tp-slate-50` with bold styling
-- Single-service view: gray info banner at top
-- Print CSS updated to match (lighter borders, rounded corners)
+Clean 5-column table (`#`, `Description`, `Rate`, `Disc.`, `Amount`) with light neutral borders, rounded corners, and summary footer rows (Subtotal, Service Discount, Additional Discount, Total). Multi-tooth descriptions use `"N teeth (T11, T12, ...)"` format. Single-service view shows a gray info banner.
 
-### Files changed
-- `components/dental/plan/BillPreviewDrawer.jsx`
-- `components/dental/plan/plan-print-styles.css`
+**Files:** `BillPreviewDrawer.jsx`, `plan-print-styles.css`
 
 ---
 
-## 4. Record Visit (Add Sitting) — Simplified
+## 4. Record Visit (Add Sitting)
 
-- Removed **Remarks** field — only **Notes** remains
-- Removed appointment booking button from `ServiceSubCard`
-- Visit records created directly via the `+` button on each service line
-- Each sitting stores: `id`, `date`, `doctor`, `createdAt`, `notes`
-- No visit type linked to appointment status
+Simplified to essentials: removed Remarks field (only Notes remains), removed appointment booking button from `ServiceSubCard`. Each sitting stores `id`, `date`, `doctor`, `createdAt`, `notes`.
 
-### Files changed
-- `components/dental/plan/AddSittingDrawer.jsx`
-- `components/dental/plan/InProgressTab.jsx`
+**Files:** `AddSittingDrawer.jsx`, `InProgressTab.jsx`
 
 ---
 
 ## 5. Visit Timeline (In-Progress Tab)
 
-- **Fully decoupled from appointments** — the timeline builder (`buildVisitTimelineEntries`) no longer includes appointment-type entries; only sittings and direct consultations remain
-- **Removed all appointment rendering** — the entire `if (entry.kind === "appointment")` block (~160 lines) was deleted; no appointment cards appear in the timeline
-- **Removed all status badges** (`Completed`, `Cancelled`, `Upcoming`) from visit cards — visits are not linked to appointments, so status badges don't apply
-- **Simplified sitting cards** — removed `isCancelledSit`/`isUpcomingSit` conditional logic; sittings are simple visit records (no cancelled/scheduled states). Always rendered with default styling, no strikethrough or rose tint
-- Removed `"Planned:"` tag from timeline entries
-- **Removed full subtext row** (Date, Visit Type, Notes metadata line) — replaced with a compact date+time pill tag next to the doctor's name
-- Visit cards now show: doctor name + date pill, "View Rx" button, and clinical notes box below
-- Three-dot menu on sittings: Edit visit, View Rx (when notes exist), Delete visit
-- Clinical notes shown in a dedicated box below the card header — no duplicate notes in subtext
+| Removed | Added |
+|---------|-------|
+| All appointment-type entries (~160 lines) | Compact date+time pill next to doctor name |
+| Status badges (Completed, Cancelled, Upcoming) | "View Rx" button on each card |
+| `isCancelledSit` / `isUpcomingSit` logic | Three-dot menu: Edit, View Rx, Delete |
+| Full subtext row (date, visit type, notes) | Clinical notes box below card header |
+| `"Planned:"` tag | — |
 
-### Files changed
-- `components/dental/plan/InProgressTab.jsx`
+**Files:** `InProgressTab.jsx`
 
 ---
 
 ## 6. Service Status & End Plan Flow
 
-- **Removed "Yet to start"** from `STATUS_OPTIONS` — services start as `In Progress` or remain unstarted
-- Status options: `In Progress`, `Completed`, `No Show`, `Not Interested`, `Cancelled`
+- Status options: `In Progress`, `Completed`, `No Show`, `Not Interested`, `Cancelled` (removed "Yet to start")
 - **"No Show"** styled in red (`text-tp-error-600`)
-- **End Plan** button (renamed from "Mark All Done") — enabled only when all services are resolved (completed / cancelled / no-show / not-interested)
-- If unresolved services exist, confirmation dialog lists them before allowing end
-- **Info icon** on each service with tooltip showing service details (treatment, tooth, surfaces, amount)
-- **"View Rx"** and **"View Plan Bill"** options in the three-dot menu per service
+- **End Plan** button — enabled only when all services are resolved; shows confirmation dialog listing unresolved services
+- **Info icon** per service with tooltip (treatment, tooth, surfaces, amount)
+- Three-dot menu per service: "View Rx", "View Plan Bill"
 
-### Files changed
-- `components/dental/plan/InProgressTab.jsx`
-- `components/dental/plan/CompletedTab.jsx`
+**Files:** `InProgressTab.jsx`, `CompletedTab.jsx`
 
 ---
 
 ## 7. Rx / Dental Prescription View
 
-- **Visit History** section added per service — shows each sitting with date, doctor, and clinical notes
-- **Dental Chart** — toggleable section using `FlatDentitionChart`, collapsed by default with chevron toggle
-- Available from Completed tab via service three-dot menu → "View Rx"
+Visit History section per service (date, doctor, clinical notes) + toggleable Dental Chart using `FlatDentitionChart`. Available from Completed tab via "View Rx".
 
-### Files changed
-- `components/dental/plan/RxPreviewDrawer.jsx`
+**Files:** `RxPreviewDrawer.jsx`
 
 ---
 
 ## 8. Visit Rx Preview (Per-Sitting Rx Drawer)
 
-- **Fully decoupled from Rx Pad** — no longer uses `RxPreviewDocument` or `getComposedRxPreviewSnapshot`; renders the sitting's own data directly
-- **Clinic letterhead** — TP Dental Care header with doctor credentials and clinic address
-- **Patient details** — name, ID, age/sex, mobile, blood group, plan name in a 2-column grid
-- **Body content** — three clearly separated sections:
-  1. **Teeth Details** — `Tooth: T36 (Lower Left First Molar)`, `Surface: occlusal, root`
-  2. **Visit Details** — doctor name, date with time in parentheses (parsed from `sit.date` combined field)
-  3. **Clinical Notes** — renders the sitting's notes as plain text; shows italic placeholder when empty
-- **Treatment heading** — bold standalone heading above the three sections (e.g. "Root Canal Treatment")
-- **Dental chart toggle** — tonal CTA button in the drawer header (`bg-tp-slate-100`, matching nearby icon buttons) with a custom SVG checkbox (blue fill + white checkmark when checked, white with gray border when unchecked) and "Dental Chart" label; toggles `FlatDentitionChart` visibility, shown by default
-- **Dental chart section** — when visible, shows "DENTAL CHART" sub-heading with a "Hide" text button on the right; clicking "Hide" or unchecking the header checkbox both hide the chart
-- **Print support** — toggle button has `data-print-visible` attribute so it persists in print; dental chart renders in print when toggled on
+Fully decoupled from Rx Pad — renders the sitting's own data directly with clinic letterhead, patient details grid, and three content sections (Teeth Details, Visit Details, Clinical Notes). Dental chart toggle in drawer header with print support.
 
-### Files changed
-- `components/dental/plan/InProgressTab.jsx` — `QuickVisitRxPreview` component rewritten
+**Files:** `InProgressTab.jsx` (`QuickVisitRxPreview` component)
 
 ---
 
 ## 9. Global UI Updates
 
-- **Tooltip styling** — all tooltips now use dark background (`#1e293b`) with white text (was white bg with dark text)
-- Arrow color updated to match dark background
+- **Tooltip styling** — dark background (`#1e293b`) with white text (was white bg + dark text)
 
-### Files changed
-- `components/ui/tooltip.jsx`
+**Files:** `tooltip.jsx`
 
 ---
 
-## 10. Examination Table — WHEN Column for Planned Procedures
+## 10. Examination Table — WHEN Column
 
-- **Oral Planned Procedures** — added "WHEN" column with a native calendar date picker (`<input type="date">`) showing "DD/MM/YYYY" placeholder + calendar icon; clicking opens the browser date picker directly (no dropdown)
-- **Oral Past Procedures** — already had "WHEN" column with `SinceDropdown` (no change)
-- **Dental (per-tooth) Planned Procedures** — added "WHEN" column with the same calendar date picker; previously only findings/symptoms had a date column (`hasDate`); now `kind === "procedure"` and `kind === "planned"` also get the column with a "WHEN" header and calendar picker
-- **Findings / Symptoms** — unchanged; still use `SinceDropdown` with "SINCE" header (e.g. "5 days", "2 weeks", custom date)
-- **Removed empty column** from oral planned procedures table (previously rendered an empty `<th>` / `<td>` because the heading ternary returned `""` for `kind === "procedure"`)
+| Table | Column | Control |
+|-------|--------|---------|
+| Oral Planned Procedures | WHEN | Native `<input type="date">` with DD/MM/YYYY placeholder + calendar icon |
+| Dental (per-tooth) Planned Procedures | WHEN | Same calendar date picker |
+| Findings / Symptoms | SINCE | `SinceDropdown` (unchanged — "5 days", "2 weeks", custom date) |
 
-### Files changed
-- `components/dental/examination/ExaminationTab.jsx` — `OralTable` header + body cell, `EntryTab` `hasDate` condition + header label
+Removed empty column from oral planned procedures table (heading ternary previously returned `""` for `kind === "procedure"`).
+
+**Files:** `ExaminationTab.jsx`
+
+---
+
+## 11. Print Views — WHEN Column & Date Format
+
+| Rule | Detail |
+|------|--------|
+| Date format | `DD MMM YY` (e.g. "22 Jun 26") — formatted in snapshot builder before storing |
+| Findings | "Since" column header, `"since <date>"` text prefix |
+| Past Procedures | "When" column header, `"on <date>"` text prefix |
+| Planned Procedures | "When" column header, `"on <date>"` text prefix |
+
+Applied across all print modes (list, inline, table) and both groupings (by-tooth, by-type), plus oral examination tables.
+
+**Files:** `ExaminationTab.jsx`, `FlatDentitionChart.jsx`, `RxPreviewDocument.jsx`
+
+---
+
+## 12. Appointment Three-Dot Menu
+
+Functional dropdown menu on the three-dot button in the appointments table. Appears across all tabs (Queue, Finished, Cancelled, Draft, Pending Digitisation).
+
+| Option | Action |
+|--------|--------|
+| **Dental Plan** | Opens `/treatment-plan?patientId=...` |
+| **Patient Profile** | Opens `/patient-detail?patientId=...` |
+| **Preview Rx** | Opens `/rxpad/end-visit?patientId=...` |
+| **Delete** | Removes appointment from list (red styling) |
+
+Uses Radix `DropdownMenu` — same pattern as `CalendarEventMenu`.
+
+**Files:** `DrAgentPage.jsx`
 
 ---
 
 ## File Index
 
-| File | What changed |
-|------|-------------|
-| `plan-context.jsx` | Standalone state, sitting CRUD, drawer types |
-| `plan-types.ts` | Type defs for sittings, drawers, service status |
-| `AddEditPlanDrawer.jsx` | Rate/tooth, discount, auto-height rows, wider columns |
-| `AddSittingDrawer.jsx` | Simplified — notes only, no remarks |
-| `InProgressTab.jsx` | Removed appointment flow, status badges, booking button; added visit timeline, end plan, info icon, Visit Rx preview |
-| `CompletedTab.jsx` | View Rx / View Plan Bill in dropdown, no-show red styling |
-| `PlanEstimatesTab.jsx` | Updated table columns |
-| `BillPreviewDrawer.jsx` | 5-column table, light stroke, rounded corners |
-| `RxPreviewDrawer.jsx` | Visit history + toggleable dental chart |
-| `ToothPicker.jsx` | 6-chip layout, overflow tooltip |
-| `plan-print-styles.css` | Lighter print borders, rounded table |
-| `ExaminationTab.jsx` | WHEN column for planned procedures (oral + dental per-tooth) |
-| `tooltip.jsx` | Dark bg, white text globally |
+| File | Sections | What changed |
+|------|----------|-------------|
+| `plan-context.jsx` | 1 | Standalone state, sitting CRUD, drawer types |
+| `plan-types.ts` | 1 | Type defs for sittings, drawers, service status |
+| `AddEditPlanDrawer.jsx` | 2 | Rate/tooth, discount, auto-height rows, wider columns |
+| `AddSittingDrawer.jsx` | 4 | Simplified — notes only, no remarks |
+| `InProgressTab.jsx` | 1, 4, 5, 6, 8 | Decoupled visits, timeline, end plan, Visit Rx preview |
+| `CompletedTab.jsx` | 6 | View Rx / View Plan Bill, no-show red styling |
+| `PlanEstimatesTab.jsx` | 2 | Updated table columns |
+| `BillPreviewDrawer.jsx` | 3 | 5-column table, light stroke, rounded corners |
+| `RxPreviewDrawer.jsx` | 7 | Visit history + toggleable dental chart |
+| `ToothPicker.jsx` | 2 | 6-chip layout, overflow tooltip |
+| `plan-print-styles.css` | 3 | Lighter print borders, rounded table |
+| `ExaminationTab.jsx` | 10, 11 | WHEN column + snapshot date formatting |
+| `FlatDentitionChart.jsx` | 11 | OralExamReport: When/Since headers + prefix |
+| `RxPreviewDocument.jsx` | 11 | Print table headers: When for procedures |
+| `tooltip.jsx` | 9 | Dark bg, white text globally |
+| `DrAgentPage.jsx` | 12 | Three-dot dropdown menu on appointment rows |
