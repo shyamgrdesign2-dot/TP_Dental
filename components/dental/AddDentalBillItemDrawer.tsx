@@ -66,8 +66,7 @@ export function AddDentalBillItemDrawer({
   const { addItem } = useBillingCatalog()
   const [formName, setFormName] = useState("")
   const [formPrice, setFormPrice] = useState("")
-  const [formCgst, setFormCgst] = useState("")
-  const [formSgst, setFormSgst] = useState("")
+  const [formGst, setFormGst] = useState("")
   const [formDiscount, setFormDiscount] = useState("")
   const [formDiscountUnit, setFormDiscountUnit] = useState<"inr" | "percent">("inr")
   const [formErrors, setFormErrors] = useState({ name: "", price: "" })
@@ -76,8 +75,7 @@ export function AddDentalBillItemDrawer({
     if (open) {
       setFormName(initialName.trim())
       setFormPrice("")
-      setFormCgst("")
-      setFormSgst("")
+      setFormGst("")
       setFormDiscount("")
       setFormDiscountUnit("inr")
       setFormErrors({ name: "", price: "" })
@@ -87,14 +85,12 @@ export function AddDentalBillItemDrawer({
   const drawerPreviewTotal = useMemo(() => {
     const priceNum = Number(sanitizeDecimal(String(formPrice)))
     if (!Number.isFinite(priceNum) || priceNum <= 0) return null
-    const cgstPct = formCgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formCgst))) || 0
-    const sgstPct = formSgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formSgst))) || 0
-    const gstPct = cgstPct + sgstPct
+    const gstPct = formGst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formGst))) || 0
     const discountRaw = sanitizeDecimal(String(formDiscount))
     const discount = discountRaw === "" ? 0 : Number(discountRaw)
     if (!Number.isFinite(discount) || discount < 0) return null
     return computeBillingLineTotal(priceNum, discount, gstPct, formDiscountUnit)
-  }, [formPrice, formCgst, formSgst, formDiscount, formDiscountUnit])
+  }, [formPrice, formGst, formDiscount, formDiscountUnit])
 
   function handleSave() {
     const name = formName.trim()
@@ -107,9 +103,8 @@ export function AddDentalBillItemDrawer({
       return
     }
 
-    const cgstPct = formCgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formCgst))) || 0
-    const sgstPct = formSgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formSgst))) || 0
-    const gstPct = cgstPct + sgstPct
+    const gstPct = formGst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formGst))) || 0
+    const halfGst = gstPct / 2
     const discountRaw = sanitizeDecimal(String(formDiscount))
     const discount = discountRaw === "" ? 0 : Number(discountRaw)
     if (!Number.isFinite(discount) || discount < 0) return
@@ -122,8 +117,8 @@ export function AddDentalBillItemDrawer({
       priceUnit: "per_unit",
       discount,
       discountUnit: formDiscountUnit,
-      cgstPct,
-      sgstPct,
+      cgstPct: halfGst,
+      sgstPct: halfGst,
       gstPct,
     } as BillingItem
 
@@ -234,34 +229,16 @@ export function AddDentalBillItemDrawer({
               <div className={styles.field}>
                 <div className={styles.drawerPricingTriple}>
                   <div className={styles.pricingCol}>
-                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-cgst`}>
-                      CGST (%)
+                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-gst`}>
+                      GST (%)
                     </label>
                     <div className={styles.inputAffix}>
                       <input
-                        id={`${formId}-cgst`}
+                        id={`${formId}-gst`}
                         className={styles.drawerInputAffixedGst}
                         inputMode="decimal"
-                        value={formCgst}
-                        onChange={(e) => setFormCgst(sanitizeDecimal(e.target.value))}
-                        placeholder="0"
-                      />
-                      <span className={styles.inputAffixSuffix} aria-hidden>
-                        %
-                      </span>
-                    </div>
-                  </div>
-                  <div className={styles.pricingCol}>
-                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-sgst`}>
-                      SGST (%)
-                    </label>
-                    <div className={styles.inputAffix}>
-                      <input
-                        id={`${formId}-sgst`}
-                        className={styles.drawerInputAffixedGst}
-                        inputMode="decimal"
-                        value={formSgst}
-                        onChange={(e) => setFormSgst(sanitizeDecimal(e.target.value))}
+                        value={formGst}
+                        onChange={(e) => setFormGst(sanitizeDecimal(e.target.value))}
                         placeholder="0"
                       />
                       <span className={styles.inputAffixSuffix} aria-hidden>

@@ -52,11 +52,24 @@
   /* Force table borders for print */
   table {
     border-collapse: collapse;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
   }
 
   td,
   th {
     border: 1px solid #e2e8f0 !important;
     padding: 6px 10px !important;
+  }
+
+  /* Bill table total row */
+  tfoot tr:last-child td {
+    border-top: 1px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Ensure tabular numbers print correctly */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums !important;
   }
 }

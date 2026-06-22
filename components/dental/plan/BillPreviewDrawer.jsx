@@ -118,6 +118,16 @@ export function BillPreviewDrawer() {
                         const patient = getAppointmentPatient(plan.patientId || "apt-1");
                         const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
                         return _jsxs("div", {
+                            className: "space-y-[10px]",
+                            children: [
+                                serviceId && _jsxs("div", {
+                                    className: "flex items-center gap-[8px] rounded-[10px] bg-tp-slate-100 px-[12px] py-[8px]",
+                                    children: [
+                                        _jsx("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", className: "shrink-0 text-tp-slate-400", children: _jsxs("g", { children: [_jsx("circle", { cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "1.5" }), _jsx("path", { d: "M12 8v5", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }), _jsx("circle", { cx: "12", cy: "16", r: "0.75", fill: "currentColor" })] }) }),
+                                        _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-600", children: "Showing bill for a single service from this plan" }),
+                                    ],
+                                }),
+                                _jsxs("div", {
                             className: "overflow-hidden rounded-[12px] border border-tp-slate-200 bg-white font-['Inter',sans-serif]",
                             children: [
                                 _jsxs("div", {
@@ -150,88 +160,81 @@ export function BillPreviewDrawer() {
                                         _jsxs("p", { children: [_jsx("span", { className: "font-semibold text-tp-slate-700", children: "Date:" }), " ", today] }),
                                     ],
                                 }),
-                                serviceId && (_jsx("p", {
-                                    className: "border-t border-tp-slate-100 px-[16px] py-[8px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-blue-600",
-                                    children: "Showing single service bill",
-                                })),
-                                _jsxs("div", {
-                                    className: "border-t border-tp-slate-100 overflow-hidden",
-                                    children: [
-                                        _jsxs("table", {
-                                            className: "w-full",
-                                            children: [
-                                                _jsx("thead", {
-                                                    children: _jsxs("tr", {
-                                                        className: "bg-tp-slate-50",
+                                _jsx("div", {
+                                    className: "px-[16px] py-[14px]",
+                                    children: _jsxs("table", {
+                                        className: "w-full border-collapse font-['Inter',sans-serif] text-[12px]",
+                                        style: { border: "1px solid #cbd5e1", borderRadius: "10px", overflow: "hidden" },
+                                        children: [
+                                            _jsx("thead", {
+                                                children: _jsxs("tr", {
+                                                    className: "bg-tp-slate-100",
+                                                    children: [
+                                                        _jsx("th", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-center font-semibold text-tp-slate-600 w-[32px]", children: "#" }),
+                                                        _jsx("th", { className: "border border-tp-slate-200 px-[10px] py-[7px] text-left font-semibold text-tp-slate-600", children: "Description" }),
+                                                        _jsx("th", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-right font-semibold text-tp-slate-600 w-[72px]", children: "Rate" }),
+                                                        _jsx("th", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-right font-semibold text-tp-slate-600 w-[60px]", children: "Disc." }),
+                                                        _jsx("th", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-right font-semibold text-tp-slate-600 w-[76px]", children: "Amount" }),
+                                                    ],
+                                                }),
+                                            }),
+                                            _jsx("tbody", {
+                                                children: services.map((svc, idx) => {
+                                                    const toothDesc = svc.toothFdi === "full-mouth" ? "Full Mouth" : svc.toothFdis?.length > 1 ? `${svc.toothFdis.length} teeth (${svc.toothFdis.map(t => `T${t}`).join(", ")})` : `T${svc.toothFdi} — ${svc.toothLabel}`;
+                                                    return _jsxs("tr", {
                                                         children: [
-                                                            _jsx("th", { className: "px-[12px] py-[8px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400", children: "Service" }),
-                                                            _jsx("th", { className: "px-[12px] py-[8px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Amount" }),
+                                                            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-center text-tp-slate-500", children: idx + 1 }),
+                                                            _jsxs("td", {
+                                                                className: "border border-tp-slate-200 px-[10px] py-[7px]",
+                                                                children: [
+                                                                    _jsx("span", { className: "font-medium text-tp-slate-800", children: svc.treatment }),
+                                                                    _jsx("br", {}),
+                                                                    _jsx("span", { className: "text-[11px] text-tp-slate-400", children: toothDesc }),
+                                                                ],
+                                                            }),
+                                                            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-right text-tp-slate-700 tabular-nums", children: formatINR(svc.rate) }),
+                                                            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-right tabular-nums " + (svc.discount > 0 ? "text-tp-error-500" : "text-tp-slate-400"), children: svc.discount > 0 ? formatINR(svc.discount) : "—" }),
+                                                            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-right font-medium text-tp-slate-800 tabular-nums", children: formatINR(svc.amount) }),
+                                                        ],
+                                                    }, svc.id);
+                                                }),
+                                            }),
+                                            _jsxs("tfoot", {
+                                                children: [
+                                                    _jsxs("tr", {
+                                                        children: [
+                                                            _jsx("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[6px] text-right text-tp-slate-500", children: "Subtotal" }),
+                                                            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[6px] text-right text-tp-slate-700 tabular-nums", children: formatINR(subtotal) }),
                                                         ],
                                                     }),
-                                                }),
-                                                _jsx("tbody", {
-                                                    children: services.map((svc) => (_jsxs("tr", {
-                                                        className: "border-t border-tp-slate-100",
+                                                    serviceDiscount > 0 && _jsxs("tr", {
                                                         children: [
-                                                            _jsxs("td", {
-                                                                className: "px-[12px] py-[10px]",
-                                                                children: [
-                                                                    _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-800", children: svc.treatment }),
-                                                                    _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] text-tp-slate-400", children: svc.toothFdi === "full-mouth" ? "Full Mouth" : `T${svc.toothFdi} — ${svc.toothLabel}` }),
-                                                                ],
-                                                            }),
-                                                            _jsxs("td", {
-                                                                className: "px-[12px] py-[10px] text-right font-['Inter',sans-serif] text-[12px] text-tp-slate-700",
-                                                                children: [
-                                                                    formatINR(svc.rate),
-                                                                    svc.discount > 0 && (_jsxs("p", {
-                                                                        className: "font-['Inter',sans-serif] text-[12px] text-tp-error-500",
-                                                                        children: ["-", formatINR(svc.discount)],
-                                                                    })),
-                                                                ],
-                                                            }),
+                                                            _jsx("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[6px] text-right text-tp-slate-500", children: "Service Discount" }),
+                                                            _jsxs("td", { className: "border border-tp-slate-200 px-[8px] py-[6px] text-right text-tp-error-500 tabular-nums", children: ["−", formatINR(serviceDiscount)] }),
                                                         ],
-                                                    }, svc.id))),
-                                                }),
-                                            ],
-                                        }),
-                                        _jsxs("div", {
-                                            className: "border-t border-tp-slate-200 bg-tp-slate-50/50 px-[12px] py-[10px] space-y-[4px]",
-                                            children: [
-                                                _jsxs("div", {
-                                                    className: "flex justify-between font-['Inter',sans-serif] text-[12px]",
-                                                    children: [
-                                                        _jsx("span", { className: "text-tp-slate-500", children: "Subtotal" }),
-                                                        _jsx("span", { className: "text-tp-slate-700", children: formatINR(subtotal) }),
-                                                    ],
-                                                }),
-                                                serviceDiscount > 0 && (_jsxs("div", {
-                                                    className: "flex justify-between font-['Inter',sans-serif] text-[12px]",
-                                                    children: [
-                                                        _jsx("span", { className: "text-tp-slate-500", children: "Service Discount" }),
-                                                        _jsxs("span", { className: "text-tp-error-500", children: ["-", formatINR(serviceDiscount)] }),
-                                                    ],
-                                                })),
-                                                effectiveAdditionalDiscount > 0 && (_jsxs("div", {
-                                                    className: "flex justify-between font-['Inter',sans-serif] text-[12px]",
-                                                    children: [
-                                                        _jsx("span", { className: "text-tp-slate-500", children: "Additional Discount" }),
-                                                        _jsxs("span", { className: "text-tp-success-600", children: ["-", formatINR(effectiveAdditionalDiscount)] }),
-                                                    ],
-                                                })),
-                                                _jsxs("div", {
-                                                    className: "flex justify-between font-['Inter',sans-serif] text-[12px] font-bold pt-[4px] border-t border-tp-slate-200",
-                                                    children: [
-                                                        _jsx("span", { className: "text-tp-slate-800", children: "Total" }),
-                                                        _jsx("span", { className: "text-tp-blue-700", children: formatINR(total) }),
-                                                    ],
-                                                }),
-                                            ],
-                                        }),
-                                    ],
+                                                    }),
+                                                    effectiveAdditionalDiscount > 0 && _jsxs("tr", {
+                                                        children: [
+                                                            _jsx("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[6px] text-right text-tp-slate-500", children: "Additional Discount" }),
+                                                            _jsxs("td", { className: "border border-tp-slate-200 px-[8px] py-[6px] text-right text-tp-success-600 tabular-nums", children: ["−", formatINR(effectiveAdditionalDiscount)] }),
+                                                        ],
+                                                    }),
+                                                    _jsxs("tr", {
+                                                        className: "bg-tp-slate-50",
+                                                        children: [
+                                                            _jsx("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[8px] text-right font-bold text-tp-slate-800", children: "Total" }),
+                                                            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[8px] text-right font-bold text-tp-blue-700 tabular-nums", children: formatINR(total) }),
+                                                        ],
+                                                    }),
+                                                ],
+                                            }),
+                                        ],
+                                    }),
                                 }),
                             ],
-                        });
+                        }),
+                    ],
+                    });
                     })(),
                 }),
             ],

@@ -175,19 +175,6 @@ function formatGstCell(row) {
   return `${n}%`;
 }
 
-/** Returns CGST or SGST percent for a row, falling back to half of the legacy total `gstPct`. */
-function formatSplitGstCell(row, which) {
-  const key = which === "cgst" ? "cgstPct" : "sgstPct";
-  const explicit = row[key];
-  if (explicit !== undefined && explicit !== null && explicit !== "") {
-    const n = Number(explicit);
-    if (Number.isFinite(n) && n > 0) return `${n}%`;
-  }
-  const total = Number(row.gstPct);
-  if (!Number.isFinite(total) || total <= 0) return "—";
-  return `${total / 2}%`;
-}
-
 export default function BillingSettingsClient() {
   const formId = useId();
   const { items, setItems } = useBillingCatalog();
@@ -198,8 +185,7 @@ export default function BillingSettingsClient() {
   const [formType, setFormType] = useState("service");
   const [formName, setFormName] = useState("");
   const [formPrice, setFormPrice] = useState("");
-  const [formCgst, setFormCgst] = useState("");
-  const [formSgst, setFormSgst] = useState("");
+  const [formGst, setFormGst] = useState("");
   const [formDiscount, setFormDiscount] = useState("");
   const [formDiscountUnit, setFormDiscountUnit] = useState("inr");
   const [formErrors, setFormErrors] = useState({ name: "", price: "" });
@@ -282,8 +268,7 @@ export default function BillingSettingsClient() {
     setFormType("service");
     setFormName("");
     setFormPrice("");
-    setFormCgst("");
-    setFormSgst("");
+    setFormGst("");
     setFormDiscount("");
     setFormDiscountUnit("inr");
     setFormErrors({ name: "", price: "" });
@@ -301,23 +286,8 @@ export default function BillingSettingsClient() {
     setFormType(row.type);
     setFormName(row.name);
     setFormPrice(row.price === 0 ? "0" : String(row.price));
-    // Prefer explicit CGST/SGST if stored; otherwise split legacy total GST 50/50.
-    const cg = row.cgstPct;
-    const sg = row.sgstPct;
-    if (cg !== undefined || sg !== undefined) {
-      setFormCgst(cg === undefined || cg === null || Number(cg) === 0 ? "" : String(cg));
-      setFormSgst(sg === undefined || sg === null || Number(sg) === 0 ? "" : String(sg));
-    } else {
-      const gTotal = Number(row.gstPct);
-      if (!Number.isFinite(gTotal) || gTotal === 0) {
-        setFormCgst("");
-        setFormSgst("");
-      } else {
-        const half = gTotal / 2;
-        setFormCgst(String(half));
-        setFormSgst(String(half));
-      }
-    }
+    const gTotal = Number(row.gstPct);
+    setFormGst(!Number.isFinite(gTotal) || gTotal === 0 ? "" : String(gTotal));
     setFormDiscount(row.discount === 0 || row.discount === undefined ? "" : String(row.discount));
     setFormDiscountUnit(row.discountUnit === "percent" ? "percent" : "inr");
     setFormErrors({ name: "", price: "" });
@@ -344,9 +314,8 @@ export default function BillingSettingsClient() {
       return;
     }
 
-    const cgstPct = formCgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formCgst))) || 0;
-    const sgstPct = formSgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formSgst))) || 0;
-    const gstPct = cgstPct + sgstPct;
+    const gstPct = formGst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formGst))) || 0;
+    const halfGst = gstPct / 2;
     const discountRaw = sanitizeDecimal(String(formDiscount));
     const discount = discountRaw === "" ? 0 : Number(discountRaw);
     if (!Number.isFinite(discount) || discount < 0) return;
@@ -358,8 +327,8 @@ export default function BillingSettingsClient() {
       priceUnit: "per_unit",
       discount,
       discountUnit: formDiscountUnit,
-      cgstPct,
-      sgstPct,
+      cgstPct: halfGst,
+      sgstPct: halfGst,
       gstPct,
     };
 
@@ -398,14 +367,12 @@ export default function BillingSettingsClient() {
   const drawerPreviewTotal = useMemo(() => {
     const priceNum = Number(sanitizeDecimal(String(formPrice)));
     if (!Number.isFinite(priceNum) || priceNum <= 0) return null;
-    const cgstPct = formCgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formCgst))) || 0;
-    const sgstPct = formSgst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formSgst))) || 0;
-    const gstPct = cgstPct + sgstPct;
+    const gstPct = formGst.trim() === "" ? 0 : Number(sanitizeDecimal(String(formGst))) || 0;
     const discountRaw = sanitizeDecimal(String(formDiscount));
     const discount = discountRaw === "" ? 0 : Number(discountRaw);
     if (!Number.isFinite(discount) || discount < 0) return null;
     return computeBillingLineTotal(priceNum, discount, gstPct, formDiscountUnit);
-  }, [formPrice, formCgst, formSgst, formDiscount, formDiscountUnit]);
+  }, [formPrice, formGst, formDiscount, formDiscountUnit]);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -523,8 +490,7 @@ export default function BillingSettingsClient() {
                     <th className={styles.thType}>Type</th>
                     <th className={styles.thPrice}>Price per unit</th>
                     <th className={styles.thDisc}>Discount</th>
-                    <th className={styles.thGst}>CGST (%)</th>
-                    <th className={styles.thGst}>SGST (%)</th>
+                    <th className={styles.thGst}>GST (%)</th>
                     <th className={styles.thTotal}>Total amount</th>
                     <th className={clsx(styles.thAction, actionColumnEdgeShadow && styles.thActionEdgeShadow)}>Action</th>
                   </tr>
@@ -532,7 +498,7 @@ export default function BillingSettingsClient() {
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className={styles.emptyCell}>
+                      <td colSpan={8} className={styles.emptyCell}>
                         <div className={styles.emptyState}>
                           <p className={styles.emptyText}>
                             {activeFilterCount > 0 || search.trim() ? "No items matching your filters." : "No billing items yet."}
@@ -564,8 +530,7 @@ export default function BillingSettingsClient() {
                         <td className={clsx(styles.tdMiddle, styles.tdType)}>{typeLabel(row.type)}</td>
                         <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatInr(row.price)}</td>
                         <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatDiscountCell(row)}</td>
-                        <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatSplitGstCell(row, "cgst")}</td>
-                        <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatSplitGstCell(row, "sgst")}</td>
+                        <td className={clsx(styles.tdMiddle, styles.tdNum)}>{formatGstCell(row)}</td>
                         <td className={clsx(styles.tdMiddle, styles.tdNum)}>
                           {formatInr(
                             computeBillingLineTotal(row.price, row.discount, row.gstPct, row.discountUnit ?? "inr"),
@@ -778,34 +743,16 @@ export default function BillingSettingsClient() {
               <div className={styles.field}>
                 <div className={styles.drawerPricingTriple}>
                   <div className={styles.pricingCol}>
-                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-cgst`}>
-                      CGST (%)
+                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-gst`}>
+                      GST (%)
                     </label>
                     <div className={styles.inputAffix}>
                       <input
-                        id={`${formId}-cgst`}
+                        id={`${formId}-gst`}
                         className={styles.drawerInputAffixedGst}
                         inputMode="decimal"
-                        value={formCgst}
-                        onChange={(e) => setFormCgst(sanitizeDecimal(e.target.value))}
-                        placeholder="0"
-                      />
-                      <span className={styles.inputAffixSuffix} aria-hidden>
-                        %
-                      </span>
-                    </div>
-                  </div>
-                  <div className={styles.pricingCol}>
-                    <label className={styles.pricingMiniLabel} htmlFor={`${formId}-sgst`}>
-                      SGST (%)
-                    </label>
-                    <div className={styles.inputAffix}>
-                      <input
-                        id={`${formId}-sgst`}
-                        className={styles.drawerInputAffixedGst}
-                        inputMode="decimal"
-                        value={formSgst}
-                        onChange={(e) => setFormSgst(sanitizeDecimal(e.target.value))}
+                        value={formGst}
+                        onChange={(e) => setFormGst(sanitizeDecimal(e.target.value))}
                         placeholder="0"
                       />
                       <span className={styles.inputAffixSuffix} aria-hidden>

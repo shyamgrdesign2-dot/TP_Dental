@@ -144,7 +144,9 @@ export interface PlanService {
   toothLabel: string        // e.g. "Upper Right Third Molar" or "3 teeth"
   surfaces: SurfaceId[]     // affected surfaces
   rate: number
-  discount: number          // flat ₹ discount
+  discount: number          // computed flat ₹ discount (per-tooth × count)
+  discountUnit?: "flat" | "percent"
+  discountInput?: number    // original user input (₹ or %)
   amount: number            // rate − discount
   status: ServiceStatus
   sittings: SittingRecord[]

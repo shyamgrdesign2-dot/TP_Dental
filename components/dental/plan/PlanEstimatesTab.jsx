@@ -147,8 +147,8 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400", children: "Service" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]", children: "Tooth" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]", children: "Surface" }),
-                                        _jsx("th", { className: "px-[8px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]", children: "Rate" }),
-                                        _jsx("th", { className: "px-[8px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[60px]", children: "Disc." }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]", children: "Rate/Tooth" }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]", children: "Discount" }),
                                         _jsx("th", { className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]", children: "Amount" }),
                                     ],
                                 }),
@@ -188,7 +188,11 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                         _jsx("td", { className: "px-[8px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] text-tp-slate-600", children: serviceToothFdis(svc).length > 1 ? _jsxs("span", { children: [formatINR(svc.rate), _jsxs("span", { className: "text-[11px] text-tp-slate-400", children: [" ×", serviceToothFdis(svc).length] })] }) : formatINR(svc.rate) }),
                                         _jsx("td", {
                                             className: "px-[8px] py-[9px] text-right font-['Inter',sans-serif] text-[12px] text-tp-slate-400",
-                                            children: svc.discount > 0 ? `-${formatINR(svc.discount)}` : "—",
+                                            children: svc.discount > 0
+                                                ? svc.discountUnit === "percent" && svc.discountInput
+                                                    ? `-${svc.discountInput}%`
+                                                    : `-${formatINR(svc.discount)}`
+                                                : "—",
                                         }),
                                         _jsx("td", { className: "px-[14px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-800", children: formatINR(svc.amount) }),
                                     ],

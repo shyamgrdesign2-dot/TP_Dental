@@ -32,7 +32,7 @@ function renderStatusChip(status) {
         : status === "in-progress"
             ? "bg-tp-warning-50 text-tp-warning-700"
             : status === "no-show"
-                ? "bg-tp-violet-50 text-tp-violet-700"
+                ? "bg-tp-error-50 text-tp-error-700"
                 : status === "not-interested" || status === "cancelled"
                     ? "bg-tp-error-50 text-tp-error-700"
                     : "bg-tp-slate-100 text-tp-slate-500";

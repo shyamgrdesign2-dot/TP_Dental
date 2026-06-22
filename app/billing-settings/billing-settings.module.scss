@@ -742,7 +742,7 @@
 /* One row: price + GST + discount (add dental service & billing drawer) */
 .drawerPricingTriple {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
   width: 100%;
   align-items: flex-end;

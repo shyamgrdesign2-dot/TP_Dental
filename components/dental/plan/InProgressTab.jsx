@@ -14,7 +14,9 @@ import {
     Edit2, Trash, Calendar2, DocumentDownload, DocumentText,
     Clipboard,
 } from "iconsax-reactjs";
-import { Ban, ChevronDown, Info, MoreVertical, X } from "lucide-react";
+import { Ban, Building2, ChevronDown, Info, MoreVertical, X } from "lucide-react";
+import { getAppointmentPatient } from "@/lib/appointment-patients";
+import { FlatDentitionChart } from "@/components/dental/examination/FlatDentitionChart";
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -27,7 +29,7 @@ import {
 import { usePlanContext } from "./plan-context";
 import {
     SectionFrame, EmptyState, PlanEmptyIcon, formatINR, computePlanTotal, getServiceWorkflowStatus,
-    buildConsultationRxUrl, CloseSquareIcon, PLAN_DRAWER_PANEL_CLASS, serviceToothDisplay,
+    buildConsultationRxUrl, CloseSquareIcon, DrawerHeader, PLAN_DRAWER_PANEL_CLASS, serviceToothDisplay,
 } from "./plan-shared";
 import { TPButton } from "@/components/tp-ui/button-system";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -133,23 +135,10 @@ function parseSittingSortMs(sit) {
  * Merged visit timeline: upcoming (booked, no Rx yet) → completed (Rx saved or direct visit) → cancelled.
  */
 function buildVisitTimelineEntries(service) {
-    const appointmentItems = service.appointments ?? [];
     const consultationItems = service.consultations ?? [];
     const sittingItems = service.sittings ?? [];
-    const appointmentIdSet = new Set(appointmentItems.map((a) => a.id));
     const raw = [];
-    for (const appt of appointmentItems) {
-        const linkedConsultations = consultationItems.filter((c) => c.appointmentId === appt.id);
-        raw.push({
-            kind: "appointment",
-            appt,
-            linkedConsultations,
-            sortMs: parseApptSortMs(appt.date, appt.time),
-        });
-    }
     for (const c of consultationItems) {
-        if (c.appointmentId && appointmentIdSet.has(c.appointmentId))
-            continue;
         raw.push({
             kind: "direct",
             consultation: c,
@@ -165,41 +154,8 @@ function buildVisitTimelineEntries(service) {
             sortMs: parseSittingSortMs(sit),
         });
     }
-    const upcoming = [];
-    const completed = [];
-    const cancelled = [];
-    for (const e of raw) {
-        if (e.kind === "appointment" && e.appt.status === "cancelled") {
-            cancelled.push(e);
-            continue;
-        }
-        if (e.kind === "appointment" && e.linkedConsultations.length > 0) {
-            completed.push(e);
-            continue;
-        }
-        if (e.kind === "direct") {
-            completed.push(e);
-            continue;
-        }
-        if (e.kind === "sitting") {
-            const sitSt = e.sitting.status ?? "completed";
-            if (sitSt === "cancelled") {
-                cancelled.push(e);
-                continue;
-            }
-            if (sitSt === "scheduled") {
-                upcoming.push(e);
-                continue;
-            }
-            completed.push(e);
-            continue;
-        }
-        upcoming.push(e);
-    }
-    upcoming.sort((a, b) => (a.sortMs || 0) - (b.sortMs || 0));
-    completed.sort((a, b) => (b.sortMs || 0) - (a.sortMs || 0));
-    cancelled.sort((a, b) => (b.sortMs || 0) - (a.sortMs || 0));
-    return [...upcoming, ...completed, ...cancelled];
+    raw.sort((a, b) => (b.sortMs || 0) - (a.sortMs || 0));
+    return raw;
 }
 function visitBadge(kind) {
     if (kind === "cancelled") {
@@ -287,7 +243,7 @@ function ConsultationSummarySurface({ children, className = "" }) {
     return _jsxs("div", {
         className: `mt-[10px] w-full min-w-0 max-w-full overflow-hidden rounded-[10px] bg-white/50 px-[14px] py-[12px] shadow-[0_0_12px_rgba(0,0,0,0.01)] font-['Inter',sans-serif] text-[12px] leading-[1.85] ${className}`,
         children: [
-            _jsx("span", { className: "font-semibold text-tp-slate-900", children: "Consultation summary:" }),
+            _jsx("span", { className: "font-semibold text-tp-slate-900", children: "Clinical Notes:"}),
             " ",
             _jsx("span", { className: "text-tp-slate-600", children: summary }),
             actions.length ? _jsx("div", { className: "mt-[6px]", children: actions }) : null,
@@ -822,95 +778,174 @@ function ConsultationPreviewCard({ c, appointmentItems, patientId, plan, service
 }
 
 /** Quick visit (sitting) — Preview Rx drawer: consultation notes + composed digital Rx (same shell as consultation preview). */
-function QuickVisitRxPreview({ sit, patientId, plan, service, embedInPatientShell, previewOpen, onOpenChange, }) {
-    const [snapshot, setSnapshot] = useState(null);
-    useEffect(() => {
-        if (!previewOpen)
-            return;
-        setSnapshot(getComposedRxPreviewSnapshot(patientId));
-    }, [previewOpen, patientId]);
-    const rxHref = buildConsultationRxUrl(patientId, plan.id, service.id, undefined, embedInPatientShell, service.treatment);
+function QuickVisitRxPreview({ sit, patientId, plan, service, previewOpen, onOpenChange, }) {
+    const [showChart, setShowChart] = useState(true);
+    const patient = getAppointmentPatient(patientId || plan.patientId || "apt-1");
     const notesRaw = String(sit.notes ?? "").trim();
+    const mobileDisplay = patient.mobile?.replace(/^\+91-/, "") ?? "—";
+    const toothNum = service.toothFdi === "full-mouth" ? null : service.toothFdi;
+    const toothName = service.toothFdi === "full-mouth" ? "Full Mouth" : service.toothLabel;
+    const dateRaw = String(sit.date ?? "").trim();
+    const commaIdx = dateRaw.indexOf(",");
+    const datePart = commaIdx > -1 ? dateRaw.slice(0, commaIdx).trim() : dateRaw;
+    const timePart = commaIdx > -1 ? dateRaw.slice(commaIdx + 1).trim() : "";
+
     return _jsx(TPDrawer, {
         open: previewOpen,
         onOpenChange: onOpenChange,
         children: _jsxs(TPDrawerContent, {
             side: "right",
-            size: "xl",
+            size: "lg",
             className: `!flex !p-0 flex-col ${PLAN_DRAWER_PANEL_CLASS}`,
             children: [
-                _jsxs("div", {
-                    className: dui.drawerHeader,
-                    children: [
-                        _jsxs(Tooltip, { delayDuration: 200, children: [
-                            _jsx(TooltipTrigger, {
-                                asChild: true,
-                                children: _jsx("button", {
-                                    type: "button",
-                                    onClick: () => onOpenChange(false),
-                                    className: dui.drawerCloseBtn,
-                                    "aria-label": "Close preview",
-                                    children: _jsx(CloseSquareIcon, { size: 24, color: "var(--tp-slate-700)" }),
-                                }),
+                _jsx(DrawerHeader, {
+                    title: "Visit Rx",
+                    onClose: () => onOpenChange(false),
+                    action: _jsxs("div", {
+                        className: "flex items-center gap-[8px]",
+                        children: [
+                            _jsxs("button", {
+                                type: "button",
+                                onClick: () => setShowChart((v) => !v),
+                                className: "inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-[6px] rounded-[10px] bg-tp-slate-100 px-[10px] text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200",
+                                "data-print-visible": true,
+                                "aria-label": "Toggle dental chart",
+                                children: [
+                                    _jsx("span", {
+                                        className: `flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-[4px] border transition-colors ${showChart ? "border-tp-blue-600 bg-tp-blue-600" : "border-tp-slate-300 bg-white"}`,
+                                        children: showChart && _jsx("svg", { width: 10, height: 10, viewBox: "0 0 10 10", fill: "none", children: _jsx("path", { d: "M2 5.5L4 7.5L8 3", stroke: "white", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }) }),
+                                    }),
+                                    _jsx("span", { children: "Dental Chart" }),
+                                ],
                             }),
-                            _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Close" }),
-                        ] }),
-                        _jsx("div", { className: dui.drawerDivider, "aria-hidden": true }),
-                        _jsx("h2", { className: dui.drawerTitle, children: "Preview Rx" }),
-                        _jsxs("div", {
-                            className: `${dui.drawerAction} flex items-center gap-1.5`,
-                            children: [
-                                _jsxs(Tooltip, { delayDuration: 200, children: [
-                                    _jsx(TooltipTrigger, {
-                                        asChild: true,
-                                        children: _jsx("button", {
-                                            type: "button",
-                                            onClick: () => downloadSnapshotTxt(snapshot),
-                                            className: PREVIEW_RX_ICON_BTN_CLASS,
-                                            "aria-label": "Download Rx",
-                                            children: _jsx(DocumentDownload, { size: 18, variant: "Linear" }),
-                                        }),
+                            _jsxs(Tooltip, { delayDuration: 200, children: [
+                                _jsx(TooltipTrigger, {
+                                    asChild: true,
+                                    children: _jsx("button", {
+                                        type: "button",
+                                        onClick: () => window.print(),
+                                        className: PREVIEW_RX_ICON_BTN_CLASS,
+                                        "aria-label": "Download Rx",
+                                        children: _jsx(DocumentDownload, { size: 18, variant: "Linear" }),
                                     }),
-                                    _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Download Rx" }),
-                                ] }),
-                                _jsxs(Tooltip, { delayDuration: 200, children: [
-                                    _jsx(TooltipTrigger, {
-                                        asChild: true,
-                                        children: _jsx("button", {
-                                            type: "button",
-                                            onClick: () => window.print(),
-                                            className: PREVIEW_RX_ICON_BTN_CLASS,
-                                            "aria-label": "Print Rx",
-                                            children: _jsx(Printer, { size: 18, variant: "Linear" }),
-                                        }),
+                                }),
+                                _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Download Rx" }),
+                            ] }),
+                            _jsxs(Tooltip, { delayDuration: 200, children: [
+                                _jsx(TooltipTrigger, {
+                                    asChild: true,
+                                    children: _jsx("button", {
+                                        type: "button",
+                                        onClick: () => window.print(),
+                                        className: PREVIEW_RX_ICON_BTN_CLASS,
+                                        "aria-label": "Print Rx",
+                                        children: _jsx(Printer, { size: 18, variant: "Linear" }),
                                     }),
-                                    _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Print Rx" }),
-                                ] }),
-                                _jsxs(Tooltip, { delayDuration: 200, children: [
-                                    _jsx(TooltipTrigger, {
-                                        asChild: true,
-                                        children: _jsx("button", {
-                                            type: "button",
-                                            onClick: () => {
-                                                onOpenChange(false);
-                                                window.location.assign(rxHref);
-                                            },
-                                            className: PREVIEW_RX_ICON_BTN_CLASS,
-                                            "aria-label": "Edit RX",
-                                            children: _jsx(Edit2, { size: 18, variant: "Linear" }),
-                                        }),
-                                    }),
-                                    _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Edit RX" }),
-                                ] }),
-                            ],
-                        }),
-                    ],
+                                }),
+                                _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Print Rx" }),
+                            ] }),
+                        ],
+                    }),
                 }),
                 _jsx("div", {
-                    className: "min-h-0 flex-1 overflow-y-auto bg-tp-slate-50 p-4",
-                    children: _jsx("div", {
-                        className: "mx-auto max-w-[640px]",
-                        children: _jsx(RxPreviewDocument, { snapshot: snapshot, extraNotes: notesRaw || undefined }),
+                    className: "min-h-0 flex-1 overflow-y-auto bg-tp-slate-50/80 px-[24px] py-[16px]",
+                    children: _jsxs("article", {
+                        className: "overflow-hidden rounded-[12px] border border-tp-slate-200 bg-white font-['Inter',sans-serif] shadow-sm",
+                        children: [
+                            _jsxs("div", {
+                                className: "flex items-start gap-[12px] px-[16px] py-[14px]",
+                                children: [
+                                    _jsx("div", {
+                                        className: "flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[10px] bg-tp-blue-50 text-tp-blue-500",
+                                        children: _jsx(Building2, { size: 26, strokeWidth: 1.6 }),
+                                    }),
+                                    _jsxs("div", {
+                                        className: "min-w-0 flex-1",
+                                        children: [
+                                            _jsx("p", { className: "text-[14px] font-bold text-tp-slate-900", children: "TP Dental Care" }),
+                                            _jsx("p", { className: "text-[12px] font-medium text-tp-slate-600", children: "Dr. Umesh Aggarwal, BDS, MDS" }),
+                                            _jsx("p", { className: "text-[10px] text-tp-slate-500", children: "Reg. ID: DCI-2342342 | +91 78945 61230" }),
+                                            _jsx("p", { className: "text-[10px] text-tp-slate-500", children: "K9 Sardar Bungalow, Prahladnagar, Ahmedabad" }),
+                                        ],
+                                    }),
+                                ],
+                            }),
+                            _jsx("div", { className: "h-px bg-tp-slate-100", "aria-hidden": true }),
+                            _jsxs("div", {
+                                className: "grid grid-cols-2 gap-x-[16px] gap-y-[6px] bg-tp-slate-50/70 px-[16px] py-[12px] text-[12px] text-tp-slate-600",
+                                children: [
+                                    _jsxs("p", { children: [_jsx("span", { className: "font-semibold text-tp-slate-700", children: "Patient name:" }), " ", patient.name] }),
+                                    _jsxs("p", { children: [_jsx("span", { className: "font-semibold text-tp-slate-700", children: "Patient ID:" }), " ", patient.patientCode] }),
+                                    _jsxs("p", { children: [_jsx("span", { className: "font-semibold text-tp-slate-700", children: "Age / sex:" }), " ", patient.age, " Y, ", patient.genderLabel] }),
+                                    _jsxs("p", { children: [_jsx("span", { className: "font-semibold text-tp-slate-700", children: "Mobile:" }), " ", mobileDisplay] }),
+                                    _jsxs("p", { children: [_jsx("span", { className: "font-semibold text-tp-slate-700", children: "Blood group:" }), " ", patient.bloodGroup] }),
+                                    _jsxs("p", { children: [_jsx("span", { className: "font-semibold text-tp-slate-700", children: "Plan:" }), " ", plan.name] }),
+                                ],
+                            }),
+                            _jsxs("div", {
+                                className: "px-[16px] py-[14px] text-[12px] text-tp-slate-700 space-y-[16px]",
+                                children: [
+                                    _jsx("p", { className: "text-[15px] font-bold text-tp-slate-900", children: service.treatment }),
+                                    _jsxs("div", {
+                                        className: "space-y-[4px]",
+                                        children: [
+                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Teeth Details" }),
+                                            _jsxs("p", { children: [
+                                                _jsx("span", { className: "text-tp-slate-500", children: "Tooth: " }),
+                                                toothNum ? `T${toothNum}` : "—",
+                                                toothName && _jsxs("span", { className: "text-tp-slate-500", children: [" (", toothName, ")"] }),
+                                            ] }),
+                                            (service.surfaces ?? []).length > 0 && _jsxs("p", {
+                                                children: [
+                                                    _jsx("span", { className: "text-tp-slate-500", children: "Surface: " }),
+                                                    service.surfaces.join(", "),
+                                                ],
+                                            }),
+                                        ],
+                                    }),
+                                    _jsxs("div", {
+                                        className: "space-y-[4px]",
+                                        children: [
+                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Visit Details" }),
+                                            _jsxs("p", { children: [_jsx("span", { className: "text-tp-slate-500", children: "Doctor: " }), sit.doctor || "—"] }),
+                                            _jsxs("p", { children: [
+                                                _jsx("span", { className: "text-tp-slate-500", children: "Date: " }),
+                                                datePart || "—",
+                                                timePart && _jsxs("span", { className: "text-tp-slate-500", children: [" (", timePart, ")"] }),
+                                            ] }),
+                                        ],
+                                    }),
+                                    _jsxs("div", {
+                                        className: "space-y-[4px]",
+                                        children: [
+                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Clinical Notes" }),
+                                            notesRaw
+                                                ? _jsx("p", { className: "whitespace-pre-wrap leading-[1.6]", children: notesRaw })
+                                                : _jsx("p", { className: "text-tp-slate-400 italic", children: "No clinical notes recorded." }),
+                                        ],
+                                    }),
+                                ],
+                            }),
+                            showChart && _jsxs("div", {
+                                className: "border-t border-tp-slate-100 px-[16px] py-[14px] space-y-[8px]",
+                                children: [
+                                    _jsxs("div", {
+                                        className: "flex items-center justify-between",
+                                        children: [
+                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400", children: "Dental Chart" }),
+                                            _jsx("button", {
+                                                type: "button",
+                                                onClick: () => setShowChart(false),
+                                                className: "text-[12px] font-medium text-tp-blue-600 hover:text-tp-blue-700 transition-colors",
+                                                "data-print-visible": true,
+                                                children: "Hide",
+                                            }),
+                                        ],
+                                    }),
+                                    _jsx(FlatDentitionChart, { patientId: patientId || plan.patientId || "apt-1", alwaysRender: true }),
+                                ],
+                            }),
+                        ],
                     }),
                 }),
             ],
@@ -1103,26 +1138,6 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                             _jsx(TooltipContent, { side: "bottom", sideOffset: 6, className: "rounded-[10px] px-3 py-2 font-['Inter',sans-serif] text-[12px] leading-[1.45]", children: "Add quick visit record" }),
                                         ],
                                     }),
-                                    _jsxs(Tooltip, {
-                                        delayDuration: 200,
-                                        children: [
-                                            _jsx(TooltipTrigger, {
-                                                asChild: true,
-                                                children: _jsx("button", {
-                                                    type: "button",
-                                                    onClick: (e) => {
-                                                        e.stopPropagation();
-                                                        if (!isOpen) onToggle?.();
-                                                        openDrawer({ type: "book-appointment", planId: plan.id, serviceId: service.id });
-                                                    },
-                                                    className: "inline-flex h-9 w-9 items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200/90",
-                                                    "aria-label": "Book appointment",
-                                                    children: _jsx(Calendar2, { size: 17, variant: "Linear" }),
-                                                }),
-                                            }),
-                                            _jsx(TooltipContent, { side: "bottom", sideOffset: 6, className: "rounded-[10px] px-3 py-2 font-['Inter',sans-serif] text-[12px] leading-[1.45]", children: "Book appointment" }),
-                                        ],
-                                    }),
                                     _jsxs(DropdownMenu, {
                                         children: [
                                             _jsx(DropdownMenuTrigger, {
@@ -1238,223 +1253,17 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                     className: "min-w-0",
                                     children: timelineEntries.map((entry, idx) => {
                                                     const isLast = idx === timelineEntries.length - 1;
-                                                    if (entry.kind === "appointment") {
-                                                        const appt = entry.appt;
-                                                        const isCancelled = appt.status === "cancelled";
-                                                        const linkedConsultations = entry.linkedConsultations;
-                                                        // Cancelled appointments must not display consultation summary/preview UI.
-                                                        const hasVisitNotes = !isCancelled && linkedConsultations.length > 0;
-                                                        const primaryConsult = linkedConsultations[0];
-                                                        const apptRxHref = buildConsultationRxUrl(patientId, plan.id, service.id, appt.id, embedInPatientShell, service.treatment);
-                                                        const dateLong = formatAppointmentDateLong(appt.date);
-                                                        const badgeKind = isCancelled ? "cancelled" : hasVisitNotes ? "completed" : "upcoming";
-                                                        return _jsxs("div", {
-                                                            className: `relative ${idx === 0 ? "mt-[16px]" : "mt-[22px]"} w-full min-w-0 pl-[28px]`,
-                                                            children: [
-                                                                !isLast && _jsx("span", { "aria-hidden": true, className: "absolute left-[4px] top-[26px] w-[2px] h-[calc(100%+22px)] bg-gradient-to-b from-[rgba(88,28,135,0.06)] via-[rgba(88,28,135,0.2)] to-[rgba(88,28,135,0.06)]" }),
-                                                                _jsx(VisitTimelineDot, { variant: isCancelled ? "cancelled" : "default" }),
-                                                                _jsxs("div", {
-                                                                    className: "relative w-full min-w-0 px-[20px] py-[16px]",
-                                                                    style: getVisitRowSurfaceStyle(isCancelled),
-                                                                    children: [
-                                                                        _jsxs("div", {
-                                                                            className: "relative z-[1] flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2",
-                                                                            children: [
-                                                                                _jsxs("div", {
-                                                                                    className: "min-w-0 max-w-full flex-1 space-y-2",
-                                                                                    children: [
-                                                                                        _jsxs("div", {
-                                                                                            className: "flex min-w-0 flex-wrap items-center gap-x-[8px] gap-y-1.5",
-                                                                                            children: [
-                                                                                                _jsx(VisitDoctorAvatar, {}),
-                                                                                                _jsx("p", {
-                                                                                                    className: `font-['Inter',sans-serif] text-[16px] font-semibold leading-snug text-[#581C87] ${isCancelled ? "text-tp-slate-400 line-through" : ""}`,
-                                                                                                    children: appt.doctor,
-                                                                                                }),
-                                                                                                visitBadge(badgeKind),
-                                                                                                (() => {
-                                                                                                    const procName = appt.serviceName ?? service?.treatment;
-                                                                                                    if (!procName) return null;
-                                                                                                    const toothLbl = appt.toothLabel ?? (service?.toothFdi === "full-mouth" ? "Full Mouth" : service ? `T${service.toothFdi} — ${service.toothLabel}` : "");
-                                                                                                    const title = `Planned Procedure: ${procName}${toothLbl ? `\nTooth: ${toothLbl}` : ""}\nDoctor: ${appt.doctor}`;
-                                                                                                    return _jsxs("span", {
-                                                                                                        title,
-                                                                                                        className: "inline-flex max-w-[220px] items-center gap-[4px] rounded-[6px] bg-[rgba(88,28,135,0.08)] px-[8px] py-[2px] font-['Inter',sans-serif] text-[11px] font-semibold text-[#581C87] cursor-default",
-                                                                                                        children: [
-                                                                                                            _jsx("span", { className: "opacity-70", children: "Planned:" }),
-                                                                                                            _jsx("span", { className: "truncate", children: procName }),
-                                                                                                        ],
-                                                                                                    });
-                                                                                                })(),
-                                                                                            ],
-                                                                                        }),
-                                                                                        _jsxs("div", {
-                                                                                            className: `flex min-w-0 flex-wrap items-center gap-x-[10px] gap-y-1 font-['Inter',sans-serif] text-[12px] leading-[18px] ${isCancelled ? "text-tp-slate-400 line-through" : "text-[rgba(88,28,135,0.72)]"}`,
-                                                                                            children: [
-                                                                                                _jsxs("span", {
-                                                                                                    className: "inline-flex items-baseline gap-[4px]",
-                                                                                                    children: [
-                                                                                                        _jsx("span", { className: "font-semibold", children: "Date:" }),
-                                                                                                        _jsx("span", { children: appt.time ? `${dateLong} (${appt.time})` : dateLong }),
-                                                                                                    ],
-                                                                                                }),
-                                                                                                _jsx("span", { className: "h-3 w-px bg-[rgba(220,208,232,0.81)]", "aria-hidden": true }),
-                                                                                                _jsxs("span", {
-                                                                                                    className: "inline-flex items-baseline gap-[4px]",
-                                                                                                    children: [
-                                                                                                        _jsx("span", { className: "font-semibold", children: "Visit Type:" }),
-                                                                                                        _jsx("span", { children: appt.caseType ? CASE_TYPE_LABELS[appt.caseType] ?? "Follow up" : "Follow up" }),
-                                                                                                    ],
-                                                                                                }),
-                                                                                                _jsx("span", { className: "h-3 w-px bg-[rgba(220,208,232,0.81)]", "aria-hidden": true }),
-                                                                                                _jsxs("span", {
-                                                                                                    className: "inline-flex items-baseline gap-[4px] min-w-0",
-                                                                                                    children: [
-                                                                                                        _jsx("span", { className: "font-semibold", children: "Remarks:" }),
-                                                                                                        _jsx("span", { className: "min-w-0 truncate", children: String(appt.notes ?? "").trim() || "Review and obturation planning" }),
-                                                                                                    ],
-                                                                                                }),
-                                                                                            ],
-                                                                                        }),
-                                                                                    ],
-                                                                                }),
-                                                                                _jsxs("div", {
-                                                                                    className: "flex shrink-0 flex-wrap items-center justify-end gap-1.5",
-                                                                                    children: [
-                                                                                        hasVisitNotes && primaryConsult && _jsx("button", {
-                                                                                            type: "button",
-                                                                                            onClick: () => {
-                                                                                                setSittingPreviewId(null);
-                                                                                                setConsultPreviewId(primaryConsult.id);
-                                                                                            },
-                                                                                            className: VIEW_RX_SECONDARY_CLASS,
-                                                                                            children: [
-                                                                                                _jsx(DocumentText, { size: 14, variant: "Linear" }),
-                                                                                                "View Rx",
-                                                                                            ],
-                                                                                        }),
-                                                                                        !hasVisitNotes && !isCancelled && _jsx(TPButton, {
-                                                                                            size: "sm",
-                                                                                            variant: "outline",
-                                                                                            theme: "primary",
-                                                                                            className: "shadow-none",
-                                                                                            onClick: () => openDrawer({ type: "add-sitting", serviceId: service.id }),
-                                                                                            children: "Add Quick Visit Note",
-                                                                                        }),
-                                                                                        _jsxs(DropdownMenu, {
-                                                                                            children: [
-                                                                                                _jsx(DropdownMenuTrigger, {
-                                                                                                    asChild: true,
-                                                                                                    children: _jsx("button", {
-                                                                                                        type: "button",
-                                                                                                        className: TIMELINE_MENU_TRIGGER_CLASS,
-                                                                                                        "aria-label": "More actions",
-                                                                                                        children: _jsx(MoreVertical, { size: 17, color: "currentColor", strokeWidth: 2 }),
-                                                                                                    }),
-                                                                                                }),
-                                                                                                _jsxs(DropdownMenuContent, {
-                                                                                                    align: "end",
-                                                                                                    className: dropdownContentClass,
-                                                                                                    children: [
-                                                                                                        hasVisitNotes && primaryConsult && _jsxs(_Fragment, {
-                                                                                                            children: [
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => window.location.assign(apptRxHref),
-                                                                                                                    children: [_jsx(Edit2, { size: 16, variant: "Linear", className: "" }), "Edit in RxPad"],
-                                                                                                                }),
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => {
-                                                                                                                        setSittingPreviewId(null);
-                                                                                                                        setConsultPreviewId(primaryConsult.id);
-                                                                                                                    },
-                                                                                                                    children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "View Rx"],
-                                                                                                                }),
-                                                                                                            ],
-                                                                                                        }),
-                                                                                                        !isCancelled && !hasVisitNotes && _jsxs(_Fragment, {
-                                                                                                            children: [
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => openDrawer({ type: "book-appointment", planId: plan.id, serviceId: service.id, appointmentId: appt.id }),
-                                                                                                                    children: [_jsx(Edit2, { size: 16, variant: "Linear", className: "" }), "Edit appointment"],
-                                                                                                                }),
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: "rounded-[8px] !gap-[6px] focus:bg-red-50 data-[highlighted]:bg-red-50",
-                                                                                                                    onClick: () => openCancelDialog(appt),
-                                                                                                                    children: [_jsx(Ban, { size: 16, variant: "Linear", className: "text-tp-error-600" }), _jsx("span", { className: "text-tp-error-600", children: "Cancel appointment" })],
-                                                                                                                }),
-                                                                                                            ],
-                                                                                                        }),
-                                                                                                        isCancelled && !hasVisitNotes && _jsxs(_Fragment, {
-                                                                                                            children: [
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => dispatch({
-                                                                                                                        type: "UPDATE_APPOINTMENT",
-                                                                                                                        serviceId: service.id,
-                                                                                                                        appointmentId: appt.id,
-                                                                                                                        patch: { status: "scheduled", cancellationReason: undefined },
-                                                                                                                    }),
-                                                                                                                    children: [_jsx(ArrowRotateLeft, { size: 16, variant: "Linear", className: "text-tp-success-600" }), _jsx("span", { className: "text-tp-success-600", children: "Revert cancellation" })],
-                                                                                                                }),
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => dispatch({ type: "REMOVE_APPOINTMENT", serviceId: service.id, appointmentId: appt.id }),
-                                                                                                                    children: [_jsx(Trash, { size: 16, variant: "Linear", className: "" }), "Remove from timeline"],
-                                                                                                                }),
-                                                                                                            ],
-                                                                                                        }),
-                                                                                                    ],
-                                                                                                }),
-                                                                                            ],
-                                                                                        }),
-                                                                                    ],
-                                                                                }),
-                                                                            ],
-                                                                        }),
-                                                                        isCancelled && appt.cancellationReason && _jsxs("p", {
-                                                                            className: "font-['Inter',sans-serif] text-[10px] leading-[1.65] text-tp-error-600",
-                                                                            children: [_jsx("span", { className: "font-semibold", children: "Reason: " }), appt.cancellationReason],
-                                                                        }),
-                                                                        !isCancelled && linkedConsultations.map((c) => _jsx(ConsultationPreviewCard, {
-                                                                            c: c,
-                                                                            appointmentItems: appointmentItems,
-                                                                            patientId: patientId,
-                                                                            plan: plan,
-                                                                            service: service,
-                                                                            embedInPatientShell: embedInPatientShell,
-                                                                            underAppointment: true,
-                                                                            variant: "snippet",
-                                                                            previewOpen: consultPreviewId === c.id,
-                                                                            onPreviewOpenChange: (o) => {
-                                                                                if (o)
-                                                                                    setSittingPreviewId(null);
-                                                                                setConsultPreviewId(o ? c.id : null);
-                                                                            },
-                                                                            hideViewRxButton: true,
-                                                                        }, c.id)),
-                                                                    ],
-                                                                }),
-                                                            ],
-                                                        }, appt.id);
-                                                    }
                                                     if (entry.kind === "sitting") {
                                                         const sit = entry.sitting;
-                                                        const sitStatus = sit.status ?? "completed";
-                                                        const isCancelledSit = sitStatus === "cancelled";
-                                                        const isUpcomingSit = sitStatus === "scheduled";
-                                                        const sitRxHref = buildConsultationRxUrl(patientId, plan.id, service.id, undefined, embedInPatientShell, service.treatment);
                                                         const sitDateLong = sit.date ? formatAppointmentDateLong(sit.date) : "";
                                                         return _jsxs("div", {
                                                             className: `relative ${idx === 0 ? "mt-[16px]" : "mt-[22px]"} w-full min-w-0 pl-[28px]`,
                                                             children: [
                                                                 !isLast && _jsx("span", { "aria-hidden": true, className: "absolute left-[4px] top-[26px] w-[2px] h-[calc(100%+22px)] bg-gradient-to-b from-[rgba(88,28,135,0.06)] via-[rgba(88,28,135,0.2)] to-[rgba(88,28,135,0.06)]" }),
-                                                                _jsx(VisitTimelineDot, { variant: isCancelledSit ? "cancelled" : "default" }),
+                                                                _jsx(VisitTimelineDot, { variant: "default" }),
                                                                 _jsxs("div", {
                                                                     className: "w-full min-w-0 px-[20px] py-[16px]",
-                                                                    style: getVisitRowSurfaceStyle(isCancelledSit),
+                                                                    style: getVisitRowSurfaceStyle(false),
                                                                     children: [
                                                                         _jsxs("div", {
                                                                             className: "flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2",
@@ -1467,38 +1276,10 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                             children: [
                                                                                                 _jsx(VisitDoctorAvatar, {}),
                                                                                                 _jsx("p", {
-                                                                                            className: `font-['Inter',sans-serif] text-[16px] font-semibold leading-snug text-[#581C87] ${isCancelledSit ? "text-tp-slate-400 line-through" : ""}`,
+                                                                                            className: "font-['Inter',sans-serif] text-[16px] font-semibold leading-snug text-[#581C87]",
                                                                                                     children: sit.doctor || "Quick visit",
                                                                                                 }),
-                                                                                                visitBadge(isCancelledSit ? "cancelled" : isUpcomingSit ? "upcoming" : "completed"),
-                                                                                            ],
-                                                                                        }),
-                                                                                        _jsxs("div", {
-                                                                                            className: `flex min-w-0 flex-wrap items-center gap-x-[10px] gap-y-1 font-['Inter',sans-serif] text-[12px] leading-[18px] ${isCancelledSit ? "text-tp-slate-400 line-through" : "text-[rgba(88,28,135,0.72)]"}`,
-                                                                                            children: [
-                                                                                                sitDateLong && _jsxs("span", {
-                                                                                                    className: "inline-flex items-baseline gap-[4px]",
-                                                                                                    children: [
-                                                                                                        _jsx("span", { className: "font-semibold", children: "Date:" }),
-                                                                                                        _jsx("span", { children: sit.time ? `${sitDateLong} (${sit.time})` : sitDateLong }),
-                                                                                                    ],
-                                                                                                }),
-                                                                                                sitDateLong && _jsx("span", { className: "h-3 w-px bg-[rgba(220,208,232,0.81)]", "aria-hidden": true }),
-                                                                                                _jsxs("span", {
-                                                                                                    className: "inline-flex items-baseline gap-[4px]",
-                                                                                                    children: [
-                                                                                                        _jsx("span", { className: "font-semibold", children: "Visit Type:" }),
-                                                                                                        _jsx("span", { children: String(sit.visitType ?? "").trim() || "Follow up" }),
-                                                                                                    ],
-                                                                                                }),
-                                                                                                _jsx("span", { className: "h-3 w-px bg-[rgba(220,208,232,0.81)]", "aria-hidden": true }),
-                                                                                                _jsxs("span", {
-                                                                                                    className: "inline-flex items-baseline gap-[4px] min-w-0",
-                                                                                                    children: [
-                                                                                                        _jsx("span", { className: "font-semibold", children: "Remarks:" }),
-                                                                                                        _jsx("span", { className: "min-w-0 truncate", children: String(sit.notes ?? "").trim() || "Review and obturation planning" }),
-                                                                                                    ],
-                                                                                                }),
+                                                                                                sitDateLong && _jsx(VisitDatePill, { date: sitDateLong, time: sit.time }),
                                                                                             ],
                                                                                         }),
                                                                                     ],
@@ -1506,7 +1287,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                 _jsxs("div", {
                                                                                     className: "flex shrink-0 flex-wrap items-center justify-end gap-1.5",
                                                                                     children: [
-                                                                                        !isCancelledSit && sitStatus === "completed" && _jsx("button", {
+                                                                                        _jsx("button", {
                                                                                             type: "button",
                                                                                             onClick: () => {
                                                                                                 setConsultPreviewId(null);
@@ -1517,14 +1298,6 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                                 _jsx(DocumentText, { size: 14, variant: "Linear" }),
                                                                                                 "View Rx",
                                                                                             ],
-                                                                                        }),
-                                                                                        !isCancelledSit && isUpcomingSit && _jsx(TPButton, {
-                                                                                            size: "sm",
-                                                                                            variant: "outline",
-                                                                                            theme: "primary",
-                                                                                            className: "shadow-none",
-                                                                                            onClick: () => openDrawer({ type: "add-sitting", serviceId: service.id }),
-                                                                                            children: "Add Quick Visit Note",
                                                                                         }),
                                                                                         _jsxs(DropdownMenu, {
                                                                                             children: [
@@ -1541,41 +1314,23 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                                     align: "end",
                                                                                                     className: dropdownContentClass,
                                                                                                     children: [
-                                                                                                        !isCancelledSit && _jsxs(_Fragment, {
-                                                                                                            children: [
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => openDrawer({ type: "edit-sitting", serviceId: service.id, sittingId: sit.id }),
-                                                                                                                    children: [_jsx(Edit2, { size: 16, variant: "Linear", className: "" }), "Edit visit"],
-                                                                                                                }),
-                                                                                                                sit.notes && _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => {
-                                                                                                                        setConsultPreviewId(null);
-                                                                                                                        setSittingPreviewId(sit.id);
-                                                                                                                    },
-                                                                                                                    children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "View Rx"],
-                                                                                                                }),
-                                                                                                            ],
+                                                                                                        _jsxs(DropdownMenuItem, {
+                                                                                                            className: dropdownItemClass,
+                                                                                                            onClick: () => openDrawer({ type: "edit-sitting", serviceId: service.id, sittingId: sit.id }),
+                                                                                                            children: [_jsx(Edit2, { size: 16, variant: "Linear", className: "" }), "Edit visit"],
                                                                                                         }),
-                                                                                                        isCancelledSit && _jsxs(_Fragment, {
-                                                                                                            children: [
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => dispatch({
-                                                                                                                        type: "UPDATE_SITTING",
-                                                                                                                        serviceId: service.id,
-                                                                                                                        sittingId: sit.id,
-                                                                                                                        patch: { status: "completed" },
-                                                                                                                    }),
-                                                                                                                    children: [_jsx(ArrowRotateLeft, { size: 16, variant: "Linear", className: "text-tp-success-600" }), _jsx("span", { className: "text-tp-success-600", children: "Revert cancellation" })],
-                                                                                                                }),
-                                                                                                                _jsxs(DropdownMenuItem, {
-                                                                                                                    className: dropdownItemClass,
-                                                                                                                    onClick: () => dispatch({ type: "REMOVE_SITTING", serviceId: service.id, sittingId: sit.id }),
-                                                                                                                    children: [_jsx(Trash, { size: 16, variant: "Linear", className: "" }), "Remove from timeline"],
-                                                                                                                }),
-                                                                                                            ],
+                                                                                                        sit.notes && _jsxs(DropdownMenuItem, {
+                                                                                                            className: dropdownItemClass,
+                                                                                                            onClick: () => {
+                                                                                                                setConsultPreviewId(null);
+                                                                                                                setSittingPreviewId(sit.id);
+                                                                                                            },
+                                                                                                            children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "View Rx"],
+                                                                                                        }),
+                                                                                                        _jsxs(DropdownMenuItem, {
+                                                                                                            className: "rounded-[8px] !gap-[6px] focus:bg-red-50 data-[highlighted]:bg-red-50",
+                                                                                                            onClick: () => dispatch({ type: "REMOVE_SITTING", serviceId: service.id, sittingId: sit.id }),
+                                                                                                            children: [_jsx(Trash, { size: 16, variant: "Linear", className: "text-tp-error-600" }), _jsx("span", { className: "text-tp-error-600", children: "Delete visit" })],
                                                                                                         }),
                                                                                                     ],
                                                                                                 }),
@@ -1585,7 +1340,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                 }),
                                                                             ],
                                                                         }),
-                                                                        !isCancelledSit && !isUpcomingSit && sit.notes && _jsx(ConsultationSummarySurface, {
+                                                                        sit.notes && _jsx(ConsultationSummarySurface, {
                                                                             children: renderConsultSummarySnippetBody(sit.notes, { inSurface: true }),
                                                                         }),
                                                                     ],
@@ -1595,7 +1350,6 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                     patientId: patientId,
                                                                     plan: plan,
                                                                     service: service,
-                                                                    embedInPatientShell: embedInPatientShell,
                                                                     previewOpen: sittingPreviewId === sit.id,
                                                                     onOpenChange: (o) => setSittingPreviewId(o ? sit.id : null),
                                                                 }),
@@ -1626,17 +1380,6 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                                 className: "font-['Inter',sans-serif] text-[12px] font-bold leading-snug text-[#581C87]",
                                                                                                 children: "Chairside visit",
                                                                                             }),
-                                                                                            visitBadge("completed"),
-                                                                                        ],
-                                                                                    }),
-                                                                                    _jsxs("div", {
-                                                                                        className: "flex min-w-0 flex-wrap items-center gap-1.5 font-['Inter',sans-serif] text-[12px] leading-[18px] text-[rgba(88,28,135,0.72)]",
-                                                                                        children: [
-                                                                                            _jsx("span", { className: "font-semibold", children: "Visit Type:" }),
-                                                                                            _jsx("span", { children: "Follow up" }),
-                                                                                            _jsx("span", { className: "h-3 w-px bg-[rgba(220,208,232,0.81)]", "aria-hidden": true }),
-                                                                                            _jsx("span", { className: "font-semibold", children: "Remarks:" }),
-                                                                                            _jsx("span", { className: "min-w-0 truncate", children: String(c.summaryText ?? "").trim().split(/\n/).map((l) => l.trim()).filter(Boolean)[0] || "Review and obturation planning" }),
                                                                                         ],
                                                                                     }),
                                                                                 ],
@@ -1721,7 +1464,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                     _jsx("p", { className: "mt-3 font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-700", children: "No visits recorded yet" }),
                                                     _jsx("p", {
                                                         className: "mt-1.5 max-w-[360px] font-['Inter',sans-serif] text-[12px] leading-[1.65] text-tp-slate-500",
-                                                        children: "Add a quick visit report or book the next appointment for this service.",
+                                                        children: "Add a quick visit report to start tracking this service.",
                                                     }),
                                                     _jsxs("div", {
                                                         className: "mt-[16px] flex w-full flex-row flex-wrap gap-[10px] items-stretch justify-center max-w-[460px]",
@@ -1730,21 +1473,9 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                 type: "button",
                                                                 onClick: (e) => {
                                                                     e.stopPropagation();
-                                                                    openDrawer({ type: "book-appointment", planId: plan.id, serviceId: service.id });
-                                                                },
-                                                                className: "inline-flex h-[44px] flex-1 min-w-[160px] items-center justify-center gap-[8px] rounded-[12px] bg-white border border-tp-blue-500 px-[16px] font-['Inter',sans-serif] text-[14px] font-semibold text-tp-blue-500 transition-colors hover:bg-tp-blue-50/40",
-                                                                children: [
-                                                                    _jsx(Calendar2, { size: 18, variant: "Linear", className: "text-tp-blue-500" }),
-                                                                    "Book appointment",
-                                                                ],
-                                                            }),
-                                                            _jsx("button", {
-                                                                type: "button",
-                                                                onClick: (e) => {
-                                                                    e.stopPropagation();
                                                                     openDrawer({ type: "add-sitting", serviceId: service.id });
                                                                 },
-                                                                className: "inline-flex h-[44px] flex-1 min-w-[160px] items-center justify-center gap-[8px] rounded-[12px] bg-tp-blue-600 px-[16px] font-['Inter',sans-serif] text-[14px] font-semibold text-white transition-colors hover:bg-tp-blue-700",
+                                                                className: "inline-flex h-[40px] items-center justify-center gap-[8px] rounded-[10px] bg-tp-blue-600 px-[20px] font-['Inter',sans-serif] text-[13px] font-semibold text-white transition-colors hover:bg-tp-blue-700",
                                                                 children: [
                                                                     _jsx(Add, { size: 18, variant: "Linear", className: "text-white" }),
                                                                     "Add Quick Visit Report",
@@ -1825,14 +1556,33 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
 }
 
 // ─── Plan Cluster Card ─────────────────────────────────────
+const RESOLVED_STATUSES = new Set(["completed", "cancelled", "no-show", "not-interested"]);
+const NON_COMPLETED_LABEL = {
+    "not-started": "Yet to start",
+    "in-progress": "In Progress",
+    "no-show": "No Show",
+    "not-interested": "Not Interested",
+    "cancelled": "Cancelled",
+};
+
 function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
     const { dispatch, openDrawer, patientId } = usePlanContext();
-    const [markAllOpen, setMarkAllOpen] = useState(false);
+    const [endPlanOpen, setEndPlanOpen] = useState(false);
     const [revertAllOpen, setRevertAllOpen] = useState(false);
     const [deletePlanOpen, setDeletePlanOpen] = useState(false);
     // Accordion — first service open by default, one at a time.
     const [openServiceIndex, setOpenServiceIndex] = useState(0);
     const services = plan.services;
+    const unresolvedServices = services.filter((s) => {
+        const ws = getServiceWorkflowStatus(s);
+        return !RESOLVED_STATUSES.has(ws);
+    });
+    const nonCompletedServices = services.filter((s) => {
+        const ws = getServiceWorkflowStatus(s);
+        return ws !== "completed";
+    });
+    const allCompleted = nonCompletedServices.length === 0;
+    const allResolved = unresolvedServices.length === 0;
     const total = computePlanTotal(plan.services);
     const additionalDiscount = plan.additionalDiscount ?? 0;
     const finalTotal = Math.max(0, total - additionalDiscount);
@@ -1894,9 +1644,15 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                         children: [
                             _jsxs("button", {
                                 type: "button",
-                                onClick: () => setMarkAllOpen(true),
+                                onClick: () => {
+                                    if (allCompleted) {
+                                        dispatch({ type: "MARK_PLAN_COMPLETED", planId: plan.id });
+                                    } else {
+                                        setEndPlanOpen(true);
+                                    }
+                                },
                                 className: "inline-flex items-center justify-center gap-[6px] rounded-[12px] px-[16px] h-[36px] min-w-[120px] font-['Inter',sans-serif] text-[14px] font-semibold text-white bg-tp-success-600 hover:bg-tp-success-700 transition-colors",
-                                children: [_jsx(TickCircle, { size: 20, variant: "Linear" }), "Mark All Done"],
+                                children: [_jsx(TickCircle, { size: 20, variant: "Linear" }), "End Plan"],
                             }),
                             _jsxs(DropdownMenu, {
                                 children: [
@@ -1969,18 +1725,40 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                 }, svc.id)),
             }),
             _jsx(TPConfirmDialog, {
-                open: markAllOpen,
-                onOpenChange: setMarkAllOpen,
-                title: "Mark All Services as Completed",
-                warning: `This marks all ${services.length} service${services.length === 1 ? "" : "s"} in ${plan.name} as completed and moves this plan to Completed Plans.`,
-                secondaryLabel: "Cancel",
-                primaryLabel: "Mark All Done",
-                primaryTone: "success",
-                onPrimary: () => {
-                    dispatch({ type: "MARK_PLAN_COMPLETED", planId: plan.id });
-                    setMarkAllOpen(false);
-                },
-            }),
+                    open: endPlanOpen,
+                    onOpenChange: setEndPlanOpen,
+                    title: "End Plan",
+                    warning: allResolved
+                        ? `Are you sure you want to end "${plan.name}"? Services that are not marked as completed (e.g. No Show, Cancelled) will keep their current status in the completed plan.`
+                        : `Are you sure you want to end "${plan.name}"? The following services are not yet resolved and will keep their current status.`,
+                    secondaryLabel: "Cancel",
+                    primaryLabel: "End Plan",
+                    primaryTone: "success",
+                    onPrimary: () => {
+                        dispatch({ type: "MARK_PLAN_COMPLETED", planId: plan.id });
+                        setEndPlanOpen(false);
+                    },
+                    children: nonCompletedServices.length > 0 ? _jsx("div", {
+                        className: "space-y-[6px]",
+                        children: nonCompletedServices.map((s) => {
+                            const ws = getServiceWorkflowStatus(s);
+                            const isUnresolved = !RESOLVED_STATUSES.has(ws);
+                            return _jsxs("div", {
+                                className: "flex items-center justify-between rounded-[8px] bg-tp-slate-50 px-[12px] py-[8px]",
+                                children: [
+                                    _jsx("span", {
+                                        className: "font-[‘Inter’,sans-serif] text-[13px] font-medium text-tp-slate-800 truncate mr-[8px]",
+                                        children: s.treatment + (s.toothLabel ? ` — ${s.toothLabel}` : ""),
+                                    }),
+                                    _jsx("span", {
+                                        className: `shrink-0 rounded-[6px] px-[8px] py-[2px] font-[‘Inter’,sans-serif] text-[11px] font-semibold ${isUnresolved ? "bg-tp-warning-50 text-tp-warning-700" : "bg-tp-error-50 text-tp-error-700"}`,
+                                        children: NON_COMPLETED_LABEL[ws] ?? ws,
+                                    }),
+                                ],
+                            }, s.id);
+                        }),
+                    }) : undefined,
+                }),
             _jsx(TPConfirmDialog, {
                 open: revertAllOpen,
                 onOpenChange: setRevertAllOpen,

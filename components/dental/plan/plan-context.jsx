@@ -114,6 +114,7 @@ function planReducer(state, action) {
             };
         case "MARK_PLAN_COMPLETED": {
             const now = new Date().toISOString().slice(0, 10);
+            const RESOLVED = new Set(["completed", "cancelled", "no-show", "not-interested"]);
             return {
                 ...state,
                 plans: state.plans.map((p) => {
@@ -125,8 +126,8 @@ function planReducer(state, action) {
                         updatedAt: now,
                         services: p.services.map((s) => ({
                             ...s,
-                            status: "completed",
-                            completedAt: s.completedAt ?? now,
+                            status: RESOLVED.has(s.status) ? s.status : "completed",
+                            completedAt: s.status === "completed" ? (s.completedAt ?? now) : s.completedAt,
                         })),
                     };
                 }),
