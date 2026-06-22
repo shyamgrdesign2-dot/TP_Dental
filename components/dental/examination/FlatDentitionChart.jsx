@@ -410,7 +410,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list" }) {
     const since = (e.since || "").trim();
     const note = (e.note || "").trim();
     const bits = [];
-    if (since) bits.push(`since ${since}`);
+    if (since) bits.push(e.kind === "finding" ? `since ${since}` : `on ${since}`);
     if (note) bits.push(note);
     const region = (e.surfaces || []).map((s) => ORAL_POSITION_LABEL[s] || s).join(", ");
     return { name: e.name, meta: bits.join(" | "), region, since, note };
@@ -458,7 +458,7 @@ export function OralExamReport({ patientId, chart: chartProp, view = "list" }) {
       <div style={wrap}>
         <div style={kindHead}>{label}</div>
         <table style={tbl}>
-          <thead><tr>{["Name", "Area", "Since", "Notes"].map((t, ci) => <th key={t} style={{ ...th, width: colW[ci] }}>{t}</th>)}</tr></thead>
+          <thead><tr>{["Name", "Area", label === "Findings" ? "Since" : "When", "Notes"].map((t, ci) => <th key={t} style={{ ...th, width: colW[ci] }}>{t}</th>)}</tr></thead>
           <tbody>{list.map((it, ri) => (
             <tr key={ri}><td style={tdName}>{it.name}</td><td style={td}>{it.region || "—"}</td><td style={td}>{it.since || "—"}</td><td style={td}>{it.note || "—"}</td></tr>
           ))}</tbody>

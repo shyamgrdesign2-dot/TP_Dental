@@ -106,7 +106,7 @@ function dentalToothTableNode(block) {
     const catTable = (label, rows) => rows.length ? (_jsxs("div", { style: catSection, children: [
         _jsx("div", { style: catLabel, children: label }),
         _jsxs("table", { style: tbl, children: [
-            _jsx("thead", { children: _jsx("tr", { children: ["Name", "Surfaces", "Since", "Notes"].map((t, ci) => _jsx("th", { style: { ...th, width: colW[ci] }, children: t }, t)) }) }),
+            _jsx("thead", { children: _jsx("tr", { children: ["Name", "Surfaces", label === "Findings" ? "Since" : "When", "Notes"].map((t, ci) => _jsx("th", { style: { ...th, width: colW[ci] }, children: t }, t)) }) }),
             _jsx("tbody", { children: rows.map((r, ri) => { const c = lineCols(r); return (_jsxs("tr", { children: [_jsx("td", { style: tdName, children: r.title }), _jsx("td", { style: td, children: c.surfaces || "—" }), _jsx("td", { style: td, children: c.since || "—" }), _jsx("td", { style: td, children: c.note || "—" })] }, ri)); }) }),
         ] }),
     ] })) : null;
@@ -216,7 +216,7 @@ function byTypeTableNode(bucket) {
         _jsx("div", { style: head, children: bucket.label }),
         _jsxs("table", { style: tbl, children: [
             _jsx("colgroup", { children: ["28%", "26%", "16%", "12%", "18%"].map((w, i) => _jsx("col", { style: { width: w } }, `c${i}`)) }),
-            _jsx("thead", { children: _jsx("tr", { children: ["Tooth", "Name", "Surfaces", "Since", "Notes"].map((t) => _jsx("th", { style: th, children: t }, t)) }) }),
+            _jsx("thead", { children: _jsx("tr", { children: ["Tooth", "Name", "Surfaces", bucket.key === "findings" ? "Since" : "When", "Notes"].map((t) => _jsx("th", { style: th, children: t }, t)) }) }),
             _jsx("tbody", { children: rows.map((r, ri) => { const c = lineCols(r.item); return (_jsxs("tr", { children: [
                 _jsx("td", { style: tdName, children: r.tooth }),
                 _jsx("td", { style: tdName, children: r.item.title }),

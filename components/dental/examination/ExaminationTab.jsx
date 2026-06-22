@@ -150,11 +150,14 @@ function toDentalPreviewSections(state) {
     });
     state.allEntries.forEach((entry) => {
         const block = ensureTooth(entry.toothFdi);
-        const meta = [surfaceList(entry.surfaces), entry.since, entry.plannedDate, entry.status, entry.notes];
+        const isPlanned = entry.kind === "procedure" || entry.kind === "planned";
+        const whenDate = isPlanned && entry.plannedDate ? (() => { try { const d = new Date(entry.plannedDate + "T00:00:00"); if (isNaN(d)) return entry.plannedDate; const dd = String(d.getDate()).padStart(2, "0"); const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]; const yy = String(d.getFullYear()).slice(-2); return `${dd} ${mon} ${yy}`; } catch { return entry.plannedDate; } })() : "";
+        const dateVal = isPlanned ? whenDate : (entry.since || "");
+        const meta = [surfaceList(entry.surfaces), dateVal, entry.status, entry.notes];
         const cols = {
             surfaces: surfaceList(entry.surfaces),
-            since: entry.since,
-            note: [entry.status, entry.plannedDate, entry.notes].map((v) => (v ?? "").toString().trim()).filter(Boolean).join(" · "),
+            since: dateVal,
+            note: [entry.status, entry.notes].map((v) => (v ?? "").toString().trim()).filter(Boolean).join(" · "),
         };
         if (entry.kind === "finding") {
             block.findings.push(toPreviewLine(entry.name, meta, cols));
@@ -901,7 +904,7 @@ function OralTable({ state, title, kind, catalog, list }) {
                 _jsx("td", { className: ui.tdPlain, children: _jsx("span", { className: ui.symptomName, children: e.name }) }),
                 _jsx("td", { className: ui.tdPlain, children: _jsx(OralPositionCell, { value: e.surfaces || [], onChange: (arr) => state.onUpdateOralEntry(e.id, { surfaces: arr }), onHoverPreview: (arr) => state.onSetOralHighlight?.(arr) }) }),
                 _jsx("td", { className: ui.tdPlain, children: kind === "procedure"
-                    ? _jsxs("div", { className: ui.dateCellInner, children: [!e.since && (_jsxs("div", { className: ui.datePlaceholderRow, children: [_jsx("span", { className: ui.datePlaceholderText, children: "DD/MM/YYYY" }), _jsx(Calendar, { size: 14, color: "#94a3b8", variant: "Linear" })] })), _jsx("input", { type: "date", value: (() => { const s = (e.since || "").trim(); const m = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})$/); if (m) { const d = new Date(`${m[2]} ${m[1]}, ${m[3]}`); if (!isNaN(d)) return d.toISOString().slice(0,10); } return s; })(), onChange: (ev) => { const v = ev.target.value; if (v) { try { const d = new Date(v); const fmt = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); state.onUpdateOralEntry(e.id, { since: fmt }); } catch { state.onUpdateOralEntry(e.id, { since: v }); } } else { state.onUpdateOralEntry(e.id, { since: "" }); } }, className: clsx(ui.dateInput, e.since ? ui.dateInputFilled : ui.dateInputEmpty) })] })
+                    ? _jsxs("div", { className: ui.dateCellInner, children: [!e.since && (_jsxs("div", { className: ui.datePlaceholderRow, children: [_jsx("span", { className: ui.datePlaceholderText, children: "DD/MM/YYYY" }), _jsx(Calendar, { size: 14, color: "#94a3b8", variant: "Linear" })] })), _jsx("input", { type: "date", value: (() => { const s = (e.since || "").trim(); const m = s.match(/^(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2,4})$/); if (m) { const yr = m[3].length === 2 ? (parseInt(m[3]) < 50 ? `20${m[3]}` : `19${m[3]}`) : m[3]; const d = new Date(`${m[2]} ${m[1]}, ${yr}`); if (!isNaN(d)) return d.toISOString().slice(0,10); } return s; })(), onChange: (ev) => { const v = ev.target.value; if (v) { try { const d = new Date(v); const dd = String(d.getDate()).padStart(2, "0"); const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]; const yy = String(d.getFullYear()).slice(-2); state.onUpdateOralEntry(e.id, { since: `${dd} ${mon} ${yy}` }); } catch { state.onUpdateOralEntry(e.id, { since: v }); } } else { state.onUpdateOralEntry(e.id, { since: "" }); } }, className: clsx(ui.dateInput, e.since ? ui.dateInputFilled : ui.dateInputEmpty) })] })
                     : _jsx(SinceDropdown, { value: e.since || "", onChange: (v) => state.onUpdateOralEntry(e.id, { since: v }), kind: kind }) }),
                 _jsx("td", { className: ui.tdPlain, children: _jsx("input", { type: "text", value: e.note || "", onChange: (ev) => state.onUpdateOralEntry(e.id, { note: ev.target.value }), placeholder: "Add note…", className: ui.symptomField }) }),
                 _jsx("td", { className: ui.tdStickyAct, children: _jsx("button", { type: "button", onClick: () => state.onRemoveOralEntry(e.id), title: "Remove", className: ui.removeRowBtn, children: _jsx(Trash, { size: 20, color: "currentColor", strokeWidth: 1.5, variant: "Linear" }) }) }),
