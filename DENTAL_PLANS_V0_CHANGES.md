@@ -143,6 +143,18 @@ This document lists all changes made to decouple Dental Plans from the appointme
 
 ---
 
+## 10. Examination Table — WHEN Column for Planned Procedures
+
+- **Oral Planned Procedures** — added "WHEN" column (was empty/missing); uses `SinceDropdown` so doctors can enter e.g. "5 days", "2 weeks", or pick a date
+- **Oral Past Procedures** — already had "WHEN" column (no change needed)
+- **Dental (per-tooth) Procedures** — added "WHEN" column; previously only findings/symptoms had a date column (`hasDate`); now procedures also show the `SinceDropdown` with "WHEN" header instead of a raw date picker
+- **Removed empty column** from oral planned procedures table (previously rendered an empty `<th>` / `<td>` because the heading ternary returned `""` for `kind === "procedure"`)
+
+### Files changed
+- `components/dental/examination/ExaminationTab.jsx` — `OralTable` header + body cell, `EntryTab` `hasDate` condition + header label
+
+---
+
 ## File Index
 
 | File | What changed |
@@ -158,4 +170,5 @@ This document lists all changes made to decouple Dental Plans from the appointme
 | `RxPreviewDrawer.jsx` | Visit history + toggleable dental chart |
 | `ToothPicker.jsx` | 6-chip layout, overflow tooltip |
 | `plan-print-styles.css` | Lighter print borders, rounded table |
+| `ExaminationTab.jsx` | WHEN column for planned procedures (oral + dental per-tooth) |
 | `tooltip.jsx` | Dark bg, white text globally |
