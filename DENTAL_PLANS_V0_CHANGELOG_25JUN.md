@@ -1,181 +1,143 @@
-# Dental Plans V0 — Changes (25 Jun 2026)
+# Dental Plans V0 — Changelog (25 Jun 2026)
 
 Branch: `Dental_Plans_V0`
 
 ---
 
-## 1. Rx Preview Overhaul
+## 1. Rx Preview — Complete Redesign
 
-### Consolidated Rx (`RxPreviewDrawer.jsx`)
+The prescription preview has been completely rewritten for both consolidated and single-visit views.
 
-- **Renamed** drawer title from "Dental prescription" to **"Consolidated Rx"**
-- **Removed** the old clinical-procedures/step-wise format (ordered list with status, dots)
-- **New layout**: Treatment Details as a compact single line with pipe separators
-  - Format: `Root Canal Treatment | T36 | occlusal, root`
-- **Visit History** shown in gray cards (`bg-tp-slate-50`) with:
-  - **Visit N** as a bold heading (no colon)
-  - Doctor name and date on a single line with comma separator (no dots)
-  - **Clinical Notes** label in bold, followed by notes text
-- **Removed** the dental chart toggle section (FlatDentitionChart)
-- **Removed** the "Authorised signatory / treating dentist" signature block
-- **Kept** letterhead, patient info, and footer
+### Consolidated Rx (multi-visit prescription)
 
-### Single Visit Rx (`InProgressTab.jsx` — `QuickVisitRxPreview`)
+Previously, the consolidated Rx displayed clinical procedures in a step-wise ordered list with status indicators and dot separators. This has been replaced with a cleaner, more readable layout.
 
-- **Three flat section headings** (no gray card background):
-  - **TREATMENT DETAILS** — compact single line: `Treatment | T36 | surfaces`
-  - **VISIT DETAILS** — doctor name and date on one line
-  - **CLINICAL NOTES** — notes text or italic placeholder
-- All headings use consistent bold uppercase styling (`text-[11px] font-bold uppercase`)
-- Removed old multi-line format (Treatment/Tooth/Surface on separate rows)
-- Removed `toothName` variable — only `T{number}` shown, never the full tooth name
+**New format:**
+- **Treatment Details** are shown as a single compact line using pipe separators — for example: `Root Canal Treatment | T36 | occlusal, root`
+- **Visit History** is presented in soft gray cards, each showing the visit number as a bold heading, the doctor name and date on one line, and any clinical notes below
+- The dental chart toggle (FlatDentitionChart) and the "Authorised signatory / treating dentist" signature block have been removed — these added clutter without adding clinical value
+- The drawer title has been changed from "Dental prescription" to "Consolidated Rx"
+
+### Single Visit Rx (per-visit prescription)
+
+The single-visit Rx has been simplified into three clean sections:
+- **Treatment Details** — treatment name, tooth number, and surfaces on one line
+- **Visit Details** — doctor name and date
+- **Clinical Notes** — the notes or an italic placeholder if empty
+
+All section headings use a consistent bold uppercase style for visual clarity.
 
 ---
 
 ## 2. Tooth Display — Number Only
 
-All tooth references now display **only the tooth number** (e.g., `T36`), never the full anatomical name.
+Across all plan screens, tooth references now show **only the tooth number** (e.g., `T36`) instead of the full anatomical name (e.g., `Lower Left First Molar (T36)`).
 
-### Files changed:
-- **`CompletedTab.jsx`** — `buildServiceDescription()` uses `T${service.toothFdi}` instead of `service.toothLabel`
-- **`InProgressTab.jsx`** — Service meta summary and hover details show `toothText` only (removed `service.toothLabel (T36)` format)
-- **`RxPreviewDrawer.jsx`** — Treatment details line uses `T${toothNum}`
+This applies to the Completed Tab service descriptions, the In-Progress Tab service summaries, and the Rx preview treatment details line. The change keeps the UI compact and avoids inconsistencies between tooth naming conventions.
 
 ---
 
-## 3. Plan Builder — Edit Plan
+## 3. Edit Plan — Full Edit Mode
 
-### Menu rename (`InProgressTab.jsx`)
-- Plan-level three-dot menu: **"View Plan Builder"** renamed to **"Edit Plan"**
-- Opens the plan builder in **full edit mode** (no longer read-only)
+### What changed
 
-### Full edit mode (`AddEditPlanDrawer.jsx`)
-- **Removed** the `readOnly` variable and ALL associated guards:
-  - `if (readOnly) return;` in `addTreatmentRow`, `updateRow`, `removeRow`, `clearAllRows`, `handleNameChange`
-  - `readOnly` prop on plan name input and additional discount input
-  - View-only header badge ("View only") — always shows edit UI with action buttons
-- **Title**: Shows "Edit Plan" when editing, "Create Treatment Plan" when creating
-- **Delete confirmation dialog** for ALL service deletions in edit mode:
-  - Clicking the trash icon on any service row shows a confirmation dialog
-  - **Contextual warning message**:
-    - Services with existing visits/procedures: *"Are you sure you want to remove 'Root Canal Treatment'? This will permanently delete all associated visits, notes, and progress."*
-    - Services without data: *"Are you sure you want to remove 'Root Canal Treatment'? This action cannot be undone."*
-  - Uses the existing `TPConfirmDialog` component
-  - Added `confirmDeleteRow` state, `serviceHasData()` helper, and `confirmRemoveRow()` handler
+The plan builder was previously opened in **read-only mode** when accessed from an active plan. Users could view the plan but not make changes. This has been changed so the plan builder always opens in **full edit mode**.
+
+- The three-dot menu label has been renamed from "View Plan Builder" to **"Edit Plan"**
+- The menu icon has been changed from a document icon to a **pencil icon** (Edit2) to better communicate that the plan is editable
+- The drawer title shows "Edit Plan" when editing an existing plan and "Create Treatment Plan" when creating a new one
+
+### Delete confirmation in edit mode
+
+When removing a service from the plan in edit mode, a confirmation dialog now appears instead of deleting immediately. The warning message is contextual:
+- If the service has existing visits or clinical data: *"Are you sure you want to remove 'Root Canal Treatment'? This will permanently delete all associated visits, notes, and progress."*
+- If the service has no data yet: *"Are you sure you want to remove 'Root Canal Treatment'? This action cannot be undone."*
 
 ---
 
-## 4. Completed Tab Enhancements (`CompletedTab.jsx`)
+## 4. Combined Estimates View
 
-- **Surgery Date column** added to the completed services table (header + data cell)
-- `formatProcedureDate()` helper: formats dates as `DD MMM YY`
-- **"View Rx"** menu item renamed to **"View Consolidated Rx"** in the service three-dot menu
+A new multi-plan view has been added that lets users see all their plan estimates together in a single drawer.
 
----
+### How to access it
 
-## 5. Service Three-Dot Menu — View Consolidated Rx (`InProgressTab.jsx`)
+In the **Plan Estimates** tab header, the three-dot menu now includes a **"View Combined Estimates"** option. This opens a drawer that shows all draft and active plans combined into one view. If there is only one plan, it falls back to the standard single-plan estimate preview.
 
-- Added **"View Consolidated Rx"** menu item to the active service three-dot menu (opens `RxPreviewDrawer` scoped to that service)
+### Layout
 
----
+Each plan is shown as a group with:
+1. A **plan heading row** with the plan name on a soft gray background
+2. Individual **service line items** with treatment name, tooth, surfaces, and cost
+3. A **plan subtotal breakdown** at the bottom of each group:
+   - Subtotal (sum of all services in that plan)
+   - Additional Discount (shown in red, only if a discount was applied)
+   - Plan Total (shown only when discounts exist, so the user can see the net amount)
+4. A **Grand Total** row at the very bottom summing all plans together
 
-## 6. Combined Estimates View (`BillPreviewDrawer.jsx`, `PlanEstimatesTab.jsx`)
-
-New multi-plan drawer for viewing all plan estimates together.
-
-| Feature | Detail |
-|---------|--------|
-| Menu entry | **"View Combined Estimates"** in Plan Estimates header three-dot menu |
-| Layout | Plan heading row → service line items → plan subtotal breakdown, repeated per plan |
-| Plan subtotal breakdown | **Subtotal** → **Additional Discount** (if > 0, in red) → **Plan Total** (if any discounts) |
-| Grand Total | Shown at the bottom in a bold footer row |
-| Heading style | Neutral `bg-tp-slate-50` background for plan heading rows |
-| Single plan fallback | If only one estimate plan exists, opens standard single-plan "Estimate Preview" |
-| Text download | "Download as Text" generates combined multi-plan plain-text file |
-
-### How it works:
-- `PlanEstimatesTab` passes `planIds: estimatePlans.map(p => p.id)` to the drawer
-- `BillPreviewDrawer` detects `isCombined` when `planIds.length > 1`
-- Each plan group computes: `subtotal`, `serviceDiscount`, `additionalDiscount`, `planTotal`
-- `PlanSubtotalRows()` renders 1–3 rows per plan depending on whether discounts exist
+The drawer also supports downloading the combined estimates as a plain-text file.
 
 ---
 
-## 7. Edit Plan Icon (`InProgressTab.jsx`)
+## 5. Active Plan Safeguards
 
-- **Changed** the "Edit Plan" menu icon from `DocumentText` to **`Edit2`** (pencil icon) in the active plan three-dot menu
+### Revert All to Plan — disabled when visits exist
 
----
+The "Revert All to Plan" option in the active plan menu is now **disabled** (grayed out) whenever any service in the plan has at least one recorded visit. This prevents accidental data loss — reverting a plan would reset service statuses, but the visit records would be orphaned.
 
-## 8. Active Plan Safeguards (`InProgressTab.jsx`)
+### Delete Visit — confirmation dialog
 
-### Revert All to Plan — Disabled when visits exist
-
-| State | Behavior |
-|-------|----------|
-| No visits on any service | "Revert All to Plan" is enabled (orange text) |
-| At least one visit exists | "Revert All to Plan" is **disabled** — grayed out (`text-tp-slate-400`), `onClick` blocked |
-
-- `hasAnyVisits = services.some(s => (s.sittings ?? []).length > 0)` computed in `PlanClusterCard`
-
-### Delete Visit Confirmation Dialog
-
-Clicking **"Delete visit"** in the visit three-dot menu now shows a confirmation dialog instead of deleting immediately.
-
-| Property | Value |
-|----------|-------|
-| Title | "Delete Visit" |
-| Warning | "Are you sure you want to delete Visit N? All clinical notes and records for this visit will be permanently removed." |
-| Cancel button | "Cancel" — closes dialog, visit preserved |
-| Confirm button | "Delete Visit" (red/destructive) — dispatches `REMOVE_SITTING` |
-
-- `confirmDeleteVisit` state and `TPConfirmDialog` are in `ServiceSubCard` (same component as the menu item)
+Previously, clicking "Delete visit" in a visit's three-dot menu would immediately remove the visit with no confirmation. Now, a confirmation dialog appears:
+- **Title:** "Delete Visit"
+- **Warning:** "Are you sure you want to delete Visit N? All clinical notes and records for this visit will be permanently removed."
+- **Actions:** Cancel (preserves the visit) or Delete Visit (red button, removes the visit)
 
 ---
 
-## 9. Rename "Bill" → "Estimate" (All plan files)
+## 6. "Bill" to "Estimate" — Terminology Correction
 
-All user-facing "Bill" labels renamed to **"Estimate"** — plans produce estimates, not bills.
+All user-facing labels that said "Bill" have been renamed to **"Estimate"** across the entire plan module. Plans in this system produce cost estimates, not invoices or bills, and the terminology should reflect that.
 
-| Before | After | Location |
-|--------|-------|----------|
-| View Plan Bill | **View Plan Estimate** | Plan Estimates, Active Plans, Completed tab menus |
-| View Service Bill | **View Service Estimate** | Active Plans service menu, Completed tab service menu |
-| Bill Preview | **Estimate Preview** | Drawer title (single plan view) |
-| View Combined Bill | **View Combined Estimates** | Plan Estimates header menu |
-| Combined Bill | **Combined Estimates** | Drawer title (multi-plan view) |
-| Download bill / Print bill | Download estimate / Print estimate | Tooltips and aria-labels |
+| What changed | New label |
+|---|---|
+| View Plan Bill | View Plan Estimate |
+| View Service Bill | View Service Estimate |
+| Bill Preview (drawer title) | Estimate Preview |
+| View Combined Bill | View Combined Estimates |
+| Combined Bill (drawer title) | Combined Estimates |
+| Download bill / Print bill (tooltips) | Download estimate / Print estimate |
 
-Internal code identifiers (`type: "bill-preview"`, function names) kept unchanged.
+This rename applies across all tabs — Plan Estimates, Active Plans (In-Progress), and Completed. Internal code identifiers (variable names, action types) were left unchanged since they don't affect the user experience.
 
 ---
 
-## 10. Completed Tab Polish (`CompletedTab.jsx`)
+## 7. Completed Tab Polish
 
-| Change | Detail |
-|--------|--------|
-| **"Surgery Date" → "Date"** | Shortened column header to prevent text wrapping on narrow screens |
-| **Removed header three-dot menu** | Printer import and header menu removed |
+Two small refinements to the Completed services table:
+
+- **"Surgery Date" column header shortened to "Date"** — the full label was causing text wrapping on narrow screens, and "Date" is clear enough in context since it always refers to the procedure date
+- **"View Consolidated Rx"** menu item added to the service three-dot menu, replacing the shorter "View Rx" label for consistency with the In-Progress tab
 
 ---
 
 ## Files Modified
 
-| File | Summary |
-|------|---------|
-| `components/dental/plan/RxPreviewDrawer.jsx` | Complete rewrite — compact treatment details, visit cards, removed signature/chart |
-| `components/dental/plan/InProgressTab.jsx` | Single-visit Rx format, Edit Plan pencil icon, tooth display, View Consolidated Rx menu, revert guard, delete visit confirmation |
-| `components/dental/plan/AddEditPlanDrawer.jsx` | Full edit mode, delete confirmation dialog |
-| `components/dental/plan/CompletedTab.jsx` | Tooth number display, date column header, View Service Estimate rename |
-| `components/dental/plan/BillPreviewDrawer.jsx` | Combined multi-plan estimates view, subtotal/discount/total breakdown, all "Bill" → "Estimate" labels |
-| `components/dental/plan/PlanEstimatesTab.jsx` | View Combined Estimates menu, View Plan Estimate rename |
+| File | What changed |
+|---|---|
+| `RxPreviewDrawer.jsx` | Complete rewrite of consolidated and single-visit Rx layouts |
+| `InProgressTab.jsx` | Edit Plan icon, tooth display, View Consolidated Rx menu, revert guard, delete visit confirmation |
+| `AddEditPlanDrawer.jsx` | Full edit mode (removed read-only), delete service confirmation dialog |
+| `CompletedTab.jsx` | Tooth number display, date column header, menu renames |
+| `BillPreviewDrawer.jsx` | Combined multi-plan estimates, subtotal/discount/total breakdown, Bill-to-Estimate labels |
+| `PlanEstimatesTab.jsx` | View Combined Estimates menu, View Plan Estimate rename |
+
+All files are in `components/dental/plan/`.
 
 ---
 
-## Commits (25 Jun 2026)
+## Commits
 
-| Hash | Message |
-|------|---------|
+| Hash | Description |
+|---|---|
 | `63355123b` | Rx preview overhaul, Edit Plan mode, tooth-number-only display, signature removal |
 | `7e567647b` | Combined Estimates view, delete visit confirmation, active plan safeguards, menu renames |
 | `df4d2ade8` | Combined estimates: show subtotal, additional discount, and plan total per plan |
