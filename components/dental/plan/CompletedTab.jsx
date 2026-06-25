@@ -149,7 +149,7 @@ function CompletedServiceRow({ service, plan, index }) {
                                 _jsxs(DropdownMenuItem, {
                                     onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
                                     className: dropdownItemClass,
-                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Service Bill"],
+                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Service Estimate"],
                                 }),
                             ],
                         }),
@@ -233,7 +233,7 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
                                                 className: dropdownItemClass,
-                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Bill"],
+                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Estimate"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => setRevertPlanOpen(true),

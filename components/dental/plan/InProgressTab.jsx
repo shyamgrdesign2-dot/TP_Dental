@@ -1137,7 +1137,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                     _jsxs(DropdownMenuItem, {
                                                         onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
                                                         className: dropdownItemClass,
-                                                        children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View Service Bill"],
+                                                        children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View Service Estimate"],
                                                     }),
                                                     _jsxs(DropdownMenuItem, {
                                                         onClick: () => setDeleteOpen(true),
@@ -1685,7 +1685,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
                                                 className: dropdownItemClass,
-                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View Plan Bill"],
+                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View Plan Estimate"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => !hasAnyVisits && setRevertAllOpen(true),

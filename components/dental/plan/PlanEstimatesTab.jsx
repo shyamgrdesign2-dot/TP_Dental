@@ -107,7 +107,7 @@ function PlanSubCard({ plan, index, isOpen, onToggle }) {
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
                                                 className: dropdownItemClass,
-                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Bill"],
+                                                children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Estimate"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: handleEdit,

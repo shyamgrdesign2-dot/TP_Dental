@@ -17,7 +17,7 @@ const BILL_ACTION_ICON_CLASS =
 
 function downloadBillAsText(plan, services, subtotal, serviceDiscount, additionalDiscount, total) {
     const lines = [];
-    lines.push("Bill Preview");
+    lines.push("Estimate Preview");
     lines.push("");
     lines.push(`Plan: ${plan.name}`);
     lines.push(`Date: ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`);
@@ -38,7 +38,7 @@ function downloadBillAsText(plan, services, subtotal, serviceDiscount, additiona
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `bill-${plan.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.txt`;
+    a.download = `estimate-${plan.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -71,7 +71,7 @@ function downloadCombinedBillAsText(plans, planGroups, grandTotal) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "combined-bill.txt";
+    a.download = "combined-estimates.txt";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -251,11 +251,11 @@ export function BillPreviewDrawer() {
                                 }
                             },
                             className: BILL_ACTION_ICON_CLASS,
-                            "aria-label": "Download bill",
+                            "aria-label": "Download estimate",
                             children: _jsx(DocumentDownload, { size: 18, variant: "Linear" }),
                         }),
                     }),
-                    _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Download bill" }),
+                    _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Download estimate" }),
                 ],
             }),
             _jsxs(Tooltip, {
@@ -267,17 +267,17 @@ export function BillPreviewDrawer() {
                             type: "button",
                             onClick: () => window.print(),
                             className: BILL_ACTION_ICON_CLASS,
-                            "aria-label": "Print bill",
+                            "aria-label": "Print estimate",
                             children: _jsx(Printer, { size: 18, variant: "Linear" }),
                         }),
                     }),
-                    _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Print bill" }),
+                    _jsx(TooltipContent, { side: "bottom", sideOffset: 6, children: "Print estimate" }),
                 ],
             }),
         ],
     });
 
-    const drawerTitle = isCombined ? "Combined Estimates" : "Bill Preview";
+    const drawerTitle = isCombined ? "Combined Estimates" : "Estimate Preview";
 
     return (_jsx(TPDrawer, {
         open: isOpen,
@@ -344,7 +344,7 @@ export function BillPreviewDrawer() {
                                     className: "flex items-center gap-[8px] rounded-[10px] bg-tp-slate-100 px-[12px] py-[8px]",
                                     children: [
                                         _jsx("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", className: "shrink-0 text-tp-slate-400", children: _jsxs("g", { children: [_jsx("circle", { cx: "12", cy: "12", r: "10", stroke: "currentColor", strokeWidth: "1.5" }), _jsx("path", { d: "M12 8v5", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round" }), _jsx("circle", { cx: "12", cy: "16", r: "0.75", fill: "currentColor" })] }) }),
-                                        _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-600", children: "Showing bill for a single service from this plan" }),
+                                        _jsx("p", { className: "font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-600", children: "Showing estimate for a single service from this plan" }),
                                     ],
                                 }),
                                 _jsxs("div", {
