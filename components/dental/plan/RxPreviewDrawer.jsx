@@ -1,40 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import { Building2 } from "lucide-react";
 import { Printer, DocumentDownload } from "iconsax-reactjs";
 import { TPDrawer, TPDrawerContent } from "@/components/tp-ui/tp-drawer";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { getAppointmentPatient } from "@/lib/appointment-patients";
-import { FlatDentitionChart } from "@/components/dental/examination/FlatDentitionChart";
 import { usePlanContext } from "./plan-context";
 import { DrawerHeader, PLAN_DRAWER_PANEL_CLASS } from "./plan-shared";
 
 const RX_ACTION_ICON_CLASS =
     "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-700 transition-colors hover:bg-tp-slate-200";
 
-function formatProcedureStatus(status) {
-    switch (status) {
-        case "completed":
-            return "Completed";
-        case "in-progress":
-            return "In progress";
-        case "not-started":
-            return "Not started";
-        case "no-show":
-            return "Patient no-show";
-        case "not-interested":
-            return "Not interested";
-        default:
-            return status ? String(status).replace(/-/g, " ") : "—";
-    }
-}
-
-function serviceToothLine(svc) {
-    if (svc.toothFdi === "full-mouth")
-        return "Full mouth";
-    return `T${svc.toothFdi} — ${svc.toothLabel}`;
-}
 
 export function RxPreviewDrawer() {
     const { state, closeDrawer, patientId: ctxPatientId } = usePlanContext();
@@ -48,7 +24,6 @@ export function RxPreviewDrawer() {
             ? plan.services.filter((s) => s.id === serviceId)
             : plan.services
         : [];
-    const [showChart, setShowChart] = useState(false);
 
     const patient = plan
         ? getAppointmentPatient(plan.patientId || ctxPatientId || "apt-1")
@@ -66,7 +41,7 @@ export function RxPreviewDrawer() {
         <TPDrawer open={isOpen} onOpenChange={(open) => !open && closeDrawer()}>
             <TPDrawerContent side="right" size="lg" className={`${PLAN_DRAWER_PANEL_CLASS} flex flex-col`}>
                 <DrawerHeader
-                    title="Dental prescription"
+                    title="Consolidated Rx"
                     onClose={closeDrawer}
                     action={
                         <div className="flex items-center gap-[8px]">
@@ -106,7 +81,7 @@ export function RxPreviewDrawer() {
                 <div className="min-h-0 flex-1 overflow-y-auto bg-tp-slate-50/80 px-[24px] py-[16px]">
                     {plan && patient && (
                         <article className="overflow-hidden rounded-[12px] border border-tp-slate-200 bg-white font-['Inter',sans-serif] shadow-sm">
-                            {/* Letterhead — same clinic block as bill preview */}
+                            {/* Letterhead */}
                             <div className="flex items-start gap-[12px] px-[16px] py-[14px]">
                                 <div className="flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[10px] bg-tp-blue-50 text-tp-blue-500">
                                     <Building2 size={26} strokeWidth={1.6} />
@@ -119,7 +94,7 @@ export function RxPreviewDrawer() {
                                 </div>
                             </div>
                             <div className="h-px bg-tp-slate-100" aria-hidden />
-                            {/* Patient + visit context — continuous with letterhead (no separate card) */}
+                            {/* Patient info */}
                             <div className="grid grid-cols-2 gap-x-[16px] gap-y-[6px] bg-tp-slate-50/70 px-[16px] py-[12px] text-[12px] text-tp-slate-600">
                                 <p>
                                     <span className="font-semibold text-tp-slate-700">Patient name:</span> {patient.name}
@@ -143,128 +118,76 @@ export function RxPreviewDrawer() {
                                     <span className="font-semibold text-tp-slate-700">Treatment plan:</span> {plan.name}
                                 </p>
                             </div>
-                            {serviceId && (
-                                <p className="border-t border-tp-slate-100 px-[16px] py-[8px] text-[12px] font-medium text-tp-blue-600">
-                                    Prescription limited to the selected service line.
-                                </p>
-                            )}
-                            <div className="h-px bg-tp-slate-100" aria-hidden />
-                            {/* Prescription body — inside same sheet */}
-                            <div className="px-[16px] py-[14px]">
-                                <div className="mb-[12px] flex flex-wrap items-end gap-x-[10px] gap-y-[4px] border-b border-tp-slate-100 pb-[10px]">
-                                    <span className="font-serif text-[26px] font-bold leading-none text-tp-blue-600">℞</span>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[13px] font-semibold text-tp-slate-800">Clinical procedures (treatment record)</p>
-                                        <p className="text-[11px] leading-snug text-tp-slate-500">
-                                            Step-wise procedures performed or planned under this treatment plan. For charting, billing alignment, and
-                                            medico-legal documentation.
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="space-y-0">
-                                    {services.map((svc, svcIdx) => {
-                                        const procs = svc.procedures ?? [];
-                                        const sittings = svc.sittings ?? [];
-                                        return (
-                                            <div
-                                                key={svc.id}
-                                                className={svcIdx > 0 ? "mt-[12px] border-t border-tp-slate-100 pt-[12px]" : ""}
-                                            >
-                                                <p className="text-[12px] font-semibold uppercase tracking-[0.04em] text-tp-slate-500">
-                                                    {svc.treatment}
-                                                    <span className="ml-[6px] font-normal normal-case tracking-normal text-tp-slate-400">
-                                                        ({serviceToothLine(svc)})
-                                                    </span>
-                                                </p>
-                                                {procs.length === 0 ? (
-                                                    <p className="mt-[6px] text-[12px] leading-relaxed text-tp-slate-500">
-                                                        No step-wise procedures recorded for this line yet.
-                                                    </p>
-                                                ) : (
-                                                    <ol className="m-0 mt-[8px] list-decimal space-y-[8px] pl-[18px] text-[12px] leading-[1.55] text-tp-slate-700 marker:text-tp-slate-400">
-                                                        {procs.map((p) => (
-                                                            <li key={p.id} className="pl-[4px]">
-                                                                <span className="font-semibold text-tp-slate-800">{p.name}</span>
-                                                                <span className="text-tp-slate-500">
-                                                                    {" "}
-                                                                    — {p.date || "—"} · {p.doctor || "—"} · {formatProcedureStatus(p.status)}
-                                                                </span>
-                                                                {p.notes ? (
-                                                                    <span className="mt-[2px] block text-[11px] text-tp-slate-500">{p.notes}</span>
-                                                                ) : null}
-                                                            </li>
-                                                        ))}
-                                                    </ol>
-                                                )}
-                                                {/* Visit history with clinical notes */}
-                                                {sittings.length > 0 && (
-                                                    <div className="mt-[10px]">
-                                                        <p className="mb-[6px] text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400">
-                                                            Visit history
-                                                        </p>
-                                                        <div className="space-y-[6px]">
-                                                            {sittings.map((sit) => (
-                                                                <div
-                                                                    key={sit.id}
-                                                                    className="rounded-[8px] bg-tp-slate-50 px-[10px] py-[7px]"
-                                                                >
-                                                                    <div className="flex items-center gap-[6px] text-[11px]">
-                                                                        <span className="font-semibold text-tp-slate-700">{sit.date}</span>
-                                                                        <span className="text-tp-slate-300">·</span>
-                                                                        <span className="text-tp-slate-500">{sit.doctor}</span>
-                                                                    </div>
-                                                                    {sit.notes && (
-                                                                        <p className="mt-[3px] text-[11px] leading-[1.5] text-tp-slate-600">
-                                                                            <span className="font-medium text-tp-slate-500">Notes:</span> {sit.notes}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            {/* Dental chart — toggleable */}
-                            <div className="border-t border-tp-slate-100 px-[16px] py-[10px]">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowChart((v) => !v)}
-                                    className="flex w-full items-center justify-between text-[12px] font-semibold text-tp-slate-600 transition-colors hover:text-tp-blue-600"
-                                    data-print-visible
-                                >
-                                    <span>Dental chart</span>
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        className={`shrink-0 transition-transform ${showChart ? "rotate-180" : ""}`}
+                            {/* Service sections */}
+                            {services.map((svc, svcIdx) => {
+                                const sittings = svc.sittings ?? [];
+                                const toothNum = svc.toothFdi === "full-mouth" ? null : svc.toothFdi;
+                                return (
+                                    <div
+                                        key={svc.id}
+                                        className={`px-[16px] py-[14px] text-[12px] text-tp-slate-700 space-y-[14px] ${svcIdx > 0 ? "border-t border-tp-slate-100" : ""}`}
                                     >
-                                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                </button>
-                                {showChart && (
-                                    <div className="mt-[8px]">
-                                        <FlatDentitionChart
-                                            patientId={plan.patientId || ctxPatientId || "apt-1"}
-                                            alwaysRender
-                                        />
+                                        {/* Treatment Details */}
+                                        <div>
+                                            <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-tp-slate-700 mb-[4px]">
+                                                Treatment Details
+                                            </p>
+                                            <p className="text-[12px] text-tp-slate-700">
+                                                <span className="font-semibold text-tp-slate-900">{svc.treatment}</span>
+                                                <span className="text-tp-slate-300 mx-[6px]">|</span>
+                                                {toothNum ? `T${toothNum}` : "Full Mouth"}
+                                                {(svc.surfaces ?? []).length > 0 && (
+                                                    <>
+                                                        <span className="text-tp-slate-300 mx-[6px]">|</span>
+                                                        {svc.surfaces.join(", ")}
+                                                    </>
+                                                )}
+                                            </p>
+                                        </div>
+                                        {/* Visit History */}
+                                        {sittings.length > 0 ? (
+                                            <div>
+                                                <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-tp-slate-700 mb-[8px]">
+                                                    Visit History
+                                                </p>
+                                                <div className="space-y-[6px]">
+                                                    {sittings.map((sit, idx) => (
+                                                        <div
+                                                            key={sit.id}
+                                                            className="rounded-[10px] bg-tp-slate-50 px-[12px] py-[9px]"
+                                                        >
+                                                            <p className="text-[12px] font-bold text-tp-slate-700 mb-[3px]">
+                                                                Visit {idx + 1}
+                                                            </p>
+                                                            <p className="text-[12px] text-tp-slate-600">
+                                                                <span className="font-medium">{sit.doctor || "—"}</span>
+                                                                {sit.date && (
+                                                                    <span className="text-tp-slate-500">, {sit.date}</span>
+                                                                )}
+                                                            </p>
+                                                            {sit.notes ? (
+                                                                <p className="mt-[4px] text-[11px] leading-[1.55] text-tp-slate-600">
+                                                                    <span className="font-bold text-tp-slate-700">Clinical Notes: </span>
+                                                                    {sit.notes}
+                                                                </p>
+                                                            ) : (
+                                                                <p className="mt-[3px] text-[11px] text-tp-slate-400 italic">
+                                                                    No clinical notes recorded.
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-[12px] text-tp-slate-400 italic">
+                                                No visits recorded yet.
+                                            </p>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                            <div className="border-t border-tp-slate-100 px-[16px] py-[14px]">
-                                <div className="flex justify-end">
-                                    <div className="text-right">
-                                        <div className="h-[36px]" aria-hidden />
-                                        <div className="mb-[4px] ml-auto h-px w-[160px] bg-tp-slate-300" />
-                                        <p className="text-[11px] text-tp-slate-500">Authorised signatory / treating dentist</p>
-                                    </div>
-                                </div>
-                            </div>
+                                );
+                            })}
+                            {/* Footer */}
                             <div className="border-t border-tp-slate-100 bg-tp-slate-50/50 px-[16px] py-[10px] text-center text-[10px] text-tp-slate-500">
                                 support@tpdentalcare.com | www.tpdentalcare.com
                             </div>

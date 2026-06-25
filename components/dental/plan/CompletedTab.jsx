@@ -70,17 +70,28 @@ function renderPlanCompletionChip(status) {
     });
 }
 
+function formatProcedureDate(d) {
+    if (!d) return null;
+    const [y, m, day] = String(d).split("-").map(Number);
+    const dt = new Date(y, (m || 1) - 1, day || 1);
+    if (!Number.isFinite(dt.getTime())) return d;
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mmm = dt.toLocaleDateString("en-IN", { month: "short" });
+    const yy = String(dt.getFullYear()).slice(-2);
+    return `${dd} ${mmm} ${yy}`;
+}
+
 function formatSurfaceLabel(surface) {
     return surface.charAt(0).toUpperCase() + surface.slice(1);
 }
 
 function buildServiceDescription(service) {
-    const toothLabel = service.toothFdi === "full-mouth" ? "the full mouth" : service.toothLabel;
+    const toothDisplay = service.toothFdi === "full-mouth" ? "Full Mouth" : `T${service.toothFdi}`;
     if (service.surfaces.length === 0) {
-        return `Completed for ${toothLabel}.`;
+        return `Completed for ${toothDisplay}.`;
     }
     const surfaceText = service.surfaces.map((surface) => formatSurfaceLabel(surface)).join(", ");
-    return `Completed for ${toothLabel} on ${surfaceText} surface${service.surfaces.length > 1 ? "s" : ""}.`;
+    return `Completed for ${toothDisplay} on ${surfaceText} surface${service.surfaces.length > 1 ? "s" : ""}.`;
 }
 
 // ─── Service row ───────────────────────────────────────────
@@ -110,6 +121,7 @@ function CompletedServiceRow({ service, plan, index }) {
                     children: serviceToothDisplay(service),
                 }),
             }),
+            _jsx("td", { className: "px-[8px] py-[9px] font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: formatProcedureDate(service.procedureDate) ?? "—" }),
             _jsx("td", { className: "px-[8px] py-[9px] font-['Inter',sans-serif] text-[12px] text-tp-slate-500", children: service.completedAt ?? "—" }),
             _jsx("td", { className: "px-[8px] py-[9px]", children: renderStatusChip(workflowStatus) }),
             _jsx("td", { className: "px-[14px] py-[9px] text-right font-['Inter',sans-serif] text-[14px] font-semibold text-tp-slate-800", children: formatINR(service.amount) }),
@@ -132,7 +144,7 @@ function CompletedServiceRow({ service, plan, index }) {
                                 _jsxs(DropdownMenuItem, {
                                     onClick: () => openDrawer({ type: "rx-preview", planId: plan.id, serviceId: service.id }),
                                     className: dropdownItemClass,
-                                    children: [_jsx(DocumentText, { size: 16, variant: "Linear" }), "View Rx"],
+                                    children: [_jsx(DocumentText, { size: 16, variant: "Linear" }), "View Consolidated Rx"],
                                 }),
                                 _jsxs(DropdownMenuItem, {
                                     onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
@@ -263,6 +275,7 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                         _jsx("th", { className: "px-[14px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[36px]", children: "#" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400", children: "Service" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]", children: "Tooth" }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Surgery Date" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Completed" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[110px]", children: "Status" }),
                                         _jsx("th", { className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]", children: "Amount" }),

@@ -793,7 +793,6 @@ function QuickVisitRxPreview({ sit, patientId, plan, service, previewOpen, onOpe
     const notesRaw = String(sit.notes ?? "").trim();
     const mobileDisplay = patient.mobile?.replace(/^\+91-/, "") ?? "—";
     const toothNum = service.toothFdi === "full-mouth" ? null : service.toothFdi;
-    const toothName = service.toothFdi === "full-mouth" ? "Full Mouth" : service.toothLabel;
     const dateRaw = String(sit.date ?? "").trim();
     const commaIdx = dateRaw.indexOf(",");
     const datePart = commaIdx > -1 ? dateRaw.slice(0, commaIdx).trim() : dateRaw;
@@ -878,48 +877,43 @@ function QuickVisitRxPreview({ sit, patientId, plan, service, previewOpen, onOpe
                                 ],
                             }),
                             _jsxs("div", {
-                                className: "px-[16px] py-[14px] text-[12px] text-tp-slate-700 space-y-[16px]",
+                                className: "px-[16px] py-[14px] text-[12px] text-tp-slate-700 space-y-[14px]",
                                 children: [
                                     _jsxs("div", {
-                                        className: "space-y-[4px]",
                                         children: [
-                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Treatment Details" }),
-                                            _jsxs("p", { children: [
-                                                _jsx("span", { className: "text-tp-slate-500", children: "Treatment: " }),
-                                                _jsx("span", { className: "font-semibold text-tp-slate-900", children: service.treatment }),
-                                            ] }),
-                                            _jsxs("p", { children: [
-                                                _jsx("span", { className: "text-tp-slate-500", children: "Tooth: " }),
-                                                toothNum ? `T${toothNum}` : "—",
-                                                toothName && _jsxs("span", { className: "text-tp-slate-500", children: [" ", toothName] }),
-                                            ] }),
-                                            (service.surfaces ?? []).length > 0 && _jsxs("p", {
+                                            _jsx("p", { className: "text-[11px] font-bold uppercase tracking-[0.05em] text-tp-slate-700 mb-[4px]", children: "Treatment Details" }),
+                                            _jsxs("p", {
+                                                className: "text-[12px] text-tp-slate-700",
                                                 children: [
-                                                    _jsx("span", { className: "text-tp-slate-500", children: "Surface: " }),
-                                                    service.surfaces.join(", "),
+                                                    _jsx("span", { className: "font-semibold text-tp-slate-900", children: service.treatment }),
+                                                    _jsx("span", { className: "text-tp-slate-300 mx-[6px]", children: "|" }),
+                                                    toothNum ? `T${toothNum}` : "Full Mouth",
+                                                    (service.surfaces ?? []).length > 0 && _jsxs(_Fragment, { children: [
+                                                        _jsx("span", { className: "text-tp-slate-300 mx-[6px]", children: "|" }),
+                                                        service.surfaces.join(", "),
+                                                    ] }),
                                                 ],
                                             }),
                                         ],
                                     }),
                                     _jsxs("div", {
-                                        className: "space-y-[4px]",
                                         children: [
-                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Visit Details" }),
-                                            _jsxs("p", { children: [_jsx("span", { className: "text-tp-slate-500", children: "Doctor: " }), sit.doctor || "—"] }),
-                                            _jsxs("p", { children: [
-                                                _jsx("span", { className: "text-tp-slate-500", children: "Date: " }),
-                                                datePart || "—",
-                                                timePart && _jsxs("span", { className: "text-tp-slate-500", children: [" (", timePart, ")"] }),
-                                            ] }),
+                                            _jsx("p", { className: "text-[11px] font-bold uppercase tracking-[0.05em] text-tp-slate-700 mb-[4px]", children: "Visit Details" }),
+                                            _jsxs("p", {
+                                                className: "text-[12px] text-tp-slate-600",
+                                                children: [
+                                                    _jsx("span", { className: "font-medium text-tp-slate-700", children: sit.doctor || "—" }),
+                                                    sit.date && _jsx("span", { className: "text-tp-slate-500", children: `, ${sit.date}` }),
+                                                ],
+                                            }),
                                         ],
                                     }),
                                     _jsxs("div", {
-                                        className: "space-y-[4px]",
                                         children: [
-                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Clinical Notes" }),
+                                            _jsx("p", { className: "text-[11px] font-bold uppercase tracking-[0.05em] text-tp-slate-700 mb-[4px]", children: "Clinical Notes" }),
                                             notesRaw
-                                                ? _jsx("p", { className: "whitespace-pre-wrap leading-[1.6]", children: notesRaw })
-                                                : _jsx("p", { className: "text-tp-slate-400 italic", children: "No clinical notes recorded." }),
+                                                ? _jsx("p", { className: "text-[12px] leading-[1.55] text-tp-slate-600", children: notesRaw })
+                                                : _jsx("p", { className: "text-[12px] text-tp-slate-400 italic", children: "No clinical notes recorded." }),
                                         ],
                                     }),
                                 ],
@@ -977,9 +971,9 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
         : "All surfaces";
     const serviceMetaSummary = service.toothFdi === "full-mouth"
         ? "Full Mouth"
-        : `${service.toothLabel} (${toothText})`;
+        : toothText;
     const hoverDetails = [
-        { label: "Tooth", value: service.toothFdi === "full-mouth" ? "Full Mouth" : `${service.toothLabel} (${toothText})` },
+        { label: "Tooth", value: service.toothFdi === "full-mouth" ? "Full Mouth" : toothText },
         { label: "Surfaces", value: surfaceSummary },
         { label: "Notes", value: String(service.notes ?? "").trim() || "No notes added" },
     ];
@@ -1134,6 +1128,11 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                 className: dropdownContentClass,
                                                 children: [
                                                     _jsxs(DropdownMenuItem, {
+                                                        onClick: () => openDrawer({ type: "rx-preview", planId: plan.id, serviceId: service.id }),
+                                                        className: dropdownItemClass,
+                                                        children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "View Consolidated Rx"],
+                                                    }),
+                                                    _jsxs(DropdownMenuItem, {
                                                         onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
                                                         className: dropdownItemClass,
                                                         children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View Service Bill"],
@@ -1191,7 +1190,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                             _jsx("span", {
                                                 children: service.toothFdi === "full-mouth"
                                                     ? "Full Mouth"
-                                                    : `${service.toothLabel} (${toothText})`,
+                                                    : toothText,
                                             }),
                                         ],
                                     }),
@@ -1659,9 +1658,9 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                                         className: dropdownContentClass,
                                         children: [
                                             _jsxs(DropdownMenuItem, {
-                                                onClick: () => openDrawer({ type: "edit-plan", planId: plan.id, readOnly: true }),
+                                                onClick: () => openDrawer({ type: "edit-plan", planId: plan.id }),
                                                 className: dropdownItemClass,
-                                                children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "View Plan Builder"],
+                                                children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "Edit Plan"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
