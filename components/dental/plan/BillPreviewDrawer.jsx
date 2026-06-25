@@ -60,7 +60,9 @@ function downloadCombinedBillAsText(plans, planGroups, grandTotal) {
             lines.push(`${svc.treatment} (${toothLabel})`);
             lines.push(`  ${formatINR(svc.rate)}${svc.discount > 0 ? `  (-${formatINR(svc.discount)})` : ""}`);
         });
-        lines.push(`  Subtotal: ${formatINR(g.planTotal)}`);
+        lines.push(`  Subtotal: ${formatINR(g.subtotal)}`);
+        if (g.additionalDiscount > 0) lines.push(`  Additional Discount: -${formatINR(g.additionalDiscount)}`);
+        if (g.additionalDiscount > 0 || g.serviceDiscount > 0) lines.push(`  Plan Total: ${formatINR(g.planTotal)}`);
         lines.push("");
     });
     lines.push("=".repeat(52));
@@ -160,14 +162,34 @@ function PlanHeadingRow(planName) {
     });
 }
 
-function PlanSubtotalRow(planName, amount) {
-    return _jsxs("tr", {
+function PlanSubtotalRows(g) {
+    const rows = [];
+    rows.push(_jsxs("tr", {
         className: "bg-tp-slate-50/50",
         children: [
-            _jsxs("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[6px] text-right text-[12px] text-tp-slate-500", children: [planName, " Subtotal"] }),
-            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[6px] text-right text-[12px] font-medium text-tp-slate-700 tabular-nums", children: formatINR(amount) }),
+            _jsxs("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[6px] text-right text-[12px] text-tp-slate-500", children: [g.plan.name, " Subtotal"] }),
+            _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[6px] text-right text-[12px] font-medium text-tp-slate-700 tabular-nums", children: formatINR(g.subtotal) }),
         ],
-    });
+    }, `${g.plan.id}-subtotal`));
+    if (g.additionalDiscount > 0) {
+        rows.push(_jsxs("tr", {
+            className: "bg-tp-slate-50/50",
+            children: [
+                _jsx("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[6px] text-right text-[12px] text-tp-slate-500", children: "Additional Discount" }),
+                _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[6px] text-right text-[12px] font-medium text-tp-error-500 tabular-nums", children: `−${formatINR(g.additionalDiscount)}` }),
+            ],
+        }, `${g.plan.id}-adddisc`));
+    }
+    if (g.additionalDiscount > 0 || g.serviceDiscount > 0) {
+        rows.push(_jsxs("tr", {
+            className: "bg-tp-slate-50/50",
+            children: [
+                _jsxs("td", { colSpan: 4, className: "border border-tp-slate-200 px-[10px] py-[6px] text-right text-[12px] font-semibold text-tp-slate-700", children: [g.plan.name, " Total"] }),
+                _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[6px] text-right text-[12px] font-semibold text-tp-slate-800 tabular-nums", children: formatINR(g.planTotal) }),
+            ],
+        }, `${g.plan.id}-total`));
+    }
+    return rows;
 }
 
 export function BillPreviewDrawer() {
@@ -292,7 +314,7 @@ export function BillPreviewDrawer() {
                                                         rows.push(ServiceRow(svc, globalIdx));
                                                         globalIdx++;
                                                     });
-                                                    rows.push(PlanSubtotalRow(g.plan.name, g.planTotal));
+                                                    rows.push(...PlanSubtotalRows(g));
                                                     return rows;
                                                 }),
                                             }),
