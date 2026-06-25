@@ -25,7 +25,7 @@ function downloadBillAsText(plan, services, subtotal, serviceDiscount, additiona
     lines.push("Service".padEnd(40) + "Amount");
     lines.push("-".repeat(52));
     services.forEach((svc) => {
-        const toothLabel = svc.toothFdi === "full-mouth" ? "Full Mouth" : `T${svc.toothFdi} — ${svc.toothLabel}`;
+        const toothLabel = svc.toothFdi === "full-mouth" ? "Full Mouth" : `T${svc.toothFdi} ${svc.toothLabel}`;
         lines.push(`${svc.treatment} (${toothLabel})`);
         lines.push(`  ${formatINR(svc.rate)}${svc.discount > 0 ? `  (-${formatINR(svc.discount)})` : ""}`);
     });
@@ -180,7 +180,7 @@ export function BillPreviewDrawer() {
                                             }),
                                             _jsx("tbody", {
                                                 children: services.map((svc, idx) => {
-                                                    const toothDesc = svc.toothFdi === "full-mouth" ? "Full Mouth" : svc.toothFdis?.length > 1 ? `${svc.toothFdis.length} teeth (${svc.toothFdis.map(t => `T${t}`).join(", ")})` : `T${svc.toothFdi} — ${svc.toothLabel}`;
+                                                    const toothDesc = svc.toothFdi === "full-mouth" ? "Full Mouth" : svc.toothFdis?.length > 1 ? `${svc.toothFdis.length} teeth (${svc.toothFdis.map(t => `T${t}`).join(", ")})` : `T${svc.toothFdi} ${svc.toothLabel}`;
                                                     return _jsxs("tr", {
                                                         children: [
                                                             _jsx("td", { className: "border border-tp-slate-200 px-[8px] py-[7px] text-center text-tp-slate-500", children: idx + 1 }),

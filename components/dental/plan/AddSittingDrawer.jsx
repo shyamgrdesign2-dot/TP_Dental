@@ -109,10 +109,11 @@ export function AddSittingDrawer() {
     const toothSummary = service?.toothFdi === "full-mouth"
         ? "Full Mouth"
         : service
-            ? `T${service.toothFdi} — ${service.toothLabel}`
+            ? `T${service.toothFdi} ${service.toothLabel}`
             : "—";
-    const notesPreview = String(notes ?? "").trim()
-        ? String(notes ?? "").trim().split("\n")[0].trim()
+    const serviceNotes = String(service?.notes ?? "").trim();
+    const notesPreview = serviceNotes
+        ? serviceNotes.split("\n")[0].trim()
         : "—";
     const resetForm = () => {
         const current = new Date();

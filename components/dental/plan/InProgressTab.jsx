@@ -461,7 +461,7 @@ function buildProseConsultSummary(raw, maxLen = 400) {
                 const fdi = extractToothFdiToken(txt);
                 const afterParen = txt.replace(/^[\s\S]*?\)\s*(?:·|,|\s)*\s*/m, "").trim();
                 if (fdi && afterParen)
-                    pushUnique(tooth, `${fdi} — ${afterParen}`);
+                    pushUnique(tooth, `${fdi} ${afterParen}`);
                 else if (fdi)
                     pushUnique(tooth, fdi);
                 else
@@ -779,7 +779,6 @@ function ConsultationPreviewCard({ c, appointmentItems, patientId, plan, service
 
 /** Quick visit (sitting) — Preview Rx drawer: consultation notes + composed digital Rx (same shell as consultation preview). */
 function QuickVisitRxPreview({ sit, patientId, plan, service, previewOpen, onOpenChange, }) {
-    const [showChart, setShowChart] = useState(true);
     const patient = getAppointmentPatient(patientId || plan.patientId || "apt-1");
     const notesRaw = String(sit.notes ?? "").trim();
     const mobileDisplay = patient.mobile?.replace(/^\+91-/, "") ?? "—";
@@ -804,20 +803,6 @@ function QuickVisitRxPreview({ sit, patientId, plan, service, previewOpen, onOpe
                     action: _jsxs("div", {
                         className: "flex items-center gap-[8px]",
                         children: [
-                            _jsxs("button", {
-                                type: "button",
-                                onClick: () => setShowChart((v) => !v),
-                                className: "inline-flex h-9 shrink-0 cursor-pointer select-none items-center gap-[6px] rounded-[10px] bg-tp-slate-100 px-[10px] text-[12px] font-medium text-tp-slate-600 transition-colors hover:bg-tp-slate-200",
-                                "data-print-visible": true,
-                                "aria-label": "Toggle dental chart",
-                                children: [
-                                    _jsx("span", {
-                                        className: `flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-[4px] border transition-colors ${showChart ? "border-tp-blue-600 bg-tp-blue-600" : "border-tp-slate-300 bg-white"}`,
-                                        children: showChart && _jsx("svg", { width: 10, height: 10, viewBox: "0 0 10 10", fill: "none", children: _jsx("path", { d: "M2 5.5L4 7.5L8 3", stroke: "white", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" }) }),
-                                    }),
-                                    _jsx("span", { children: "Dental Chart" }),
-                                ],
-                            }),
                             _jsxs(Tooltip, { delayDuration: 200, children: [
                                 _jsx(TooltipTrigger, {
                                     asChild: true,
@@ -885,15 +870,18 @@ function QuickVisitRxPreview({ sit, patientId, plan, service, previewOpen, onOpe
                             _jsxs("div", {
                                 className: "px-[16px] py-[14px] text-[12px] text-tp-slate-700 space-y-[16px]",
                                 children: [
-                                    _jsx("p", { className: "text-[15px] font-bold text-tp-slate-900", children: service.treatment }),
                                     _jsxs("div", {
                                         className: "space-y-[4px]",
                                         children: [
-                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Teeth Details" }),
+                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400 mb-[6px]", children: "Treatment Details" }),
+                                            _jsxs("p", { children: [
+                                                _jsx("span", { className: "text-tp-slate-500", children: "Treatment: " }),
+                                                _jsx("span", { className: "font-semibold text-tp-slate-900", children: service.treatment }),
+                                            ] }),
                                             _jsxs("p", { children: [
                                                 _jsx("span", { className: "text-tp-slate-500", children: "Tooth: " }),
                                                 toothNum ? `T${toothNum}` : "—",
-                                                toothName && _jsxs("span", { className: "text-tp-slate-500", children: [" (", toothName, ")"] }),
+                                                toothName && _jsxs("span", { className: "text-tp-slate-500", children: [" ", toothName] }),
                                             ] }),
                                             (service.surfaces ?? []).length > 0 && _jsxs("p", {
                                                 children: [
@@ -924,25 +912,6 @@ function QuickVisitRxPreview({ sit, patientId, plan, service, previewOpen, onOpe
                                                 : _jsx("p", { className: "text-tp-slate-400 italic", children: "No clinical notes recorded." }),
                                         ],
                                     }),
-                                ],
-                            }),
-                            showChart && _jsxs("div", {
-                                className: "border-t border-tp-slate-100 px-[16px] py-[14px] space-y-[8px]",
-                                children: [
-                                    _jsxs("div", {
-                                        className: "flex items-center justify-between",
-                                        children: [
-                                            _jsx("p", { className: "text-[11px] font-semibold uppercase tracking-[0.05em] text-tp-slate-400", children: "Dental Chart" }),
-                                            _jsx("button", {
-                                                type: "button",
-                                                onClick: () => setShowChart(false),
-                                                className: "text-[12px] font-medium text-tp-blue-600 hover:text-tp-blue-700 transition-colors",
-                                                "data-print-visible": true,
-                                                children: "Hide",
-                                            }),
-                                        ],
-                                    }),
-                                    _jsx(FlatDentitionChart, { patientId: patientId || plan.patientId || "apt-1", alwaysRender: true }),
                                 ],
                             }),
                         ],
@@ -1157,7 +1126,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                     _jsxs(DropdownMenuItem, {
                                                         onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
                                                         className: dropdownItemClass,
-                                                        children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View work done"],
+                                                        children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View Service Bill"],
                                                     }),
                                                     _jsxs(DropdownMenuItem, {
                                                         onClick: () => setDeleteOpen(true),
@@ -1748,7 +1717,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                                 children: [
                                     _jsx("span", {
                                         className: "font-[‘Inter’,sans-serif] text-[13px] font-medium text-tp-slate-800 truncate mr-[8px]",
-                                        children: s.treatment + (s.toothLabel ? ` — ${s.toothLabel}` : ""),
+                                        children: s.treatment + (s.toothLabel ? ` ${s.toothLabel}` : ""),
                                     }),
                                     _jsx("span", {
                                         className: `shrink-0 rounded-[6px] px-[8px] py-[2px] font-[‘Inter’,sans-serif] text-[11px] font-semibold ${isUnresolved ? "bg-tp-warning-50 text-tp-warning-700" : "bg-tp-error-50 text-tp-error-700"}`,

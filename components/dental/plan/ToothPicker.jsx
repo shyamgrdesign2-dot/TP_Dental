@@ -36,6 +36,17 @@ const QUICK_SELECT_GROUPS = [
     { label: "L Arch", getTeeth: (q) => [...q.UL, ...q.LL] },
     { label: "Full", getTeeth: (q) => [...q.UR, ...q.UL, ...q.LR, ...q.LL] },
 ];
+const MIXED_QUADRANTS = {
+    UR: ["18", "17", "16", "55", "54", "53", "52", "51", "15", "14", "13", "12", "11"],
+    UL: ["21", "22", "23", "24", "25", "61", "62", "63", "64", "65", "26", "27", "28"],
+    LR: ["48", "47", "46", "85", "84", "83", "82", "81", "45", "44", "43", "42", "41"],
+    LL: ["31", "32", "33", "34", "35", "71", "72", "73", "74", "75", "36", "37", "38"],
+};
+const DENTITION_TABS = [
+    { key: "adult", label: "Adult" },
+    { key: "pedia", label: "Pedia" },
+    { key: "mixed", label: "Mixed" },
+];
 export function ToothPicker({ value, onChange, isPediatric = false, disabled, variant = "default", onOpenChange, autoOpen = false, expandChips = false }) {
     const [open, setOpenRaw] = useState(false);
     const setOpen = useCallback((next) => {
@@ -47,12 +58,11 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
     }, [onOpenChange]);
     const [dropdownStyle, setDropdownStyle] = useState({});
     const [mounted, setMounted] = useState(false);
-    // Becomes true only after the doctor closes (Done) with no teeth picked, so
-    // the neutral "Select here" placeholder turns into a red "required" message.
+    const [dentitionMode, setDentitionMode] = useState(isPediatric ? "pedia" : "adult");
     const [requiredError, setRequiredError] = useState(false);
     const triggerRef = useRef(null);
     const dropdownRef = useRef(null);
-    const quadrants = isPediatric ? PEDIATRIC_QUADRANTS : ADULT_QUADRANTS;
+    const quadrants = dentitionMode === "pedia" ? PEDIATRIC_QUADRANTS : dentitionMode === "mixed" ? MIXED_QUADRANTS : ADULT_QUADRANTS;
     const allTeeth = [...quadrants.UR, ...quadrants.UL, ...quadrants.LR, ...quadrants.LL];
     useEffect(() => { setMounted(true); }, []);
     // Auto-open on mount when requested (e.g. right after the doctor adds a row,
@@ -131,7 +141,7 @@ export function ToothPicker({ value, onChange, isPediatric = false, disabled, va
             window.removeEventListener("resize", reposition);
         };
     }, [open]);
-    const dropdown = open ? (_jsxs("div", { ref: dropdownRef, style: dropdownStyle, className: "rounded-[16px] border border-tp-slate-200 bg-white p-[16px]", children: [_jsxs("div", { className: "mb-[12px] flex items-start justify-between gap-[12px]", children: [_jsxs("div", { children: [_jsx("p", { className: "font-['Inter',sans-serif] text-[13px] font-semibold uppercase tracking-[0.5px] text-tp-slate-500", children: isPediatric ? "Pediatric Teeth" : "Select Teeth" }), _jsx("p", { className: "mt-[3px] font-['Inter',sans-serif] text-[12px] text-tp-slate-400", children: "Choose one, many, or switch to full-mouth mode." })] }), _jsx("div", { className: "inline-flex h-[24px] min-w-[24px] items-center justify-center rounded-full bg-tp-slate-100 px-[8px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600", children: value.includes("full-mouth") ? "FM" : value.length })] }), _jsx("div", { className: "mb-[12px] flex flex-wrap items-center gap-[4px]", children: QUICK_SELECT_GROUPS.map((g) => { const teeth = g.getTeeth(quadrants); const active = teeth.length > 0 && teeth.every((t) => value.includes(t)); return _jsx("button", { type: "button", onClick: () => onChange(active ? value.filter((v) => !teeth.includes(v)) : [...new Set([...value.filter((v) => v !== "full-mouth"), ...teeth])]), className: `inline-flex h-[28px] items-center rounded-[8px] px-[8px] font-['Inter',sans-serif] text-[11px] font-semibold transition-colors ${active ? "bg-tp-blue-500 text-white" : "bg-tp-slate-100 text-tp-slate-600 hover:bg-tp-slate-200"}`, children: g.label }, g.label); }) }), _jsx("div", { className: "mb-[12px] flex flex-col gap-[10px]", children: [
+    const dropdown = open ? (_jsxs("div", { ref: dropdownRef, style: dropdownStyle, className: "rounded-[16px] border border-tp-slate-200 bg-white p-[16px]", children: [_jsxs("div", { className: "mb-[12px] flex items-start justify-between gap-[12px]", children: [_jsxs("div", { children: [_jsx("p", { className: "font-['Inter',sans-serif] text-[13px] font-semibold uppercase tracking-[0.5px] text-tp-slate-500", children: "Select Teeth" }), _jsx("p", { className: "mt-[3px] font-['Inter',sans-serif] text-[12px] text-tp-slate-400", children: "Choose one, many, or switch to full-mouth mode." })] }), _jsx("div", { className: "inline-flex h-[24px] min-w-[24px] items-center justify-center rounded-full bg-tp-slate-100 px-[8px] font-['Inter',sans-serif] text-[12px] font-bold text-tp-slate-600", children: value.includes("full-mouth") ? "FM" : value.length })] }), _jsx("div", { className: "mb-[12px] flex items-center gap-[2px] rounded-[10px] bg-tp-slate-100 p-[3px]", children: DENTITION_TABS.map((tab) => _jsx("button", { type: "button", onClick: () => setDentitionMode(tab.key), className: `flex-1 rounded-[8px] px-[10px] py-[5px] font-['Inter',sans-serif] text-[12px] font-semibold transition-colors ${dentitionMode === tab.key ? "bg-white text-tp-slate-900 shadow-sm" : "text-tp-slate-500 hover:text-tp-slate-700"}`, children: tab.label }, tab.key)) }), _jsx("div", { className: "mb-[12px] flex flex-wrap items-center gap-[4px]", children: QUICK_SELECT_GROUPS.map((g) => { const teeth = g.getTeeth(quadrants); const active = teeth.length > 0 && teeth.every((t) => value.includes(t)); return _jsx("button", { type: "button", onClick: () => onChange(active ? value.filter((v) => !teeth.includes(v)) : [...new Set([...value.filter((v) => v !== "full-mouth"), ...teeth])]), className: `inline-flex h-[28px] items-center rounded-[8px] px-[8px] font-['Inter',sans-serif] text-[11px] font-semibold transition-colors ${active ? "bg-tp-blue-500 text-white" : "bg-tp-slate-100 text-tp-slate-600 hover:bg-tp-slate-200"}`, children: g.label }, g.label); }) }), _jsx("div", { className: "mb-[12px] flex flex-col gap-[10px]", children: [
                     ["Upper Right", quadrants.UR],
                     ["Upper Left", quadrants.UL],
                     ["Lower Right", quadrants.LR],
