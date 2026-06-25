@@ -382,9 +382,9 @@ export function PlanEstimatesTab() {
                                                     children: [_jsx(Printer, { size: 16, variant: "Linear", className: "mr-2" }), "Print All Estimates"],
                                                 }),
                                                 _jsxs(DropdownMenuItem, {
-                                                    onClick: () => openDrawer({ type: "bill-preview", planId: estimatePlans[0]?.id ?? "" }),
+                                                    onClick: () => openDrawer({ type: "bill-preview", planIds: estimatePlans.map(p => p.id) }),
                                                     className: dropdownItemClass,
-                                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "mr-2" }), "View Combined Bill"],
+                                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "mr-2" }), "View Combined Estimates"],
                                                 }),
                                             ],
                                         }),

@@ -5,7 +5,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
  * Each plan is an accordion — first open by default, one at a time.
  */
 import { useState } from "react";
-import { ArrowRotateLeft, Receipt1, Printer, DocumentText } from "iconsax-reactjs";
+import { ArrowRotateLeft, Receipt1, DocumentText } from "iconsax-reactjs";
 import { ChevronDown, MoreVertical } from "lucide-react";
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -149,7 +149,7 @@ function CompletedServiceRow({ service, plan, index }) {
                                 _jsxs(DropdownMenuItem, {
                                     onClick: () => openDrawer({ type: "bill-preview", planId: plan.id, serviceId: service.id }),
                                     className: dropdownItemClass,
-                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Plan Bill"],
+                                    children: [_jsx(Receipt1, { size: 16, variant: "Linear" }), "View Service Bill"],
                                 }),
                             ],
                         }),
@@ -275,7 +275,7 @@ function CompletedPlanCluster({ plan, index, isOpen, onToggle }) {
                                         _jsx("th", { className: "px-[14px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[36px]", children: "#" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400", children: "Service" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[70px]", children: "Tooth" }),
-                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Surgery Date" }),
+                                        _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Date" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[90px]", children: "Completed" }),
                                         _jsx("th", { className: "px-[8px] py-[7px] text-left font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[110px]", children: "Status" }),
                                         _jsx("th", { className: "px-[14px] py-[7px] text-right font-['Inter',sans-serif] text-[12px] font-semibold uppercase tracking-[0.5px] text-tp-slate-400 w-[80px]", children: "Amount" }),
@@ -366,33 +366,6 @@ export function CompletedTab() {
                                         _jsx("div", {
                                             className: "mt-[2px] inline-flex items-center rounded-[6px] bg-tp-slate-100 px-[8px] py-[2px] font-['Inter',sans-serif] text-[12px] font-medium text-tp-slate-500",
                                             children: formatINR(grandTotal),
-                                        }),
-                                    ],
-                                }),
-                            ],
-                        }),
-                        _jsxs(DropdownMenu, {
-                            children: [
-                                _jsx(DropdownMenuTrigger, {
-                                    asChild: true,
-                                    children: _jsx("button", {
-                                        type: "button",
-                                        className: "flex h-[32px] w-[32px] items-center justify-center rounded-[8px] hover:bg-tp-slate-100 transition-colors",
-                                        children: _jsx(MoreVertical, { size: 20, color: "var(--tp-slate-500)", strokeWidth: 2 }),
-                                    }),
-                                }),
-                                _jsxs(DropdownMenuContent, {
-                                    align: "end",
-                                    className: dropdownContentClass,
-                                    children: [
-                                        _jsxs(DropdownMenuItem, {
-                                            onClick: () => window.print(),
-                                            className: dropdownItemClass,
-                                            children: [_jsx(Printer, { size: 16, variant: "Linear", className: "mr-2" }), "Print All Completed"],
-                                        }),
-                                        _jsxs(DropdownMenuItem, {
-                                            className: dropdownItemClass,
-                                            children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "mr-2" }), "Export Billing Summary"],
                                         }),
                                     ],
                                 }),

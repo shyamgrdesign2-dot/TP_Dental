@@ -148,6 +148,58 @@ Uses Radix `DropdownMenu` — same pattern as `CalendarEventMenu`.
 
 ---
 
+## 13. Rx Preview Overhaul
+
+| Change | Detail |
+|--------|--------|
+| Tooth-number-only display | Bill preview and Rx drawers show `T{number}` only, not full anatomical names |
+| Edit Plan mode | Drawer opens in edit mode when triggered from in-progress plan menu |
+| Signature removal | Removed doctor signature block from Rx preview |
+| Edit Plan icon | Changed from `DocumentText` to `Edit2` (pencil) icon in active plan menu |
+
+**Files:** `RxPreviewDrawer.jsx`, `InProgressTab.jsx`, `BillPreviewDrawer.jsx`
+
+---
+
+## 14. Combined Estimates View
+
+View all plan estimates in a single bill-style drawer when multiple plans exist.
+
+| Feature | Detail |
+|---------|--------|
+| Menu entry | "View Combined Estimates" in Plan Estimates three-dot menu |
+| Layout | Plan heading row → service line items → plan subtotal, repeated per plan, then grand total |
+| Heading style | Neutral `bg-tp-slate-50` background for plan heading rows |
+| Single plan fallback | If only one plan exists, opens standard "Bill Preview" instead |
+| Text download | "Download as Text" generates combined multi-plan plain-text bill |
+
+**Files:** `BillPreviewDrawer.jsx`, `PlanEstimatesTab.jsx`
+
+---
+
+## 15. Active Plan Safeguards
+
+| Feature | Detail |
+|---------|--------|
+| Revert All to Plan — disabled | Grayed out and unclickable once any service has at least one visit recorded |
+| Delete Visit confirmation | Clicking "Delete visit" in the visit three-dot menu now shows a TPConfirmDialog with warning text before removing |
+
+**Files:** `InProgressTab.jsx`
+
+---
+
+## 16. Completed Tab Polish
+
+| Change | Detail |
+|--------|--------|
+| "Surgery Date" → "Date" | Shortened column header to prevent text wrapping |
+| "View Plan Bill" → "View Service Bill" | Service-level menu item renamed (plan-level stays "View Plan Bill") |
+| Removed header three-dot menu | Printer import and header menu removed from Completed tab |
+
+**Files:** `CompletedTab.jsx`
+
+---
+
 ## File Index
 
 | File | Sections | What changed |
@@ -156,11 +208,11 @@ Uses Radix `DropdownMenu` — same pattern as `CalendarEventMenu`.
 | `plan-types.ts` | 1 | Type defs for sittings, drawers, service status |
 | `AddEditPlanDrawer.jsx` | 2 | Rate/tooth, discount, auto-height rows, wider columns |
 | `AddSittingDrawer.jsx` | 4 | Simplified — notes only, no remarks |
-| `InProgressTab.jsx` | 1, 4, 5, 6, 8 | Decoupled visits, timeline, end plan, Visit Rx preview |
-| `CompletedTab.jsx` | 6 | View Rx / View Plan Bill, no-show red styling |
-| `PlanEstimatesTab.jsx` | 2 | Updated table columns |
-| `BillPreviewDrawer.jsx` | 3 | 5-column table, light stroke, rounded corners |
-| `RxPreviewDrawer.jsx` | 7 | Visit history + toggleable dental chart |
+| `InProgressTab.jsx` | 1, 4, 5, 6, 8, 13, 15 | Decoupled visits, timeline, end plan, Visit Rx preview, edit icon, revert guard, delete visit confirm |
+| `CompletedTab.jsx` | 6, 16 | View Rx / View Service Bill, date header, no-show red styling |
+| `PlanEstimatesTab.jsx` | 2, 14 | Updated table columns, View Combined Estimates |
+| `BillPreviewDrawer.jsx` | 3, 14 | 5-column table, combined multi-plan estimates view |
+| `RxPreviewDrawer.jsx` | 7, 13 | Visit history + toggleable dental chart, signature removal |
 | `ToothPicker.jsx` | 2 | 6-chip layout, overflow tooltip |
 | `plan-print-styles.css` | 3 | Lighter print borders, rounded table |
 | `ExaminationTab.jsx` | 10, 11 | WHEN column + snapshot date formatting |

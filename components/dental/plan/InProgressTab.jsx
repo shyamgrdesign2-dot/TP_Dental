@@ -935,6 +935,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
     const [markDoneOpen, setMarkDoneOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     // Appointment cancellation dialog state
+    const [confirmDeleteVisit, setConfirmDeleteVisit] = useState(null);
     const [cancelTarget, setCancelTarget] = useState(null);
     const [cancelReason, setCancelReason] = useState("");
     const openCancelDialog = (appt) => {
@@ -999,7 +1000,8 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
         });
     };
 
-    return _jsxs("div", {
+    return _jsxs(_Fragment, { children: [
+        _jsxs("div", {
         className: "flex shrink-0 min-w-0 w-full flex-col overflow-hidden rounded-[16px] border border-tp-slate-200/60 bg-white",
         children: [
             _jsxs("div", {
@@ -1318,7 +1320,7 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                                                                                         }),
                                                                                                         _jsxs(DropdownMenuItem, {
                                                                                                             className: "rounded-[8px] !gap-[6px] focus:bg-red-50 data-[highlighted]:bg-red-50",
-                                                                                                            onClick: () => dispatch({ type: "REMOVE_SITTING", serviceId: service.id, sittingId: sit.id }),
+                                                                                                            onClick: () => setConfirmDeleteVisit({ serviceId: service.id, sittingId: sit.id, label: `Visit ${idx + 1}` }),
                                                                                                             children: [_jsx(Trash, { size: 16, variant: "Linear", className: "text-tp-error-600" }), _jsx("span", { className: "text-tp-error-600", children: "Delete visit" })],
                                                                                                         }),
                                                                                                     ],
@@ -1541,6 +1543,23 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                 }),
             }),
         ],
+    }),
+            _jsx(TPConfirmDialog, {
+                open: !!confirmDeleteVisit,
+                onOpenChange: (open) => !open && setConfirmDeleteVisit(null),
+                title: "Delete Visit",
+                warning: confirmDeleteVisit ? `Are you sure you want to delete ${confirmDeleteVisit.label}? All clinical notes and records for this visit will be permanently removed.` : "",
+                secondaryLabel: "Cancel",
+                primaryLabel: "Delete Visit",
+                primaryTone: "destructive",
+                onPrimary: () => {
+                    if (confirmDeleteVisit) {
+                        dispatch({ type: "REMOVE_SITTING", serviceId: confirmDeleteVisit.serviceId, sittingId: confirmDeleteVisit.sittingId });
+                    }
+                    setConfirmDeleteVisit(null);
+                },
+            }),
+        ],
     });
 }
 
@@ -1562,6 +1581,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
     // Accordion — first service open by default, one at a time.
     const [openServiceIndex, setOpenServiceIndex] = useState(0);
     const services = plan.services;
+    const hasAnyVisits = services.some(s => (s.sittings ?? []).length > 0);
     const unresolvedServices = services.filter((s) => {
         const ws = getServiceWorkflowStatus(s);
         return !RESOLVED_STATUSES.has(ws);
@@ -1660,7 +1680,7 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "edit-plan", planId: plan.id }),
                                                 className: dropdownItemClass,
-                                                children: [_jsx(DocumentText, { size: 16, variant: "Linear", className: "" }), "Edit Plan"],
+                                                children: [_jsx(Edit2, { size: 16, variant: "Linear", className: "" }), "Edit Plan"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
                                                 onClick: () => openDrawer({ type: "bill-preview", planId: plan.id }),
@@ -1668,11 +1688,12 @@ function PlanClusterCard({ plan, collapsed = false, onToggleCollapse }) {
                                                 children: [_jsx(Receipt1, { size: 16, variant: "Linear", className: "" }), "View Plan Bill"],
                                             }),
                                             _jsxs(DropdownMenuItem, {
-                                                onClick: () => setRevertAllOpen(true),
+                                                onClick: () => !hasAnyVisits && setRevertAllOpen(true),
+                                                disabled: hasAnyVisits,
                                                 className: "rounded-[8px] !gap-[6px] focus:bg-tp-warning-50 data-[highlighted]:bg-tp-warning-50",
                                                 children: [
-                                                    _jsx(ArrowRotateLeft, { size: 16, variant: "Linear", className: "text-tp-warning-600" }),
-                                                    _jsx("span", { className: "text-tp-warning-600", children: "Revert All to Plan" }),
+                                                    _jsx(ArrowRotateLeft, { size: 16, variant: "Linear", className: hasAnyVisits ? "text-tp-slate-400" : "text-tp-warning-600" }),
+                                                    _jsx("span", { className: hasAnyVisits ? "text-tp-slate-400" : "text-tp-warning-600", children: "Revert All to Plan" }),
                                                 ],
                                             }),
                                             _jsx(DropdownMenuSeparator, {}),
