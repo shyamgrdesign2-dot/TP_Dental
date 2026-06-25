@@ -54,6 +54,16 @@ const TIMELINE_MENU_TRIGGER_CLASS = "inline-flex h-[16px] w-[20px] min-h-[16px] 
 const SERVICE_HEADER_ACTION_CLASS = "inline-flex shrink-0 items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-600 transition-colors hover:bg-tp-slate-200/90";
 const PREVIEW_RX_ICON_BTN_CLASS = "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-tp-slate-100 text-tp-slate-600 transition-colors hover:bg-tp-slate-200";
 
+function formatProcedureDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return dateStr;
+    const day = d.getDate();
+    const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()];
+    const yr = String(d.getFullYear()).slice(-2);
+    return `${day} ${mon} ${yr}`;
+}
+
 const APPT_MONTH_SHORT = {
     jan: "Jan", january: "Jan",
     feb: "Feb", february: "Feb",
@@ -1199,6 +1209,17 @@ function ServiceSubCard({ service, plan, index, isOpen, onToggle }) {
                                         children: [
                                             _jsx("span", { className: "font-semibold text-tp-slate-700", children: "Amount:" }),
                                             _jsx("span", { className: "font-semibold text-tp-slate-800 tabular-nums", children: formatINR(service.amount) }),
+                                        ],
+                                    }),
+                                    _jsx("span", { "aria-hidden": true, className: "h-3 w-px bg-tp-slate-300" }),
+                                    _jsxs("div", {
+                                        className: "inline-flex items-baseline gap-[4px] min-w-0",
+                                        children: [
+                                            _jsx("span", { className: "font-semibold text-tp-slate-700", children: "Surgery Date:" }),
+                                            _jsx("span", {
+                                                className: formatProcedureDate(service.procedureDate) ? "" : "text-tp-slate-400",
+                                                children: formatProcedureDate(service.procedureDate) || "—",
+                                            }),
                                         ],
                                     }),
                                     _jsx("span", { "aria-hidden": true, className: "h-3 w-px bg-tp-slate-300" }),
