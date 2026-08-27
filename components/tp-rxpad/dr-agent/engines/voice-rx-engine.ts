@@ -91,6 +91,19 @@ const SECTION_RULES: SectionRule[] = [
 
 // ─── Parsing logic ───────────────────────────────────────────────
 
+/**
+ * Word-boundary keyword match. Short abbreviations like "tab"/"cap" must not
+ * match as substrings inside unrelated words (e.g. "tab" inside "stable",
+ * "cap" inside "escape"), which would otherwise mis-claim a dental clause as a
+ * medication line.
+ */
+function keywordHit(haystackLower: string, kw: string): boolean {
+  const k = kw.toLowerCase().trim()
+  if (!k) return false
+  const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(haystackLower)
+}
+
 function extractSections(text: string): VoiceRxSection[] {
   const sentences = text.split(/[.;]+/).map((s) => s.trim()).filter(Boolean)
   const result: VoiceRxSection[] = []
@@ -102,7 +115,7 @@ function extractSections(text: string): VoiceRxSection[] {
   for (const rule of SECTION_RULES) {
     for (let si = 0; si < sentences.length; si++) {
       const sentenceLower = sentences[si].toLowerCase()
-      if (rule.startKeywords.some((kw) => sentenceLower.includes(kw))) {
+      if (rule.startKeywords.some((kw) => keywordHit(sentenceLower, kw))) {
         claimedSentences.add(si)
       }
     }
@@ -116,10 +129,13 @@ function extractSections(text: string): VoiceRxSection[] {
       const sentence = sentences[si]
       const sentenceLower = sentence.toLowerCase()
 
-      const isStartKeyword = rule.startKeywords.some((kw) => sentenceLower.includes(kw))
+      const isStartKeyword = rule.startKeywords.some((kw) => keywordHit(sentenceLower, kw))
 
-      // Only use itemKeyword matching for unclaimed sentences
-      const matchingItemKeywords = !claimedSentences.has(si)
+      // Only use itemKeyword matching for unclaimed sentences, and never let a
+      // dental-examination clause (e.g. "cold test delayed", "buccal caries")
+      // bleed into the general Rx sections — those are handled by the dental
+      // engine. Sentences explicitly claimed by a startKeyword still apply.
+      const matchingItemKeywords = !claimedSentences.has(si) && !isClinicalDentalSentence(sentence)
         ? rule.itemKeywords.filter((kw) => sentenceLower.includes(kw.toLowerCase()))
         : []
 
@@ -480,7 +496,15 @@ export function enrichVoiceStructuredWithPatientContext(
   const lv = summary.lastVisit
   const intake = summary.symptomCollectorData
 
-  if (!sections.some((s) => s.sectionId === "symptoms")) {
+  // A dental-focused note (teeth captured, no general medication/lab dictated)
+  // should surface only the teeth-relevant symptoms and the dental examination
+  // — do not back-fill general Rx medication / lab sections from patient context.
+  const dentalFocused =
+    dentalTeeth.length > 0
+    && !base.sections.some((s) => s.sectionId === "medication")
+    && !base.sections.some((s) => s.sectionId === "investigation")
+
+  if (!dentalFocused && !sections.some((s) => s.sectionId === "symptoms")) {
     const items: VoiceRxItem[] = []
     if (intake?.symptoms?.length) {
       items.push(
@@ -495,7 +519,7 @@ export function enrichVoiceStructuredWithPatientContext(
     sections = ensureSection(sections, "symptoms", "Symptoms", "thermometer", items)
   }
 
-  if (!sections.some((s) => s.sectionId === "medication")) {
+  if (!dentalFocused && !sections.some((s) => s.sectionId === "medication")) {
     const items: VoiceRxItem[] = []
     if (lv?.medication) {
       const parts = lv.medication.split(",").map((p) => p.trim()).filter(Boolean).slice(0, 6)
@@ -506,7 +530,7 @@ export function enrichVoiceStructuredWithPatientContext(
     sections = ensureSection(sections, "medication", "Medication", "Tablets", items)
   }
 
-  if (!sections.some((s) => s.sectionId === "investigation")) {
+  if (!dentalFocused && !sections.some((s) => s.sectionId === "investigation")) {
     const items: VoiceRxItem[] = []
     if (lv?.labTestsSuggested?.trim()) {
       const parts = lv.labTestsSuggested.split(/[,;]+/).map((p) => p.trim()).filter(Boolean).slice(0, 8)

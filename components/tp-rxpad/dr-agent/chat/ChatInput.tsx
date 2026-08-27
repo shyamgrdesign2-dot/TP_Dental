@@ -376,15 +376,10 @@ export function ChatInput({
 
   const handleSendRecording = useCallback(() => {
     const mockTranscribedText =
-      "Patient complaining of fever since 3 days, dry cough and body ache since 2 days. " +
-      "On examination, throat congested, bilateral chest clear, no lymphadenopathy. " +
-      "Diagnosis: Acute viral pharyngitis with allergic rhinitis. " +
-      "Prescribing Paracetamol 650mg 1-0-1 after food for 5 days, Cetirizine 10mg 0-0-1 for 5 days, Pantoprazole 40mg 1-0-0 before breakfast for 5 days. " +
-      "Advising rest, warm fluids, steam inhalation, salt gargle twice daily. " +
-      "Suggest test CBC, ESR if fever persists. " +
-      "Dental examination dictation. Tooth number 22: implant crown in place; buccal plaque and light stain; patient states placement August 2022; occlusion stable. " +
-      "Tooth number 24: cavitated caries buccal toward contact; sealant on occlusal since 2016 with partial mesial loss; cold test delayed versus adjacent. " +
-      "Follow up in 5 days if not better."
+      "Dental examination dictation. " +
+      "Chief complaint tooth pain and cold sensitivity upper left since 1 week. " +
+      "Tooth number 22 implant crown in place with buccal plaque and light stain, patient states placement August 2022, occlusion stable. " +
+      "Tooth number 24 cavitated caries buccal toward contact, old occlusal sealant since 2016 with partial mesial loss, cold test delayed versus adjacent."
 
     if (onVoiceTranscription) {
       onVoiceTranscription(mockTranscribedText)
