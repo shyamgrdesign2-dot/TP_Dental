@@ -227,7 +227,25 @@ function extractSinceLabel(sentence: string): string | undefined {
     const mon = map[u]
     if (mon) return `${mon} ${short[2]}`
   }
+  // Bare year, e.g. "sealant since 2016" or "placed 2016".
+  const year = sentence.match(/\b(19|20)\d{2}\b/)
+  if (year) return year[0]
   return undefined
+}
+
+const ZONE_SURFACE_LABEL: Record<ZoneId, string> = {
+  occlusal: "Occlusal",
+  buccal: "Buccal",
+  lingual: "Lingual",
+  mesial: "Mesial",
+  distal: "Distal",
+  cervical: "Cervical",
+  root: "Root",
+  whole: "Whole tooth",
+}
+
+function zoneSurfaceLabel(zone: ZoneId): string {
+  return ZONE_SURFACE_LABEL[zone] ?? "Whole tooth"
 }
 
 function inferZoneFromSentence(sentence: string): ZoneId {
@@ -301,7 +319,43 @@ function patchDentalTooth(map: Map<string, DentalScanToothRow>, fdi: string, pat
 }
 
 /**
+ * Back-fill a placement/since date onto the most recent treatment-history row
+ * that is still missing one — handles dictation where the date is spoken in a
+ * later clause than the treatment (e.g. "…implant crown in place, patient
+ * states placement August 2022").
+ */
+function patchToothSince(map: Map<string, DentalScanToothRow>, fdi: string, since: string) {
+  const cur = map.get(fdi)
+  if (!cur?.treatmentHistoryRows?.length) return
+  const rows = [...cur.treatmentHistoryRows]
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (!rows[i].since?.trim()) {
+      const notes = /confirm placement date/i.test(rows[i].notes ?? "")
+        ? "Placement date per patient report"
+        : rows[i].notes
+      rows[i] = { ...rows[i], since, notes }
+      map.set(fdi, { ...cur, treatmentHistoryRows: rows })
+      return
+    }
+  }
+}
+
+/** Clauses that describe a clinical note (vitality / occlusion / mobility) rather than a finding. */
+function isDentalNoteClause(clause: string): boolean {
+  return /\b(cold test|hot test|vitality|percussion|palpation|occlusion|mobility|probing|tender(?:ness)?|sensitiv|delayed response|delayed)\b/i.test(
+    clause,
+  )
+}
+
+/**
  * Heuristic extraction of dental examination from voice (FDI, common tooth names, keywords).
+ *
+ * A dictated tooth is described across several comma-separated clauses, e.g.
+ * "Tooth 24 cavitated caries buccal, old occlusal sealant since 2016 with
+ * partial mesial loss, cold test delayed". We parse clause by clause and carry
+ * the active tooth forward so every dictated detail (findings, prior treatment,
+ * placement dates, vitality notes) lands on the right tooth — keeping the
+ * structured card in parity with what the doctor actually said.
  */
 export function extractDentalTeethFromVoice(text: string): DentalScanToothRow[] {
   const map = new Map<string, DentalScanToothRow>()
@@ -330,56 +384,81 @@ export function extractDentalTeethFromVoice(text: string): DentalScanToothRow[] 
     if (VALID_FDI.has(fdi)) ensureDentalTooth(map, fdi)
   }
 
+  // Carry the active tooth across clauses within the dental dictation.
+  let activeFdis: string[] = []
+
   for (const sentence of text.split(/[.;]+/).map((s) => s.trim()).filter(Boolean)) {
-    if (!isClinicalDentalSentence(sentence)) continue
-    const fdis = fdisInSentence(sentence)
-    if (fdis.length === 0) continue
+    for (const clause of sentence.split(/,/).map((c) => c.trim()).filter(Boolean)) {
+      const clauseFdis = fdisInSentence(clause)
+      if (clauseFdis.length > 0) activeFdis = clauseFdis
+      const targets = clauseFdis.length ? clauseFdis : activeFdis
+      if (targets.length === 0) continue
 
-    const zone = inferZoneFromSentence(sentence)
-    const newFindings: NonNullable<DentalScanToothRow["findings"]> = []
-    if (/\bcaries|cavity|decay|lesion\b/i.test(sentence)) {
-      newFindings.push({ zoneId: zone, type: "Caries", notes: truncateDentalNote(sentence) })
-    }
-    if (/\bstain|staining\b/i.test(sentence)) {
-      newFindings.push({ zoneId: zone, type: "Staining", notes: truncateDentalNote(sentence) })
-    }
-    if (/\bcalculus|plaque\b/i.test(sentence)) {
-      newFindings.push({ zoneId: "cervical", type: "Calculus", notes: truncateDentalNote(sentence) })
-    }
+      const since = extractSinceLabel(clause)
+      const isDental = isClinicalDentalSentence(clause)
+      const isNote = isDentalNoteClause(clause)
+      // A bare placement date ("patient states placement August 2022") belongs
+      // to a tooth already in context even though it has no dental keyword.
+      if (!isDental && !isNote && !since) continue
 
-    const newDx: string[] = []
-    if (/\brct|root\s+canal\b/i.test(sentence)) newDx.push("RCT")
-    if (
-      /\bcrown\b/i.test(sentence)
-      && !/\bimplant\s*(?:with|\+)\s*crown\b/i.test(sentence)
-      && !/\bcrown\s+on\s+implant\b/i.test(sentence)
-    ) {
-      newDx.push("Crown")
-    }
+      const zone = inferZoneFromSentence(clause)
 
-    const implantMention = /\bimplant\b/i.test(sentence)
-    const since = extractSinceLabel(sentence)
+      const newFindings: NonNullable<DentalScanToothRow["findings"]> = []
+      if (/\bcaries|cavity|decay|lesion\b/i.test(clause)) {
+        newFindings.push({ zoneId: zone, type: "Caries", notes: truncateDentalNote(clause) })
+      }
+      if (/\bstain|staining\b/i.test(clause)) {
+        newFindings.push({ zoneId: zone, type: "Staining", notes: truncateDentalNote(clause) })
+      }
+      if (/\bcalculus|plaque\b/i.test(clause)) {
+        newFindings.push({ zoneId: zone, type: "Calculus", notes: truncateDentalNote(clause) })
+      }
 
-    for (const fdi of fdis) {
+      const newDx: string[] = []
+      if (/\brct|root\s+canal\b/i.test(clause)) newDx.push("RCT")
+      if (
+        /\bcrown\b/i.test(clause)
+        && !/\bimplant\s*(?:with|\+)\s*crown\b/i.test(clause)
+        && !/\bcrown\s+on\s+implant\b/i.test(clause)
+      ) {
+        newDx.push("Crown")
+      }
+
+      const implantMention = /\bimplant\b/i.test(clause)
+      const sealantMention = /\bsealant\b/i.test(clause)
+
+      const newHistoryRows: NonNullable<DentalScanToothRow["treatmentHistoryRows"]> = []
+      if (implantMention) {
+        newHistoryRows.push({
+          name: "Endosseous implant + superstructure",
+          surface: "Whole tooth",
+          since,
+          notes: since ? "Placement date per patient report" : "Confirm placement date in records",
+        })
+      }
+      if (sealantMention) {
+        const lossMatch = clause.match(/((?:partial|complete|full)[^,]*loss|[a-z]+\s+loss)/i)
+        newHistoryRows.push({
+          name: "Resin sealant",
+          surface: /\bocclusal\b/i.test(clause) ? "Occlusal" : zoneSurfaceLabel(zone),
+          since,
+          notes: lossMatch ? lossMatch[1].trim().replace(/^\w/, (c) => c.toUpperCase()) : undefined,
+        })
+      }
+
       const patch: Partial<DentalScanToothRow> = {
         findings: newFindings.length ? newFindings : undefined,
         diagnoses: newDx.length ? newDx : undefined,
+        treatmentHistoryRows: newHistoryRows.length ? newHistoryRows : undefined,
       }
-      if (implantMention) {
-        patch.implant = true
-        patch.treatmentHistoryRows = [
-          {
-            name: "Endosseous implant + superstructure",
-            surface: "Whole tooth",
-            since,
-            notes: since ? "Placement date per patient report" : "Confirm placement date in records",
-          },
-        ]
+      if (implantMention) patch.implant = true
+      if (isNote) patch.scannerNotes = truncateDentalNote(clause)
+
+      for (const fdi of targets) {
+        patchDentalTooth(map, fdi, patch)
+        // A date-only clause updates the treatment row created in an earlier clause.
+        if (since && newHistoryRows.length === 0) patchToothSince(map, fdi, since)
       }
-      if (/\bpatient\s+(states|says|reports)\b/i.test(sentence) || (implantMention && since)) {
-        patch.scannerNotes = truncateDentalNote(sentence)
-      }
-      patchDentalTooth(map, fdi, patch)
     }
   }
 
